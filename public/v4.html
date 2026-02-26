@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rezepti — Rezepte aus dem Netz</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Playfair Display', 'Georgia', 'serif'],
+            body: ['Outfit', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            midnight: '#0C0A09',
+            gold: { DEFAULT: '#D4A847', light: '#E8DCC8', dark: '#B8922E' },
+            champagne: '#E8DCC8',
+            burgundy: { DEFAULT: '#6B1D2A', light: '#8B2D3A', dark: '#4A1018' },
+            smoke: '#2A2522',
+            charcoal: '#1A1715',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* ===== ART DECO BACKGROUND PATTERN ===== */
+    .deco-bg {
+      position: relative;
+      background-color: #0C0A09;
+    }
+    .deco-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23D4A847' stroke-width='0.5'%3E%3Cpath d='M40 0 L80 40 L40 80 L0 40Z'/%3E%3Cpath d='M40 10 L70 40 L40 70 L10 40Z'/%3E%3Cpath d='M40 20 L60 40 L40 60 L20 40Z'/%3E%3Cline x1='40' y1='0' x2='40' y2='80'/%3E%3Cline x1='0' y1='40' x2='80' y2='40'/%3E%3C/g%3E%3C/svg%3E");
+      background-repeat: repeat;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ===== SUNBURST PATTERN ===== */
+    .sunburst {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -60%);
+      opacity: 0.03;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0deg, #D4A847 2deg, transparent 4deg,
+        transparent 10deg, #D4A847 12deg, transparent 14deg,
+        transparent 20deg, #D4A847 22deg, transparent 24deg,
+        transparent 30deg, #D4A847 32deg, transparent 34deg,
+        transparent 40deg, #D4A847 42deg, transparent 44deg,
+        transparent 50deg, #D4A847 52deg, transparent 54deg,
+        transparent 60deg, #D4A847 62deg, transparent 64deg,
+        transparent 70deg, #D4A847 72deg, transparent 74deg,
+        transparent 80deg, #D4A847 82deg, transparent 84deg,
+        transparent 90deg, #D4A847 92deg, transparent 94deg,
+        transparent 100deg, #D4A847 102deg, transparent 104deg,
+        transparent 110deg, #D4A847 112deg, transparent 114deg,
+        transparent 120deg, #D4A847 122deg, transparent 124deg,
+        transparent 130deg, #D4A847 132deg, transparent 134deg,
+        transparent 140deg, #D4A847 142deg, transparent 144deg,
+        transparent 150deg, #D4A847 152deg, transparent 154deg,
+        transparent 160deg, #D4A847 162deg, transparent 164deg,
+        transparent 170deg, #D4A847 172deg, transparent 174deg,
+        transparent 180deg, #D4A847 182deg, transparent 184deg,
+        transparent 190deg, #D4A847 192deg, transparent 194deg,
+        transparent 200deg, #D4A847 202deg, transparent 204deg,
+        transparent 210deg, #D4A847 212deg, transparent 214deg,
+        transparent 220deg, #D4A847 222deg, transparent 224deg,
+        transparent 230deg, #D4A847 232deg, transparent 234deg,
+        transparent 240deg, #D4A847 242deg, transparent 244deg,
+        transparent 250deg, #D4A847 252deg, transparent 254deg,
+        transparent 260deg, #D4A847 262deg, transparent 264deg,
+        transparent 270deg, #D4A847 272deg, transparent 274deg,
+        transparent 280deg, #D4A847 282deg, transparent 284deg,
+        transparent 290deg, #D4A847 292deg, transparent 294deg,
+        transparent 300deg, #D4A847 302deg, transparent 304deg,
+        transparent 310deg, #D4A847 312deg, transparent 314deg,
+        transparent 320deg, #D4A847 322deg, transparent 324deg,
+        transparent 330deg, #D4A847 332deg, transparent 334deg,
+        transparent 340deg, #D4A847 342deg, transparent 344deg,
+        transparent 350deg, #D4A847 352deg, transparent 354deg,
+        transparent 360deg
+      );
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ===== GOLD SHIMMER TEXT ===== */
+    .gold-shimmer {
+      background: linear-gradient(
+        135deg,
+        #B8922E 0%,
+        #D4A847 25%,
+        #F5E6B8 45%,
+        #D4A847 55%,
+        #E8DCC8 70%,
+        #D4A847 85%,
+        #B8922E 100%
+      );
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 6s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* ===== FLOATING GOLD PARTICLES ===== */
+    .particles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #D4A847;
+      border-radius: 50%;
+      opacity: 0;
+      animation: float-up linear infinite;
+    }
+    .particle:nth-child(1)  { left: 8%;  animation-duration: 12s; animation-delay: 0s; }
+    .particle:nth-child(2)  { left: 15%; animation-duration: 15s; animation-delay: 2s; }
+    .particle:nth-child(3)  { left: 25%; animation-duration: 10s; animation-delay: 4s; }
+    .particle:nth-child(4)  { left: 35%; animation-duration: 14s; animation-delay: 1s; }
+    .particle:nth-child(5)  { left: 45%; animation-duration: 11s; animation-delay: 3s; }
+    .particle:nth-child(6)  { left: 55%; animation-duration: 13s; animation-delay: 5s; }
+    .particle:nth-child(7)  { left: 65%; animation-duration: 16s; animation-delay: 2s; }
+    .particle:nth-child(8)  { left: 72%; animation-duration: 9s;  animation-delay: 6s; }
+    .particle:nth-child(9)  { left: 80%; animation-duration: 12s; animation-delay: 1s; }
+    .particle:nth-child(10) { left: 90%; animation-duration: 14s; animation-delay: 4s; }
+    .particle:nth-child(11) { left: 12%; animation-duration: 17s; animation-delay: 7s; width: 3px; height: 3px; }
+    .particle:nth-child(12) { left: 40%; animation-duration: 13s; animation-delay: 3s; width: 1px; height: 1px; }
+    .particle:nth-child(13) { left: 58%; animation-duration: 11s; animation-delay: 8s; }
+    .particle:nth-child(14) { left: 78%; animation-duration: 15s; animation-delay: 5s; width: 1px; height: 1px; }
+    .particle:nth-child(15) { left: 95%; animation-duration: 10s; animation-delay: 2s; }
+
+    @keyframes float-up {
+      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 0.6; }
+      50%  { opacity: 0.3; }
+      90%  { opacity: 0; }
+      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+    }
+
+    /* ===== ENTRANCE ANIMATIONS ===== */
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes line-draw {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+    @keyframes diamond-spin {
+      from { transform: rotate(0deg); opacity: 0; }
+      to   { transform: rotate(45deg); opacity: 1; }
+    }
+
+    .anim-rise-1 { opacity: 0; animation: rise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards; }
+    .anim-rise-2 { opacity: 0; animation: rise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards; }
+    .anim-rise-3 { opacity: 0; animation: rise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.8s forwards; }
+    .anim-rise-4 { opacity: 0; animation: rise 1s cubic-bezier(0.22, 1, 0.36, 1) 1.1s forwards; }
+    .anim-rise-5 { opacity: 0; animation: rise 1s cubic-bezier(0.22, 1, 0.36, 1) 1.4s forwards; }
+    .anim-fade   { opacity: 0; animation: fade-in 1.5s ease 0.3s forwards; }
+    .anim-line   { transform: scaleX(0); animation: line-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards; }
+    .anim-diamond { opacity: 0; animation: diamond-spin 0.8s ease 0.4s forwards; }
+
+    /* ===== LOADING DOT ===== */
+    .loading-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #D4A847;
+      animation: dot-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes dot-pulse {
+      0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ===== PREMIUM INPUT ===== */
+    .premium-input {
+      background: rgba(26, 23, 21, 0.8);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(212, 168, 71, 0.2);
+      transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .premium-input:focus {
+      border-color: rgba(212, 168, 71, 0.7);
+      box-shadow:
+        0 0 0 1px rgba(212, 168, 71, 0.1),
+        0 0 30px rgba(212, 168, 71, 0.08),
+        inset 0 0 20px rgba(212, 168, 71, 0.03);
+      background: rgba(26, 23, 21, 0.95);
+    }
+    .premium-input::placeholder {
+      color: rgba(232, 220, 200, 0.3);
+      font-style: italic;
+    }
+
+    /* ===== GOLD BUTTON ===== */
+    .gold-btn {
+      background: linear-gradient(135deg, #B8922E 0%, #D4A847 50%, #E8DCC8 100%);
+      color: #0C0A09;
+      font-weight: 600;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+    .gold-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.6s ease;
+    }
+    .gold-btn:hover::before {
+      left: 100%;
+    }
+    .gold-btn:hover {
+      box-shadow: 0 0 30px rgba(212, 168, 71, 0.3);
+      transform: translateY(-1px);
+    }
+    .gold-btn:active {
+      transform: translateY(0);
+    }
+    .gold-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .gold-btn:disabled::before {
+      display: none;
+    }
+
+    /* ===== DECO SEPARATOR ===== */
+    .deco-sep {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .deco-sep .line {
+      height: 1px;
+      width: 60px;
+      background: linear-gradient(90deg, transparent, rgba(212, 168, 71, 0.5), transparent);
+    }
+    .deco-sep .diamond {
+      width: 8px;
+      height: 8px;
+      border: 1px solid rgba(212, 168, 71, 0.5);
+      transform: rotate(45deg);
+    }
+
+    /* ===== PLATFORM BADGES ===== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      border: 1px solid rgba(212, 168, 71, 0.25);
+      border-radius: 2px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: rgba(232, 220, 200, 0.7);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: rgba(212, 168, 71, 0.04);
+      transition: all 0.3s ease;
+    }
+    .badge:hover {
+      border-color: rgba(212, 168, 71, 0.5);
+      color: #D4A847;
+      background: rgba(212, 168, 71, 0.08);
+      box-shadow: 0 0 15px rgba(212, 168, 71, 0.06);
+    }
+    .badge svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.7;
+    }
+
+    /* ===== CARD STYLE ===== */
+    .deco-card {
+      background: rgba(26, 23, 21, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(212, 168, 71, 0.12);
+      position: relative;
+    }
+    .deco-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 20px; height: 20px;
+      border-top: 1px solid rgba(212, 168, 71, 0.3);
+      border-left: 1px solid rgba(212, 168, 71, 0.3);
+    }
+    .deco-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 20px; height: 20px;
+      border-bottom: 1px solid rgba(212, 168, 71, 0.3);
+      border-right: 1px solid rgba(212, 168, 71, 0.3);
+    }
+
+    /* ===== PROGRESS LOG ===== */
+    #progress-log {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(212, 168, 71, 0.3) transparent;
+    }
+    #progress-log::-webkit-scrollbar { width: 4px; }
+    #progress-log::-webkit-scrollbar-track { background: transparent; }
+    #progress-log::-webkit-scrollbar-thumb { background: rgba(212, 168, 71, 0.3); border-radius: 2px; }
+
+    /* ===== RECIPE COVER ===== */
+    #recipe-cover {
+      background-size: cover;
+      background-position: center;
+    }
+
+    /* ===== RESULT SECTION STYLING ===== */
+    #recipe-ingredients li {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(212, 168, 71, 0.08);
+      color: rgba(232, 220, 200, 0.8);
+      font-family: 'Outfit', sans-serif;
+    }
+    #recipe-ingredients li:last-child {
+      border-bottom: none;
+    }
+    #recipe-steps li {
+      padding: 10px 0;
+      color: rgba(232, 220, 200, 0.8);
+      font-family: 'Outfit', sans-serif;
+      line-height: 1.7;
+      position: relative;
+      padding-left: 12px;
+    }
+    #recipe-steps li::marker {
+      color: #D4A847;
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+    }
+
+    /* ===== FAN MOTIF ===== */
+    .fan-left, .fan-right {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      opacity: 0.03;
+      pointer-events: none;
+    }
+    .fan-left {
+      top: 10%;
+      left: 0;
+      background: conic-gradient(from 90deg at 0% 100%, #D4A847 0deg, transparent 90deg);
+    }
+    .fan-right {
+      top: 10%;
+      right: 0;
+      background: conic-gradient(from 180deg at 100% 100%, #D4A847 0deg, transparent 90deg);
+    }
+
+    /* ===== NOTION LINK ===== */
+    .notion-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      background: transparent;
+      border: 1px solid rgba(212, 168, 71, 0.4);
+      color: #D4A847;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      transition: all 0.3s ease;
+      text-decoration: none;
+    }
+    .notion-btn:hover {
+      background: rgba(212, 168, 71, 0.08);
+      border-color: #D4A847;
+      box-shadow: 0 0 20px rgba(212, 168, 71, 0.1);
+    }
+
+    /* ===== CORNER ORNAMENTS ===== */
+    .corner-ornament {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .corner-ornament.tl { top: 20px; left: 20px; }
+    .corner-ornament.tr { top: 20px; right: 20px; transform: scaleX(-1); }
+    .corner-ornament.bl { bottom: 20px; left: 20px; transform: scaleY(-1); }
+    .corner-ornament.br { bottom: 20px; right: 20px; transform: scale(-1); }
+
+    /* Subtle body scrollbar */
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(212, 168, 71, 0.2) #0C0A09;
+    }
+    html::-webkit-scrollbar { width: 6px; }
+    html::-webkit-scrollbar-track { background: #0C0A09; }
+    html::-webkit-scrollbar-thumb { background: rgba(212, 168, 71, 0.2); border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-midnight text-champagne font-body min-h-screen">
+
+  <!-- ===== HERO SECTION ===== -->
+  <section class="deco-bg relative min-h-screen flex flex-col items-center justify-center px-4 overflow-hidden">
+
+    <!-- Art Deco corner ornaments -->
+    <svg class="corner-ornament tl anim-fade" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="0" y1="0" x2="60" y2="0" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="0" y2="60" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="30" y2="30" stroke="#D4A847" stroke-width="0.5" opacity="0.3"/>
+      <rect x="10" y="10" width="8" height="8" transform="rotate(45 14 14)" stroke="#D4A847" stroke-width="0.5" fill="none" opacity="0.3"/>
+    </svg>
+    <svg class="corner-ornament tr anim-fade" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="0" y1="0" x2="60" y2="0" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="0" y2="60" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="30" y2="30" stroke="#D4A847" stroke-width="0.5" opacity="0.3"/>
+      <rect x="10" y="10" width="8" height="8" transform="rotate(45 14 14)" stroke="#D4A847" stroke-width="0.5" fill="none" opacity="0.3"/>
+    </svg>
+    <svg class="corner-ornament bl anim-fade" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="0" y1="0" x2="60" y2="0" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="0" y2="60" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="30" y2="30" stroke="#D4A847" stroke-width="0.5" opacity="0.3"/>
+      <rect x="10" y="10" width="8" height="8" transform="rotate(45 14 14)" stroke="#D4A847" stroke-width="0.5" fill="none" opacity="0.3"/>
+    </svg>
+    <svg class="corner-ornament br anim-fade" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="0" y1="0" x2="60" y2="0" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="0" y2="60" stroke="#D4A847" stroke-width="0.5" opacity="0.4"/>
+      <line x1="0" y1="0" x2="30" y2="30" stroke="#D4A847" stroke-width="0.5" opacity="0.3"/>
+      <rect x="10" y="10" width="8" height="8" transform="rotate(45 14 14)" stroke="#D4A847" stroke-width="0.5" fill="none" opacity="0.3"/>
+    </svg>
+
+    <!-- Background decorations -->
+    <div class="sunburst"></div>
+    <div class="fan-left"></div>
+    <div class="fan-right"></div>
+
+    <!-- Floating particles -->
+    <div class="particles">
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    </div>
+
+    <!-- Hero content -->
+    <div class="relative z-10 max-w-2xl w-full text-center">
+
+      <!-- Top decorative line -->
+      <div class="deco-sep anim-rise-1 mb-8">
+        <div class="line"></div>
+        <div class="diamond"></div>
+        <div class="diamond"></div>
+        <div class="diamond"></div>
+        <div class="line"></div>
+      </div>
+
+      <!-- Title -->
+      <h1 class="font-display text-7xl sm:text-8xl font-bold tracking-tight mb-3 anim-rise-1">
+        <span class="gold-shimmer">Rezepti</span>
+      </h1>
+
+      <!-- Tagline -->
+      <p class="font-display italic text-lg sm:text-xl text-champagne/50 mb-2 anim-rise-2 tracking-wide">
+        Die feinste Art, Rezepte zu entdecken
+      </p>
+
+      <!-- Decorative separator -->
+      <div class="deco-sep anim-rise-2 my-6">
+        <div class="line"></div>
+        <div class="diamond"></div>
+        <div class="line"></div>
+      </div>
+
+      <!-- Subtitle -->
+      <p class="text-champagne/40 text-sm tracking-widest uppercase font-body mb-10 anim-rise-3">
+        Aus jedem Link ein Rezept &mdash; automatisch extrahiert &amp; nach Notion exportiert
+      </p>
+
+      <!-- URL Form -->
+      <form id="form" class="anim-rise-4 mb-10">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch">
+          <input
+            id="url-input"
+            type="url"
+            required
+            placeholder="URL hier eingeben..."
+            class="premium-input flex-1 px-6 py-4 rounded-sm text-champagne font-body text-base outline-none"
+          >
+          <button
+            id="submit-btn"
+            type="submit"
+            class="gold-btn px-8 py-4 rounded-sm font-body text-base tracking-wider uppercase whitespace-nowrap"
+          >
+            Rezept Extrahieren
+          </button>
+        </div>
+      </form>
+
+      <!-- Platform badges -->
+      <div class="flex flex-wrap justify-center gap-3 anim-rise-5">
+        <span class="badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          YouTube
+        </span>
+        <span class="badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+          Instagram
+        </span>
+        <span class="badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+          TikTok
+        </span>
+        <span class="badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          Web
+        </span>
+      </div>
+    </div>
+
+    <!-- Bottom deco border -->
+    <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
+  </section>
+
+
+  <!-- ===== PROGRESS SECTION ===== -->
+  <section id="progress" class="hidden deco-bg relative py-16 px-4">
+    <div class="relative z-10 max-w-xl mx-auto">
+      <div class="deco-card rounded-sm p-8">
+        <div class="flex items-center gap-4 mb-6">
+          <span class="loading-dot"></span>
+          <p id="progress-text" class="text-champagne/70 font-body text-sm tracking-wide">Wird verarbeitet...</p>
+        </div>
+        <div id="progress-log" class="max-h-48 overflow-y-auto space-y-2 text-xs text-champagne/40 font-body font-light"></div>
+      </div>
+    </div>
+    <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
+  </section>
+
+
+  <!-- ===== ERROR SECTION ===== -->
+  <section id="error" class="hidden deco-bg relative py-16 px-4">
+    <div class="relative z-10 max-w-xl mx-auto">
+      <div class="deco-card rounded-sm p-8 border-burgundy/30">
+        <div class="flex items-start gap-4">
+          <span class="text-burgundy-light text-xl mt-0.5">&#x2716;</span>
+          <div>
+            <h3 class="font-display text-lg text-burgundy-light mb-1">Fehler</h3>
+            <p id="error-text" class="text-champagne/50 font-body text-sm"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== RESULT SECTION ===== -->
+  <section id="result" class="hidden deco-bg relative py-16 px-4">
+    <div class="particles">
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+      <div class="particle"></div><div class="particle"></div>
+    </div>
+    <div class="relative z-10 max-w-2xl mx-auto">
+
+      <!-- Recipe cover image -->
+      <div id="recipe-cover" class="hidden w-full h-72 sm:h-96 rounded-sm mb-8 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-t from-midnight via-midnight/40 to-transparent"></div>
+        <div class="absolute inset-0 border border-gold/10 rounded-sm pointer-events-none"></div>
+      </div>
+
+      <!-- Recipe header -->
+      <div class="text-center mb-10">
+        <span id="recipe-emoji" class="text-5xl block mb-4"></span>
+        <h2 id="recipe-name" class="font-display text-4xl sm:text-5xl font-bold gold-shimmer mb-6"></h2>
+        <div id="recipe-meta" class="flex flex-wrap justify-center gap-2"></div>
+      </div>
+
+      <!-- Decorative separator -->
+      <div class="deco-sep my-10">
+        <div class="line"></div>
+        <div class="diamond"></div>
+        <div class="line"></div>
+      </div>
+
+      <!-- Two column layout -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+
+        <!-- Ingredients -->
+        <div class="deco-card rounded-sm p-8">
+          <h3 class="font-display text-xl text-gold mb-6 tracking-wide">Zutaten</h3>
+          <ul id="recipe-ingredients" class="space-y-0 list-none"></ul>
+        </div>
+
+        <!-- Steps -->
+        <div class="deco-card rounded-sm p-8">
+          <h3 class="font-display text-xl text-gold mb-6 tracking-wide">Zubereitung</h3>
+          <ol id="recipe-steps" class="space-y-0 list-decimal list-inside"></ol>
+        </div>
+      </div>
+
+      <!-- Notion link -->
+      <div id="notion-link" class="hidden text-center mt-10">
+        <div class="deco-sep mb-6">
+          <div class="line"></div>
+          <div class="diamond"></div>
+          <div class="line"></div>
+        </div>
+        <a id="notion-url" href="#" target="_blank" rel="noopener" class="notion-btn rounded-sm">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L18.002 2.05c-.42-.326-.98-.7-2.055-.607L3.01 2.71c-.467.047-.56.28-.374.466zM5.252 7.037v14.04c0 .747.373 1.027 1.214.98l14.523-.84c.84-.046.933-.56.933-1.166V6.057c0-.607-.233-.933-.747-.887l-15.177.887c-.56.047-.746.327-.746.98zm14.336.373c.094.42 0 .84-.42.887l-.7.14v10.383c-.607.327-1.167.513-1.633.513-.747 0-.933-.233-1.493-.933l-4.573-7.18v6.953l1.447.327s0 .84-1.167.84l-3.22.187c-.093-.187 0-.653.327-.727l.84-.233V9.39l-1.167-.093c-.093-.42.14-1.027.793-1.073l3.453-.234 4.76 7.274v-6.44l-1.213-.14c-.094-.514.28-.887.747-.933zM2.638 1.218l13.496-1c1.68-.14 2.1.047 2.8.56l3.86 2.707c.513.373.7.467.7 1.073v16.84c0 1.027-.373 1.634-1.68 1.727l-15.457.933c-.98.047-1.447-.093-1.96-.747L.88 20.164c-.56-.747-.793-1.307-.793-1.96V2.95c0-.84.373-1.54 1.4-1.64z"/></svg>
+          In Notion ansehen
+        </a>
+      </div>
+    </div>
+
+    <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
+  </section>
+
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="deco-bg relative py-8 px-4 text-center">
+    <div class="relative z-10">
+      <div class="deco-sep mb-4">
+        <div class="line"></div>
+        <div class="diamond"></div>
+        <div class="line"></div>
+      </div>
+      <p class="font-display text-sm text-champagne/20 tracking-widest uppercase">Rezepti</p>
+    </div>
+  </footer>
+
+
+  <!-- ===== JAVASCRIPT ===== -->
+  <script>
+const form = document.getElementById('form');
+const urlInput = document.getElementById('url-input');
+const submitBtn = document.getElementById('submit-btn');
+const progress = document.getElementById('progress');
+const progressText = document.getElementById('progress-text');
+const progressLog = document.getElementById('progress-log');
+const error = document.getElementById('error');
+const errorText = document.getElementById('error-text');
+const result = document.getElementById('result');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const url = urlInput.value.trim();
+  if (!url) return;
+  progress.classList.remove('hidden');
+  error.classList.add('hidden');
+  result.classList.add('hidden');
+  progressLog.innerHTML = '';
+  submitBtn.disabled = true;
+  try {
+    const evtSource = new EventSource(`/api/extract?url=${encodeURIComponent(url)}`);
+    evtSource.addEventListener('classifying', (e) => handleEvent(JSON.parse(e.data)));
+    evtSource.addEventListener('fetching', (e) => handleEvent(JSON.parse(e.data)));
+    evtSource.addEventListener('transcribing', (e) => handleEvent(JSON.parse(e.data)));
+    evtSource.addEventListener('analyzing_image', (e) => handleEvent(JSON.parse(e.data)));
+    evtSource.addEventListener('extracting', (e) => handleEvent(JSON.parse(e.data)));
+    evtSource.addEventListener('exporting', (e) => handleEvent(JSON.parse(e.data)));
+    evtSource.addEventListener('done', (e) => {
+      evtSource.close();
+      const event = JSON.parse(e.data);
+      handleEvent(event);
+      showResult(event.data);
+      submitBtn.disabled = false;
+      progress.classList.add('hidden');
+    });
+    evtSource.addEventListener('error', (e) => {
+      if (e.data) { showError(JSON.parse(e.data).message); } else { showError('Verbindung zum Server verloren.'); }
+      evtSource.close();
+      submitBtn.disabled = false;
+      progress.classList.add('hidden');
+    });
+    evtSource.onerror = () => { evtSource.close(); submitBtn.disabled = false; progress.classList.add('hidden'); };
+  } catch (err) {
+    showError(err.message || 'Unbekannter Fehler');
+    submitBtn.disabled = false;
+    progress.classList.add('hidden');
+  }
+});
+
+function handleEvent(event) {
+  progressText.textContent = event.message;
+  const logEntry = document.createElement('div');
+  logEntry.textContent = `${stageLabel(event.stage)}: ${event.message}`;
+  progressLog.appendChild(logEntry);
+  progressLog.scrollTop = progressLog.scrollHeight;
+}
+function stageLabel(stage) {
+  const labels = { classifying:'Analyse', fetching:'Abrufen', transcribing:'Transkription', analyzing_image:'Bildanalyse', extracting:'Extraktion', exporting:'Export', done:'Fertig', error:'Fehler' };
+  return labels[stage] || stage;
+}
+function showError(msg) { error.classList.remove('hidden'); errorText.textContent = msg; }
+function showResult(data) {
+  if (!data || !data.recipe) return;
+  const recipe = data.recipe;
+  result.classList.remove('hidden');
+  const cover = document.getElementById('recipe-cover');
+  if (recipe.imageUrl) { cover.style.backgroundImage = `url(${recipe.imageUrl})`; cover.classList.remove('hidden'); } else { cover.classList.add('hidden'); }
+  document.getElementById('recipe-emoji').textContent = recipe.emoji || '🍽️';
+  document.getElementById('recipe-name').textContent = recipe.name;
+  const meta = document.getElementById('recipe-meta');
+  meta.innerHTML = '';
+  const addTag = (text, cls) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; meta.appendChild(s); };
+  addTag(recipe.duration, 'px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800');
+  if (recipe.calories) addTag(`${recipe.calories} kcal`, 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800');
+  if (recipe.servings) addTag(`${recipe.servings} Portionen`, 'px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800');
+  recipe.tags.forEach(t => addTag(t, 'px-3 py-1 rounded-full text-sm font-medium bg-stone-100 text-stone-700'));
+  const ingList = document.getElementById('recipe-ingredients');
+  ingList.innerHTML = '';
+  recipe.ingredients.forEach(ing => { const li = document.createElement('li'); li.textContent = ing; ingList.appendChild(li); });
+  const stepList = document.getElementById('recipe-steps');
+  stepList.innerHTML = '';
+  recipe.steps.forEach(step => { const li = document.createElement('li'); li.textContent = step; stepList.appendChild(li); });
+  const notionLink = document.getElementById('notion-link');
+  if (data.notionUrl) { notionLink.classList.remove('hidden'); document.getElementById('notion-url').href = data.notionUrl; } else { notionLink.classList.add('hidden'); }
+}
+  </script>
+</body>
+</html>

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rezepti</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Cormorant Garamond', 'Georgia', 'serif'],
+            body: ['Zen Kaku Gothic New', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            rice: '#F5F0E8',
+            ink: '#1C1917',
+            sage: '#8B9D83',
+            stone: '#A69280',
+            persimmon: '#D4714E',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Washi paper texture */
+    body {
+      background-color: #F5F0E8;
+    }
+    .washi::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: 0.12;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='washi'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23washi)' opacity='0.5'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 512px 512px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Zen animations — slow, deliberate, breathing */
+    @keyframes zen-appear {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes zen-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes breathe {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.7; }
+    }
+    @keyframes enso-draw {
+      from { stroke-dashoffset: 600; }
+      to { stroke-dashoffset: 30; }
+    }
+    @keyframes brush-fade {
+      from { opacity: 0; transform: scaleX(0.3); }
+      to { opacity: 0.08; transform: scaleX(1); }
+    }
+    @keyframes pulse-dot {
+      0%, 80%, 100% { opacity: 0.3; }
+      40% { opacity: 1; }
+    }
+    @keyframes vertical-drift {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .zen-appear {
+      opacity: 0;
+      animation: zen-appear 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .zen-fade {
+      opacity: 0;
+      animation: zen-fade 3s ease forwards;
+    }
+    .delay-1 { animation-delay: 0.5s; }
+    .delay-2 { animation-delay: 1s; }
+    .delay-3 { animation-delay: 1.5s; }
+    .delay-4 { animation-delay: 2s; }
+    .delay-5 { animation-delay: 2.5s; }
+    .delay-6 { animation-delay: 3s; }
+    .delay-7 { animation-delay: 3.5s; }
+
+    .breathe { animation: breathe 6s ease-in-out infinite; }
+
+    .loading-dot { animation: pulse-dot 1.4s infinite; }
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    .vertical-drift { animation: vertical-drift 8s ease-in-out infinite; }
+
+    /* Input — writing on paper */
+    .zen-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #A6928040;
+      outline: none;
+      transition: border-color 2s ease;
+    }
+    .zen-input:focus {
+      border-bottom-color: #1C1917;
+    }
+    .zen-input::placeholder {
+      color: #A6928060;
+      font-style: italic;
+    }
+
+    /* Submit button — restrained */
+    .zen-btn {
+      background: transparent;
+      border: 1px solid #1C191720;
+      transition: all 0.8s ease;
+    }
+    .zen-btn:hover:not(:disabled) {
+      border-color: #1C191760;
+      background: #1C19170a;
+    }
+    .zen-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* Hairline */
+    .hairline {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #A6928030, transparent);
+    }
+
+    /* Enso circle */
+    .enso-circle {
+      stroke-dasharray: 600;
+      stroke-dashoffset: 600;
+      animation: enso-draw 4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      animation-delay: 1.5s;
+    }
+
+    /* Vertical Japanese text decoration */
+    .vertical-text {
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      letter-spacing: 0.5em;
+      color: #A6928020;
+      font-size: 1.25rem;
+      user-select: none;
+    }
+
+    /* Custom scrollbar — invisible unless needed */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #A6928030; border-radius: 3px; }
+
+    /* Result card */
+    .result-card {
+      background: #F5F0E8;
+      border: 1px solid #A6928015;
+    }
+
+    /* Notion button */
+    .notion-btn {
+      background: #1C1917;
+      transition: all 0.6s ease;
+    }
+    .notion-btn:hover {
+      background: #2C2520;
+    }
+
+    /* Brush stroke decoration */
+    .brush-stroke {
+      opacity: 0;
+      transform-origin: left center;
+      animation: brush-fade 3s ease forwards;
+      animation-delay: 2s;
+    }
+  </style>
+</head>
+<body class="washi font-body text-ink min-h-screen antialiased">
+
+  <!-- ═══════════════ HERO ═══════════════ -->
+  <section class="relative min-h-screen flex items-center justify-center overflow-hidden">
+
+    <!-- Vertical Japanese text — left side -->
+    <div class="vertical-text fixed left-6 top-1/2 -translate-y-1/2 zen-fade delay-6 pointer-events-none hidden lg:block vertical-drift">
+      レシピ
+    </div>
+
+    <!-- Enso circle — top right, partially visible -->
+    <svg class="absolute -top-24 -right-24 w-[320px] h-[320px] pointer-events-none zen-fade delay-2 hidden md:block" viewBox="0 0 320 320" fill="none">
+      <circle
+        cx="160" cy="160" r="120"
+        stroke="#A69280"
+        stroke-width="2"
+        stroke-linecap="round"
+        fill="none"
+        opacity="0.15"
+        class="enso-circle"
+      />
+    </svg>
+
+    <!-- Brush stroke decoration — bottom left -->
+    <svg class="absolute bottom-32 -left-12 w-[400px] h-[60px] pointer-events-none brush-stroke hidden md:block" viewBox="0 0 400 60" fill="none">
+      <path
+        d="M10 35 C80 20, 150 45, 220 30 C280 18, 340 40, 390 28"
+        stroke="#8B9D83"
+        stroke-width="3"
+        stroke-linecap="round"
+        fill="none"
+        opacity="0.5"
+      />
+    </svg>
+
+    <!-- Minimal botanical line art — bottom right -->
+    <svg class="absolute bottom-16 right-16 w-[80px] h-[120px] pointer-events-none zen-fade delay-7 hidden md:block" viewBox="0 0 80 120" fill="none" stroke="#A69280" stroke-width="0.75" opacity="0.2">
+      <path d="M40 120 L40 40" stroke-linecap="round"/>
+      <path d="M40 80 C30 70, 18 60, 12 45" stroke-linecap="round" fill="none"/>
+      <path d="M40 65 C50 55, 62 48, 68 35" stroke-linecap="round" fill="none"/>
+      <path d="M40 50 C35 42, 25 38, 20 28" stroke-linecap="round" fill="none"/>
+      <ellipse cx="12" cy="42" rx="8" ry="12" transform="rotate(-25 12 42)" fill="none"/>
+      <ellipse cx="68" cy="32" rx="8" ry="12" transform="rotate(20 68 32)" fill="none"/>
+      <ellipse cx="20" cy="25" rx="6" ry="10" transform="rotate(-15 20 25)" fill="none"/>
+    </svg>
+
+    <!-- Content -->
+    <div class="relative z-10 w-full max-w-xl mx-auto px-6">
+
+      <!-- Upper space — intentional emptiness -->
+      <div class="h-[12vh]"></div>
+
+      <!-- Subtle category label -->
+      <div class="zen-appear delay-1 mb-16">
+        <span class="font-body text-[11px] tracking-[0.4em] uppercase text-stone/60 font-light">
+          Rezept-Extraktion
+        </span>
+      </div>
+
+      <!-- Main title — asymmetric, breathing -->
+      <h1 class="zen-appear delay-2 mb-6">
+        <span class="block font-display text-[clamp(2.6rem,6vw,4.5rem)] font-light leading-[1.1] tracking-tight">
+          Rezepti
+        </span>
+      </h1>
+
+      <!-- Hairline divider -->
+      <div class="zen-fade delay-3 hairline w-16 mb-10"></div>
+
+      <!-- Subtitle — restrained -->
+      <p class="zen-appear delay-3 font-body text-stone text-base font-light leading-relaxed max-w-sm mb-20">
+        Eine URL eingeben. Das Rezept wird extrahiert und in Notion gespeichert. YouTube, Instagram, TikTok oder jede Webseite.
+      </p>
+
+      <!-- Input form — writing on paper -->
+      <form id="form" class="zen-appear delay-4 mb-12">
+        <div class="flex items-end gap-6 max-w-md">
+          <div class="flex-1">
+            <label class="block font-body text-[10px] tracking-[0.3em] uppercase text-stone/40 mb-3 font-light">URL</label>
+            <input
+              id="url-input"
+              type="url"
+              placeholder="https://..."
+              required
+              class="zen-input w-full py-3 font-body text-ink text-lg font-light"
+            >
+          </div>
+          <button
+            type="submit"
+            id="submit-btn"
+            class="zen-btn px-6 py-2.5 font-body text-sm tracking-widest uppercase font-light text-ink/70 whitespace-nowrap mb-0.5"
+          >
+            Extrahieren
+          </button>
+        </div>
+      </form>
+
+      <!-- Supported platforms — minimal -->
+      <div class="zen-fade delay-5 flex items-center gap-6 text-stone/30 text-[11px] tracking-[0.15em] uppercase font-light">
+        <span>YouTube</span>
+        <span class="text-stone/15">|</span>
+        <span>Instagram</span>
+        <span class="text-stone/15">|</span>
+        <span>TikTok</span>
+        <span class="text-stone/15">|</span>
+        <span>Web</span>
+      </div>
+
+      <!-- Lower space -->
+      <div class="h-[8vh]"></div>
+    </div>
+
+    <!-- Small enso at bottom center — scroll hint -->
+    <div class="absolute bottom-10 left-1/2 -translate-x-1/2 zen-fade delay-7">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="breathe">
+        <circle cx="12" cy="12" r="9" stroke="#A69280" stroke-width="0.75" stroke-linecap="round" stroke-dasharray="50" stroke-dashoffset="8" opacity="0.4"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ═══════════════ PROGRESS / ERROR / RESULT ═══════════════ -->
+  <section class="relative z-10 max-w-xl mx-auto px-6 pb-32">
+
+    <!-- Progress -->
+    <div id="progress" class="hidden mb-16">
+      <div class="py-8">
+        <div class="hairline mb-8"></div>
+        <div class="flex items-center gap-4 mb-6">
+          <div class="flex gap-1.5">
+            <span class="loading-dot w-1.5 h-1.5 bg-ink/40 rounded-full inline-block"></span>
+            <span class="loading-dot w-1.5 h-1.5 bg-ink/40 rounded-full inline-block"></span>
+            <span class="loading-dot w-1.5 h-1.5 bg-ink/40 rounded-full inline-block"></span>
+          </div>
+          <span id="progress-text" class="text-stone text-sm font-light">Starte...</span>
+        </div>
+        <div id="progress-log" class="space-y-2 text-[13px] text-stone/50 max-h-48 overflow-y-auto font-light leading-relaxed"></div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="error" class="hidden mb-16">
+      <div class="py-8">
+        <div class="hairline mb-8"></div>
+        <p class="font-display text-sm tracking-wide text-persimmon/80 mb-2">Fehler</p>
+        <p id="error-text" class="text-ink/60 font-light text-sm"></p>
+      </div>
+    </div>
+
+    <!-- Recipe Result -->
+    <div id="result" class="hidden">
+      <div class="py-8">
+        <div class="hairline mb-12"></div>
+
+        <!-- Cover image -->
+        <div id="recipe-cover" class="h-64 bg-stone/5 bg-cover bg-center hidden mb-12" style="border-radius: 2px;"></div>
+
+        <!-- Emoji + Title -->
+        <div class="mb-2">
+          <span id="recipe-emoji" class="text-3xl block mb-4"></span>
+          <h2 id="recipe-name" class="font-display text-3xl font-light text-ink leading-snug"></h2>
+        </div>
+
+        <!-- Meta -->
+        <div id="recipe-meta" class="flex flex-wrap gap-2 mt-6 mb-16"></div>
+
+        <!-- Ingredients -->
+        <div class="mb-16">
+          <p class="font-body text-[10px] tracking-[0.4em] uppercase text-stone/40 font-light mb-6">Zutaten</p>
+          <ul id="recipe-ingredients" class="space-y-3 text-ink/70 font-light text-[15px] leading-relaxed list-none"></ul>
+        </div>
+
+        <!-- Steps -->
+        <div class="mb-16">
+          <p class="font-body text-[10px] tracking-[0.4em] uppercase text-stone/40 font-light mb-6">Zubereitung</p>
+          <ol id="recipe-steps" class="space-y-4 text-ink/70 font-light text-[15px] leading-relaxed list-none"></ol>
+        </div>
+
+        <!-- Notion link -->
+        <div id="notion-link" class="hidden">
+          <div class="hairline mb-8"></div>
+          <a
+            id="notion-url"
+            href="#"
+            target="_blank"
+            class="notion-btn inline-flex items-center gap-3 px-6 py-3 text-rice text-sm font-light tracking-wide"
+            style="border-radius: 2px;"
+          >
+            In Notion ansehen
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Vertical Japanese text — right side (appears on scroll) -->
+  <div class="vertical-text fixed right-6 bottom-12 zen-fade delay-7 pointer-events-none hidden lg:block" style="letter-spacing: 0.3em; font-size: 0.75rem; color: #8B9D8315;">
+    抽出
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const urlInput = document.getElementById('url-input');
+    const submitBtn = document.getElementById('submit-btn');
+    const progress = document.getElementById('progress');
+    const progressText = document.getElementById('progress-text');
+    const progressLog = document.getElementById('progress-log');
+    const error = document.getElementById('error');
+    const errorText = document.getElementById('error-text');
+    const result = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = urlInput.value.trim();
+      if (!url) return;
+      progress.classList.remove('hidden');
+      error.classList.add('hidden');
+      result.classList.add('hidden');
+      progressLog.innerHTML = '';
+      submitBtn.disabled = true;
+      try {
+        const evtSource = new EventSource(`/api/extract?url=${encodeURIComponent(url)}`);
+        evtSource.addEventListener('classifying', (e) => handleEvent(JSON.parse(e.data)));
+        evtSource.addEventListener('fetching', (e) => handleEvent(JSON.parse(e.data)));
+        evtSource.addEventListener('transcribing', (e) => handleEvent(JSON.parse(e.data)));
+        evtSource.addEventListener('analyzing_image', (e) => handleEvent(JSON.parse(e.data)));
+        evtSource.addEventListener('extracting', (e) => handleEvent(JSON.parse(e.data)));
+        evtSource.addEventListener('exporting', (e) => handleEvent(JSON.parse(e.data)));
+        evtSource.addEventListener('done', (e) => {
+          evtSource.close();
+          const event = JSON.parse(e.data);
+          handleEvent(event);
+          showResult(event.data);
+          submitBtn.disabled = false;
+          progress.classList.add('hidden');
+        });
+        evtSource.addEventListener('error', (e) => {
+          if (e.data) { showError(JSON.parse(e.data).message); } else { showError('Verbindung zum Server verloren.'); }
+          evtSource.close();
+          submitBtn.disabled = false;
+          progress.classList.add('hidden');
+        });
+        evtSource.onerror = () => { evtSource.close(); submitBtn.disabled = false; progress.classList.add('hidden'); };
+      } catch (err) {
+        showError(err.message || 'Unbekannter Fehler');
+        submitBtn.disabled = false;
+        progress.classList.add('hidden');
+      }
+    });
+
+    function handleEvent(event) {
+      progressText.textContent = event.message;
+      const logEntry = document.createElement('div');
+      logEntry.textContent = `${stageLabel(event.stage)}: ${event.message}`;
+      progressLog.appendChild(logEntry);
+      progressLog.scrollTop = progressLog.scrollHeight;
+    }
+    function stageLabel(stage) {
+      const labels = { classifying:'Analyse', fetching:'Abrufen', transcribing:'Transkription', analyzing_image:'Bildanalyse', extracting:'Extraktion', exporting:'Export', done:'Fertig', error:'Fehler' };
+      return labels[stage] || stage;
+    }
+    function showError(msg) { error.classList.remove('hidden'); errorText.textContent = msg; }
+    function showResult(data) {
+      if (!data || !data.recipe) return;
+      const recipe = data.recipe;
+      result.classList.remove('hidden');
+      const cover = document.getElementById('recipe-cover');
+      if (recipe.imageUrl) { cover.style.backgroundImage = `url(${recipe.imageUrl})`; cover.classList.remove('hidden'); } else { cover.classList.add('hidden'); }
+      document.getElementById('recipe-emoji').textContent = recipe.emoji || '🍽️';
+      document.getElementById('recipe-name').textContent = recipe.name;
+      const meta = document.getElementById('recipe-meta');
+      meta.innerHTML = '';
+      const addTag = (text, cls) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; meta.appendChild(s); };
+      addTag(recipe.duration, 'px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800');
+      if (recipe.calories) addTag(`${recipe.calories} kcal`, 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800');
+      if (recipe.servings) addTag(`${recipe.servings} Portionen`, 'px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800');
+      recipe.tags.forEach(t => addTag(t, 'px-3 py-1 rounded-full text-sm font-medium bg-stone-100 text-stone-700'));
+      const ingList = document.getElementById('recipe-ingredients');
+      ingList.innerHTML = '';
+      recipe.ingredients.forEach(ing => { const li = document.createElement('li'); li.textContent = ing; ingList.appendChild(li); });
+      const stepList = document.getElementById('recipe-steps');
+      stepList.innerHTML = '';
+      recipe.steps.forEach(step => { const li = document.createElement('li'); li.textContent = step; stepList.appendChild(li); });
+      const notionLink = document.getElementById('notion-link');
+      if (data.notionUrl) { notionLink.classList.remove('hidden'); document.getElementById('notion-url').href = data.notionUrl; } else { notionLink.classList.add('hidden'); }
+    }
+  </script>
+</body>
+</html>
