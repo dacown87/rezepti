@@ -42,10 +42,20 @@ function parseCalories(schema: SchemaOrgRecipe): number | undefined {
 
 function extractSteps(schema: SchemaOrgRecipe): string[] {
   if (!schema.recipeInstructions) return [];
-  return schema.recipeInstructions.map((step) => {
-    if (typeof step === "string") return step;
-    return step.text ?? "";
-  }).filter(Boolean);
+  const steps: string[] = [];
+  for (const step of schema.recipeInstructions) {
+    if (typeof step === "string") {
+      steps.push(step);
+    } else if ("itemListElement" in step && Array.isArray(step.itemListElement)) {
+      // HowToSection — flatten nested steps
+      for (const subStep of step.itemListElement) {
+        if (subStep.text) steps.push(subStep.text.trim());
+      }
+    } else if ("text" in step && step.text) {
+      steps.push(step.text.trim());
+    }
+  }
+  return steps.filter(Boolean);
 }
 
 /**

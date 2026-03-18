@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join, extname } from "node:path";
 import { config } from "./config.js";
 import { processURL } from "./pipeline.js";
-import { ensureSchema, getAllRecipes, getRecipeById } from "./db.js";
+import { ensureSchema, getAllRecipes, getRecipeById, deleteRecipe, updateRecipe } from "./db.js";
 import type { PipelineEvent } from "./types.js";
 import { streamSSE } from "hono/streaming";
 
@@ -85,6 +85,25 @@ app.get("/api/recipes/:id", (c) => {
   const recipe = getRecipeById(id);
   if (!recipe) return c.json({ error: "Nicht gefunden" }, 404);
   return c.json(recipe);
+});
+
+// Update a recipe by ID
+app.patch("/api/recipes/:id", async (c) => {
+  const id = parseInt(c.req.param("id"), 10);
+  if (isNaN(id)) return c.json({ error: "Ungültige ID" }, 400);
+  const body = await c.req.json();
+  const updated = updateRecipe(id, body);
+  if (!updated) return c.json({ error: "Nicht gefunden" }, 404);
+  return c.json({ success: true });
+});
+
+// Delete a recipe by ID
+app.delete("/api/recipes/:id", (c) => {
+  const id = parseInt(c.req.param("id"), 10);
+  if (isNaN(id)) return c.json({ error: "Ungültige ID" }, 400);
+  const deleted = deleteRecipe(id);
+  if (!deleted) return c.json({ error: "Nicht gefunden" }, 404);
+  return c.json({ success: true });
 });
 
 // Health check

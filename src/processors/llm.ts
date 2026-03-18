@@ -23,26 +23,18 @@ const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Deine Aufgabe:
 6. Wähle ein passendes Emoji für das Rezept.
 7. Bestimme die Zubereitungsdauer: "kurz" (<20min), "mittel" (20-60min), "lang" (>60min).
 
-Antworte NUR mit dem JSON-Objekt, kein zusätzlicher Text.`;
-
-function buildJsonSchema() {
-  return {
-    type: "object" as const,
-    properties: {
-      name:        { type: "string" as const },
-      duration:    { type: "string" as const, enum: ["kurz", "mittel", "lang"] },
-      tags:        { type: "array" as const, items: { type: "string" as const } },
-      imageUrl:    { type: "string" as const },
-      calories:    { type: "number" as const },
-      emoji:       { type: "string" as const },
-      servings:    { type: "string" as const },
-      ingredients: { type: "array" as const, items: { type: "string" as const } },
-      steps:       { type: "array" as const, items: { type: "string" as const } },
-    },
-    required: ["name", "duration", "tags", "emoji", "ingredients", "steps"],
-    additionalProperties: false,
-  };
-}
+Antworte NUR mit folgendem JSON-Format, exakt diese Feldnamen:
+{
+  "name": "Rezeptname auf Deutsch",
+  "duration": "kurz" | "mittel" | "lang",
+  "tags": ["Tag1", "Tag2"],
+  "emoji": "🍕",
+  "calories": 450,
+  "servings": "4 Portionen",
+  "imageUrl": "",
+  "ingredients": ["200g Mehl", "2 Eier"],
+  "steps": ["Schritt 1", "Schritt 2"]
+}`;
 
 async function chatJSON(
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -51,10 +43,7 @@ async function chatJSON(
   const response = await groq.chat.completions.create({
     model,
     messages,
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: "recipe", strict: true, schema: buildJsonSchema() },
-    },
+    response_format: { type: "json_object" },
     temperature: 0.3,
     max_tokens: 4096,
   });
@@ -116,7 +105,14 @@ export async function refineRecipe(
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
-      content: `Übersetze und verfeinere dieses Rezept ins Deutsche. Konvertiere alle Einheiten ins metrische System. Schätze Kalorien. Wähle ein Emoji und Tags.\n\nRezept-Daten:\n${JSON.stringify(partial, null, 2)}`,
+      content: `Ergänze und übersetze dieses Rezept ins Deutsche. Wichtige Regeln:
+- Übernimm "ingredients" und "steps" EXAKT wie angegeben – keine Umformulierungen, keine Zusammenfassungen, keine Schritte zusammenfassen
+- Übersetze einzelne Felder nur wenn sie noch nicht auf Deutsch sind
+- Konvertiere Mengenangaben in metrische Einheiten falls nötig
+- Schätze Kalorien falls nicht vorhanden
+- Wähle ein passendes Emoji und deutsche Tags falls nicht vorhanden
+
+Rezept-Daten:\n${JSON.stringify(partial, null, 2)}`,
     },
   ], config.groq.textModel) as Record<string, unknown>;
 

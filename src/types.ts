@@ -30,7 +30,7 @@ export interface SchemaOrgRecipe {
   description?: string;
   image?: string | string[];
   recipeIngredient?: string[];
-  recipeInstructions?: (string | { text?: string })[];
+  recipeInstructions?: (string | { text?: string } | { "@type": "HowToSection"; itemListElement?: { text?: string }[] })[];
   totalTime?: string;
   prepTime?: string;
   cookTime?: string;

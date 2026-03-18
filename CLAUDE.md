@@ -52,13 +52,17 @@ The server (`src/index.ts`) exposes `GET /api/extract?url=...` which streams pro
 
 ## External CLI Dependencies
 
-These must be installed on the host: `yt-dlp`, `ffmpeg`, `whisper-cpp`
+These must be installed on the host: `yt-dlp`
 
-Whisper model path: `~/.cache/whisper-cpp/models/ggml-large-v3-turbo.bin`
+Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no local `whisper-cpp` or `ffmpeg` required.
 
 ## Configuration
 
 Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com). SQLite DB is created automatically at `./data/rezepti.db`.
+
+## Sprache
+
+Mit dem Nutzer immer auf **Deutsch** kommunizieren.
 
 ## Working Notes (Claude)
 
@@ -66,6 +70,11 @@ Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.gro
 - **Ursprung:** Projekt wurde von einer KI generiert – Code kann inkonsistent sein, beim Anfassen auf Qualität achten
 - **Kein Test-Suite** – manuell testen via Browser / Health-Endpoint
 - **Design-Varianten:** `public/v1–v4.html` sind inaktive Iterationen; aktive UI ist `public/index.html`
+
+## Language
+
+Communicate with the user in **German**.
+All code comments, inline documentation, and commit messages in **English**.
 
 ## Conventions
 

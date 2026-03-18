@@ -73,6 +73,29 @@ export function getAllRecipes() {
   return db.select().from(recipes).orderBy(recipes.created_at).all().map(deserialize);
 }
 
+export function updateRecipe(id: number, fields: Partial<RecipeData>): boolean {
+  const db = getDb();
+  const values: Record<string, unknown> = {};
+  if (fields.name        !== undefined) values.name        = fields.name;
+  if (fields.emoji       !== undefined) values.emoji       = fields.emoji;
+  if (fields.servings    !== undefined) values.servings    = fields.servings;
+  if (fields.duration    !== undefined) values.duration    = fields.duration;
+  if (fields.calories    !== undefined) values.calories    = fields.calories;
+  if (fields.imageUrl    !== undefined) values.image_url   = fields.imageUrl;
+  if (fields.tags        !== undefined) values.tags        = JSON.stringify(fields.tags);
+  if (fields.ingredients !== undefined) values.ingredients = JSON.stringify(fields.ingredients);
+  if (fields.steps       !== undefined) values.steps       = JSON.stringify(fields.steps);
+  if (Object.keys(values).length === 0) return false;
+  const result = db.update(recipes).set(values).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();
+  return !!result;
+}
+
+export function deleteRecipe(id: number): boolean {
+  const db = getDb();
+  const result = db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();
+  return !!result;
+}
+
 export function getRecipeById(id: number) {
   const db = getDb();
   const row = db.select().from(recipes).where(eq(recipes.id, id)).get();

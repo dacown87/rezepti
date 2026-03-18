@@ -137,14 +137,26 @@
       transform: translateY(0);
     }
 
-    /* Notion button */
-    .btn-notion {
-      background: linear-gradient(135deg, #1A0F0A 0%, #2D1E14 100%);
-      transition: all 0.3s ease;
+    /* Recipe cards */
+    .recipe-card {
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
     }
-    .btn-notion:hover {
-      box-shadow: 0 4px 12px -2px rgba(26, 15, 10, 0.4);
+    .recipe-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px -8px rgba(26, 15, 10, 0.12);
     }
+
+    /* Modal */
+    .modal-backdrop {
+      background: rgba(26, 15, 10, 0.5);
+      backdrop-filter: blur(4px);
+    }
+    @keyframes modal-rise {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .modal-rise { animation: modal-rise 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
   </style>
 </head>
 <body class="bg-cream font-body text-espresso min-h-screen">
@@ -258,17 +270,6 @@
           <span class="text-xs font-medium text-espresso/70">Web</span>
         </div>
 
-        <!-- Arrow to Notion -->
-        <span class="arrow-shimmer text-lg mx-1 font-display">&rarr;</span>
-
-        <!-- Notion -->
-        <div class="platform-icon flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-espresso/[0.05] backdrop-blur-sm border border-espresso/[0.1] cursor-default">
-          <svg width="15" height="15" viewBox="0 0 100 100" fill="none">
-            <path d="M6.017 4.313l55.333-4.087c6.797-.583 8.543-.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277-1.553 6.807-6.99 7.193L24.467 99.967c-4.08.193-6.023-.39-8.16-3.113L3.3 79.94c-2.333-3.113-3.3-5.443-3.3-8.167V11.113c0-3.497 1.553-6.413 6.017-6.8z" fill="#1A0F0A"/>
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M61.35.227L6.017 4.313C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723.967 5.053 3.3 8.167l12.907 16.913c2.137 2.723 4.08 3.307 8.16 3.113L88.723 96.08c5.437-.387 6.99-2.917 6.99-7.193V20.64c0-2.21-.9-2.847-3.447-4.727l-.436-.327-17.663-12.443C69.893.037 68.147-.357 61.35.227zM25.663 19.18c-5.58.343-6.853.418-10.037-2.197L7.84 10.34c-.78-.78-.39-1.753 1.163-1.94l53.583-3.893c4.667-.39 7.003 1.167 8.753 2.527l9.303 6.613c.39.193 1.36 1.36.193 1.36l-55.57 3.587-.603.587zm-3.42 74.697V29.507c0-2.527.78-3.697 3.103-3.893l60.857-3.5c2.14-.193 3.107 1.167 3.107 3.693v63.98c0 2.53-.39 4.667-3.887 4.86l-58.327 3.31c-3.497.193-4.853-.973-4.853-3.78zm57.547-61.453c.39 1.75 0 3.5-1.75 3.7l-2.917.58v47.243c-2.527 1.36-4.853 2.137-6.797 2.137-3.107 0-3.883-.973-6.22-3.887l-19.03-29.94v28.967l6.027 1.363s0 3.5-4.857 3.5l-13.39.78c-.39-.78 0-2.723 1.357-3.11l3.497-.97V37.34l-4.857-.39c-.39-1.75.583-4.277 3.3-4.473l14.367-.967 19.8 30.327V34.62l-5.053-.583c-.39-2.143 1.163-3.7 3.103-3.893l14.42-.94z" fill="#FFFBF5"/>
-          </svg>
-          <span class="text-xs font-semibold text-espresso/80">Notion</span>
-        </div>
       </div>
 
       <!-- How it works hint -->
@@ -285,8 +286,20 @@
         <span class="text-warmgray/20">/</span>
         <span class="flex items-center gap-2">
           <span class="w-6 h-6 rounded-full bg-paprika/10 flex items-center justify-center text-paprika text-[10px] font-bold font-display">3</span>
-          In Notion speichern
+          Gespeichert
         </span>
+      </div>
+
+      <!-- My Recipes link -->
+      <div class="hero-fade delay-6 mt-8">
+        <button onclick="document.getElementById('recipes-section').scrollIntoView({behavior:'smooth'})"
+          class="text-warmgray/60 hover:text-paprika text-sm font-medium transition-colors duration-200 flex items-center gap-1.5 mx-auto">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          Meine Rezepte ansehen
+        </button>
       </div>
     </div>
 
@@ -348,24 +361,86 @@
           <h3 class="text-lg font-display font-semibold text-espresso/80 mb-3">Zubereitung</h3>
           <ol id="recipe-steps" class="list-none space-y-3 text-espresso/70 mb-8 font-body counter-reset-steps"></ol>
 
-          <!-- Notion link -->
-          <div id="notion-link" class="hidden pt-6 border-t border-espresso/[0.06]">
-            <a
-              id="notion-url"
-              href="#"
-              target="_blank"
-              class="btn-notion inline-flex items-center gap-2 px-5 py-3 rounded-xl text-white font-semibold font-body"
-            >
-              <svg width="16" height="16" viewBox="0 0 100 100" fill="none">
-                <path d="M6.017 4.313l55.333-4.087c6.797-.583 8.543-.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277-1.553 6.807-6.99 7.193L24.467 99.967c-4.08.193-6.023-.39-8.16-3.113L3.3 79.94c-2.333-3.113-3.3-5.443-3.3-8.167V11.113c0-3.497 1.553-6.413 6.017-6.8z" fill="white"/>
-              </svg>
-              In Notion ansehen &rarr;
-            </a>
-          </div>
         </div>
       </div>
     </div>
   </section>
+
+  <!-- ═══════════════════════ SAVED RECIPES SECTION ═══════════════════════ -->
+  <section id="recipes-section" class="max-w-5xl mx-auto px-4 py-16">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h2 class="font-display text-3xl font-semibold text-espresso">Meine Rezepte</h2>
+        <p id="recipes-count" class="text-warmgray/60 text-sm mt-1"></p>
+      </div>
+      <button onclick="loadRecipes()" class="text-warmgray/50 hover:text-paprika transition-colors duration-200 p-2 rounded-xl hover:bg-paprika/5" title="Aktualisieren">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+    <div id="recipes-empty" class="hidden text-center py-20 text-warmgray/40">
+      <div class="text-5xl mb-4">🍽️</div>
+      <p class="font-display text-lg">Noch keine Rezepte gespeichert</p>
+      <p class="text-sm mt-1">Extrahiere dein erstes Rezept oben</p>
+    </div>
+    <div id="recipes-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </section>
+
+  <!-- ═══════════════════════ RECIPE MODAL ═══════════════════════ -->
+  <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="modal-backdrop absolute inset-0" onclick="closeModal()"></div>
+    <div class="modal-rise relative bg-cream rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+
+      <!-- Header buttons -->
+      <div class="absolute top-4 right-4 z-10 flex gap-2">
+        <button id="modal-edit-btn" class="w-8 h-8 rounded-full bg-espresso/5 hover:bg-saffron/20 flex items-center justify-center text-warmgray hover:text-saffron-dark transition-colors" title="Rezept bearbeiten">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button id="modal-delete-btn" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400 hover:text-red-600 transition-colors" title="Rezept löschen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
+        <button id="modal-close-btn" class="w-8 h-8 rounded-full bg-espresso/5 hover:bg-espresso/10 flex items-center justify-center transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div id="modal-cover" class="h-56 bg-espresso/5 bg-cover bg-center rounded-t-2xl hidden"></div>
+
+      <!-- Content (shared for view and edit) -->
+      <div class="p-8">
+        <div class="flex items-center gap-4 mb-5">
+          <span id="modal-emoji" class="text-4xl"></span>
+          <h2 id="modal-name" class="text-2xl font-display font-semibold text-espresso flex-1 outline-none"></h2>
+        </div>
+        <div id="modal-meta" class="flex flex-wrap gap-2 mb-8"></div>
+        <h3 class="text-lg font-display font-semibold text-espresso/80 mb-3">Zutaten</h3>
+        <ul id="modal-ingredients" class="list-none space-y-2 text-espresso/70 mb-2 font-body"></ul>
+        <button id="add-ingredient-btn" onclick="addIngredient()" class="hidden mb-8 mt-2 text-sm text-paprika/60 hover:text-paprika flex items-center gap-1 transition-colors">
+          <span class="text-base leading-none">+</span> Zutat hinzufügen
+        </button>
+        <div class="mb-8 hidden" id="ing-spacer"></div>
+        <h3 class="text-lg font-display font-semibold text-espresso/80 mb-3">Zubereitung</h3>
+        <ol id="modal-steps" class="list-none space-y-3 text-espresso/70 font-body"></ol>
+        <button id="add-step-btn" onclick="addStep()" class="hidden mt-2 text-sm text-paprika/60 hover:text-paprika flex items-center gap-1 transition-colors">
+          <span class="text-base leading-none">+</span> Schritt hinzufügen
+        </button>
+
+        <!-- Save/cancel bar (edit mode only) -->
+        <div id="modal-action-bar" class="hidden flex gap-3 mt-8 pt-6 border-t border-espresso/[0.06]">
+          <button id="edit-save-btn" class="btn-extract flex-1 py-3 rounded-xl text-white font-semibold font-body">Speichern</button>
+          <button id="edit-cancel-btn" class="flex-1 py-3 rounded-xl border border-espresso/10 text-warmgray font-semibold font-body hover:bg-espresso/5 transition-colors">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     const form = document.getElementById('form');
@@ -410,6 +485,7 @@
           showResult(event.data);
           submitBtn.disabled = false;
           progress.classList.add('hidden');
+          loadRecipes();
         });
 
         evtSource.addEventListener('error', (e) => {
@@ -517,15 +593,291 @@
         stepList.appendChild(li);
       });
 
-      // Notion link
-      const notionLink = document.getElementById('notion-link');
-      if (data.notionUrl) {
-        notionLink.classList.remove('hidden');
-        document.getElementById('notion-url').href = data.notionUrl;
-      } else {
-        notionLink.classList.add('hidden');
+    }
+
+    // ── Saved Recipes ──────────────────────────────────────────────
+
+    async function loadRecipes() {
+      try {
+        const res = await fetch('/api/recipes');
+        const recipes = await res.json();
+        renderRecipes(recipes);
+      } catch {
+        // silently fail — user can retry via refresh button
       }
     }
+
+    function renderRecipes(recipes) {
+      const grid = document.getElementById('recipes-grid');
+      const empty = document.getElementById('recipes-empty');
+      const count = document.getElementById('recipes-count');
+
+      grid.innerHTML = '';
+      count.textContent = recipes.length === 0 ? '' : `${recipes.length} Rezept${recipes.length !== 1 ? 'e' : ''} gespeichert`;
+
+      if (recipes.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      recipes.forEach(recipe => {
+        const tags = Array.isArray(recipe.tags) ? recipe.tags : JSON.parse(recipe.tags || '[]');
+        const card = document.createElement('div');
+        card.className = 'recipe-card bg-white/80 backdrop-blur-sm rounded-2xl border border-espresso/[0.06] overflow-hidden shadow-sm';
+        card.innerHTML = `
+          ${recipe.imageUrl ? `<div class="h-40 bg-cover bg-center" style="background-image:url(${recipe.imageUrl})"></div>` : `<div class="h-40 bg-espresso/[0.03] flex items-center justify-center text-5xl">${recipe.emoji || '🍽️'}</div>`}
+          <div class="p-5">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2 min-w-0">
+                ${recipe.imageUrl ? `<span class="text-xl flex-shrink-0">${recipe.emoji || '🍽️'}</span>` : ''}
+                <h3 class="font-display font-semibold text-espresso text-base leading-snug line-clamp-2">${recipe.name}</h3>
+              </div>
+              <button class="delete-btn flex-shrink-0 w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400 hover:text-red-600 transition-colors" title="Rezept löschen">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-3">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-saffron/20 text-saffron-dark">${recipe.duration}</span>
+              ${recipe.calories ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100/80 text-green-800">${recipe.calories} kcal</span>` : ''}
+              ${tags.slice(0, 2).map(t => `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-espresso/5 text-warmgray">${t}</span>`).join('')}
+            </div>
+          </div>
+        `;
+        card.querySelector('.delete-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteRecipe(recipe.id);
+        });
+        card.addEventListener('click', () => openModal(recipe));
+        grid.appendChild(card);
+      });
+    }
+
+    function openModal(recipe) {
+      const tags = Array.isArray(recipe.tags) ? recipe.tags : JSON.parse(recipe.tags || '[]');
+      const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : JSON.parse(recipe.ingredients || '[]');
+      const steps = Array.isArray(recipe.steps) ? recipe.steps : JSON.parse(recipe.steps || '[]');
+
+      const cover = document.getElementById('modal-cover');
+      if (recipe.imageUrl) {
+        cover.style.backgroundImage = `url(${recipe.imageUrl})`;
+        cover.classList.remove('hidden');
+      } else {
+        cover.classList.add('hidden');
+      }
+
+      document.getElementById('modal-emoji').textContent = recipe.emoji || '🍽️';
+      document.getElementById('modal-name').textContent = recipe.name;
+
+      const meta = document.getElementById('modal-meta');
+      meta.innerHTML = '';
+      const addTag = (text, cls) => {
+        const s = document.createElement('span');
+        s.className = `px-3 py-1 rounded-full text-sm font-medium font-body ${cls}`;
+        s.textContent = text;
+        meta.appendChild(s);
+      };
+      addTag(recipe.duration, 'bg-saffron/20 text-saffron-dark');
+      if (recipe.calories) addTag(`${recipe.calories} kcal`, 'bg-green-100/80 text-green-800');
+      if (recipe.servings) addTag(recipe.servings, 'bg-paprika/10 text-paprika-dark');
+      tags.forEach(t => addTag(t, 'bg-espresso/5 text-warmgray'));
+
+      const ingList = document.getElementById('modal-ingredients');
+      ingList.innerHTML = '';
+      ingredients.forEach(ing => {
+        const li = document.createElement('li');
+        li.className = 'flex items-baseline gap-2';
+        li.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-paprika/40 flex-shrink-0 mt-2"></span><span>${ing}</span>`;
+        ingList.appendChild(li);
+      });
+
+      const stepList = document.getElementById('modal-steps');
+      stepList.innerHTML = '';
+      steps.forEach((step, i) => {
+        const li = document.createElement('li');
+        li.className = 'flex gap-3';
+        li.innerHTML = `<span class="w-6 h-6 rounded-full bg-paprika/10 flex items-center justify-center flex-shrink-0 mt-0.5 text-paprika text-xs font-bold font-display">${i + 1}</span><span>${step}</span>`;
+        stepList.appendChild(li);
+      });
+
+      document.getElementById('modal-delete-btn').onclick = () => deleteRecipe(recipe.id, true);
+      document.getElementById('modal-close-btn').onclick = closeModal;
+      document.getElementById('modal-edit-btn').onclick = () => enterEditMode(recipe);
+      document.getElementById('edit-cancel-btn').onclick = () => { openModal(recipe); };
+      document.getElementById('edit-save-btn').onclick = () => saveEdit(recipe.id);
+
+      const modal = document.getElementById('modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    }
+
+    // ── Edit mode ─────────────────────────────────────────────────
+
+    let _currentRecipeId = null;
+
+    function enterEditMode(recipe) {
+      _currentRecipeId = recipe.id;
+
+      // Make emoji and name contenteditable
+      const emojiEl = document.getElementById('modal-emoji');
+      const nameEl  = document.getElementById('modal-name');
+      emojiEl.contentEditable = 'true';
+      nameEl.contentEditable  = 'true';
+      emojiEl.classList.add('outline-none', 'border', 'border-dashed', 'border-saffron/50', 'rounded-lg', 'px-1', 'cursor-text');
+      nameEl.classList.add('outline-none', 'border-b', 'border-dashed', 'border-paprika/30', 'cursor-text');
+
+      // Replace meta badges with editable inputs styled the same
+      const duration = recipe.duration || 'mittel';
+      const calories = recipe.calories || '';
+      const servings = recipe.servings || '';
+      document.getElementById('modal-meta').innerHTML = `
+        <select id="edit-duration" class="px-3 py-1 rounded-full text-sm font-medium bg-saffron/20 text-saffron-dark border-0 focus:outline-none cursor-pointer">
+          <option value="kurz" ${duration==='kurz'?'selected':''}>kurz</option>
+          <option value="mittel" ${duration==='mittel'?'selected':''}>mittel</option>
+          <option value="lang" ${duration==='lang'?'selected':''}>lang</option>
+        </select>
+        <input id="edit-calories" type="number" value="${calories}" placeholder="kcal"
+          class="px-3 py-1 rounded-full text-sm font-medium bg-green-100/80 text-green-800 border-0 focus:outline-none w-24 cursor-text">
+        <input id="edit-servings" type="text" value="${servings}" placeholder="Portionen"
+          class="px-3 py-1 rounded-full text-sm font-medium bg-paprika/10 text-paprika-dark border-0 focus:outline-none w-28 cursor-text">
+      `;
+
+      // Make each ingredient text editable + add remove button
+      document.querySelectorAll('#modal-ingredients li').forEach(li => {
+        const textSpan = li.querySelector('span:last-child');
+        textSpan.contentEditable = 'true';
+        textSpan.classList.add('outline-none', 'border-b', 'border-dashed', 'border-espresso/20', 'cursor-text', 'flex-1');
+        const rmBtn = document.createElement('button');
+        rmBtn.className = 'ml-2 text-red-300 hover:text-red-500 flex-shrink-0 leading-none text-lg';
+        rmBtn.textContent = '×';
+        rmBtn.onclick = () => li.remove();
+        li.appendChild(rmBtn);
+      });
+      document.getElementById('add-ingredient-btn').classList.remove('hidden');
+      document.getElementById('ing-spacer').classList.add('hidden');
+
+      // Make each step text editable + add remove button
+      document.querySelectorAll('#modal-steps li').forEach(li => {
+        const textSpan = li.querySelector('span:last-child');
+        textSpan.contentEditable = 'true';
+        textSpan.classList.add('outline-none', 'border-b', 'border-dashed', 'border-espresso/20', 'cursor-text', 'flex-1');
+        const rmBtn = document.createElement('button');
+        rmBtn.className = 'ml-2 text-red-300 hover:text-red-500 flex-shrink-0 mt-0.5 leading-none text-lg';
+        rmBtn.textContent = '×';
+        rmBtn.onclick = () => { li.remove(); renumberSteps(); };
+        li.appendChild(rmBtn);
+      });
+      document.getElementById('add-step-btn').classList.remove('hidden');
+
+      // Show action bar, hide header buttons
+      document.getElementById('modal-action-bar').classList.remove('hidden');
+      document.getElementById('modal-edit-btn').classList.add('hidden');
+      document.getElementById('modal-delete-btn').classList.add('hidden');
+      document.getElementById('modal-close-btn').classList.add('hidden');
+    }
+
+    function addIngredient() {
+      const list = document.getElementById('modal-ingredients');
+      const li = document.createElement('li');
+      li.className = 'flex items-baseline gap-2';
+      li.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-paprika/40 flex-shrink-0 mt-2"></span>`;
+      const textSpan = document.createElement('span');
+      textSpan.contentEditable = 'true';
+      textSpan.className = 'outline-none border-b border-dashed border-espresso/20 cursor-text flex-1';
+      textSpan.textContent = '';
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'ml-2 text-red-300 hover:text-red-500 flex-shrink-0 leading-none text-lg';
+      rmBtn.textContent = '×';
+      rmBtn.onclick = () => li.remove();
+      li.appendChild(textSpan);
+      li.appendChild(rmBtn);
+      list.appendChild(li);
+      textSpan.focus();
+    }
+
+    function addStep() {
+      const list = document.getElementById('modal-steps');
+      const i = list.children.length + 1;
+      const li = document.createElement('li');
+      li.className = 'flex gap-3';
+      const numSpan = document.createElement('span');
+      numSpan.className = 'w-6 h-6 rounded-full bg-paprika/10 flex items-center justify-center flex-shrink-0 mt-0.5 text-paprika text-xs font-bold font-display';
+      numSpan.textContent = i;
+      const textSpan = document.createElement('span');
+      textSpan.contentEditable = 'true';
+      textSpan.className = 'outline-none border-b border-dashed border-espresso/20 cursor-text flex-1';
+      textSpan.textContent = '';
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'ml-2 text-red-300 hover:text-red-500 flex-shrink-0 mt-0.5 leading-none text-lg';
+      rmBtn.textContent = '×';
+      rmBtn.onclick = () => { li.remove(); renumberSteps(); };
+      li.appendChild(numSpan);
+      li.appendChild(textSpan);
+      li.appendChild(rmBtn);
+      list.appendChild(li);
+      textSpan.focus();
+    }
+
+    function renumberSteps() {
+      document.querySelectorAll('#modal-steps li').forEach((li, i) => {
+        const numSpan = li.querySelector('span:first-child');
+        if (numSpan) numSpan.textContent = i + 1;
+      });
+    }
+
+    async function saveEdit(id) {
+      const btn = document.getElementById('edit-save-btn');
+      btn.disabled = true;
+      btn.textContent = 'Speichern...';
+
+      const ingredients = Array.from(document.querySelectorAll('#modal-ingredients li span[contenteditable]'))
+        .map(s => s.textContent.trim()).filter(Boolean);
+      const steps = Array.from(document.querySelectorAll('#modal-steps li span[contenteditable]'))
+        .map(s => s.textContent.trim()).filter(Boolean);
+
+      const body = {
+        emoji:       document.getElementById('modal-emoji').textContent.trim(),
+        name:        document.getElementById('modal-name').textContent.trim(),
+        duration:    document.getElementById('edit-duration').value,
+        calories:    parseInt(document.getElementById('edit-calories').value) || null,
+        servings:    document.getElementById('edit-servings').value.trim(),
+        ingredients,
+        steps,
+      };
+
+      await fetch(`/api/recipes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const res = await fetch(`/api/recipes/${id}`);
+      const updated = await res.json();
+      openModal(updated);
+      loadRecipes();
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = '';
+    }
+
+    async function deleteRecipe(id, fromModal = false) {
+      if (!confirm('Rezept wirklich löschen?')) return;
+      await fetch(`/api/recipes/${id}`, { method: 'DELETE' });
+      if (fromModal) closeModal();
+      loadRecipes();
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // Load on page start
+    loadRecipes();
   </script>
 </body>
 </html>
