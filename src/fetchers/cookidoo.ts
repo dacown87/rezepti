@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { config } from "../config.js";
 import type { ContentBundle, SchemaOrgRecipe } from "../types.js";
 
@@ -50,6 +50,7 @@ function loadSessionFromDisk(): SessionData | null {
 }
 
 function saveSessionToDisk(data: SessionData): void {
+  mkdirSync(dirname(SESSION_FILE), { recursive: true });
   writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
@@ -257,15 +258,15 @@ function findRecipeInJsonLd(data: unknown): SchemaOrgRecipe | null {
 function extractMainText($: cheerio.CheerioAPI): string {
   $("script, style, nav, footer, header, aside, .ad, .ads, .sidebar").remove();
 
-  // Cookidoo-specific selectors first, then generic fallbacks
+  // Cookidoo-specific selectors first (most precise), then generic fallbacks
   const selectors = [
-    "main",
-    "article",
     ".recipe-card",
     ".recipe-detail",
     ".recipe-content",
     ".recipe",
     "#recipe",
+    "main",
+    "article",
     ".post-content",
     ".entry-content",
   ];
