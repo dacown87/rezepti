@@ -17,7 +17,6 @@ Add support for extracting recipes from cookidoo.de. Cookidoo is a login-protect
 ## Non-Goals
 
 - No headless browser (Playwright/Puppeteer)
-- No persistent cookie storage to disk
 - No changes to the LLM processing, DB, or frontend
 
 ## Architecture
@@ -36,11 +35,11 @@ Four files modified, one new file added:
 
 ### Session Management
 
-A module-level variable holds the cached session cookie. On each request:
+The session cookie is persisted to disk at `data/cookidoo-session.json` and loaded on startup. On each request:
 
-1. If cookie exists → use it
-2. If request returns 401/403 → invalidate cache, re-login, retry once
-3. If no cookie yet → login first
+1. If cookie loaded (memory or disk) → use it
+2. If request returns 401/403 → delete cache + file, re-login, retry once
+3. If no cookie yet → login first, save to disk
 
 Concurrent requests with stale cookie: accept the race (both re-login, last write wins) — acceptable for single-user local use.
 
