@@ -40,13 +40,13 @@ The server (`src/index.ts`) exposes `GET /api/extract?url=...` which streams pro
 4. Vision model on images (Groq Llama 4 Scout, fallback)
 
 **API Endpoints:**
-| Route | Methode | Beschreibung |
-|-------|---------|--------------|
-| `/` | GET | Haupt-UI (index.html) |
-| `/api/extract?url=<URL>` | GET | Extraktion, streamt SSE-Events |
-| `/api/recipes` | GET | Liste aller gespeicherten Rezepte |
-| `/api/recipes/:id` | GET | Einzelnes Rezept nach ID |
-| `/api/health` | GET | Server-Status |
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/` | GET | Main UI (index.html) |
+| `/api/extract?url=<URL>` | GET | Extraction, streams SSE events |
+| `/api/recipes` | GET | List all saved recipes |
+| `/api/recipes/:id` | GET | Single recipe by ID |
+| `/api/health` | GET | Server status |
 
 **Frontend:** Single-page vanilla JS app (`public/index.html`) with Tailwind CSS CDN, no build step.
 
@@ -59,10 +59,6 @@ Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no 
 ## Configuration
 
 Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com). SQLite DB is created automatically at `./data/rezepti.db`.
-
-## Sprache
-
-Mit dem Nutzer immer auf **Deutsch** kommunizieren.
 
 ## Git / SSH
 
@@ -92,10 +88,10 @@ Host github.com
 
 ## Working Notes (Claude)
 
-- **Aktiver Branch:** `ph/Test` – alle Commits auf diesen Branch, nie direkt auf `main`
-- **Ursprung:** Projekt wurde von einer KI generiert – Code kann inkonsistent sein, beim Anfassen auf Qualität achten
-- **Kein Test-Suite** – manuell testen via Browser / Health-Endpoint
-- **Design-Varianten:** `public/v1–v4.html` sind inaktive Iterationen; aktive UI ist `public/index.html`
+- **Active branch:** `ph/Test` — all commits go here, never directly to `main`
+- **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
+- **No test suite** — test manually via browser / health endpoint
+- **Design variants:** `public/v1–v4.html` are inactive iterations; active UI is `public/index.html`
 
 ## Language
 
