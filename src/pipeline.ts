@@ -3,6 +3,7 @@ import { fetchWeb } from "./fetchers/web.js";
 import { fetchYouTube } from "./fetchers/youtube.js";
 import { fetchInstagram } from "./fetchers/instagram.js";
 import { fetchTikTok } from "./fetchers/tiktok.js";
+import { fetchCookidoo } from "./fetchers/cookidoo.js";
 import { schemaToRecipeData } from "./processors/schema-org.js";
 import {
   extractRecipeFromText,
@@ -56,6 +57,9 @@ export async function processURL(
         break;
       case "tiktok":
         bundle = await fetchTikTok(classified.url, tempDir);
+        break;
+      case "cookidoo":
+        bundle = await fetchCookidoo(classified.url);
         break;
       case "web":
       default:
