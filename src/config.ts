@@ -11,5 +11,9 @@ export const config = {
   sqlite: {
     path: process.env.SQLITE_PATH || join(process.cwd(), "data", "rezepti.db"),
   },
+  cookidoo: {
+    email:    process.env.COOKIDOO_EMAIL    || "",
+    password: process.env.COOKIDOO_PASSWORD || "",
+  },
   port: parseInt(process.env.PORT || "3000", 10),
 } as const;
