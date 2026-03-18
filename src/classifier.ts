@@ -4,6 +4,7 @@ const patterns: [SourceType, RegExp][] = [
   ["youtube", /(?:youtube\.com|youtu\.be)\//i],
   ["instagram", /instagram\.com\//i],
   ["tiktok", /tiktok\.com\//i],
+  ["cookidoo", /cookidoo\.de\//i],
 ];
 
 export function classifyURL(rawUrl: string): ClassifiedURL {

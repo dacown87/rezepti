@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // --- URL Classification ---
 
-export type SourceType = "youtube" | "instagram" | "tiktok" | "web";
+export type SourceType = "youtube" | "instagram" | "tiktok" | "cookidoo" | "web";
 
 export interface ClassifiedURL {
   url: string;
