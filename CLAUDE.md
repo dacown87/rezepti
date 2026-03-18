@@ -64,6 +64,32 @@ Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.gro
 
 Mit dem Nutzer immer auf **Deutsch** kommunizieren.
 
+## Git / SSH
+
+Remote ist per SSH konfiguriert (`git@github.com:dacown87/rezepti.git`).
+SSH-Key liegt unter `~/.ssh/id_rezepti`, GitHub-Host ist in `~/.ssh/known_hosts` eingetragen.
+
+Falls Push nicht funktioniert:
+```bash
+ssh-keyscan github.com >> ~/.ssh/known_hosts   # Host-Key hinterlegen
+ssh -T git@github.com                           # Verbindung testen
+```
+
+Falls SSH-Key fehlt (z.B. neue Maschine):
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_rezepti -N ""
+# Public Key (~/.ssh/id_rezepti.pub) bei GitHub unter Settings → SSH keys hinterlegen
+ssh-keyscan github.com >> ~/.ssh/known_hosts
+```
+
+SSH-Config (`~/.ssh/config`):
+```
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/id_rezepti
+```
+
 ## Working Notes (Claude)
 
 - **Aktiver Branch:** `ph/Test` – alle Commits auf diesen Branch, nie direkt auf `main`
