@@ -66,23 +66,23 @@ Mit dem Nutzer immer auf **Deutsch** kommunizieren.
 
 ## Git / SSH
 
-Remote ist per SSH konfiguriert (`git@github.com:dacown87/rezepti.git`).
-SSH-Key liegt unter `~/.ssh/id_rezepti`, GitHub-Host ist in `~/.ssh/known_hosts` eingetragen.
+Remote is configured via SSH (`git@github.com:dacown87/rezepti.git`).
+SSH key is at `~/.ssh/id_rezepti`, GitHub host is registered in `~/.ssh/known_hosts`.
 
-Falls Push nicht funktioniert:
+If push fails:
 ```bash
-ssh-keyscan github.com >> ~/.ssh/known_hosts   # Host-Key hinterlegen
-ssh -T git@github.com                           # Verbindung testen
+ssh-keyscan github.com >> ~/.ssh/known_hosts   # register host key
+ssh -T git@github.com                           # test connection
 ```
 
-Falls SSH-Key fehlt (z.B. neue Maschine):
+If SSH key is missing (e.g. new machine):
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/id_rezepti -N ""
-# Public Key (~/.ssh/id_rezepti.pub) bei GitHub unter Settings → SSH keys hinterlegen
+# Add public key (~/.ssh/id_rezepti.pub) to GitHub under Settings → SSH keys
 ssh-keyscan github.com >> ~/.ssh/known_hosts
 ```
 
-SSH-Config (`~/.ssh/config`):
+SSH config (`~/.ssh/config`):
 ```
 Host github.com
   HostName github.com
