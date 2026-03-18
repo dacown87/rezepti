@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join, extname } from "node:path";
 import { config } from "./config.js";
 import { processURL } from "./pipeline.js";
-import { ensureDatabase } from "./notion.js";
+import { ensureSchema, getAllRecipes, getRecipeById } from "./db.js";
 import type { PipelineEvent } from "./types.js";
 import { streamSSE } from "hono/streaming";
 
@@ -72,34 +72,31 @@ app.get("/api/extract", async (c) => {
   });
 });
 
+// List all saved recipes
+app.get("/api/recipes", (c) => {
+  const recipes = getAllRecipes();
+  return c.json(recipes);
+});
+
+// Get a single recipe by ID
+app.get("/api/recipes/:id", (c) => {
+  const id = parseInt(c.req.param("id"), 10);
+  if (isNaN(id)) return c.json({ error: "Ungültige ID" }, 400);
+  const recipe = getRecipeById(id);
+  if (!recipe) return c.json({ error: "Nicht gefunden" }, 404);
+  return c.json(recipe);
+});
+
 // Health check
-app.get("/api/health", async (c) => {
-  const checks: Record<string, boolean> = {
+app.get("/api/health", (c) => {
+  return c.json({
     server: true,
-  };
-
-  // Check Ollama
-  try {
-    const res = await fetch(`${config.ollama.baseUrl}/api/tags`);
-    checks.ollama = res.ok;
-  } catch {
-    checks.ollama = false;
-  }
-
-  // Check Notion
-  checks.notion = !!config.notion.token;
-
-  return c.json(checks);
+    groq: !!config.groq.apiKey,
+  });
 });
 
 // Start server
 const port = config.port;
+ensureSchema();
 console.log(`Rezepti läuft auf http://localhost:${port}`);
-
-if (config.notion.token) {
-  ensureDatabase()
-    .then(() => console.log("Notion-Datenbank bereit."))
-    .catch((e) => console.warn("Notion-Warnung:", e.message));
-}
-
 serve({ fetch: app.fetch, port });

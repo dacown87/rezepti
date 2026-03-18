@@ -1,8 +1,11 @@
-import { Ollama } from "ollama";
+import OpenAI from "openai";
 import { config } from "../config.js";
 import { RecipeDataSchema, type RecipeData } from "../types.js";
 
-const ollama = new Ollama({ host: config.ollama.baseUrl });
+const groq = new OpenAI({
+  apiKey:  config.groq.apiKey,
+  baseURL: "https://api.groq.com/openai/v1",
+});
 
 const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Deine Aufgabe:
 
@@ -22,56 +25,54 @@ const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Deine Aufgabe:
 
 Antworte NUR mit dem JSON-Objekt, kein zusätzlicher Text.`;
 
-function buildRecipeJsonSchema() {
+function buildJsonSchema() {
   return {
     type: "object" as const,
     properties: {
-      name: { type: "string" as const },
-      duration: { type: "string" as const, enum: ["kurz", "mittel", "lang"] },
-      tags: { type: "array" as const, items: { type: "string" as const } },
-      imageUrl: { type: "string" as const },
-      calories: { type: "number" as const },
-      emoji: { type: "string" as const },
-      servings: { type: "string" as const },
-      ingredients: {
-        type: "array" as const,
-        items: { type: "string" as const },
-      },
-      steps: { type: "array" as const, items: { type: "string" as const } },
+      name:        { type: "string" as const },
+      duration:    { type: "string" as const, enum: ["kurz", "mittel", "lang"] },
+      tags:        { type: "array" as const, items: { type: "string" as const } },
+      imageUrl:    { type: "string" as const },
+      calories:    { type: "number" as const },
+      emoji:       { type: "string" as const },
+      servings:    { type: "string" as const },
+      ingredients: { type: "array" as const, items: { type: "string" as const } },
+      steps:       { type: "array" as const, items: { type: "string" as const } },
     },
-    required: [
-      "name",
-      "duration",
-      "tags",
-      "emoji",
-      "ingredients",
-      "steps",
-    ],
+    required: ["name", "duration", "tags", "emoji", "ingredients", "steps"],
+    additionalProperties: false,
   };
+}
+
+async function chatJSON(
+  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+  model: string
+): Promise<unknown> {
+  const response = await groq.chat.completions.create({
+    model,
+    messages,
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "recipe", strict: true, schema: buildJsonSchema() },
+    },
+    temperature: 0.3,
+    max_tokens: 4096,
+  });
+  return JSON.parse(response.choices[0].message.content ?? "{}");
 }
 
 export async function extractRecipeFromText(
   text: string,
   existingImageUrl?: string
 ): Promise<RecipeData> {
-  const prompt = `Extrahiere das Rezept aus folgendem Inhalt:\n\n${text.slice(0, 8000)}`;
-
-  const response = await ollama.chat({
-    model: config.ollama.textModel,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: prompt },
-    ],
-    format: buildRecipeJsonSchema(),
-    options: {
-      temperature: 0.3,
-      num_predict: 4096,
+  const raw = await chatJSON([
+    { role: "system", content: SYSTEM_PROMPT },
+    {
+      role: "user",
+      content: `Extrahiere das Rezept aus folgendem Inhalt:\n\n${text.slice(0, 8000)}`,
     },
-  });
+  ], config.groq.textModel) as Record<string, unknown>;
 
-  const raw = JSON.parse(response.message.content);
-
-  // Apply existing image if LLM didn't provide one
   if (!raw.imageUrl && existingImageUrl) {
     raw.imageUrl = existingImageUrl;
   }
@@ -83,33 +84,24 @@ export async function extractRecipeFromImage(
   imageUrl: string,
   additionalText?: string
 ): Promise<RecipeData> {
-  // Download image first, then send as base64
-  const imageResponse = await fetch(imageUrl);
-  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-  const base64Image = imageBuffer.toString("base64");
-
-  const prompt = additionalText
-    ? `Extrahiere das Rezept aus diesem Bild. Zusätzlicher Kontext:\n${additionalText}`
-    : "Extrahiere das Rezept aus diesem Bild.";
-
-  const response = await ollama.chat({
-    model: config.ollama.visionModel,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: prompt,
-        images: [base64Image],
-      },
-    ],
-    format: buildRecipeJsonSchema(),
-    options: {
-      temperature: 0.3,
-      num_predict: 4096,
+  const userContent: OpenAI.Chat.ChatCompletionContentPart[] = [
+    {
+      type: "image_url",
+      image_url: { url: imageUrl },
     },
-  });
+    {
+      type: "text",
+      text: additionalText
+        ? `Extrahiere das Rezept aus diesem Bild. Zusätzlicher Kontext:\n${additionalText}`
+        : "Extrahiere das Rezept aus diesem Bild.",
+    },
+  ];
 
-  const raw = JSON.parse(response.message.content);
+  const raw = await chatJSON([
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: userContent },
+  ], config.groq.visionModel) as Record<string, unknown>;
+
   if (!raw.imageUrl) {
     raw.imageUrl = imageUrl;
   }
@@ -117,31 +109,17 @@ export async function extractRecipeFromImage(
   return RecipeDataSchema.parse(raw);
 }
 
-/**
- * Refine a partially extracted recipe (e.g. from schema.org fast path)
- * by translating and converting units via LLM.
- */
 export async function refineRecipe(
   partial: Partial<RecipeData>
 ): Promise<RecipeData> {
-  const prompt = `Übersetze und verfeinere dieses Rezept ins Deutsche. Konvertiere alle Einheiten ins metrische System. Schätze Kalorien. Wähle ein Emoji und Tags.\n\nRezept-Daten:\n${JSON.stringify(partial, null, 2)}`;
-
-  const response = await ollama.chat({
-    model: config.ollama.textModel,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: prompt },
-    ],
-    format: buildRecipeJsonSchema(),
-    options: {
-      temperature: 0.3,
-      num_predict: 4096,
+  const raw = await chatJSON([
+    { role: "system", content: SYSTEM_PROMPT },
+    {
+      role: "user",
+      content: `Übersetze und verfeinere dieses Rezept ins Deutsche. Konvertiere alle Einheiten ins metrische System. Schätze Kalorien. Wähle ein Emoji und Tags.\n\nRezept-Daten:\n${JSON.stringify(partial, null, 2)}`,
     },
-  });
+  ], config.groq.textModel) as Record<string, unknown>;
 
-  const raw = JSON.parse(response.message.content);
-
-  // Preserve image URL from partial data
   if (!raw.imageUrl && partial.imageUrl) {
     raw.imageUrl = partial.imageUrl;
   }

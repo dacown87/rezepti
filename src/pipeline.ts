@@ -10,9 +10,8 @@ import {
   refineRecipe,
 } from "./processors/llm.js";
 import { transcribeAudio } from "./processors/whisper.js";
-import { createRecipePage } from "./notion.js";
+import { saveRecipe } from "./db.js";
 import { createTempDir, cleanupTempDir } from "./temp.js";
-import { config } from "./config.js";
 import type {
   ContentBundle,
   PipelineEvent,
@@ -66,11 +65,10 @@ export async function processURL(
 
     await emit(onEvent, { stage: "fetching", message: "Inhalte abgerufen." });
 
-    // Step 3: Determine extraction path
+    // Step 3: Extract recipe
     let recipe: RecipeData;
     let transcript: string | undefined;
 
-    // Fast path: schema.org/Recipe available
     if (bundle.schemaRecipe) {
       await emit(onEvent, {
         stage: "extracting",
@@ -100,28 +98,25 @@ export async function processURL(
       data: recipe,
     });
 
-    // Step 4: Export to Notion (if configured)
-    let notionUrl: string | undefined;
-    if (config.notion.token) {
-      await emit(onEvent, {
-        stage: "exporting",
-        message: "Rezept wird nach Notion exportiert...",
-      });
-      notionUrl = await createRecipePage(recipe, classified.url, transcript);
-      await emit(onEvent, {
-        stage: "exporting",
-        message: "Notion-Seite erstellt!",
-        data: { url: notionUrl },
-      });
-    }
+    // Step 4: Save to SQLite
+    await emit(onEvent, {
+      stage: "exporting",
+      message: "Rezept wird in Datenbank gespeichert...",
+    });
+    const recipeId = saveRecipe(recipe, classified.url, transcript);
+    await emit(onEvent, {
+      stage: "exporting",
+      message: `Rezept gespeichert (ID: ${recipeId}).`,
+      data: { id: recipeId },
+    });
 
     await emit(onEvent, {
       stage: "done",
       message: "Fertig!",
-      data: { recipe, notionUrl },
+      data: { recipe, recipeId },
     });
 
-    return { success: true, recipe, notionUrl };
+    return { success: true, recipe, recipeId };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -142,7 +137,6 @@ async function extractFromBundle(
   tempDir: string,
   onEvent: EventCallback
 ): Promise<ExtractionResult> {
-  // Priority 1: Use subtitles or text content
   const textContent =
     bundle.subtitles || bundle.textContent || bundle.description || "";
 
@@ -152,11 +146,9 @@ async function extractFromBundle(
       message: "Rezept wird aus Text extrahiert...",
     });
     const recipe = await extractRecipeFromText(textContent, bundle.imageUrls[0]);
-    // Include subtitles as transcript (they came from a video)
     return { recipe, transcript: bundle.subtitles };
   }
 
-  // Priority 2: Transcribe audio if available
   if (bundle.audioPath) {
     await emit(onEvent, {
       stage: "transcribing",
@@ -178,7 +170,6 @@ async function extractFromBundle(
     }
   }
 
-  // Priority 3: Vision model for images
   if (bundle.imageUrls.length > 0) {
     const imageUrl = bundle.imageUrls[0];
     await emit(onEvent, {

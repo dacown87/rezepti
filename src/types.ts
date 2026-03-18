@@ -86,6 +86,6 @@ export interface PipelineEvent {
 export interface PipelineResult {
   success: boolean;
   recipe?: RecipeData;
-  notionUrl?: string;
+  recipeId?: number;
   error?: string;
 }

@@ -1,15 +1,14 @@
 import "dotenv/config";
+import { join } from "node:path";
 
 export const config = {
-  notion: {
-    token: process.env.NOTION_TOKEN || "",
-    databaseId: process.env.NOTION_DATABASE_ID || "",
-    parentPageId: process.env.NOTION_PARENT_PAGE_ID || "",
+  groq: {
+    apiKey:      process.env.GROQ_API_KEY || "",
+    textModel:   process.env.GROQ_TEXT_MODEL  || "llama-3.3-70b-versatile",
+    visionModel: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
   },
-  ollama: {
-    baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    textModel: process.env.OLLAMA_TEXT_MODEL || "llama3.2:3b",
-    visionModel: process.env.OLLAMA_VISION_MODEL || "llava:7b",
+  sqlite: {
+    path: process.env.SQLITE_PATH || join(process.cwd(), "data", "rezepti.db"),
   },
   port: parseInt(process.env.PORT || "3000", 10),
 } as const;
