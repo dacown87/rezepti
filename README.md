@@ -19,7 +19,7 @@ cd rezepti
 cp .env.example .env
 # → GROQ_API_KEY in .env setzen
 
-# App starten
+# App starten (fertiges Image wird automatisch geladen, kein Build nötig)
 docker compose up
 ```
 
@@ -34,6 +34,8 @@ Quelldateien werden als Volume gemountet — Änderungen in `src/` werden sofort
 ```bash
 docker compose --profile dev up
 ```
+
+> Das Dev-Image wird lokal gebaut (einmalig ~2–3 Minuten). Danach startet es sofort.
 
 ---
 

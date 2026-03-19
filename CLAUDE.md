@@ -16,10 +16,11 @@ No test suite exists.
 
 ## Docker
 
-- `docker compose up` — Production-Container starten (kompiliertes JS, schlankes Image)
-- `docker compose up --build` — Neu bauen und starten (nach Code-Änderungen nötig)
-- `docker compose --profile dev up` — Dev-Modus mit Hot-Reload (tsx watch, src/ als Volume)
+- `docker compose up` — Production-Container starten (pulled `dacown/rezepti:latest` von Docker Hub, kein Build)
+- `docker compose --profile dev up` — Dev-Modus mit Hot-Reload (tsx watch, src/ als Volume, baut lokal)
 - `docker compose down` — Container stoppen
+
+**Image:** `dacown/rezepti:latest` auf Docker Hub — wird automatisch via GitHub Actions gebaut und gepusht bei jedem Merge auf `main`.
 
 **Stages:** `base` (Node 20 + yt-dlp + Build-Tools) → `builder` (tsc) → `production` (node dist/index.js) + `dev` (tsx watch)
 
@@ -28,6 +29,10 @@ No test suite exists.
 - `./src:/app/src` — Hot-Reload (nur Dev-Modus)
 
 **Wichtig:** `./node_modules` nie als Volume mounten — `better-sqlite3` ist host-spezifisch kompiliert und inkompatibel mit Linux im Container.
+
+**GitHub Secrets (einmalig im Repo setzen):**
+- `DOCKERHUB_USERNAME` = `dacown`
+- `DOCKERHUB_TOKEN` = Access Token von hub.docker.com → Account Settings → Personal access tokens
 
 ## Architecture
 
