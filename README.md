@@ -15,9 +15,9 @@ Rezepti extrahiert Rezepte aus URLs — YouTube, Instagram, TikTok, Webseiten �
 git clone git@github.com:dacown87/rezepti.git
 cd rezepti
 
-# .env anlegen und API-Key eintragen
+# .env anlegen (liegt im gleichen Ordner wie docker-compose.yml)
 cp .env.example .env
-# → GROQ_API_KEY in .env setzen
+# → .env öffnen und GROQ_API_KEY eintragen
 
 # App starten (fertiges Image wird automatisch geladen, kein Build nötig)
 docker compose up
@@ -41,7 +41,15 @@ docker compose --profile dev up
 
 ## Konfiguration
 
-Alle Einstellungen werden über `.env` gesetzt (Vorlage: `.env.example`):
+Alle Einstellungen werden über die Datei `.env` im **Projekt-Stammverzeichnis** gesetzt (neben `docker-compose.yml`). Vorlage: `.env.example`
+
+```
+rezepti/
+├── .env              ← hier
+├── .env.example      ← Vorlage zum Kopieren
+├── docker-compose.yml
+└── ...
+```
 
 | Variable | Pflicht | Standard | Beschreibung |
 |----------|---------|----------|--------------|
