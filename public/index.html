@@ -656,6 +656,20 @@
     }
 
     function openModal(recipe) {
+      // Reset to view mode (in case we're coming from edit mode)
+      document.getElementById('modal-action-bar').classList.add('hidden');
+      document.getElementById('modal-edit-btn').classList.remove('hidden');
+      document.getElementById('modal-delete-btn').classList.remove('hidden');
+      document.getElementById('modal-close-btn').classList.remove('hidden');
+      document.getElementById('add-ingredient-btn').classList.add('hidden');
+      document.getElementById('add-step-btn').classList.add('hidden');
+      const emojiEl = document.getElementById('modal-emoji');
+      const nameEl  = document.getElementById('modal-name');
+      emojiEl.contentEditable = 'false';
+      nameEl.contentEditable  = 'false';
+      emojiEl.className = 'text-4xl';
+      nameEl.className  = 'text-2xl font-display font-semibold text-espresso flex-1 outline-none';
+
       const tags = Array.isArray(recipe.tags) ? recipe.tags : JSON.parse(recipe.tags || '[]');
       const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : JSON.parse(recipe.ingredients || '[]');
       const steps = Array.isArray(recipe.steps) ? recipe.steps : JSON.parse(recipe.steps || '[]');
