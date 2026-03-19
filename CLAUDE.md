@@ -114,6 +114,46 @@ Host github.com
 - **No test suite** — test manually via browser / health endpoint
 - **Design variants:** `public/v1–v4.html` are inactive iterations; active UI is `public/index.html`
 
+## Roadmap
+
+Planned features and current implementation status (as of March 2026):
+
+### Import & Extraction
+- Websites (general): 80% — works, gaps on uncommon sites
+- YouTube: 80% — audio, subtitles, vision fallback
+- TikTok: 70% — via yt-dlp
+- Instagram: 70% — via yt-dlp
+- Chefkoch: 40% — Schema.org partially works
+- Cookidoo: 10% — credentials in .env, no scraper implemented
+- Pinterest: 0%
+- Facebook: 0%
+- Photo import (camera/gallery): 0% — vision model available, no upload flow
+
+### Recipe Display & Navigation
+- Website redesign with navigation menu bar for better clarity: 0%
+- Recipe list & detail view: 50% — basic structure in place
+- Ingredients & steps displayed separately (à la Dr. Oetker): 20% — data is separated, UI is not
+- Adjustable serving size + scaling: 0%
+- Fix one ingredient as quantity → scale the rest: 0%
+
+### Shopping & Planning
+- Shopping list: 0%
+- Enter available ingredients → get recipe suggestions: 0%
+
+### Community & Social
+- User login (incl. "stay logged in"): 0%
+- Rating system (stars): 0%
+- Comment function: 0%
+- Share recipe via QR code: 0%
+
+### Export & Print
+- Recipe card as PDF (image + short description + QR code): 0%
+
+### Mobile
+- Android app (Flutter): 0% — possible framework switch from Node/HTML to Flutter
+
+---
+
 ## Language
 
 Communicate with the user in **German**.

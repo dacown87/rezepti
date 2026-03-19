@@ -96,3 +96,86 @@ Die SQLite-Datenbank liegt in `./data/rezepti.db` und wird automatisch erstellt.
 - **KI:** [Groq API](https://console.groq.com) (Llama 3.3 / Llama 4 / Whisper)
 - **Datenbank:** SQLite via [Drizzle ORM](https://orm.drizzle.team)
 - **Video:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) (im Docker-Image enthalten)
+
+---
+
+## Roadmap
+
+> Stand: März 2026 — Fortschritt basiert auf aktuellem Implementierungsstand
+
+---
+
+### 📥 Import & Extraktion
+
+| Feature | Fortschritt | Status |
+|---------|-------------|--------|
+| Webseiten (allgemein) | ████████░░ 80% | Funktioniert, kleinere Lücken |
+| YouTube | ████████░░ 80% | Audio + Untertitel + Vision |
+| TikTok | ███████░░░ 70% | Via yt-dlp |
+| Instagram | ███████░░░ 70% | Via yt-dlp |
+| Chefkoch | ████░░░░░░ 40% | Schema.org greift teilweise |
+| Cookidoo | █░░░░░░░░░ 10% | Zugangsdaten vorbereitet, kein Scraper |
+| Pinterest | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Facebook | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Foto-Import (Kamera/Galerie) | ░░░░░░░░░░ 0% | Vision-Modell vorhanden, kein Upload-Flow |
+
+---
+
+### 🍽️ Rezeptanzeige & Navigation
+
+| Feature | Fortschritt | Status |
+|---------|-------------|--------|
+| Webseite neu gestalten mit Menüleiste | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Rezeptliste & Detailansicht | █████░░░░░ 50% | Grundstruktur vorhanden |
+| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ██░░░░░░░░ 20% | Daten liegen getrennt vor, UI nicht |
+| Personenzahl einstellbar + Hochskalierung | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Zutat als Fixgröße → Rest hochskalieren | ░░░░░░░░░░ 0% | Nicht implementiert |
+
+---
+
+### 🛒 Einkauf & Planung
+
+| Feature | Fortschritt | Status |
+|---------|-------------|--------|
+| Einkaufsliste | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Zutaten eingeben → Rezeptvorschläge | ░░░░░░░░░░ 0% | Nicht implementiert |
+
+---
+
+### 👥 Community & Sozial
+
+| Feature | Fortschritt | Status |
+|---------|-------------|--------|
+| Benutzer-Login (inkl. „Angemeldet bleiben") | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Bewertungsfunktion (Sterne) | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Kommentarfunktion | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Rezepte teilen via QR-Code | ░░░░░░░░░░ 0% | Nicht implementiert |
+
+---
+
+### 🖨️ Export & Druck
+
+| Feature | Fortschritt | Status |
+|---------|-------------|--------|
+| Rezeptkarte als PDF (Bild + Kurzbeschreibung + QR-Code) | ░░░░░░░░░░ 0% | Nicht implementiert |
+
+---
+
+### 📱 Mobile
+
+| Feature | Fortschritt | Status |
+|---------|-------------|--------|
+| Android App (Flutter) | ░░░░░░░░░░ 0% | Nicht implementiert — ggf. Framework-Wechsel nötig |
+
+---
+
+### Gesamtfortschritt: ~25%
+
+```
+Import/Extraktion     ████████░░░░░░░░░░░░ 55%
+Rezeptanzeige         ████░░░░░░░░░░░░░░░░ 35%
+Einkauf & Planung     ░░░░░░░░░░░░░░░░░░░░  0%
+Community & Sozial    ░░░░░░░░░░░░░░░░░░░░  0%
+Export & Druck        ░░░░░░░░░░░░░░░░░░░░  0%
+Mobile (Flutter)      ░░░░░░░░░░░░░░░░░░░░  0%
+```
