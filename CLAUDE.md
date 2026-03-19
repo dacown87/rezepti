@@ -16,8 +16,8 @@ No test suite exists.
 
 ## Docker
 
-- `docker compose up` — Production-Container starten (pulled `dacown/rezepti:latest` von Docker Hub, kein Build)
-- `docker compose --profile dev up` — Dev-Modus mit Hot-Reload (tsx watch, src/ als Volume, baut lokal)
+- `docker compose up` — Dev-Modus starten (tsx watch, src/ + public/ als Volume, Änderungen sofort live)
+- `docker compose --profile prod up` — Production-Modus (pulled `dacown/rezepti:latest` von Docker Hub)
 - `docker compose down` — Container stoppen
 
 **Image:** `dacown/rezepti:latest` auf Docker Hub — wird automatisch via GitHub Actions gebaut und gepusht bei jedem Merge auf `main`.
@@ -26,7 +26,8 @@ No test suite exists.
 
 **Volumes:**
 - `./data:/app/data` — SQLite-Persistenz (beide Modi)
-- `./src:/app/src` — Hot-Reload (nur Dev-Modus)
+- `./src:/app/src` — Hot-Reload für Server-Code (nur Dev-Modus)
+- `./public:/app/public` — Hot-Reload für Frontend (nur Dev-Modus)
 
 **Wichtig:** `./node_modules` nie als Volume mounten — `better-sqlite3` ist host-spezifisch kompiliert und inkompatibel mit Linux im Container.
 

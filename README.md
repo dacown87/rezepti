@@ -19,23 +19,25 @@ cd rezepti
 cp .env.example .env
 # → .env öffnen und GROQ_API_KEY eintragen
 
-# App starten (fertiges Image wird automatisch geladen, kein Build nötig)
+# App starten mit Hot-Reload (Änderungen sofort live)
 docker compose up
 ```
 
+> Beim ersten Start wird das Image lokal gebaut (~2–3 Minuten). Danach startet es sofort.
+
 Anschließend: [http://localhost:3000](http://localhost:3000)
+
+Änderungen in `src/` oder `public/` sind sofort im Browser sichtbar — kein Neustart nötig.
 
 ---
 
-## Entwicklungsmodus (Hot-Reload)
+## Production-Modus
 
-Quelldateien werden als Volume gemountet — Änderungen in `src/` werden sofort übernommen:
+Fertiges Image von Docker Hub, kein lokaler Build:
 
 ```bash
-docker compose --profile dev up
+docker compose --profile prod up
 ```
-
-> Das Dev-Image wird lokal gebaut (einmalig ~2–3 Minuten). Danach startet es sofort.
 
 ---
 
