@@ -14,6 +14,21 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 
 No test suite exists.
 
+## Docker
+
+- `docker compose up` — Production-Container starten (kompiliertes JS, schlankes Image)
+- `docker compose up --build` — Neu bauen und starten (nach Code-Änderungen nötig)
+- `docker compose --profile dev up` — Dev-Modus mit Hot-Reload (tsx watch, src/ als Volume)
+- `docker compose down` — Container stoppen
+
+**Stages:** `base` (Node 20 + yt-dlp + Build-Tools) → `builder` (tsc) → `production` (node dist/index.js) + `dev` (tsx watch)
+
+**Volumes:**
+- `./data:/app/data` — SQLite-Persistenz (beide Modi)
+- `./src:/app/src` — Hot-Reload (nur Dev-Modus)
+
+**Wichtig:** `./node_modules` nie als Volume mounten — `better-sqlite3` ist host-spezifisch kompiliert und inkompatibel mit Linux im Container.
+
 ## Architecture
 
 **Request flow:** HTTP request → Pipeline → Classifier → Fetcher → Processor → SQLite save

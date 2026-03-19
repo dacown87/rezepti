@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+.env
+LoginData/
+*.db
+*.db-shm
+*.db-wal
+.git/
+docs/
+public/v*.html
