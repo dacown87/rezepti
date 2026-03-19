@@ -663,6 +663,9 @@
       document.getElementById('modal-close-btn').classList.remove('hidden');
       document.getElementById('add-ingredient-btn').classList.add('hidden');
       document.getElementById('add-step-btn').classList.add('hidden');
+      const saveBtn = document.getElementById('edit-save-btn');
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Speichern';
       const emojiEl = document.getElementById('modal-emoji');
       const nameEl  = document.getElementById('modal-name');
       emojiEl.contentEditable = 'false';
