@@ -51,6 +51,12 @@ rezepti/
 └── ...
 ```
 
+> **Hinweis:** Dateien die mit `.` beginnen sind versteckt und werden standardmäßig nicht angezeigt.
+> - **Windows:** Im Explorer → Ansicht → "Ausgeblendete Elemente" aktivieren
+> - **macOS:** Im Finder `Cmd + Shift + .` drücken
+> - **Linux:** Im Dateimanager `Strg + H` drücken
+> - **Terminal:** `ls -la` zeigt alle Dateien inkl. versteckter
+
 | Variable | Pflicht | Standard | Beschreibung |
 |----------|---------|----------|--------------|
 | `GROQ_API_KEY` | ✅ | — | Groq API-Key (kostenlos unter console.groq.com) |
