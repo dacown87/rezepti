@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink } from 'lucide-react'
+import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Loader2 } from 'lucide-react'
+import { validateApiKey, saveApiKey, clearApiKey } from '../api/services.js'
 
 const SettingsPage: React.FC = () => {
   const [userKey, setUserKey] = useState('')
@@ -20,46 +21,69 @@ const SettingsPage: React.FC = () => {
     }
   }, [])
 
-  const handleSaveKey = () => {
+  const handleSaveKey = async () => {
     if (!userKey.trim()) return
     
-    // Basic validation
-    if (!userKey.startsWith('gsk_')) {
+    setIsValidating(true)
+    setValidationResult(null)
+
+    try {
+      // First validate the key with our API
+      const validation = await validateApiKey(userKey)
+      
+      if (validation.isValid) {
+        // Save to backend
+        const saveResult = await saveApiKey(userKey)
+        
+        if (saveResult.success) {
+          // Also save locally for frontend use
+          localStorage.setItem('rezepti_groq_key', userKey)
+          setSavedKey(userKey)
+          setValidationResult({
+            isValid: true,
+            remainingCredits: validation.remainingCredits,
+            rateLimits: validation.rateLimits
+          })
+        } else {
+          setValidationResult({
+            isValid: false,
+            error: saveResult.error || 'Fehler beim Speichern des Keys'
+          })
+        }
+      } else {
+        setValidationResult({
+          isValid: false,
+          error: validation.error || 'Key konnte nicht validiert werden'
+        })
+      }
+    } catch (err: any) {
+      console.error('Key validation/saving error:', err)
       setValidationResult({
         isValid: false,
-        error: 'Ungültiges Key-Format. Groq Keys beginnen mit "gsk_"'
+        error: err.message || 'Netzwerkfehler. Bitte versuche es erneut.'
       })
-      return
-    }
-
-    setIsValidating(true)
-    
-    // Simulate API validation
-    setTimeout(() => {
-      // TODO: Implement actual Groq API validation
-      // const isValid = await validateGroqKey(userKey)
       
-      // For now, simulate success for valid-looking keys
-      const isValid = userKey.length > 30
-      
-      if (isValid) {
+      // Fallback: basic validation
+      if (userKey.startsWith('gsk_') && userKey.length > 30) {
         localStorage.setItem('rezepti_groq_key', userKey)
         setSavedKey(userKey)
         setValidationResult({
           isValid: true,
-          remainingCredits: 1000, // Mock data
-        })
-      } else {
-        setValidationResult({
-          isValid: false,
-          error: 'Key konnte nicht validiert werden. Bitte überprüfe den Key.'
+          remainingCredits: 1000
         })
       }
+    } finally {
       setIsValidating(false)
-    }, 1500)
+    }
   }
 
-  const handleClearKey = () => {
+  const handleClearKey = async () => {
+    try {
+      await clearApiKey()
+    } catch (err) {
+      console.error('Error clearing API key:', err)
+    }
+    
     localStorage.removeItem('rezepti_groq_key')
     setSavedKey(null)
     setUserKey('')

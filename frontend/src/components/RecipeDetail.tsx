@@ -1,39 +1,98 @@
-import React from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle } from 'lucide-react'
+import { getRecipe, deleteRecipe } from '../api/services.js'
+import type { Recipe } from '../api/types.js'
 
 const RecipeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
-  
-  // Temporary mock data
-  const recipe = {
-    id: parseInt(id || '1'),
-    name: 'Pasta Carbonara',
-    emoji: '🍝',
-    duration: 'mittel',
-    servings: '4 Portionen',
-    calories: 450,
-    tags: ['Pasta', 'Italienisch', 'Schnell', 'Klassiker'],
-    imageUrl: 'https://images.unsplash.com/photo-1608756687911-2d6acda0d1d3?w=800&auto=format&fit=crop',
-    ingredients: [
-      '400g Spaghetti',
-      '200g Pancetta oder Speck',
-      '4 Eigelb',
-      '100g Pecorino Romano, gerieben',
-      '100g Parmigiano Reggiano, gerieben',
-      'Frisch gemahlener schwarzer Pfeffer',
-      'Salz',
-    ],
-    steps: [
-      'Spaghetti in reichlich Salzwasser al dente kochen.',
-      'Pancetta in kleine Würfel schneiden und in einer Pfanne knusprig braten.',
-      'Eigelb mit den geriebenen Käsesorten und viel Pfeffer verquirlen.',
-      'Spaghetti abgießen und sofort mit der Pancetta und etwas Nudelwasser vermengen.',
-      'Hitze ausschalten und die Eier-Käse-Mischung unterrühren – die Restwärme gart die Sauce cremig.',
-      'Sofort servieren und mit zusätzlichem Käse und Pfeffer bestreuen.',
-    ],
-    source_url: 'https://www.youtube.com/watch?v=example',
-    created_at: new Date('2024-03-15'),
+  const navigate = useNavigate()
+  const [recipe, setRecipe] = useState<Recipe | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    if (id) {
+      fetchRecipe()
+    }
+  }, [id])
+
+  const fetchRecipe = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const recipeId = parseInt(id || '0')
+      if (isNaN(recipeId)) {
+        throw new Error('Ungültige Rezept-ID')
+      }
+      
+      const data = await getRecipe(recipeId)
+      setRecipe(data)
+    } catch (err: any) {
+      console.error('Failed to load recipe:', err)
+      setError(err.message || 'Rezept konnte nicht geladen werden')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!recipe || !confirm('Möchtest du dieses Rezept wirklich löschen?')) {
+      return
+    }
+    
+    setIsDeleting(true)
+    
+    try {
+      await deleteRecipe(recipe.id)
+      navigate('/')
+    } catch (err: any) {
+      console.error('Failed to delete recipe:', err)
+      alert('Rezept konnte nicht gelöscht werden. Bitte versuche es erneut.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-center p-20">
+          <Loader2 className="h-8 w-8 animate-spin text-warmgray/40" />
+          <span className="ml-3 text-warmgray">Lade Rezept...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !recipe) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center space-x-2 text-warmgray hover:text-espresso transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span>Zurück zu Rezepten</span>
+          </Link>
+        </div>
+        
+        <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-display font-bold mb-2">Rezept nicht gefunden</h2>
+          <p className="text-warmgray mb-6">{error || 'Das Rezept existiert nicht oder konnte nicht geladen werden.'}</p>
+          <Link
+            to="/"
+            className="bg-paprika text-white px-6 py-3 rounded-lg font-medium hover:bg-paprika-dark transition-colors"
+          >
+            Zurück zur Übersicht
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -116,10 +175,14 @@ const RecipeDetail: React.FC = () => {
               <Edit size={20} />
               <span>Rezept bearbeiten</span>
             </button>
-            <button className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2">
-              <Trash2 size={20} />
-              <span>Löschen</span>
-            </button>
+<button 
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={20} />
+                <span>{isDeleting ? 'Löschen...' : 'Löschen'}</span>
+              </button>
           </div>
 
           {/* Ingredients */}
@@ -168,7 +231,7 @@ const RecipeDetail: React.FC = () => {
               {recipe.source_url}
             </a>
             <span className="text-sm text-warmgray">
-              Extrahiert am {recipe.created_at.toLocaleDateString('de-DE')}
+              Extrahiert am {new Date(recipe.created_at).toLocaleDateString('de-DE')}
             </span>
           </div>
         </div>

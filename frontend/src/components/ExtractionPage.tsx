@@ -1,11 +1,50 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, Globe, Youtube, Instagram, MessageSquare, AlertCircle } from 'lucide-react'
+import { startExtraction, pollJobStatus } from '../api/services.js'
 
 const ExtractionPage: React.FC = () => {
   const [url, setUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [jobStatus, setJobStatus] = useState<{
+    status: string
+    progress: number
+    currentStage?: string
+    message?: string
+  } | null>(null)
+
+  useEffect(() => {
+    // Poll job status if we have a jobId
+    if (jobId && jobStatus?.status !== 'completed' && jobStatus?.status !== 'failed') {
+      const interval = setInterval(async () => {
+        try {
+          const status = await pollJobStatus(jobId)
+          setJobStatus({
+            status: status.status,
+            progress: status.progress,
+            currentStage: status.stage,
+            message: status.message
+          })
+          
+          if (status.status === 'completed') {
+            setSuccess(true)
+            setJobId(null)
+            clearInterval(interval)
+          } else if (status.status === 'failed') {
+            setError(status.error || 'Extraction failed')
+            setJobId(null)
+            clearInterval(interval)
+          }
+        } catch (err) {
+          console.error('Error polling job status:', err)
+        }
+      }, 1000)
+      
+      return () => clearInterval(interval)
+    }
+  }, [jobId, jobStatus])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -14,20 +53,26 @@ const ExtractionPage: React.FC = () => {
     setIsLoading(true)
     setError(null)
     setSuccess(false)
+    setJobStatus(null)
 
     try {
-      // TODO: Implement actual API call
-      // const response = await fetch(`/api/v1/extract/react?url=${encodeURIComponent(url)}`)
-      // const data = await response.json()
+      // Get user's API key from localStorage
+      const userKey = localStorage.getItem('rezepti_groq_key')
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Start extraction job
+      const newJobId = await startExtraction(url, userKey || undefined)
+      setJobId(newJobId)
       
-      setSuccess(true)
-      setUrl('')
-    } catch (err) {
-      setError('Fehler beim Extrahieren des Rezepts. Bitte versuche es erneut.')
-    } finally {
+      // Set initial job status
+      setJobStatus({
+        status: 'pending',
+        progress: 0,
+        message: 'Job started...'
+      })
+      
+    } catch (err: any) {
+      console.error('Extraction error:', err)
+      setError(err.message || 'Fehler beim Extrahieren des Rezepts. Bitte versuche es erneut.')
       setIsLoading(false)
     }
   }
@@ -101,10 +146,10 @@ const ExtractionPage: React.FC = () => {
                   />
                   <button
                     type="submit"
-                    disabled={isLoading || !url.trim()}
+                    disabled={isLoading || !url.trim() || !!jobId}
                     className="bg-paprika text-white px-6 py-3 rounded-lg font-medium hover:bg-paprika-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Wird extrahiert...' : 'Extrahiere'}
+                    {isLoading || jobId ? 'Wird extrahiert...' : 'Extrahiere'}
                   </button>
                 </div>
               </div>
@@ -129,16 +174,29 @@ const ExtractionPage: React.FC = () => {
               )}
 
               {/* Progress simulation */}
-              {isLoading && (
+               {(isLoading || jobStatus) && (
                 <div className="mb-6">
                   <div className="h-2 bg-warmgray/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-paprika animate-pulse w-3/4"></div>
+                    <div 
+                      className="h-full bg-paprika transition-all duration-300 ease-out"
+                      style={{ width: `${jobStatus?.progress || 0}%` }}
+                    ></div>
                   </div>
                   <div className="mt-2 text-sm text-warmgray">
                     <div className="flex justify-between">
-                      <span>URL wird analysiert...</span>
-                      <span>75%</span>
+                      <span>
+                        {jobStatus?.currentStage 
+                          ? `${jobStatus.currentStage}...` 
+                          : 'URL wird analysiert...'
+                        }
+                      </span>
+                      <span>{jobStatus?.progress || 0}%</span>
                     </div>
+                    {jobStatus?.message && (
+                      <div className="mt-1 text-xs text-warmgray/70">
+                        {jobStatus.message}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -7,8 +7,13 @@ import { config } from "./config.js";
 import { recipes } from "./schema.js";
 import type { RecipeData } from "./types.js";
 
-function openDb() {
-  const path = config.sqlite.path;
+/**
+ * React-specific database connection
+ * This uses a separate database file for React frontend
+ */
+
+function openReactDb() {
+  const path = config.sqlite.reactPath;
   // Ensure we're using a relative path from current working directory
   const resolvedPath = path.startsWith('/') ? path : join(process.cwd(), path);
   const dir = dirname(resolvedPath);
@@ -20,15 +25,18 @@ function openDb() {
   return drizzle(sqlite, { schema: { recipes } });
 }
 
-// Lazy singleton
-let _db: ReturnType<typeof openDb> | null = null;
-function getDb() {
-  if (!_db) _db = openDb();
-  return _db;
+// Lazy singleton for React database
+let _reactDb: ReturnType<typeof openReactDb> | null = null;
+function getReactDb() {
+  if (!_reactDb) _reactDb = openReactDb();
+  return _reactDb;
 }
 
-export function ensureSchema() {
-  const db = getDb();
+/**
+ * Ensure React database schema exists
+ */
+export function ensureReactSchema() {
+  const db = getReactDb();
   // Create table if not exists (simple migration without drizzle-kit)
   db.$client.exec(`
     CREATE TABLE IF NOT EXISTS recipes (
@@ -50,12 +58,15 @@ export function ensureSchema() {
   `);
 }
 
-export function saveRecipe(
+/**
+ * Save recipe to React database
+ */
+export function saveRecipeToReactDb(
   recipe: RecipeData,
   sourceUrl: string,
   transcript?: string
 ): number {
-  const db = getDb();
+  const db = getReactDb();
   const result = db.insert(recipes).values({
     name:        recipe.name,
     emoji:       recipe.emoji,
@@ -73,13 +84,28 @@ export function saveRecipe(
   return result.id;
 }
 
-export function getAllRecipes() {
-  const db = getDb();
+/**
+ * Get all recipes from React database
+ */
+export function getAllRecipesFromReactDb() {
+  const db = getReactDb();
   return db.select().from(recipes).orderBy(recipes.created_at).all().map(deserialize);
 }
 
-export function updateRecipe(id: number, fields: Partial<RecipeData>): boolean {
-  const db = getDb();
+/**
+ * Get single recipe by ID from React database
+ */
+export function getRecipeByIdFromReactDb(id: number) {
+  const db = getReactDb();
+  const row = db.select().from(recipes).where(eq(recipes.id, id)).get();
+  return row ? deserialize(row) : null;
+}
+
+/**
+ * Update recipe in React database
+ */
+export function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): boolean {
+  const db = getReactDb();
   const values: Record<string, unknown> = {};
   if (fields.name        !== undefined) values.name        = fields.name;
   if (fields.emoji       !== undefined) values.emoji       = fields.emoji;
@@ -95,18 +121,18 @@ export function updateRecipe(id: number, fields: Partial<RecipeData>): boolean {
   return !!result;
 }
 
-export function deleteRecipe(id: number): boolean {
-  const db = getDb();
+/**
+ * Delete recipe from React database
+ */
+export function deleteRecipeFromReactDb(id: number): boolean {
+  const db = getReactDb();
   const result = db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();
   return !!result;
 }
 
-export function getRecipeById(id: number) {
-  const db = getDb();
-  const row = db.select().from(recipes).where(eq(recipes.id, id)).get();
-  return row ? deserialize(row) : null;
-}
-
+/**
+ * Deserialize JSON fields from database row
+ */
 function deserialize(row: typeof recipes.$inferSelect) {
   return {
     ...row,
