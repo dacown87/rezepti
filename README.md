@@ -19,15 +19,15 @@ cd rezepti
 cp .env.example .env
 # → .env öffnen und GROQ_API_KEY eintragen
 
-# App starten mit Hot-Reload (Änderungen sofort live)
-docker compose up
+# React Frontend + Server starten
+docker compose up --profile react
 ```
 
 > Beim ersten Start wird das Image lokal gebaut (~2–3 Minuten). Danach startet es sofort.
 
 Anschließend: [http://localhost:3000](http://localhost:3000)
 
-Änderungen in `src/` oder `public/` sind sofort im Browser sichtbar — kein Neustart nötig.
+Änderungen in `src/` oder `frontend/` sind sofort im Browser sichtbar — kein Neustart nötig.
 
 ---
 
@@ -61,9 +61,10 @@ rezepti/
 
 | Variable | Pflicht | Standard | Beschreibung |
 |----------|---------|----------|--------------|
-| `GROQ_API_KEY` | ✅ | — | Groq API-Key (kostenlos unter console.groq.com) |
+| `GROQ_API_KEY` | ✅ | — | **Default Groq Key** (kostenlos unter console.groq.com) |
+| `REACT_SQLITE_PATH` | | `./data/rezepti-react.db` | Neue DB für React Frontend |
 | `PORT` | | `3000` | Server-Port |
-| `SQLITE_PATH` | | `./data/rezepti.db` | Pfad zur SQLite-Datenbank |
+| `SQLITE_PATH` | | `./data/rezepti.db` | Legacy DB (für alte UI) |
 | `GROQ_TEXT_MODEL` | | `llama-3.3-70b-versatile` | Textmodell für Extraktion |
 | `GROQ_VISION_MODEL` | | `meta-llama/llama-4-scout-17b-16e-instruct` | Bildanalyse-Modell |
 | `GROQ_WHISPER_MODEL` | | `whisper-large-v3-turbo` | Audio-Transkription |
@@ -76,26 +77,36 @@ rezepti/
 
 | Route | Methode | Beschreibung |
 |-------|---------|--------------|
-| `/` | GET | Web-Oberfläche |
-| `/api/extract?url=<URL>` | GET | Rezept extrahieren (SSE-Stream) |
+| `/` | GET | **React Frontend** (mit BYOK Support) |
+| `/api/extract?url=<URL>` | GET | Legacy: Rezept extrahieren (SSE-Stream) |
+| `/api/v1/extract/react?url=<URL>` | GET | **React:** Rezept extrahieren (Polling) |
 | `/api/recipes` | GET | Alle gespeicherten Rezepte |
-| `/api/recipes/:id` | GET | Einzelnes Rezept |
+| `/api/v1/recipes` | GET | **React:** Rezepte aus neuer DB |
+| `/api/recipes/:id` | GET | Einzelnes Rezept (Legacy DB) |
+| `/api/v1/recipes/:id` | GET | **React:** Rezept aus neuer DB |
+| `/api/v1/keys` | POST/DELETE | **BYOK:** User Key Management |
 | `/api/health` | GET | Server-Status |
 
 ---
 
 ## Daten
 
-Die SQLite-Datenbank liegt in `./data/rezepti.db` und wird automatisch erstellt. Das Verzeichnis ist als Docker-Volume gemountet — Daten bleiben auch nach `docker compose down` erhalten.
+- **React DB:** `./data/rezepti-react.db` - Neue SQLite DB für React Frontend
+- **Legacy DB:** `./data/rezepti.db` - Alte DB (kompatibilität)
+
+Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-Volume gemountet — Daten bleiben auch nach `docker compose down` erhalten.
 
 ---
 
 ## Technologie
 
+- **Frontend:** React 18 + Vite + TypeScript + Tailwind CSS
 - **Server:** Node.js 20, TypeScript, [Hono](https://hono.dev)
 - **KI:** [Groq API](https://console.groq.com) (Llama 3.3 / Llama 4 / Whisper)
+- **BYOK:** Bring Your Own Key Support (User können eigenen Groq Key verwenden)
 - **Datenbank:** SQLite via [Drizzle ORM](https://orm.drizzle.team)
 - **Video:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) (im Docker-Image enthalten)
+- **Mobile Ready:** Platform-Abstraktion für spätere Android/iOS Apps
 
 ---
 
@@ -165,7 +176,24 @@ Die SQLite-Datenbank liegt in `./data/rezepti.db` und wird automatisch erstellt.
 
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
+| Mobile-First-Ansatz | ░░░░░░░░░░ 0% | Zuerst für Mobilgeräte optimieren, dann Desktop |
+| Media Queries für typische Bildschirmgrößen | ░░░░░░░░░░ 0% | Responsive Breakpoints für Handys, Tablets, Desktops |
 | Android App (Flutter) | ░░░░░░░░░░ 0% | Nicht implementiert — ggf. Framework-Wechsel nötig |
+
+---
+
+### 🍽️ Rezeptanzeige & Navigation (Aktualisiert)
+
+| Feature | Fortschritt | Status |
+|---------|-------------|--------|
+| Webseite neu gestalten mit Menüleiste | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Rezeptliste & Detailansicht | █████░░░░░ 50% | Grundstruktur vorhanden |
+| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ██░░░░░░░░ 20% | Daten liegen getrennt vor, UI nicht |
+| Personenzahl einstellbar + Hochskalierung | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Zutat als Fixgröße → Rest hochskalieren | ░░░░░░░░░░ 0% | Nicht implementiert |
+| **Fullscreen Cook Mode** | ░░░░░░░░░░ 0% | Vollbild-Ansicht für Schritt-für-Schritt-Kochen |
+| **Original-Rezept-Link** | ░░░░░░░░░░ 0% | Link zur Quell-Webseite in Rezeptansicht |
+| **Rezept als separate Seite (kein Modal)** | ░░░░░░░░░░ 0% | Dedizierte Rezeptseite statt Modal |
 
 ---
 

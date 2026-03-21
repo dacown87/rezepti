@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openrouter:deepseek/deepseek-v3.2-20251201",
+  "small_model": "openrouter:stepfun/step-3.5-flash:free",
+  "instructions": ["CLAUDE.md"],
+  "autoupdate": true,
+  "formatter": {
+    "prettier": {
+      "disabled": false
+    }
+  },
+  "permission": {
+    "bash": "ask",
+    "edit": "ask"
+  }
+}

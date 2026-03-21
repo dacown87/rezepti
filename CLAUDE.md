@@ -10,9 +10,12 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 
 - `npm run dev` — Start dev server with hot reload (tsx watch)
 - `npm start` — Start production server
+- `npm run dev:react` — React dev server (Vite)
+- `npm run build:react` — React production build
+- `npm test` — Run tests (Vitest)
 - `npx tsc` — Type-check (noEmit, strict mode)
 
-No test suite exists.
+Test suite: Vitest for unit/e2e tests.
 
 ## Docker
 
@@ -63,13 +66,15 @@ The server (`src/index.ts`) exposes `GET /api/extract?url=...` which streams pro
 **API Endpoints:**
 | Route | Method | Description |
 |-------|--------|-------------|
-| `/` | GET | Main UI (index.html) |
-| `/api/extract?url=<URL>` | GET | Extraction, streams SSE events |
+| `/` | GET | Main UI (React app) |
+| `/api/extract?url=<URL>` | GET | Extraction, streams SSE events (legacy) |
+| `/api/v1/extract/react?url=<URL>` | GET | React extraction with polling |
 | `/api/recipes` | GET | List all saved recipes |
 | `/api/recipes/:id` | GET | Single recipe by ID |
 | `/api/health` | GET | Server status |
+| `/api/v1/keys` | POST/DELETE | BYOK key management |
 
-**Frontend:** Single-page vanilla JS app (`public/index.html`) with Tailwind CSS CDN, no build step.
+**Frontend:** React SPA with Vite build system, Tailwind CSS, BYOK support.
 
 ## External CLI Dependencies
 
@@ -135,6 +140,9 @@ Planned features and current implementation status (as of March 2026):
 - Ingredients & steps displayed separately (à la Dr. Oetker): 20% — data is separated, UI is not
 - Adjustable serving size + scaling: 0%
 - Fix one ingredient as quantity → scale the rest: 0%
+- Fullscreen cook mode: 0% — fullscreen view for step-by-step cooking
+- Original recipe link: 0% — link to source website in recipe view
+- Recipe as separate page (not modal): 0% — dedicated recipe page instead of modal
 
 ### Shopping & Planning
 - Shopping list: 0%
@@ -149,7 +157,9 @@ Planned features and current implementation status (as of March 2026):
 ### Export & Print
 - Recipe card as PDF (image + short description + QR code): 0%
 
-### Mobile
+### Mobile & Responsive Design
+- Mobile first approach: 0% — build for mobile devices first, then desktop
+- Media queries for typical screen sizes: 0% — responsive breakpoints for phones, tablets, desktops
 - Android app (Flutter): 0% — possible framework switch from Node/HTML to Flutter
 
 ---
