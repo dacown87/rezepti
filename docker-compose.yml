@@ -10,6 +10,35 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./public:/app/public
+    profiles:
+      - legacy
+
+  rezepti-react:
+    build:
+      context: .
+      dockerfile: Dockerfile.react
+      target: dev
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:3000/api
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    command: >
+      sh -c "
+        echo 'Starting Rezepti with React support...' &&
+        npx concurrently \
+          'npx tsx watch src/index.ts' \
+          'cd frontend && npm run dev -- --host 0.0.0.0'
+      "
+    profiles:
+      - react
 
   rezepti-prod:
     image: dacown/rezepti:latest
@@ -21,3 +50,20 @@ services:
     restart: unless-stopped
     profiles:
       - prod
+
+  rezepti-react-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.react
+      target: production
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=/api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    profiles:
+      - react-prod

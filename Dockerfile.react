@@ -1,0 +1,85 @@
+# Multi-stage Dockerfile for React Frontend + Node.js Backend
+
+# ─── base ──────────────────────────────────────────────────────────────────────
+FROM node:20-slim AS base
+
+WORKDIR /app
+
+# Build-Tools für better-sqlite3 (natives Node-Addon)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# yt-dlp als statisches Binary (kein Python nötig)
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    -o /usr/local/bin/yt-dlp \
+    && chmod +x /usr/local/bin/yt-dlp
+
+# ─── frontend-builder ─────────────────────────────────────────────────────────
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+COPY frontend/package*.json ./frontend/
+RUN npm ci
+
+# Build React app
+COPY . .
+RUN npm run build:react
+
+# ─── backend-builder ───────────────────────────────────────────────────────────
+FROM base AS backend-builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npx tsc
+
+# ─── production ────────────────────────────────────────────────────────────────
+FROM base AS production
+
+ENV NODE_ENV=production
+ENV REACT_APP_API_URL=/api
+
+WORKDIR /app
+
+# Install production dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy built backend
+COPY --from=backend-builder /app/dist ./dist
+
+# Copy built frontend
+COPY --from=frontend-builder /app/dist ./public
+
+# Health check
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000/api/health || exit 1
+
+CMD ["node", "dist/index.js"]
+
+# ─── dev ───────────────────────────────────────────────────────────────────────
+FROM base AS dev
+
+ENV NODE_ENV=development
+ENV REACT_APP_API_URL=http://localhost:3000/api
+
+WORKDIR /app
+
+# Install all dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Expose ports for both backend (3000) and frontend dev server (5173)
+EXPOSE 3000 5173
+
+# Start script will be defined in docker-compose
+CMD ["npx", "tsx", "watch", "src/index.ts"]
