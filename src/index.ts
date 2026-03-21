@@ -5,8 +5,10 @@ import { join, extname } from "node:path";
 import { config } from "./config.js";
 import { processURL } from "./pipeline.js";
 import { ensureSchema, getAllRecipes, getRecipeById, deleteRecipe, updateRecipe } from "./db.js";
+import { ensureReactSchema } from "./db-react.js";
 import type { PipelineEvent } from "./types.js";
 import { streamSSE } from "hono/streaming";
+import reactApi from "./api-react.js";
 
 const app = new Hono();
 
@@ -114,8 +116,14 @@ app.get("/api/health", (c) => {
   });
 });
 
+// Mount React API routes
+app.route("/", reactApi);
+
 // Start server
 const port = config.port;
 ensureSchema();
+ensureReactSchema();
 console.log(`Rezepti läuft auf http://localhost:${port}`);
+console.log(`Legacy database: ${config.sqlite.path}`);
+console.log(`React database:  ${config.sqlite.reactPath}`);
 serve({ fetch: app.fetch, port });

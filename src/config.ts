@@ -10,10 +10,16 @@ export const config = {
   },
   sqlite: {
     path: process.env.SQLITE_PATH || join(process.cwd(), "data", "rezepti.db"),
+    reactPath: process.env.SQLITE_REACT_PATH || join(process.cwd(), "data", "rezepti-react.db"),
   },
   cookidoo: {
     email:    process.env.COOKIDOO_EMAIL    || "",
     password: process.env.COOKIDOO_PASSWORD || "",
   },
   port: parseInt(process.env.PORT || "3000", 10),
+  jobs: {
+    cleanupDays: parseInt(process.env.JOB_CLEANUP_DAYS || "7", 10),
+    maxConcurrent: parseInt(process.env.MAX_CONCURRENT_JOBS || "5", 10),
+    pollInterval: parseInt(process.env.POLL_INTERVAL_MS || "2000", 10),
+  },
 } as const;
