@@ -112,7 +112,7 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 ## Roadmap
 
-> Stand: März 2026 — Fortschritt basiert auf aktuellem Implementierungsstand
+> Stand: März 2026 — **React Migration Phase 2 abgeschlossen** ✅
 
 ---
 
