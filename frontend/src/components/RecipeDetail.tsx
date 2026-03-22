@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle } from 'lucide-react'
 import { getRecipe, deleteRecipe } from '../api/services.js'
 import type { Recipe } from '../api/types.js'
+import { useToast } from './ToastManager'
+import { RecipeDetailSkeleton } from './SkeletonLoader'
 
 const RecipeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -11,6 +13,7 @@ const RecipeDetail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const { addToast } = useToast()
 
   useEffect(() => {
     if (id) {
@@ -32,7 +35,9 @@ const RecipeDetail: React.FC = () => {
       setRecipe(data)
     } catch (err: any) {
       console.error('Failed to load recipe:', err)
-      setError(err.message || 'Rezept konnte nicht geladen werden')
+      const errorMsg = err.message || 'Rezept konnte nicht geladen werden'
+      setError(errorMsg)
+      addToast(errorMsg, 'error')
     } finally {
       setIsLoading(false)
     }
@@ -47,24 +52,19 @@ const RecipeDetail: React.FC = () => {
     
     try {
       await deleteRecipe(recipe.id)
+      addToast('Rezept erfolgreich gelöscht', 'success')
       navigate('/')
     } catch (err: any) {
       console.error('Failed to delete recipe:', err)
-      alert('Rezept konnte nicht gelöscht werden. Bitte versuche es erneut.')
+      const errorMsg = 'Rezept konnte nicht gelöscht werden. Bitte versuche es erneut.'
+      addToast(errorMsg, 'error')
     } finally {
       setIsDeleting(false)
     }
   }
 
   if (isLoading) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-center p-20">
-          <Loader2 className="h-8 w-8 animate-spin text-warmgray/40" />
-          <span className="ml-3 text-warmgray">Lade Rezept...</span>
-        </div>
-      </div>
-    )
+    return <RecipeDetailSkeleton />
   }
 
   if (error || !recipe) {
@@ -171,18 +171,18 @@ const RecipeDetail: React.FC = () => {
 
           {/* Action buttons */}
           <div className="flex space-x-3 mb-8">
-            <button className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2">
+            <button className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg">
               <Edit size={20} />
               <span>Rezept bearbeiten</span>
             </button>
-<button 
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Trash2 size={20} />
-                <span>{isDeleting ? 'Löschen...' : 'Löschen'}</span>
-              </button>
+            <button 
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
+            >
+              <Trash2 size={20} className={isDeleting ? 'animate-spin' : ''} />
+              <span>{isDeleting ? 'Löschen...' : 'Löschen'}</span>
+            </button>
           </div>
 
           {/* Ingredients */}

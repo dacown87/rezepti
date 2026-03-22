@@ -1,46 +1,70 @@
 import React, { useState, useEffect } from 'react'
-import { ChefHat, Clock, Users, Flame, Loader2 } from 'lucide-react'
+import { ChefHat, Clock, Users, Flame, Loader2, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getRecipes } from '../api/services.js'
 import type { Recipe } from '../api/types.js'
+import { useToast } from './ToastManager'
+import { RecipeListSkeleton } from './SkeletonLoader'
 
 const RecipeList: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const { addToast } = useToast()
 
   useEffect(() => {
     fetchRecipes()
   }, [])
 
-  const fetchRecipes = async () => {
-    setIsLoading(true)
+  const fetchRecipes = async (showToast = false) => {
+    if (!showToast) {
+      setIsLoading(true)
+    } else {
+      setIsRefreshing(true)
+    }
     setError(null)
     
     try {
       const data = await getRecipes()
       setRecipes(data)
+      if (showToast && data.length > 0) {
+        addToast(`${data.length} Rezepte geladen`, 'success')
+      }
     } catch (err: any) {
       console.error('Failed to load recipes:', err)
-      setError('Rezepte konnten nicht geladen werden. Bitte versuche es später erneut.')
+      const errorMessage = 'Rezepte konnten nicht geladen werden. Bitte versuche es später erneut.'
+      setError(errorMessage)
+      addToast(errorMessage, 'error')
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
   }
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold mb-2">Deine Rezepte</h1>
-        <p className="text-warmgray">Gespeicherte Rezepte aus dem Netz</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold mb-2">Deine Rezepte</h1>
+            <p className="text-warmgray">Gespeicherte Rezepte aus dem Netz</p>
+          </div>
+          <button
+            onClick={() => fetchRecipes(true)}
+            disabled={isRefreshing}
+            className="flex items-center space-x-2 px-4 py-2 bg-warmgray/10 hover:bg-warmgray/20 text-warmgray rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Rezepte aktualisieren"
+          >
+            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+            <span className="hidden sm:inline">Aktualisieren</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (
-          <div className="lg:col-span-3 flex items-center justify-center p-12">
-            <Loader2 className="h-8 w-8 animate-spin text-warmgray/40" />
-            <span className="ml-3 text-warmgray">Lade Rezepte...</span>
-          </div>
+          <RecipeListSkeleton />
         ) : recipes.length > 0 ? (
           recipes.map((recipe) => (
             <div
@@ -93,17 +117,17 @@ const RecipeList: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-6 flex space-x-3">
-                  <Link
-                    to={`/recipe/${recipe.id}`}
-                    className="flex-1 bg-paprika text-white py-2 px-4 rounded-lg font-medium hover:bg-paprika-dark transition-colors text-center"
-                  >
-                    Öffnen
-                  </Link>
-                  <button className="px-4 py-2 border border-warmgray/20 rounded-lg hover:bg-warmgray/5 transition-colors">
-                    Bearbeiten
-                  </button>
-                </div>
+<div className="mt-6 flex space-x-3">
+                <Link
+                  to={`/recipe/${recipe.id}`}
+                  className="flex-1 bg-paprika text-white py-2 px-4 rounded-lg font-medium hover:bg-paprika-dark transition-colors text-center transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
+                >
+                  Öffnen
+                </Link>
+                <button className="px-4 py-2 border border-warmgray/20 rounded-lg hover:bg-warmgray/5 transition-colors transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200">
+                  Bearbeiten
+                </button>
+              </div>
               </div>
             </div>
           ))

@@ -53,7 +53,7 @@ export function ensureReactSchema() {
       steps       TEXT NOT NULL,
       transcript  TEXT,
       tried       INTEGER DEFAULT 0,
-      created_at  INTEGER DEFAULT CURRENT_TIMESTAMP
+      created_at  INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
 }

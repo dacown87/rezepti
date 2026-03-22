@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Loader2 } from 'lucide-react'
 import { validateApiKey, saveApiKey, clearApiKey } from '../api/services.js'
+import { useToast } from './ToastManager'
+import { SettingsCardSkeleton } from './SkeletonLoader'
 
 const SettingsPage: React.FC = () => {
   const [userKey, setUserKey] = useState('')
@@ -11,6 +13,7 @@ const SettingsPage: React.FC = () => {
     remainingCredits?: number
   } | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
+  const { addToast } = useToast()
 
   // Load saved key on mount
   useEffect(() => {
@@ -44,24 +47,31 @@ const SettingsPage: React.FC = () => {
             remainingCredits: validation.remainingCredits,
             rateLimits: validation.rateLimits
           })
+          addToast('API Key erfolgreich gespeichert und validiert', 'success')
         } else {
+          const errorMsg = saveResult.error || 'Fehler beim Speichern des Keys'
           setValidationResult({
             isValid: false,
-            error: saveResult.error || 'Fehler beim Speichern des Keys'
+            error: errorMsg
           })
+          addToast(errorMsg, 'error')
         }
       } else {
+        const errorMsg = validation.error || 'Key konnte nicht validiert werden'
         setValidationResult({
           isValid: false,
-          error: validation.error || 'Key konnte nicht validiert werden'
+          error: errorMsg
         })
+        addToast(errorMsg, 'error')
       }
     } catch (err: any) {
       console.error('Key validation/saving error:', err)
+      const errorMsg = err.message || 'Netzwerkfehler. Bitte versuche es erneut.'
       setValidationResult({
         isValid: false,
-        error: err.message || 'Netzwerkfehler. Bitte versuche es erneut.'
+        error: errorMsg
       })
+      addToast(errorMsg, 'error')
       
       // Fallback: basic validation
       if (userKey.startsWith('gsk_') && userKey.length > 30) {
@@ -71,6 +81,7 @@ const SettingsPage: React.FC = () => {
           isValid: true,
           remainingCredits: 1000
         })
+        addToast('API Key gespeichert (lokale Validierung)', 'info')
       }
     } finally {
       setIsValidating(false)
@@ -78,6 +89,10 @@ const SettingsPage: React.FC = () => {
   }
 
   const handleClearKey = async () => {
+    if (!confirm('Möchtest du den API Key wirklich löschen?')) {
+      return
+    }
+    
     try {
       await clearApiKey()
     } catch (err) {
@@ -88,6 +103,7 @@ const SettingsPage: React.FC = () => {
     setSavedKey(null)
     setUserKey('')
     setValidationResult(null)
+    addToast('API Key erfolgreich gelöscht', 'success')
   }
 
   const getKeyDisplay = (key: string) => {
@@ -141,12 +157,12 @@ const SettingsPage: React.FC = () => {
                       setValidationResult(null)
                     }}
                     placeholder="gsk_..."
-                    className="flex-1 px-4 py-3 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika focus:border-transparent font-mono"
+                    className="flex-1 px-4 py-3 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika focus:border-transparent font-mono transition-colors duration-200 hover:border-warmgray/40"
                   />
                   <button
                     onClick={handleSaveKey}
                     disabled={isValidating || !userKey.trim()}
-                    className="bg-paprika text-white px-6 py-3 rounded-lg font-medium hover:bg-paprika-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-paprika text-white px-6 py-3 rounded-lg font-medium hover:bg-paprika-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
                   >
                     {isValidating ? 'Validiere...' : savedKey ? 'Aktualisieren' : 'Speichern'}
                   </button>

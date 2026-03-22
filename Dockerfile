@@ -8,10 +8,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 make g++ curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# yt-dlp als statisches Binary (kein Python nötig)
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+# yt-dlp als statisches Binary (Download und install)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
     -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp
+    && chmod +x /usr/local/bin/yt-dlp \
+    && rm -rf /var/lib/apt/lists/*
 
 # ─── builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder

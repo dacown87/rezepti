@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Link, Globe, Youtube, Instagram, MessageSquare, AlertCircle } from 'lucide-react'
 import { startExtraction, pollJobStatus } from '../api/services.js'
+import { useToast } from './ToastManager'
+import { ExtractionProgressSkeleton } from './SkeletonLoader'
 
 const ExtractionPage: React.FC = () => {
   const [url, setUrl] = useState('')
@@ -14,6 +16,7 @@ const ExtractionPage: React.FC = () => {
     currentStage?: string
     message?: string
   } | null>(null)
+  const { addToast } = useToast()
 
   useEffect(() => {
     // Poll job status if we have a jobId
@@ -30,10 +33,13 @@ const ExtractionPage: React.FC = () => {
           
           if (status.status === 'completed') {
             setSuccess(true)
+            addToast('Rezept erfolgreich extrahiert!', 'success')
             setJobId(null)
             clearInterval(interval)
           } else if (status.status === 'failed') {
-            setError(status.error || 'Extraction failed')
+            const errorMsg = status.error || 'Extraction failed'
+            setError(errorMsg)
+            addToast(errorMsg, 'error')
             setJobId(null)
             clearInterval(interval)
           }
@@ -72,7 +78,9 @@ const ExtractionPage: React.FC = () => {
       
     } catch (err: any) {
       console.error('Extraction error:', err)
-      setError(err.message || 'Fehler beim Extrahieren des Rezepts. Bitte versuche es erneut.')
+      const errorMsg = err.message || 'Fehler beim Extrahieren des Rezepts. Bitte versuche es erneut.'
+      setError(errorMsg)
+      addToast(errorMsg, 'error')
       setIsLoading(false)
     }
   }
@@ -135,19 +143,19 @@ const ExtractionPage: React.FC = () => {
                   URL eingeben
                 </label>
                 <div className="flex space-x-2">
-                  <input
-                    type="url"
-                    id="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className="flex-1 px-4 py-3 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika focus:border-transparent"
-                    disabled={isLoading}
-                  />
+<input
+                      type="url"
+                      id="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="flex-1 px-4 py-3 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika focus:border-transparent transition-colors duration-200 hover:border-warmgray/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={isLoading}
+                    />
                   <button
                     type="submit"
                     disabled={isLoading || !url.trim() || !!jobId}
-                    className="bg-paprika text-white px-6 py-3 rounded-lg font-medium hover:bg-paprika-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-paprika text-white px-6 py-3 rounded-lg font-medium hover:bg-paprika-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
                   >
                     {isLoading || jobId ? 'Wird extrahiert...' : 'Extrahiere'}
                   </button>
@@ -173,31 +181,36 @@ const ExtractionPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Progress simulation */}
+              {/* Progress indicator */}
                {(isLoading || jobStatus) && (
                 <div className="mb-6">
-                  <div className="h-2 bg-warmgray/10 rounded-full overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-warmgray">
+                      {jobStatus?.currentStage 
+                        ? `${jobStatus.currentStage}...` 
+                        : 'URL wird analysiert...'
+                      }
+                    </span>
+                    <span className="text-sm font-medium text-paprika">{jobStatus?.progress || 0}%</span>
+                  </div>
+                  <div className="h-3 bg-warmgray/10 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-paprika transition-all duration-300 ease-out"
+                      className="h-full bg-gradient-to-r from-paprika to-paprika-dark transition-all duration-500 ease-out shadow-sm"
                       style={{ width: `${jobStatus?.progress || 0}%` }}
-                    ></div>
-                  </div>
-                  <div className="mt-2 text-sm text-warmgray">
-                    <div className="flex justify-between">
-                      <span>
-                        {jobStatus?.currentStage 
-                          ? `${jobStatus.currentStage}...` 
-                          : 'URL wird analysiert...'
-                        }
-                      </span>
-                      <span>{jobStatus?.progress || 0}%</span>
+                    >
+                      <div className="h-full w-full bg-gradient-to-r from-transparent to-white/20 animate-pulse"></div>
                     </div>
-                    {jobStatus?.message && (
-                      <div className="mt-1 text-xs text-warmgray/70">
-                        {jobStatus.message}
-                      </div>
-                    )}
                   </div>
+                  {jobStatus?.message && (
+                    <div className="mt-2 text-xs text-warmgray/70 animate-pulse">
+                      {jobStatus.message}
+                    </div>
+                  )}
+                  {!jobStatus?.message && (
+                    <div className="mt-2">
+                      <ExtractionProgressSkeleton />
+                    </div>
+                  )}
                 </div>
               )}
             </form>
