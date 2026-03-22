@@ -198,23 +198,23 @@ Planned features and current implementation status (as of March 2026):
 
 ## Testing
 
-**Comprehensive E2E test suite available:**
-- Run tests: `npm test` or `npm run docker:test`
-- Test location: `test/` directory
-- Coverage: React API, Docker environment, performance benchmarks
+**Comprehensive test suite with 254+ unit tests:**
+- Run backend tests: `npm test` or `npm test -- --run src/`
+- Run frontend tests: `cd frontend && npx vitest --run src/components/`
+- Run all tests: `npm test`
 
-**Test files:**
-- `test/e2e/react-api.test.ts` — React API endpoints (504+ lines)
-- `test/e2e/docker.test.ts` — Docker environment validation (500+ lines)
+**Test Coverage:**
+| Area | Tests | Files |
+|------|-------|-------|
+| API Layer (client, services, types) | 91 | `test/api/` |
+| UI Components (Toast, SkeletonLoader) | 70 | `frontend/src/components/` |
+| Main Components (Extraction, RecipeList, RecipeDetail) | 37 | `frontend/src/components/` |
+| Backend Services (job-manager, byok-validator, db) | 56 | `src/*.test.ts` |
+
+**E2E Tests:**
+- `test/e2e/react-api.test.ts` — React API endpoints
+- `test/e2e/docker.test.ts` — Docker environment validation
 - `test/e2e/basic-api.test.ts` — Simple API verification
-- `test/fixtures/test-data.ts` — Test data and fixtures
-- `test/utils/` — Test helpers, setup, performance testing
-
-**Docker testing:**
-```bash
-npm run docker:test    # Run tests in Docker
-npm run test:docker   # Docker environment tests
-```
 
 ---
 

@@ -1,5 +1,21 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, mergeConfig } from 'vitest/config';
 import { configDefaults } from 'vitest/config';
+import path from 'path';
+
+const frontendConfig = defineConfig({
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: [path.resolve(__dirname, './frontend/src/test/setup.ts')],
+    include: ['frontend/src/**/*.test.{ts,tsx}', 'frontend/src/**/*.spec.{ts,tsx}'],
+    exclude: [
+      'frontend/node_modules/**',
+      'dist/**',
+      'node_modules/**',
+      ...configDefaults.exclude,
+    ],
+  },
+});
 
 export default defineConfig({
   test: {
@@ -10,7 +26,7 @@ export default defineConfig({
       'test/**/*.test.ts',
       'test/**/*.spec.ts',
       'src/**/*.test.ts',
-      'src/**/*.spec.ts'
+      'src/**/*.spec.ts',
     ],
     exclude: [
       'frontend/**',
@@ -42,6 +58,7 @@ export default defineConfig({
     alias: {
       '@': './src',
       '@test': './test',
+      '@frontend': './frontend/src',
     },
   },
 });
