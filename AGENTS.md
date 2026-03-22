@@ -48,10 +48,11 @@ npm run dev:react        # React Dev Server (Vite)
 npm run build:react      # React Production Build
 
 # Testing
-npm test                 # Run Tests (Vitest)
+npm test                 # Run Tests (Vitest Backend)
 npm run test:e2e         # E2E Tests
 npm run test:docker      # Docker Tests
 npm run test:performance # Performance Tests
+cd frontend && npx vitest --run src/components/  # React Component Tests
 
 # Docker Commands
 npm run docker:dev        # Docker Dev starten
@@ -91,11 +92,12 @@ npm run docker:restore    # Daten wiederherstellen
 3. **Mobile Preparation** - Platform-Abstraktion für Android/iOS ✅ (Interfaces ready)
 4. **Docker Deployment** - Multi-stage Build mit DNS/yt-dlp Fixes ✅ COMPLETED
 5. **E2E Testing** - Comprehensive test suite (1000+ lines) ✅ COMPLETED
+6. **Unit Tests** - 254+ unit tests for API, components, backend ✅ COMPLETED
 
 ### ⏳ CURRENT PRIORITIES
-6. **Recipe Display** - UI mit Zutaten & Schritten (50%)
-7. **User Features** - Login, Rating, Kommentare (0%)
-8. **Shopping & Planning** - Einkaufsliste, Rezeptvorschläge (0%)
+7. **Recipe Display** - UI mit Zutaten & Schritten (50%)
+8. **User Features** - Login, Rating, Kommentare (0%)
+9. **Shopping & Planning** - Einkaufsliste, Rezeptvorschläge (0%)
 
 ### Phase 3 & 3b Completion Summary
 - **React Frontend**: Vite + TypeScript + Tailwind CSS ✅
@@ -106,5 +108,6 @@ npm run docker:restore    # Daten wiederherstellen
 - **UI/UX Polish**: Toast Notifications, Skeleton Loaders ✅
 - **E2E Testing**: Comprehensive test suite (1000+ lines) ✅
 - **Docker Documentation**: DOCKER_DEPLOYMENT.md (500+ lines) ✅
+- **Unit Tests**: 254+ tests (API 91, Components 107, Backend 56) ✅
 
 **Multiple Agents Deployment erfolgreich abgeschlossen!** 🚀
