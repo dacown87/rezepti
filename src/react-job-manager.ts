@@ -13,7 +13,7 @@ export interface ReactJob {
   url: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   progress: number
-  currentStage?: string
+  currentStage?: 'classifying' | 'fetching' | 'transcribing' | 'analyzing_image' | 'extracting' | 'exporting' | 'done' | 'error'
   message?: string
   result?: any
   error?: string
@@ -24,7 +24,7 @@ export interface ReactJob {
 }
 
 // In-memory job storage (simple for now, can be persisted later)
-const jobs = new Map<string, ReactJob>()
+const jobs = new Map<string, ReactJob>
 
 export class ReactJobManager {
   static createJob(url: string): string {
@@ -60,7 +60,7 @@ export class ReactJobManager {
     job.updatedAt = new Date().toISOString()
 
     try {
-      // Process the URL through the pipeline
+      // Process the URL through the pipeline with React DB option
       await processURL(job.url, async (event: PipelineEvent) => {
         // Update job progress based on pipeline stage
         const stageProgress: Record<string, number> = {
@@ -83,67 +83,51 @@ export class ReactJobManager {
           try {
             const data = event.data as { recipe?: RecipeData; recipeId?: number }
             if (data.recipe) {
-              // Save to React database
+              // Save to React database - use job.result for proper display
               const recipeId = DatabaseManager.saveRecipe(
                 data.recipe,
                 job.url,
                 undefined, // transcript
                 'react'
               )
-              job.result = { recipeId, ...data.recipe }
+              job.result = { 
+                success: true,
+                recipe: data.recipe,
+                recipeId 
+              }
             }
           } catch (error) {
             console.error('Failed to save recipe to React DB:', error)
           }
         }
-
-        // Handle completion
-        if (event.stage === 'done') {
-          job.status = 'completed'
-          job.progress = 100
-          job.completedAt = new Date().toISOString()
-        }
-
-        // Handle errors
-        if (event.stage === 'error') {
-          job.status = 'failed'
-          job.error = event.message
-          job.completedAt = new Date().toISOString()
-        }
-      })
-
+      }, 'react')
     } catch (error) {
-      console.error(`Job ${jobId} processing failed:`, error)
       job.status = 'failed'
-      job.error = error instanceof Error ? error.message : 'Unknown error'
+      job.progress = 100
+      job.currentStage = 'error'
+      job.message = error instanceof Error ? error.message : 'Unknown error'
+      job.error = job.message
       job.completedAt = new Date().toISOString()
+      job.updatedAt = new Date().toISOString()
+      throw error
     }
 
-    // Cleanup old jobs periodically
-    ReactJobManager.cleanupOldJobs()
+    // Mark job as completed
+    job.status = 'completed'
+    job.progress = 100
+    job.currentStage = 'done'
+    job.message = 'Fertig!'
+    job.completedAt = new Date().toISOString()
+    job.updatedAt = new Date().toISOString()
   }
 
-  static updateJob(jobId: string, updates: Partial<Omit<ReactJob, 'id' | 'createdAt'>>) {
-    const job = jobs.get(jobId)
-    if (!job) return
-
-    Object.assign(job, updates, {
-      updatedAt: new Date().toISOString()
-    })
+  static getAllJobs(): ReactJob[] {
+    return Array.from(jobs.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
   }
 
-  static cleanupOldJobs(maxAgeMinutes: number = 60) {
-    const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000).toISOString()
-    
-    for (const [jobId, job] of jobs) {
-      if (job.createdAt < cutoff && (job.status === 'completed' || job.status === 'failed')) {
-        jobs.delete(jobId)
-      }
-    }
+  static deleteJob(jobId: string): boolean {
+    return jobs.delete(jobId)
   }
 }
-
-// Start cleanup on interval
-setInterval(() => {
-  ReactJobManager.cleanupOldJobs()
-}, 15 * 60 * 1000) // Cleanup every 15 minutes

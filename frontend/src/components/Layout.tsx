@@ -31,11 +31,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     location.pathname === item.path
-                      ? 'bg-paprika/10 text-paprika'
+                      ? 'bg-paprika/10 text-paprika shadow-sm'
                       : 'hover:bg-warmgray/5 text-warmgray hover:text-espresso'
-                  }`}
+                  } transform hover:scale-[1.02] active:scale-[0.98]`}
+                  aria-current={location.pathname === item.path ? 'page' : undefined}
                 >
                   {item.icon}
                   <span className="hidden sm:inline">{item.label}</span>

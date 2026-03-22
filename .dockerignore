@@ -9,3 +9,5 @@ LoginData/
 .git/
 docs/
 public/v*.html
+public/legacy-index.html
+public/index.html

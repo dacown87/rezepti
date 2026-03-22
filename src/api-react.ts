@@ -476,8 +476,8 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
     }
     
     try {
-      // Run the pipeline
-      const result = await processURL(job.url, onEvent);
+      // Run the pipeline with React database
+      const result = await processURL(job.url, onEvent, 'react');
       
       if (result.success) {
         jobManager.completeJob(jobId, result);

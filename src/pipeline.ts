@@ -28,7 +28,8 @@ async function emit(cb: EventCallback, event: PipelineEvent) {
 
 export async function processURL(
   rawUrl: string,
-  onEvent: EventCallback
+  onEvent: EventCallback,
+  dbType: 'legacy' | 'react' = 'legacy'
 ): Promise<PipelineResult> {
   const tempDir = createTempDir();
 
@@ -107,11 +108,21 @@ export async function processURL(
       stage: "exporting",
       message: "Rezept wird in Datenbank gespeichert...",
     });
-    const recipeId = saveRecipe(recipe, classified.url, transcript);
+    
+    let recipeId: number;
+    if (dbType === 'react') {
+      // Use DatabaseManager for React DB
+      const { DatabaseManager } = await import('./db-manager.js');
+      recipeId = DatabaseManager.saveRecipe(recipe, classified.url, transcript, 'react');
+    } else {
+      // Use legacy saveRecipe
+      recipeId = saveRecipe(recipe, classified.url, transcript);
+    }
+    
     await emit(onEvent, {
       stage: "exporting",
       message: `Rezept gespeichert (ID: ${recipeId}).`,
-      data: { id: recipeId },
+      data: { recipe, recipeId },
     });
 
     await emit(onEvent, {

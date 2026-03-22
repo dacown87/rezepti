@@ -24,11 +24,21 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 app.get("/", (c) => {
-  const html = readFileSync(
-    join(import.meta.dirname, "..", "public", "index.html"),
-    "utf-8"
-  );
-  return c.html(html);
+  try {
+    // Try to serve React app first
+    const html = readFileSync(
+      join(import.meta.dirname, "..", "public", "index.html"),
+      "utf-8"
+    );
+    return c.html(html);
+  } catch (error) {
+    // Fallback to legacy app if React app not built
+    const html = readFileSync(
+      join(import.meta.dirname, "..", "public", "legacy-index.html"),
+      "utf-8"
+    );
+    return c.html(html);
+  }
 });
 
 // Design variants
