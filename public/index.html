@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rezepti — Rezepte aus dem Netz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['Fraunces', 'Georgia', 'serif'],
+              body: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+            },
+            colors: {
+              cream: '#FFFBF5',
+              espresso: '#1A0F0A',
+              paprika: { DEFAULT: '#C84B31', light: '#E8674D', dark: '#A33A24' },
+              saffron: { DEFAULT: '#ECAD4B', light: '#F2C97A', dark: '#D49A2E' },
+              warmgray: '#8B7355',
+            }
+          }
+        }
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/main-DmCaJpGa.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-CHmqUqgb.css">
+  </head>
+  <body class="bg-cream min-h-screen font-body text-espresso">
+    <div id="root"></div>
+  </body>
+</html>

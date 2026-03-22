@@ -22,12 +22,16 @@ services:
     environment:
       - NODE_ENV=development
       - REACT_APP_API_URL=http://localhost:3000/api
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "3000:3000"
       - "5173:5173"
     volumes:
       - ./data:/app/data
       - ./src:/app/src
+      - ./public:/app/public
       - ./frontend:/app/frontend
       - /app/frontend/node_modules
     command: npm run dev:docker
@@ -54,6 +58,9 @@ services:
     environment:
       - NODE_ENV=production
       - REACT_APP_API_URL=/api
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "3000:3000"
     volumes:

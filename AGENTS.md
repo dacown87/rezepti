@@ -42,8 +42,21 @@ npm start            # Production
 npm run dev:react    # React Dev Server (Vite)
 npm run build:react  # React Production Build
 npm test             # Run Tests (Vitest)
-docker compose up    # Mit Docker dev
-docker compose up --profile react  # Docker mit React
+
+# Docker Commands
+npm run docker:dev          # Docker Dev starten
+npm run docker:dev:build    # Docker Dev mit Rebuild
+npm run docker:dev:logs      # Docker Dev Logs
+npm run docker:prod          # Docker Production
+npm run docker:prod:build    # Docker Production mit Rebuild
+npm run docker:prod:logs     # Docker Production Logs
+npm run docker:legacy        # Docker Legacy Production
+npm run docker:stop          # Alle Container stoppen
+npm run docker:stats         # Container Resource Usage
+npm run docker:shell         # Shell in Dev Container
+npm run docker:health        # Health Check
+npm run docker:backup        # Daten sichern
+npm run docker:restore       # Daten wiederherstellen
 ```
 
 ## Bekannte Einschränkungen

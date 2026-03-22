@@ -41,6 +41,54 @@ docker compose --profile prod up
 
 ---
 
+## Docker Deployment
+
+### Schnellstart mit Docker
+
+```bash
+# 1. .env anlegen (falls nicht vorhanden)
+cp .env.example .env
+# → .env öffnen und GROQ_API_KEY eintragen
+
+# 2. React Development starten
+docker compose --profile react up
+```
+
+Zugriff: [http://localhost:3000](http://localhost:3000)
+
+**Verfügbare Profile:**
+
+| Profile | Beschreibung |
+|---------|--------------|
+| `react` | React Dev + Backend mit Hot Reload |
+| `react-prod` | React Production Build |
+| `prod` | Legacy Production (Docker Hub Image) |
+
+**Docker-spezifische Befehle:**
+```bash
+# Logs anzeigen
+docker compose --profile react logs -f
+
+# Container neu starten
+docker compose --profile react restart
+
+# Volle Dokumentation
+# → Siehe DOCKER_DEPLOYMENT.md
+```
+
+### Daten sichern
+
+```bash
+# Backup erstellen
+mkdir -p backups
+tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/
+
+# Wiederherstellen
+tar -xzf backups/rezepti-20260322.tar.gz
+```
+
+---
+
 ## Konfiguration
 
 Alle Einstellungen werden über die Datei `.env` im **Projekt-Stammverzeichnis** gesetzt (neben `docker-compose.yml`). Vorlage: `.env.example`
