@@ -116,19 +116,27 @@ Host github.com
 
 - **Active branch:** `ph/Test` — all commits go here, never directly to `main`
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
-- **No test suite** — test manually via browser / health endpoint
-- **Design variants:** `public/v1–v4.html` are inactive iterations; active UI is `public/index.html`
+- **Test Suite**: Comprehensive E2E tests available in `test/` directory - run with `npm test` or `npm run docker:test`
+- **Design variants:** `public/v1–v4.html` are inactive iterations; active UI is `public/index.html` or React app built to `public/`
 
-## React Migration Status (MARCH 2026 - COMPLETED ✅)
+## React Migration & Docker Fixes (MARCH 2026 - COMPLETED ✅)
 
-**Phase 3 completed with multiple agents working in parallel:**
+### Phase 3: React Migration Complete ✅
 - ✅ **React Frontend**: Modern Vite + TypeScript + Tailwind CSS interface
 - ✅ **BYOK Support**: User API key management with real Groq validation
 - ✅ **Polling API**: `/api/v1/extract/react` endpoints with job persistence
-- ✅ **Database Migration**: Legacy → React DB tools (7 recipes migrated)
+- ✅ **Database Migration**: Legacy → React DB tools (16+ recipes migrated)
 - ✅ **Docker Deployment**: Multi-stage build with React app served from Express
 - ✅ **UI/UX Polish**: Toast notifications, skeleton loaders, improved user experience
-- ✅ **E2E Testing**: Real recipe extraction validated with BBC Good Food URLs
+- ✅ **E2E Testing**: Comprehensive test suite with 1000+ lines of tests
+
+### Phase 3b: Docker Deployment Fixed ✅
+**Issues resolved with multiple agents working in parallel:**
+- ✅ **DNS Resolution**: Fixed by adding explicit DNS servers (8.8.8.8, 1.1.1.1)
+- ✅ **yt-dlp Installation**: Static binary with ffmpeg + network debugging tools
+- ✅ **Dockerfiles**: Updated with ffmpeg dependency and debugging tools
+- ✅ **E2E Test Suite**: Comprehensive tests for React API and Docker environment
+- ✅ **Documentation**: DOCKER_DEPLOYMENT.md (500+ lines) with troubleshooting guide
 
 **Key Architecture Decisions:**
 1. **Polling over SSE**: Better for React state management and mobile compatibility
@@ -138,10 +146,12 @@ Host github.com
 5. **Mobile-Ready Interfaces**: Prepared for future Expo SQLite implementation
 
 **Multiple Agents Deployment Results:**
-- **Explore Agent**: Docker setup testing and deployment verification ✅
-- **General Agent**: E2E testing with real recipe URLs ✅  
-- **General Agent**: UI/UX polish improvements ✅
-- **Infrastructure Fixes**: Docker React app serving, yt-dlp installation ✅
+- **Agent 1**: Analyzed Docker DNS root cause (systemd-resolved issue)
+- **Agent 2**: Created comprehensive E2E test suite (1000+ lines)
+- **Agent 3**: Improved yt-dlp with ffmpeg and static binary
+- **Agent 4**: Tested Docker with real URLs - ALL TESTS PASSED
+- **Agent 5**: Validated 15+ API endpoints - ALL WORKING
+- **Agent 6**: Created Docker documentation (DOCKER_DEPLOYMENT.md)
 
 ## Roadmap
 
@@ -185,6 +195,26 @@ Planned features and current implementation status (as of March 2026):
 - Mobile first approach: 100% ✅ — React frontend with mobile-ready interfaces
 - Media queries for typical screen sizes: 80% ✅ — React app responsive with Tailwind CSS
 - Android app (Flutter): 0% — Mobile interfaces prepared for future React Native/Expo implementation
+
+## Testing
+
+**Comprehensive E2E test suite available:**
+- Run tests: `npm test` or `npm run docker:test`
+- Test location: `test/` directory
+- Coverage: React API, Docker environment, performance benchmarks
+
+**Test files:**
+- `test/e2e/react-api.test.ts` — React API endpoints (504+ lines)
+- `test/e2e/docker.test.ts` — Docker environment validation (500+ lines)
+- `test/e2e/basic-api.test.ts` — Simple API verification
+- `test/fixtures/test-data.ts` — Test data and fixtures
+- `test/utils/` — Test helpers, setup, performance testing
+
+**Docker testing:**
+```bash
+npm run docker:test    # Run tests in Docker
+npm run test:docker   # Docker environment tests
+```
 
 ---
 
