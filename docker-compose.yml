@@ -30,13 +30,7 @@ services:
       - ./src:/app/src
       - ./frontend:/app/frontend
       - /app/frontend/node_modules
-    command: >
-      sh -c "
-        echo 'Starting Rezepti with React support...' &&
-        npx concurrently \
-          'npx tsx watch src/index.ts' \
-          'cd frontend && npm run dev -- --host 0.0.0.0'
-      "
+    command: npm run dev:docker
     profiles:
       - react
 
