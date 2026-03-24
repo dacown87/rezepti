@@ -197,10 +197,47 @@ describe('RecipeDetail', () => {
     it('displays notes section', async () => {
       ;(services.getRecipe as ReturnType<typeof vi.fn>).mockResolvedValue(mockRecipe)
       renderPage()
-      
+
       await waitFor(() => {
         expect(screen.getByText('Hinweise')).toBeInTheDocument()
       })
+    })
+  })
+
+  describe('serving size scaler', () => {
+    beforeEach(() => {
+      ;(services.getRecipe as ReturnType<typeof vi.fn>).mockResolvedValue(mockRecipe)
+    })
+
+    it('shows +/- buttons and "Normal" label by default', async () => {
+      renderPage()
+      await waitFor(() => expect(screen.queryByRole('heading', { name: mockRecipe.name })).toBeInTheDocument())
+      expect(screen.getByText('Normal')).toBeInTheDocument()
+      expect(screen.getByText('−')).toBeInTheDocument()
+      expect(screen.getByText('+')).toBeInTheDocument()
+    })
+
+    it('updates multiplier label after clicking +', async () => {
+      renderPage()
+      await waitFor(() => expect(screen.queryByRole('heading', { name: mockRecipe.name })).toBeInTheDocument())
+      fireEvent.click(screen.getByText('+'))
+      expect(screen.getByText('×1.5')).toBeInTheDocument()
+    })
+
+    it('shows scaling banner when multiplier is not 1', async () => {
+      renderPage()
+      await waitFor(() => expect(screen.queryByRole('heading', { name: mockRecipe.name })).toBeInTheDocument())
+      fireEvent.click(screen.getByText('+'))
+      expect(screen.getByText(/skaliert/)).toBeInTheDocument()
+    })
+
+    it('resets multiplier to 1 when Zurücksetzen is clicked', async () => {
+      renderPage()
+      await waitFor(() => expect(screen.queryByRole('heading', { name: mockRecipe.name })).toBeInTheDocument())
+      fireEvent.click(screen.getByText('+'))
+      fireEvent.click(screen.getByText('Zurücksetzen'))
+      expect(screen.getByText('Normal')).toBeInTheDocument()
+      expect(screen.queryByText(/skaliert/)).not.toBeInTheDocument()
     })
   })
 })

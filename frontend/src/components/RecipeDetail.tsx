@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink } from 'lucide-react'
 import { getRecipe, deleteRecipe } from '../api/services.js'
+import { parseServingsNumber, scaleIngredient } from '../utils/scaling.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeDetailSkeleton } from './SkeletonLoader'
@@ -13,6 +14,7 @@ const RecipeDetail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [servingMultiplier, setServingMultiplier] = useState(1)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -155,9 +157,31 @@ const RecipeDetail: React.FC = () => {
             <div className="text-center p-4 bg-cream rounded-xl">
               <div className="flex items-center justify-center space-x-2 text-warmgray mb-2">
                 <Users size={20} />
-                <span className="font-medium">{recipe.servings}</span>
+                <span className="font-medium">
+                  {Math.round(parseServingsNumber(recipe.servings) * servingMultiplier)}{' '}
+                  {recipe.servings.replace(/^\d+\s*/, '') || 'Portionen'}
+                </span>
               </div>
-              <div className="text-sm text-warmgray">Portionen</div>
+              <div className="text-sm text-warmgray mb-2">Portionen</div>
+              <div className="flex items-center justify-center space-x-2">
+                <button
+                  onClick={() => setServingMultiplier(m => Math.max(0.5, m - 0.5))}
+                  disabled={servingMultiplier <= 0.5}
+                  className="w-6 h-6 bg-paprika text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  −
+                </button>
+                <span className="text-xs text-warmgray w-8 text-center">
+                  {servingMultiplier === 1 ? 'Normal' : `×${servingMultiplier}`}
+                </span>
+                <button
+                  onClick={() => setServingMultiplier(m => Math.min(4, m + 0.5))}
+                  disabled={servingMultiplier >= 4}
+                  className="w-6 h-6 bg-paprika text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  +
+                </button>
+              </div>
             </div>
             
             <div className="text-center p-4 bg-cream rounded-xl">
@@ -201,6 +225,14 @@ const RecipeDetail: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Ingredients */}
             <div>
+              {servingMultiplier !== 1 && (
+                <div className="mb-2 text-xs text-paprika font-medium flex items-center space-x-1">
+                  <span>Zutaten für ×{servingMultiplier} skaliert</span>
+                  <button onClick={() => setServingMultiplier(1)} className="ml-1 underline hover:no-underline">
+                    Zurücksetzen
+                  </button>
+                </div>
+              )}
               <h2 className="text-xl font-display font-bold mb-4 pb-2 border-b border-warmgray/10">
                 Zutaten
               </h2>
@@ -208,7 +240,9 @@ const RecipeDetail: React.FC = () => {
                 {recipe.ingredients.map((ingredient, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-paprika rounded-full mt-2.5 flex-shrink-0"></div>
-                    <span className="text-warmgray text-sm">{ingredient}</span>
+                    <span className="text-warmgray text-sm">
+                      {servingMultiplier === 1 ? ingredient : scaleIngredient(ingredient, servingMultiplier)}
+                    </span>
                   </li>
                 ))}
               </ul>
