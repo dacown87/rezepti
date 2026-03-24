@@ -24,3 +24,27 @@ export function scaleIngredient(ingredient: string, factor: number): string {
     return String(rounded)
   })
 }
+
+/**
+ * Extracts the leading number from an ingredient string.
+ * Supports both dot and comma as decimal separator.
+ * Returns null if no leading number is found.
+ * Examples: "150g Butter" → 150, "1,5 EL Öl" → 1.5, "Salz" → null
+ */
+export function parseIngredientNumber(ingredient: string): number | null {
+  const match = ingredient.match(/^(\d+(?:[.,]\d+)?)/)
+  if (!match) return null
+  return parseFloat(match[1].replace(',', '.'))
+}
+
+/**
+ * Splits an ingredient string into its leading numeric prefix and the remainder.
+ * The num field preserves the original string (e.g. "1,5" not 1.5).
+ * Returns null if no leading number exists — consistent with parseIngredientNumber.
+ * Example: "150g Butter" → { num: "150", rest: "g Butter" }
+ */
+export function splitIngredient(ingredient: string): { num: string; rest: string } | null {
+  const match = ingredient.match(/^(\d+(?:[.,]\d+)?)(.*)/)
+  if (!match) return null
+  return { num: match[1], rest: match[2] }
+}

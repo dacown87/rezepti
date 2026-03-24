@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseServingsNumber, scaleIngredient } from './scaling.js'
+import { parseServingsNumber, scaleIngredient, parseIngredientNumber, splitIngredient } from './scaling.js'
 
 describe('parseServingsNumber', () => {
   it('extracts number from "4 Portionen"', () => {
@@ -34,5 +34,43 @@ describe('scaleIngredient', () => {
   })
   it('scales "100g Mehl" by 2x to 200g (no trailing decimal)', () => {
     expect(scaleIngredient('100g Mehl', 2)).toBe('200g Mehl')
+  })
+})
+
+describe('parseIngredientNumber', () => {
+  it('parses leading integer', () => {
+    expect(parseIngredientNumber('150g Butter')).toBe(150)
+  })
+  it('parses leading decimal with dot', () => {
+    expect(parseIngredientNumber('1.5 EL Öl')).toBe(1.5)
+  })
+  it('parses leading decimal with comma', () => {
+    expect(parseIngredientNumber('1,5 EL Öl')).toBe(1.5)
+  })
+  it('returns null when no leading number', () => {
+    expect(parseIngredientNumber('Salz nach Geschmack')).toBeNull()
+  })
+  it('returns null for empty string', () => {
+    expect(parseIngredientNumber('')).toBeNull()
+  })
+})
+
+describe('splitIngredient', () => {
+  it('splits "150g Butter" into num and rest', () => {
+    expect(splitIngredient('150g Butter')).toEqual({ num: '150', rest: 'g Butter' })
+  })
+  it('splits "2 EL Öl" into num and rest', () => {
+    expect(splitIngredient('2 EL Öl')).toEqual({ num: '2', rest: ' EL Öl' })
+  })
+  it('splits "1,5 EL Öl" preserving original num string', () => {
+    expect(splitIngredient('1,5 EL Öl')).toEqual({ num: '1,5', rest: ' EL Öl' })
+  })
+  it('returns null when no leading number', () => {
+    expect(splitIngredient('Salz nach Geschmack')).toBeNull()
+  })
+  it('returns null consistently with parseIngredientNumber', () => {
+    const ingredient = 'Pfeffer'
+    expect(splitIngredient(ingredient)).toBeNull()
+    expect(parseIngredientNumber(ingredient)).toBeNull()
   })
 })
