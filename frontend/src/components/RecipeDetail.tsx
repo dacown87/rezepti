@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink } from 'lucide-react'
 import { getRecipe, deleteRecipe } from '../api/services.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
@@ -175,7 +175,7 @@ const RecipeDetail: React.FC = () => {
               <Edit size={20} />
               <span>Rezept bearbeiten</span>
             </button>
-            <button 
+            <button
               onClick={handleDelete}
               disabled={isDeleting}
               className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
@@ -183,6 +183,18 @@ const RecipeDetail: React.FC = () => {
               <Trash2 size={20} className={isDeleting ? 'animate-spin' : ''} />
               <span>{isDeleting ? 'Löschen...' : 'Löschen'}</span>
             </button>
+            {recipe.source_url && (
+              <a
+                href={recipe.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 border border-warmgray/20 text-warmgray rounded-lg font-medium hover:bg-warmgray/5 transition-colors flex items-center space-x-2"
+                title="Original-Rezept öffnen"
+              >
+                <ExternalLink size={20} />
+                <span className="hidden sm:inline">Zum Original</span>
+              </a>
+            )}
           </div>
 
           {/* Ingredients */}
