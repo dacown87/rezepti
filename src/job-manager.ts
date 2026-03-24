@@ -55,10 +55,23 @@ export interface JobEvent {
 export class JobManager {
   private static instance: JobManager;
   private db: BetterSqlite3.Database;
-  
+
+  // Pre-compiled statements for performance
+  private stmtInsert!: BetterSqlite3.Statement;
+  private stmtGetById!: BetterSqlite3.Statement;
+  private stmtStart!: BetterSqlite3.Statement;
+  private stmtComplete!: BetterSqlite3.Statement;
+  private stmtFail!: BetterSqlite3.Statement;
+  private stmtIsProcessing!: BetterSqlite3.Statement;
+  private stmtRecentJobs!: BetterSqlite3.Statement;
+  private stmtActiveJobs!: BetterSqlite3.Statement;
+  private stmtCleanup!: BetterSqlite3.Statement;
+  private stmtGetUpdatedAt!: BetterSqlite3.Statement;
+
   private constructor() {
     this.db = this.openDb();
     this.ensureSchema();
+    this.prepareStatements();
   }
   
   static getInstance(): JobManager {
@@ -109,9 +122,55 @@ export class JobManager {
     `);
     
     this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_extraction_jobs_url 
+      CREATE INDEX IF NOT EXISTS idx_extraction_jobs_url
       ON extraction_jobs(url)
     `);
+  }
+
+  private prepareStatements() {
+    this.stmtInsert = this.db.prepare(`
+      INSERT INTO extraction_jobs (
+        id, url, status, progress, created_at, updated_at,
+        user_agent, api_key_hash
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    this.stmtGetById = this.db.prepare(
+      `SELECT * FROM extraction_jobs WHERE id = ?`
+    );
+    this.stmtStart = this.db.prepare(`
+      UPDATE extraction_jobs
+      SET status = ?, progress = ?, started_at = ?, updated_at = ?
+      WHERE id = ?
+    `);
+    this.stmtComplete = this.db.prepare(`
+      UPDATE extraction_jobs
+      SET status = ?, progress = ?, result = ?, completed_at = ?, updated_at = ?
+      WHERE id = ?
+    `);
+    this.stmtFail = this.db.prepare(`
+      UPDATE extraction_jobs
+      SET status = ?, progress = ?, error = ?, completed_at = ?, updated_at = ?
+      WHERE id = ?
+    `);
+    this.stmtIsProcessing = this.db.prepare(`
+      SELECT id FROM extraction_jobs
+      WHERE url = ? AND status IN ('pending', 'running')
+      LIMIT 1
+    `);
+    this.stmtRecentJobs = this.db.prepare(`
+      SELECT * FROM extraction_jobs ORDER BY created_at DESC LIMIT ?
+    `);
+    this.stmtActiveJobs = this.db.prepare(`
+      SELECT * FROM extraction_jobs
+      WHERE status IN ('pending', 'running')
+      ORDER BY created_at ASC
+    `);
+    this.stmtCleanup = this.db.prepare(`
+      DELETE FROM extraction_jobs WHERE created_at < ?
+    `);
+    this.stmtGetUpdatedAt = this.db.prepare(
+      `SELECT updated_at FROM extraction_jobs WHERE id = ?`
+    );
   }
   
   /**
@@ -136,14 +195,7 @@ export class JobManager {
       apiKeyHash,
     };
     
-    const stmt = this.db.prepare(`
-      INSERT INTO extraction_jobs (
-        id, url, status, progress, created_at, updated_at, 
-        user_agent, api_key_hash
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
+    this.stmtInsert.run(
       job.id,
       job.url,
       job.status,
@@ -162,13 +214,7 @@ export class JobManager {
    */
   startJob(jobId: string): boolean {
     const now = Date.now();
-    const stmt = this.db.prepare(`
-      UPDATE extraction_jobs 
-      SET status = ?, progress = ?, started_at = ?, updated_at = ?
-      WHERE id = ?
-    `);
-    
-    const result = stmt.run("running", 10, now, now, jobId);
+    const result = this.stmtStart.run("running", 10, now, now, jobId);
     return result.changes > 0;
   }
   
@@ -232,31 +278,16 @@ export class JobManager {
    */
   completeJob(jobId: string, result: PipelineResult): boolean {
     const now = Date.now();
-    const stmt = this.db.prepare(`
-      UPDATE extraction_jobs 
-      SET status = ?, progress = ?, result = ?, 
-          completed_at = ?, updated_at = ?
-      WHERE id = ?
-    `);
-    
-    const resultJson = JSON.stringify(result);
-    const update = stmt.run("completed", 100, resultJson, now, now, jobId);
+    const update = this.stmtComplete.run("completed", 100, JSON.stringify(result), now, now, jobId);
     return update.changes > 0;
   }
-  
+
   /**
    * Fail a job with error
    */
   failJob(jobId: string, error: string): boolean {
     const now = Date.now();
-    const stmt = this.db.prepare(`
-      UPDATE extraction_jobs 
-      SET status = ?, progress = ?, error = ?, 
-          completed_at = ?, updated_at = ?
-      WHERE id = ?
-    `);
-    
-    const update = stmt.run("failed", 100, error, now, now, jobId);
+    const update = this.stmtFail.run("failed", 100, error, now, now, jobId);
     return update.changes > 0;
   }
   
@@ -264,40 +295,24 @@ export class JobManager {
    * Get job by ID
    */
   getJob(jobId: string): ExtractionJob | null {
-    const stmt = this.db.prepare(`
-      SELECT * FROM extraction_jobs WHERE id = ?
-    `);
-    
-    const row = stmt.get(jobId) as any;
+    const row = this.stmtGetById.get(jobId) as any;
     return row ? this.deserializeJob(row) : null;
   }
-  
+
   /**
    * Get recent jobs (for admin/cleanup)
    */
   getRecentJobs(limit = 50): ExtractionJob[] {
-    const stmt = this.db.prepare(`
-      SELECT * FROM extraction_jobs 
-      ORDER BY created_at DESC 
-      LIMIT ?
-    `);
-    
-    const rows = stmt.all(limit) as any[];
+    const rows = this.stmtRecentJobs.all(limit) as any[];
     return rows.map(row => this.deserializeJob(row));
   }
-  
+
   /**
    * Cleanup old jobs (retain for 7 days)
    */
   cleanupOldJobs(daysToKeep = 7): number {
     const cutoff = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
-    
-    const stmt = this.db.prepare(`
-      DELETE FROM extraction_jobs 
-      WHERE created_at < ?
-    `);
-    
-    const result = stmt.run(cutoff);
+    const result = this.stmtCleanup.run(cutoff);
     return result.changes;
   }
   
@@ -321,19 +336,19 @@ export class JobManager {
    * Get job events since timestamp (for polling updates)
    */
   getJobEventsSince(jobId: string, since: number): JobEvent | null {
+    // Lightweight check before fetching full row
+    const ts = this.stmtGetUpdatedAt.get(jobId) as { updated_at: number } | undefined;
+    if (!ts || ts.updated_at <= since) return null;
+
     const job = this.getJob(jobId);
-    if (!job || job.updatedAt <= since) {
-      return null;
-    }
-    
-    return this.jobToEvent(job);
+    return job ? this.jobToEvent(job) : null;
   }
   
   /**
    * Generate unique job ID
    */
   private generateJobId(): string {
-    return `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `job_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
   
   /**
@@ -362,27 +377,15 @@ export class JobManager {
    * Get active jobs (running or pending)
    */
   getActiveJobs(): ExtractionJob[] {
-    const stmt = this.db.prepare(`
-      SELECT * FROM extraction_jobs 
-      WHERE status IN ('pending', 'running')
-      ORDER BY created_at ASC
-    `);
-    
-    const rows = stmt.all() as any[];
+    const rows = this.stmtActiveJobs.all() as any[];
     return rows.map(row => this.deserializeJob(row));
   }
-  
+
   /**
    * Check if URL is already being processed
    */
   isUrlProcessing(url: string): boolean {
-    const stmt = this.db.prepare(`
-      SELECT id FROM extraction_jobs 
-      WHERE url = ? AND status IN ('pending', 'running')
-      LIMIT 1
-    `);
-    
-    const result = stmt.get(url) as any;
+    const result = this.stmtIsProcessing.get(url) as any;
     return !!result;
   }
   

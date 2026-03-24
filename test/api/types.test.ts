@@ -113,16 +113,16 @@ describe('API Types', () => {
       expect(job.progress).toBe(0)
     })
 
-    it('should accept processing status with stage', () => {
+    it('should accept running status with stage', () => {
       const job: JobStatus = {
         jobId: 'job-456',
-        status: 'processing',
+        status: 'running',
         progress: 50,
         stage: 'extracting',
         message: 'Extracting recipe data...',
       }
 
-      expect(job.status).toBe('processing')
+      expect(job.status).toBe('running')
       expect(job.stage).toBe('extracting')
       expect(job.message).toContain('Extracting')
     })
@@ -154,7 +154,7 @@ describe('API Types', () => {
     })
 
     it('should have valid status union type', () => {
-      const statuses: JobStatus['status'][] = ['pending', 'processing', 'completed', 'failed']
+      const statuses: JobStatus['status'][] = ['pending', 'running', 'completed', 'failed']
 
       statuses.forEach(status => {
         const job: JobStatus = {
@@ -162,7 +162,7 @@ describe('API Types', () => {
           status,
           progress: status === 'completed' ? 100 : 50,
         }
-        expect(['pending', 'processing', 'completed', 'failed']).toContain(job.status)
+        expect(['pending', 'running', 'completed', 'failed']).toContain(job.status)
       })
     })
 
@@ -183,52 +183,40 @@ describe('API Types', () => {
   describe('ValidationResult', () => {
     it('should accept valid key result', () => {
       const result: ValidationResult = {
-        isValid: true,
-        remainingCredits: 10000,
-        rateLimits: {
-          requestsPerMinute: 60,
-          tokensPerMinute: 100000,
-        },
+        valid: true,
+        model: 'llama-3.1-8b-instant',
       }
 
-      expect(result.isValid).toBe(true)
-      expect(result.remainingCredits).toBe(10000)
-      expect(result.rateLimits?.requestsPerMinute).toBe(60)
+      expect(result.valid).toBe(true)
+      expect(result.model).toBe('llama-3.1-8b-instant')
     })
 
     it('should accept invalid key result', () => {
       const result: ValidationResult = {
-        isValid: false,
-        error: 'Invalid API key format',
+        valid: false,
+        reason: 'Invalid API key format',
       }
 
-      expect(result.isValid).toBe(false)
-      expect(result.error).toBe('Invalid API key format')
+      expect(result.valid).toBe(false)
+      expect(result.reason).toBe('Invalid API key format')
     })
 
     it('should allow missing optional fields for valid key', () => {
       const result: ValidationResult = {
-        isValid: true,
+        valid: true,
       }
 
-      expect(result.remainingCredits).toBeUndefined()
-      expect(result.rateLimits).toBeUndefined()
+      expect(result.reason).toBeUndefined()
+      expect(result.model).toBeUndefined()
     })
 
-    it('should support rate limits object', () => {
+    it('should support model field', () => {
       const result: ValidationResult = {
-        isValid: true,
-        remainingCredits: 5000,
-        rateLimits: {
-          requestsPerMinute: 120,
-          tokensPerMinute: 200000,
-        },
+        valid: true,
+        model: 'llama-3.3-70b-versatile',
       }
 
-      expect(result.rateLimits).toEqual({
-        requestsPerMinute: 120,
-        tokensPerMinute: 200000,
-      })
+      expect(result.model).toBe('llama-3.3-70b-versatile')
     })
   })
 
@@ -401,21 +389,21 @@ describe('Type Relationships', () => {
 
   it('ValidationResult should support conditional logic', () => {
     const result: ValidationResult = {
-      isValid: true,
-      remainingCredits: 5000,
+      valid: true,
+      model: 'llama-3.1-8b-instant',
     }
 
-    if (result.isValid && result.remainingCredits !== undefined) {
-      expect(result.remainingCredits).toBeGreaterThan(0)
+    if (result.valid && result.model !== undefined) {
+      expect(result.model).toBeTruthy()
     }
 
     const invalidResult: ValidationResult = {
-      isValid: false,
-      error: 'Invalid key',
+      valid: false,
+      reason: 'Invalid key',
     }
 
-    if (!invalidResult.isValid) {
-      expect(invalidResult.error).toBeDefined()
+    if (!invalidResult.valid) {
+      expect(invalidResult.reason).toBeDefined()
     }
   })
 
@@ -479,14 +467,14 @@ describe('Edge Cases', () => {
     expect(job.stage).toBe('complete')
   })
 
-  it('ValidationResult with zero credits', () => {
+  it('ValidationResult with reason field', () => {
     const result: ValidationResult = {
-      isValid: true,
-      remainingCredits: 0,
+      valid: false,
+      reason: 'Rate limit exceeded',
     }
 
-    expect(result.isValid).toBe(true)
-    expect(result.remainingCredits).toBe(0)
+    expect(result.valid).toBe(false)
+    expect(result.reason).toBe('Rate limit exceeded')
   })
 
   it('HealthStatus with zero recipes', () => {

@@ -4,7 +4,15 @@
  */
 
 import { Hono } from "hono";
-import { DatabaseManager } from "./db-manager.js";
+import {
+  ensureReactSchema,
+  getAllRecipesFromReactDb,
+  getRecipeByIdFromReactDb,
+  saveRecipeToReactDb,
+  updateRecipeInReactDb,
+  deleteRecipeFromReactDb,
+  getRecipeCount,
+} from "./db-react.js";
 import { jobManager } from "./job-manager.js";
 import { BYOKValidator } from "./byok-validator.js";
 import { processURL } from "./pipeline.js";
@@ -12,81 +20,17 @@ import type { RecipeData, PipelineEvent } from "./types.js";
 
 const app = new Hono();
 
-// Initialize React database schema
-app.use("*", async (c, next) => {
-  DatabaseManager.ensureSchema("react");
-  await next();
-});
+// Initialize React database schema once at startup
+ensureReactSchema();
 
 /**
  * React API endpoints use /api/v1/ prefix
  */
 
-// Simple job management for React
-interface ReactJob {
-  id: string
-  url: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  progress: number
-  currentStage?: string
-  message?: string
-  result?: any
-  error?: string
-  createdAt: string
-}
-
-const jobs = new Map<string, ReactJob>()
-
-// Simple GET endpoint for React extraction (for testing)
-app.get("/api/v1/extract/react", async (c) => {
-  const url = c.req.query("url");
-  
-  if (!url) {
-    return c.json({ error: "URL parameter is required" }, 400);
-  }
-
-  try {
-    new URL(url);
-  } catch {
-    return c.json({ error: "Invalid URL format" }, 400);
-  }
-
-  // Create job
-  const jobId = `react_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  const job: ReactJob = {
-    id: jobId,
-    url,
-    status: 'pending',
-    progress: 0,
-    createdAt: new Date().toISOString(),
-  }
-  
-  jobs.set(jobId, job)
-  
-  // Return job ID immediately
-  return c.json({
-    jobId,
-    status: "pending",
-    message: "Extraction job created successfully"
-  });
-});
-
-// Get job status
-app.get("/api/v1/jobs/:jobId", (c) => {
-  const jobId = c.req.param("jobId");
-  const job = jobs.get(jobId);
-  
-  if (!job) {
-    return c.json({ error: "Job not found" }, 404);
-  }
-  
-  return c.json(job);
-});
-
 // List all recipes from React database
 app.get("/api/v1/recipes", (c) => {
   try {
-    const recipes = DatabaseManager.getAllRecipes("react");
+    const recipes = getAllRecipesFromReactDb();
     return c.json(recipes);
   } catch (error) {
     console.error("Error fetching recipes from React DB:", error);
@@ -100,7 +44,7 @@ app.get("/api/v1/recipes/:id", (c) => {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
     
-    const recipe = DatabaseManager.getRecipeById(id, "react");
+    const recipe = getRecipeByIdFromReactDb(id);
     if (!recipe) return c.json({ error: "Not found" }, 404);
     
     return c.json(recipe);
@@ -120,7 +64,7 @@ app.post("/api/v1/recipes", async (c) => {
       return c.json({ error: "Missing required fields" }, 400);
     }
     
-    const id = DatabaseManager.saveRecipe(recipe, sourceUrl, transcript, "react");
+    const id = saveRecipeToReactDb(recipe, sourceUrl, transcript);
     return c.json({ id, success: true }, 201);
   } catch (error) {
     console.error("Error saving recipe to React DB:", error);
@@ -135,7 +79,7 @@ app.patch("/api/v1/recipes/:id", async (c) => {
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
     
     const body = await c.req.json();
-    const updated = DatabaseManager.updateRecipe(id, body, "react");
+    const updated = updateRecipeInReactDb(id, body);
     
     if (!updated) return c.json({ error: "Not found" }, 404);
     return c.json({ success: true });
@@ -151,7 +95,7 @@ app.delete("/api/v1/recipes/:id", (c) => {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
     
-    const deleted = DatabaseManager.deleteRecipe(id, "react");
+    const deleted = deleteRecipeFromReactDb(id);
     if (!deleted) return c.json({ error: "Not found" }, 404);
     
     return c.json({ success: true });
@@ -161,29 +105,14 @@ app.delete("/api/v1/recipes/:id", (c) => {
   }
 });
 
-// Migration endpoint (admin only - for development)
-app.post("/api/v1/migrate", async (c) => {
-  try {
-    // In production, add authentication check here
-    const count = await DatabaseManager.migrateToReactDb();
-    return c.json({ 
-      success: true, 
-      message: `Migrated ${count} recipes to React database` 
-    });
-  } catch (error) {
-    console.error("Migration failed:", error);
-    return c.json({ error: "Migration failed" }, 500);
-  }
-});
-
 // Health check for React database
-app.get("/api/v1/health", async (c) => {
+app.get("/api/v1/health", (c) => {
   try {
-    const recipes = DatabaseManager.getAllRecipes("react");
+    const recipeCount = getRecipeCount();
     return c.json({
       server: true,
       database: "react",
-      recipeCount: recipes.length,
+      recipeCount,
       status: "healthy"
     });
   } catch (error) {
@@ -477,7 +406,7 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
     
     try {
       // Run the pipeline with React database
-      const result = await processURL(job.url, onEvent, 'react');
+      const result = await processURL(job.url, onEvent);
       
       if (result.success) {
         jobManager.completeJob(jobId, result);

@@ -28,7 +28,7 @@ Test suite: Vitest for unit/e2e tests.
 **Stages:** `base` (Node 20 + yt-dlp + Build-Tools) → `builder` (tsc) → `production` (node dist/index.js) + `dev` (tsx watch)
 
 **Volumes:**
-- `./data:/app/data` — SQLite-Persistenz (beide Modi)
+- `./data:/app/data` — SQLite-Persistenz
 - `./src:/app/src` — Hot-Reload für Server-Code (nur Dev-Modus)
 - `./public:/app/public` — Hot-Reload für Frontend (nur Dev-Modus)
 
@@ -42,39 +42,50 @@ Test suite: Vitest for unit/e2e tests.
 
 **Request flow:** HTTP request → Pipeline → Classifier → Fetcher → Processor → SQLite save
 
-The server (`src/index.ts`) exposes `GET /api/extract?url=...` which streams progress via SSE.
+The server (`src/index.ts`) serves the React app and mounts the React API router.
 
-**Pipeline stages** (SSE events): classifying → fetching → transcribing → analyzing_image → extracting → exporting → done/error
+**Pipeline stages**: classifying → fetching → transcribing → analyzing_image → extracting → exporting → done/error
 
 **Key modules:**
-- `src/pipeline.ts` — Orchestrator that routes through the extraction workflow
+- `src/pipeline.ts` — Orchestrator that routes through the extraction workflow; always saves to React DB
 - `src/classifier.ts` — Determines URL source type (youtube/instagram/tiktok/web)
 - `src/fetchers/` — Source-specific content downloaders (web.ts uses cheerio; others use yt-dlp)
 - `src/processors/llm.ts` — Groq API via OpenAI SDK for recipe extraction and refinement
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
-- `src/processors/whisper.ts` — Audio transcription via whisper-cpp CLI (local)
-- `src/db.ts` — SQLite connection (better-sqlite3 + Drizzle ORM), CRUD functions
+- `src/processors/whisper.ts` — Audio transcription via Groq Whisper API
+- `src/db-react.ts` — SQLite connection (better-sqlite3 + Drizzle ORM), CRUD functions for React DB
+- `src/api-react.ts` — All `/api/v1/*` endpoints (recipes, extraction jobs, BYOK, health)
+- `src/job-manager.ts` — Job persistence for polling-based extraction
 - `src/schema.ts` — Drizzle table schema for `recipes`
 - `src/types.ts` — Core types and Zod schemas (RecipeData, ContentBundle, SchemaOrgRecipe)
+
+**Database:** Single SQLite DB at `./data/rezepti-react.db`. Legacy `rezepti.db` and `db.ts`/`db-manager.ts` have been removed.
 
 **Extraction paths** (tried in order):
 1. schema.org/Recipe JSON-LD (web only, fastest)
 2. LLM text extraction from subtitles or page text (Groq Llama 3.3 70B)
-3. Audio transcription (whisper-cpp) → LLM extraction
+3. Audio transcription (Groq Whisper) → LLM extraction
 4. Vision model on images (Groq Llama 4 Scout, fallback)
 
 **API Endpoints:**
 | Route | Method | Description |
 |-------|--------|-------------|
 | `/` | GET | Main UI (React app) |
-| `/api/extract?url=<URL>` | GET | Extraction, streams SSE events (legacy) |
-| `/api/v1/extract/react?url=<URL>` | GET | React extraction with polling |
-| `/api/recipes` | GET | List all saved recipes |
-| `/api/recipes/:id` | GET | Single recipe by ID |
-| `/api/health` | GET | Server status |
-| `/api/v1/keys` | POST/DELETE | BYOK key management |
+| `/api/v1/recipes` | GET/POST | List / create recipes |
+| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Single recipe CRUD |
+| `/api/v1/extract/react` | POST | Start extraction job (polling) |
+| `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel job |
+| `/api/v1/extract/jobs` | GET | List recent jobs |
+| `/api/v1/keys/validate` | POST | Validate BYOK API key |
+| `/api/v1/keys` | POST | Store API key |
+| `/api/v1/keys/:keyHash` | DELETE | Remove API key |
+| `/api/v1/health` | GET | Server + DB status |
 
-**Frontend:** React SPA with Vite build system, Tailwind CSS, BYOK support.
+**Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
+- `ExtractionPage` — URL input, job polling, progress display
+- `RecipeList` — List/grid view toggle (default: list), persisted in localStorage
+- `RecipeDetail` — Single recipe view
+- `SettingsPage` — BYOK key management, App Status with Roadmap modal
 
 ## External CLI Dependencies
 
@@ -84,7 +95,7 @@ Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no 
 
 ## Configuration
 
-Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com). SQLite DB is created automatically at `./data/rezepti.db`.
+Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com). SQLite DB is created automatically at `./data/rezepti-react.db`.
 
 ## Git / SSH
 
@@ -114,44 +125,21 @@ Host github.com
 
 ## Working Notes (Claude)
 
-- **Active branch:** `ph/Test` — all commits go here, never directly to `main`
+- **Active branch:** `feature/react-migration` — all commits go here, never directly to `main`
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
-- **Test Suite**: Comprehensive E2E tests available in `test/` directory - run with `npm test` or `npm run docker:test`
-- **Design variants:** `public/v1–v4.html` are inactive iterations; active UI is `public/index.html` or React app built to `public/`
+- **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
+- **After frontend changes:** Always run `npm run build:react` to update `public/`
 
-## React Migration & Docker Fixes (MARCH 2026 - COMPLETED ✅)
+## Cleanup (March 2026) ✅
 
-### Phase 3: React Migration Complete ✅
-- ✅ **React Frontend**: Modern Vite + TypeScript + Tailwind CSS interface
-- ✅ **BYOK Support**: User API key management with real Groq validation
-- ✅ **Polling API**: `/api/v1/extract/react` endpoints with job persistence
-- ✅ **Database Migration**: Legacy → React DB tools (16+ recipes migrated)
-- ✅ **Docker Deployment**: Multi-stage build with React app served from Express
-- ✅ **UI/UX Polish**: Toast notifications, skeleton loaders, improved user experience
-- ✅ **E2E Testing**: Comprehensive test suite with 1000+ lines of tests
-
-### Phase 3b: Docker Deployment Fixed ✅
-**Issues resolved with multiple agents working in parallel:**
-- ✅ **DNS Resolution**: Fixed by adding explicit DNS servers (8.8.8.8, 1.1.1.1)
-- ✅ **yt-dlp Installation**: Static binary with ffmpeg + network debugging tools
-- ✅ **Dockerfiles**: Updated with ffmpeg dependency and debugging tools
-- ✅ **E2E Test Suite**: Comprehensive tests for React API and Docker environment
-- ✅ **Documentation**: DOCKER_DEPLOYMENT.md (500+ lines) with troubleshooting guide
-
-**Key Architecture Decisions:**
-1. **Polling over SSE**: Better for React state management and mobile compatibility
-2. **Job Persistence**: SQLite-based job storage survives server restarts
-3. **Dual Database**: Legacy DB for backward compatibility, React DB for new features
-4. **BYOK Validation**: Real API test calls to Groq, not just format validation
-5. **Mobile-Ready Interfaces**: Prepared for future Expo SQLite implementation
-
-**Multiple Agents Deployment Results:**
-- **Agent 1**: Analyzed Docker DNS root cause (systemd-resolved issue)
-- **Agent 2**: Created comprehensive E2E test suite (1000+ lines)
-- **Agent 3**: Improved yt-dlp with ffmpeg and static binary
-- **Agent 4**: Tested Docker with real URLs - ALL TESTS PASSED
-- **Agent 5**: Validated 15+ API endpoints - ALL WORKING
-- **Agent 6**: Created Docker documentation (DOCKER_DEPLOYMENT.md)
+Legacy code removed in this session:
+- ❌ `src/db.ts` — deleted (replaced by `src/db-react.ts`)
+- ❌ `src/db-manager.ts` — deleted (dual-DB abstraction no longer needed)
+- ❌ `src/react-job-manager.ts` — deleted (superseded by `job-manager.ts`)
+- ❌ SSE endpoint `/api/extract` — removed
+- ❌ Legacy `/api/recipes` and `/api/health` routes — removed
+- ❌ Design variants `public/v1–v4.html`, `public/legacy-index.html` — removed
+- ❌ `test/unit/db-manager.test.ts` — removed
 
 ## Roadmap
 
@@ -169,14 +157,13 @@ Planned features and current implementation status (as of March 2026):
 - Photo import (camera/gallery): 0% — vision model available, no upload flow
 
 ### Recipe Display & Navigation
-- Website redesign with navigation menu bar for better clarity: 0%
-- Recipe list & detail view: 50% — basic structure in place
+- Recipe list & detail view: 50% — list/grid toggle implemented
 - Ingredients & steps displayed separately (à la Dr. Oetker): 20% — data is separated, UI is not
 - Adjustable serving size + scaling: 0%
 - Fix one ingredient as quantity → scale the rest: 0%
-- Fullscreen cook mode: 0% — fullscreen view for step-by-step cooking
-- Original recipe link: 0% — link to source website in recipe view
-- Recipe as separate page (not modal): 0% — dedicated recipe page instead of modal
+- Fullscreen cook mode: 0%
+- Original recipe link: 0%
+- Recipe as separate page (not modal): 0%
 
 ### Shopping & Planning
 - Shopping list: 0%
@@ -194,14 +181,13 @@ Planned features and current implementation status (as of March 2026):
 ### Mobile & Responsive Design
 - Mobile first approach: 100% ✅ — React frontend with mobile-ready interfaces
 - Media queries for typical screen sizes: 80% ✅ — React app responsive with Tailwind CSS
-- Android app (Flutter): 0% — Mobile interfaces prepared for future React Native/Expo implementation
+- Android app (Flutter): 0%
 
 ## Testing
 
-**Comprehensive test suite with 254+ unit tests:**
-- Run backend tests: `npm test` or `npm test -- --run src/`
-- Run frontend tests: `cd frontend && npx vitest --run src/components/`
-- Run all tests: `npm test`
+**Unit tests (no server needed):**
+- `npm test -- --run --exclude="test/e2e/**"` — run only unit tests (130+)
+- `npm test` — all tests (E2E tests will fail without a running server)
 
 **Test Coverage:**
 | Area | Tests | Files |
@@ -209,9 +195,9 @@ Planned features and current implementation status (as of March 2026):
 | API Layer (client, services, types) | 91 | `test/api/` |
 | UI Components (Toast, SkeletonLoader) | 70 | `frontend/src/components/` |
 | Main Components (Extraction, RecipeList, RecipeDetail) | 37 | `frontend/src/components/` |
-| Backend Services (job-manager, byok-validator, db) | 56 | `src/*.test.ts` |
+| Backend Services (job-manager, byok-validator, db) | ~43 | `src/*.test.ts` |
 
-**E2E Tests:**
+**E2E Tests (require running server):**
 - `test/e2e/react-api.test.ts` — React API endpoints
 - `test/e2e/docker.test.ts` — Docker environment validation
 - `test/e2e/basic-api.test.ts` — Simple API verification

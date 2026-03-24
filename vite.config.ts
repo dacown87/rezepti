@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 import { configDefaults } from 'vitest/config'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   root: 'frontend',
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   server: {
     port: 5173,
     proxy: {
@@ -17,7 +18,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../dist/public',
+    outDir: '../public',
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {

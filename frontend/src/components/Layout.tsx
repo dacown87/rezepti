@@ -53,10 +53,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-warmgray/20 py-6 mt-12">
-        <div className="container mx-auto px-4 text-center text-warmgray text-sm">
-          <p>Rezepti — Rezepte aus dem Netz extrahieren</p>
-          <p className="mt-1">BYOK Support • Mobile Ready • Open Source</p>
+      <footer className="border-t border-warmgray/10 py-6 mt-12">
+        <div className="container mx-auto px-4 text-center text-warmgray/50 text-xs tracking-wide">
+          Rezepti — Rezepte aus dem Netz
         </div>
       </footer>
     </div>

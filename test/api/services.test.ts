@@ -160,7 +160,7 @@ describe('API Services', () => {
   describe('Extraction Job Services', () => {
     const mockJobStatus: JobStatus = {
       jobId: 'job-123',
-      status: 'processing',
+      status: 'running',
       progress: 50,
       stage: 'extracting',
       message: 'Extracting recipe data...',
@@ -176,8 +176,11 @@ describe('API Services', () => {
         const result = await services.startExtraction('https://example.com/recipe')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          '/api/v1/extract/react?url=https%3A%2F%2Fexample.com%2Frecipe',
-          expect.any(Object)
+          '/api/v1/extract/react',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({ url: 'https://example.com/recipe' }),
+          })
         )
         expect(result).toBe('job-abc123')
       })
@@ -191,8 +194,11 @@ describe('API Services', () => {
         await services.startExtraction('https://example.com', 'gsk_userkey123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('userKey=gsk_userkey123'),
-          expect.any(Object)
+          '/api/v1/extract/react',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({ url: 'https://example.com', apiKey: 'gsk_userkey123' }),
+          })
         )
       })
 
@@ -218,10 +224,10 @@ describe('API Services', () => {
         const result = await services.getJobStatus('job-123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          '/api/v1/jobs/job-123',
+          '/api/v1/extract/react/job-123',
           expect.any(Object)
         )
-        expect(result.status).toBe('processing')
+        expect(result.status).toBe('running')
         expect(result.progress).toBe(50)
       })
 
@@ -345,12 +351,8 @@ describe('API Services', () => {
     describe('validateApiKey', () => {
       it('should validate API key from server', async () => {
         const validationResult: ValidationResult = {
-          isValid: true,
-          remainingCredits: 5000,
-          rateLimits: {
-            requestsPerMinute: 60,
-            tokensPerMinute: 100000,
-          },
+          valid: true,
+          model: 'llama-3.1-8b-instant',
         }
 
         mockFetch.mockResolvedValue({
@@ -360,32 +362,27 @@ describe('API Services', () => {
 
         const result = await services.validateApiKey('gsk_testkey123')
 
-        expect(result.isValid).toBe(true)
-        expect(result.remainingCredits).toBe(5000)
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/v1/keys/validate',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({ apiKey: 'gsk_testkey123' }),
+          })
+        )
+        expect(result.valid).toBe(true)
+        expect(result.model).toBe('llama-3.1-8b-instant')
       })
 
-      it('should fallback to format validation on error', async () => {
+      it('should throw on network error', async () => {
         mockFetch.mockRejectedValue(new Error('Network error'))
 
-        const result = await services.validateApiKey('gsk_validformatkey12345678901234567890')
-
-        expect(result.isValid).toBe(true)
-        expect(result.remainingCredits).toBe(1000)
-      })
-
-      it('should return invalid for bad format on fallback', async () => {
-        mockFetch.mockRejectedValue(new Error('Network error'))
-
-        const result = await services.validateApiKey('badkey')
-
-        expect(result.isValid).toBe(false)
-        expect(result.error).toContain('Invalid API key format')
+        await expect(services.validateApiKey('gsk_key123')).rejects.toThrow('Network error')
       })
 
       it('should handle invalid key response from server', async () => {
         const invalidResult: ValidationResult = {
-          isValid: false,
-          error: 'Invalid or expired API key',
+          valid: false,
+          reason: 'Invalid or expired API key',
         }
 
         mockFetch.mockResolvedValue({
@@ -395,8 +392,8 @@ describe('API Services', () => {
 
         const result = await services.validateApiKey('gsk_invalidkey')
 
-        expect(result.isValid).toBe(false)
-        expect(result.error).toBe('Invalid or expired API key')
+        expect(result.valid).toBe(false)
+        expect(result.reason).toBe('Invalid or expired API key')
       })
     })
 
@@ -419,7 +416,7 @@ describe('API Services', () => {
           '/api/v1/keys',
           expect.objectContaining({
             method: 'POST',
-            body: JSON.stringify({ key: 'gsk_newkey123' }),
+            body: JSON.stringify({ apiKey: 'gsk_newkey123' }),
           })
         )
         expect(result.success).toBe(true)
@@ -658,7 +655,7 @@ describe('Service Integration', () => {
     // Poll job status - processing
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ jobId: 'job-123', status: 'processing', progress: 50 }),
+      json: () => Promise.resolve({ jobId: 'job-123', status: 'running', progress: 50 }),
     })
 
     // Poll job status - completed

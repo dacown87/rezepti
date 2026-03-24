@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react'
-import { ChefHat, Clock, Users, Flame, Loader2, RefreshCw } from 'lucide-react'
+import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getRecipes } from '../api/services.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeListSkeleton } from './SkeletonLoader'
 
+type ViewMode = 'list' | 'grid'
+
 const RecipeList: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem('rezepti_view_mode') as ViewMode) ?? 'list'
+  )
   const { addToast } = useToast()
+
+  const switchView = (mode: ViewMode) => {
+    setViewMode(mode)
+    localStorage.setItem('rezepti_view_mode', mode)
+  }
 
   useEffect(() => {
     fetchRecipes()
@@ -42,6 +52,24 @@ const RecipeList: React.FC = () => {
     }
   }
 
+  const emptyState = (colSpan: string) => (
+    <div className={`${colSpan} bg-white rounded-2xl shadow-lg border border-warmgray/10 border-dashed p-8 text-center flex flex-col items-center justify-center`}>
+      <ChefHat className="h-12 w-12 text-warmgray/40 mb-4" />
+      <h3 className="font-display font-bold text-xl mb-2">Keine Rezepte</h3>
+      <p className="text-warmgray mb-4">
+        {error || 'Extrahiere dein erstes Rezept aus YouTube, Instagram oder einer Webseite'}
+      </p>
+      <Link to="/extract" className="bg-saffron text-espresso py-2 px-6 rounded-lg font-medium hover:bg-saffron-light transition-colors">
+        Rezept extrahieren
+      </Link>
+      {error && (
+        <button onClick={fetchRecipes} className="mt-3 text-paprika hover:text-paprika-dark text-sm font-medium">
+          Erneut versuchen
+        </button>
+      )}
+    </div>
+  )
+
   return (
     <div>
       <div className="mb-8">
@@ -50,127 +78,159 @@ const RecipeList: React.FC = () => {
             <h1 className="text-3xl font-display font-bold mb-2">Deine Rezepte</h1>
             <p className="text-warmgray">Gespeicherte Rezepte aus dem Netz</p>
           </div>
-          <button
-            onClick={() => fetchRecipes(true)}
-            disabled={isRefreshing}
-            className="flex items-center space-x-2 px-4 py-2 bg-warmgray/10 hover:bg-warmgray/20 text-warmgray rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Rezepte aktualisieren"
-          >
-            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
-            <span className="hidden sm:inline">Aktualisieren</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* View toggle */}
+            <div className="flex bg-warmgray/10 rounded-lg p-1">
+              <button
+                onClick={() => switchView('list')}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow text-paprika' : 'text-warmgray hover:text-gray-600'}`}
+                title="Listenansicht"
+              >
+                <List size={18} />
+              </button>
+              <button
+                onClick={() => switchView('grid')}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow text-paprika' : 'text-warmgray hover:text-gray-600'}`}
+                title="Kartenansicht"
+              >
+                <LayoutGrid size={18} />
+              </button>
+            </div>
+            <button
+              onClick={() => fetchRecipes(true)}
+              disabled={isRefreshing}
+              className="flex items-center space-x-2 px-4 py-2 bg-warmgray/10 hover:bg-warmgray/20 text-warmgray rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Rezepte aktualisieren"
+            >
+              <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Aktualisieren</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {isLoading ? (
-          <RecipeListSkeleton />
-        ) : recipes.length > 0 ? (
-          recipes.map((recipe) => (
-            <div
-              key={recipe.id}
-              className="bg-white rounded-2xl shadow-lg border border-warmgray/10 overflow-hidden hover:shadow-xl transition-shadow"
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-3xl">{recipe.emoji}</span>
-                    <div>
-                      <h3 className="font-display font-bold text-xl">{recipe.name}</h3>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {recipe.tags?.map((tag) => (
-                          <span
-                            key={tag}
-                            className="px-2 py-1 bg-paprika/10 text-paprika text-xs rounded-full"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+      {/* List view */}
+      {viewMode === 'list' && (
+        <div className="space-y-2">
+          {isLoading ? (
+            <RecipeListSkeleton />
+          ) : recipes.length > 0 ? (
+            recipes.map((recipe) => (
+              <Link
+                key={recipe.id}
+                to={`/recipe/${recipe.id}`}
+                className="flex items-center bg-white rounded-xl border border-warmgray/10 px-4 py-3 hover:shadow-md hover:border-paprika/20 transition-all group"
+              >
+                <span className="text-2xl mr-4 flex-shrink-0">{recipe.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-bold text-base truncate group-hover:text-paprika transition-colors">
+                    {recipe.name}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {recipe.tags?.slice(0, 3).map((tag) => (
+                      <span key={tag} className="px-2 py-0.5 bg-paprika/10 text-paprika text-xs rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="hidden sm:flex items-center space-x-5 ml-4 flex-shrink-0 text-warmgray text-sm">
+                  {recipe.duration && (
+                    <span className="flex items-center space-x-1">
+                      <Clock size={14} />
+                      <span>{recipe.duration}</span>
+                    </span>
+                  )}
+                  {recipe.servings && (
+                    <span className="flex items-center space-x-1">
+                      <Users size={14} />
+                      <span>{recipe.servings}</span>
+                    </span>
+                  )}
+                  {recipe.calories && (
+                    <span className="flex items-center space-x-1">
+                      <Flame size={14} />
+                      <span>{recipe.calories} kcal</span>
+                    </span>
+                  )}
+                </div>
+              </Link>
+            ))
+          ) : (
+            emptyState('w-full')
+          )}
+        </div>
+      )}
+
+      {/* Grid view */}
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {isLoading ? (
+            <RecipeListSkeleton />
+          ) : recipes.length > 0 ? (
+            recipes.map((recipe) => (
+              <div
+                key={recipe.id}
+                className="bg-white rounded-2xl shadow-lg border border-warmgray/10 overflow-hidden hover:shadow-xl transition-shadow"
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-3xl">{recipe.emoji}</span>
+                      <div>
+                        <h3 className="font-display font-bold text-xl">{recipe.name}</h3>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {recipe.tags?.map((tag) => (
+                            <span key={tag} className="px-2 py-1 bg-paprika/10 text-paprika text-xs rounded-full">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-warmgray/10">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
+                        <Clock size={16} />
+                        <span className="text-sm font-medium">{recipe.duration}</span>
+                      </div>
+                      <div className="text-xs text-warmgray">Dauer</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
+                        <Users size={16} />
+                        <span className="text-sm font-medium">{recipe.servings}</span>
+                      </div>
+                      <div className="text-xs text-warmgray">Portionen</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
+                        <Flame size={16} />
+                        <span className="text-sm font-medium">{recipe.calories}</span>
+                      </div>
+                      <div className="text-xs text-warmgray">kcal</div>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex space-x-3">
+                    <Link
+                      to={`/recipe/${recipe.id}`}
+                      className="flex-1 bg-paprika text-white py-2 px-4 rounded-lg font-medium hover:bg-paprika-dark transition-colors text-center transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
+                    >
+                      Öffnen
+                    </Link>
+                    <button className="px-4 py-2 border border-warmgray/20 rounded-lg hover:bg-warmgray/5 transition-colors transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200">
+                      Bearbeiten
+                    </button>
+                  </div>
                 </div>
-
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-warmgray/10">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
-                      <Clock size={16} />
-                      <span className="text-sm font-medium">{recipe.duration}</span>
-                    </div>
-                    <div className="text-xs text-warmgray">Dauer</div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
-                      <Users size={16} />
-                      <span className="text-sm font-medium">{recipe.servings}</span>
-                    </div>
-                    <div className="text-xs text-warmgray">Portionen</div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
-                      <Flame size={16} />
-                      <span className="text-sm font-medium">{recipe.calories}</span>
-                    </div>
-                    <div className="text-xs text-warmgray">kcal</div>
-                  </div>
-                </div>
-
-<div className="mt-6 flex space-x-3">
-                <Link
-                  to={`/recipe/${recipe.id}`}
-                  className="flex-1 bg-paprika text-white py-2 px-4 rounded-lg font-medium hover:bg-paprika-dark transition-colors text-center transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
-                >
-                  Öffnen
-                </Link>
-                <button className="px-4 py-2 border border-warmgray/20 rounded-lg hover:bg-warmgray/5 transition-colors transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200">
-                  Bearbeiten
-                </button>
               </div>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="lg:col-span-3 bg-white rounded-2xl shadow-lg border border-warmgray/10 border-dashed p-8 text-center flex flex-col items-center justify-center">
-            <ChefHat className="h-12 w-12 text-warmgray/40 mb-4" />
-            <h3 className="font-display font-bold text-xl mb-2">Keine Rezepte</h3>
-            <p className="text-warmgray mb-4">
-              {error || 'Extrahiere dein erstes Rezept aus YouTube, Instagram oder einer Webseite'}
-            </p>
-            <Link 
-              to="/extract" 
-              className="bg-saffron text-espresso py-2 px-6 rounded-lg font-medium hover:bg-saffron-light transition-colors"
-            >
-              Rezept extrahieren
-            </Link>
-            {error && (
-              <button 
-                onClick={fetchRecipes}
-                className="mt-3 text-paprika hover:text-paprika-dark text-sm font-medium"
-              >
-                Erneut versuchen
-              </button>
-            )}
-          </div>
-        )}
-
-
-      </div>
-
-      <div className="mt-12 p-6 bg-saffron/10 rounded-2xl border border-saffron/20">
-        <div className="flex items-center space-x-4">
-          <div className="bg-saffron/20 p-3 rounded-full">
-            <ChefHat className="h-6 w-6 text-saffron-dark" />
-          </div>
-          <div>
-            <h3 className="font-display font-bold text-lg">React Migration läuft!</h3>
-            <p className="text-warmgray">
-              Diese React Version ist noch in Entwicklung. BYOK Support und mobile Vorbereitung kommen bald.
-            </p>
-          </div>
+            ))
+          ) : (
+            emptyState('lg:col-span-3')
+          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }

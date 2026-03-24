@@ -11,7 +11,7 @@ import {
   refineRecipe,
 } from "./processors/llm.js";
 import { transcribeAudio } from "./processors/whisper.js";
-import { saveRecipe } from "./db.js";
+import { saveRecipeToReactDb } from "./db-react.js";
 import { createTempDir, cleanupTempDir } from "./temp.js";
 import type {
   ContentBundle,
@@ -28,8 +28,7 @@ async function emit(cb: EventCallback, event: PipelineEvent) {
 
 export async function processURL(
   rawUrl: string,
-  onEvent: EventCallback,
-  dbType: 'legacy' | 'react' = 'legacy'
+  onEvent: EventCallback
 ): Promise<PipelineResult> {
   const tempDir = createTempDir();
 
@@ -109,15 +108,7 @@ export async function processURL(
       message: "Rezept wird in Datenbank gespeichert...",
     });
     
-    let recipeId: number;
-    if (dbType === 'react') {
-      // Use DatabaseManager for React DB
-      const { DatabaseManager } = await import('./db-manager.js');
-      recipeId = DatabaseManager.saveRecipe(recipe, classified.url, transcript, 'react');
-    } else {
-      // Use legacy saveRecipe
-      recipeId = saveRecipe(recipe, classified.url, transcript);
-    }
+    const recipeId = saveRecipeToReactDb(recipe, classified.url, transcript);
     
     await emit(onEvent, {
       stage: "exporting",
