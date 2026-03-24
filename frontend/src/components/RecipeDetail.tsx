@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink } from 'lucide-react'
-import { getRecipe, deleteRecipe } from '../api/services.js'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X } from 'lucide-react'
+import { getRecipe, deleteRecipe, updateRecipe } from '../api/services.js'
 import { parseServingsNumber, scaleIngredient } from '../utils/scaling.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
@@ -14,6 +14,12 @@ const RecipeDetail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editDraft, setEditDraft] = useState<{
+    name: string; emoji: string; duration: string; servings: string
+    calories: string; tags: string; ingredients: string; steps: string
+  } | null>(null)
   const [servingMultiplier, setServingMultiplier] = useState(1)
   const { addToast } = useToast()
 
@@ -62,6 +68,52 @@ const RecipeDetail: React.FC = () => {
       addToast(errorMsg, 'error')
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleEdit = () => {
+    if (!recipe) return
+    setEditDraft({
+      name: recipe.name,
+      emoji: recipe.emoji,
+      duration: recipe.duration,
+      servings: recipe.servings,
+      calories: String(recipe.calories ?? ''),
+      tags: recipe.tags.join(', '),
+      ingredients: recipe.ingredients.join('\n'),
+      steps: recipe.steps.join('\n'),
+    })
+    setIsEditing(true)
+  }
+
+  const handleCancel = () => {
+    setIsEditing(false)
+    setEditDraft(null)
+  }
+
+  const handleSave = async () => {
+    if (!recipe || !editDraft) return
+    setIsSaving(true)
+    try {
+      await updateRecipe(recipe.id, {
+        name: editDraft.name.trim(),
+        emoji: editDraft.emoji.trim(),
+        duration: editDraft.duration.trim(),
+        servings: editDraft.servings.trim(),
+        calories: editDraft.calories ? parseInt(editDraft.calories) : undefined,
+        tags: editDraft.tags.split(',').map(t => t.trim()).filter(Boolean),
+        ingredients: editDraft.ingredients.split('\n').map(l => l.trim()).filter(Boolean),
+        steps: editDraft.steps.split('\n').map(l => l.trim()).filter(Boolean),
+      })
+      const updated = await getRecipe(recipe.id)
+      setRecipe(updated)
+      setIsEditing(false)
+      setEditDraft(null)
+      addToast('Rezept gespeichert', 'success')
+    } catch (err: any) {
+      addToast('Speichern fehlgeschlagen. Bitte erneut versuchen.', 'error')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -126,20 +178,44 @@ const RecipeDetail: React.FC = () => {
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-6 left-6 right-6 text-white">
-            <div className="flex items-center space-x-3 mb-2">
-              <span className="text-4xl">{recipe.emoji}</span>
-              <h1 className="text-3xl md:text-4xl font-display font-bold">{recipe.name}</h1>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {recipe.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+            {isEditing && editDraft ? (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    value={editDraft.emoji}
+                    onChange={e => setEditDraft(d => d && ({ ...d, emoji: e.target.value }))}
+                    className="w-14 text-2xl text-center bg-white/20 border border-white/30 rounded-lg px-1 py-1 text-white placeholder-white/60 focus:outline-none focus:border-white"
+                    maxLength={2}
+                  />
+                  <input
+                    value={editDraft.name}
+                    onChange={e => setEditDraft(d => d && ({ ...d, name: e.target.value }))}
+                    className="flex-1 text-2xl font-display font-bold bg-white/20 border border-white/30 rounded-lg px-3 py-1 text-white placeholder-white/60 focus:outline-none focus:border-white"
+                    placeholder="Rezeptname"
+                  />
+                </div>
+                <input
+                  value={editDraft.tags}
+                  onChange={e => setEditDraft(d => d && ({ ...d, tags: e.target.value }))}
+                  className="w-full text-sm bg-white/20 border border-white/30 rounded-lg px-3 py-1 text-white placeholder-white/60 focus:outline-none focus:border-white"
+                  placeholder="Tags, kommagetrennt"
+                />
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center space-x-3 mb-2">
+                  <span className="text-4xl">{recipe.emoji}</span>
+                  <h1 className="text-3xl md:text-4xl font-display font-bold">{recipe.name}</h1>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recipe.tags.map((tag) => (
+                    <span key={tag} className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -149,7 +225,16 @@ const RecipeDetail: React.FC = () => {
             <div className="text-center p-4 bg-cream rounded-xl">
               <div className="flex items-center justify-center space-x-2 text-warmgray mb-2">
                 <Clock size={20} />
-                <span className="font-medium">{recipe.duration}</span>
+                {isEditing && editDraft ? (
+                  <input
+                    value={editDraft.duration}
+                    onChange={e => setEditDraft(d => d && ({ ...d, duration: e.target.value }))}
+                    className="w-20 text-center font-medium bg-white border border-warmgray/30 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-paprika"
+                    placeholder="30 min"
+                  />
+                ) : (
+                  <span className="font-medium">{recipe.duration}</span>
+                )}
               </div>
               <div className="text-sm text-warmgray">Dauer</div>
             </div>
@@ -187,7 +272,17 @@ const RecipeDetail: React.FC = () => {
             <div className="text-center p-4 bg-cream rounded-xl">
               <div className="flex items-center justify-center space-x-2 text-warmgray mb-2">
                 <Flame size={20} />
-                <span className="font-medium">{recipe.calories} kcal</span>
+                {isEditing && editDraft ? (
+                  <input
+                    type="number"
+                    value={editDraft.calories}
+                    onChange={e => setEditDraft(d => d && ({ ...d, calories: e.target.value }))}
+                    className="w-20 text-center font-medium bg-white border border-warmgray/30 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-paprika"
+                    placeholder="kcal"
+                  />
+                ) : (
+                  <span className="font-medium">{recipe.calories} kcal</span>
+                )}
               </div>
               <div className="text-sm text-warmgray">Pro Portion</div>
             </div>
@@ -195,19 +290,45 @@ const RecipeDetail: React.FC = () => {
 
           {/* Action buttons */}
           <div className="flex space-x-3 mb-8">
-            <button className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg">
-              <Edit size={20} />
-              <span>Rezept bearbeiten</span>
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
-            >
-              <Trash2 size={20} className={isDeleting ? 'animate-spin' : ''} />
-              <span>{isDeleting ? 'Löschen...' : 'Löschen'}</span>
-            </button>
-            {recipe.source_url && (
+            {isEditing ? (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                >
+                  {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                  <span>{isSaving ? 'Speichern...' : 'Speichern'}</span>
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="px-6 py-3 border border-warmgray/30 text-warmgray rounded-lg font-medium hover:bg-warmgray/5 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                >
+                  <X size={20} />
+                  <span>Abbrechen</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleEdit}
+                  className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
+                >
+                  <Edit size={20} />
+                  <span>Rezept bearbeiten</span>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
+                >
+                  <Trash2 size={20} className={isDeleting ? 'animate-spin' : ''} />
+                  <span>{isDeleting ? 'Löschen...' : 'Löschen'}</span>
+                </button>
+              </>
+            )}
+            {!isEditing && recipe.source_url && (
               <a
                 href={recipe.source_url}
                 target="_blank"
@@ -225,7 +346,7 @@ const RecipeDetail: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Ingredients */}
             <div>
-              {servingMultiplier !== 1 && (
+              {!isEditing && servingMultiplier !== 1 && (
                 <div className="mb-2 text-xs text-paprika font-medium flex items-center space-x-1">
                   <span>Zutaten für ×{servingMultiplier} skaliert</span>
                   <button onClick={() => setServingMultiplier(1)} className="ml-1 underline hover:no-underline">
@@ -236,16 +357,26 @@ const RecipeDetail: React.FC = () => {
               <h2 className="text-xl font-display font-bold mb-4 pb-2 border-b border-warmgray/10">
                 Zutaten
               </h2>
-              <ul className="space-y-2">
-                {recipe.ingredients.map((ingredient, index) => (
-                  <li key={index} className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-paprika rounded-full mt-2.5 flex-shrink-0"></div>
-                    <span className="text-warmgray text-sm">
-                      {servingMultiplier === 1 ? ingredient : scaleIngredient(ingredient, servingMultiplier)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {isEditing && editDraft ? (
+                <textarea
+                  value={editDraft.ingredients}
+                  onChange={e => setEditDraft(d => d && ({ ...d, ingredients: e.target.value }))}
+                  rows={recipe.ingredients.length + 2}
+                  className="w-full text-sm text-warmgray bg-warmgray/5 border border-warmgray/20 rounded-lg px-3 py-2 focus:outline-none focus:border-paprika resize-none"
+                  placeholder="Eine Zutat pro Zeile"
+                />
+              ) : (
+                <ul className="space-y-2">
+                  {recipe.ingredients.map((ingredient, index) => (
+                    <li key={index} className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-paprika rounded-full mt-2.5 flex-shrink-0"></div>
+                      <span className="text-warmgray text-sm">
+                        {servingMultiplier === 1 ? ingredient : scaleIngredient(ingredient, servingMultiplier)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Steps */}
@@ -253,16 +384,26 @@ const RecipeDetail: React.FC = () => {
               <h2 className="text-xl font-display font-bold mb-4 pb-2 border-b border-warmgray/10">
                 Zubereitung
               </h2>
-              <ol className="space-y-4">
-                {recipe.steps.map((step, index) => (
-                  <li key={index} className="flex space-x-3">
-                    <div className="flex-shrink-0 w-6 h-6 bg-paprika text-white rounded-full flex items-center justify-center font-bold text-xs">
-                      {index + 1}
-                    </div>
-                    <p className="text-warmgray text-sm pt-0.5">{step}</p>
-                  </li>
-                ))}
-              </ol>
+              {isEditing && editDraft ? (
+                <textarea
+                  value={editDraft.steps}
+                  onChange={e => setEditDraft(d => d && ({ ...d, steps: e.target.value }))}
+                  rows={recipe.steps.length + 2}
+                  className="w-full text-sm text-warmgray bg-warmgray/5 border border-warmgray/20 rounded-lg px-3 py-2 focus:outline-none focus:border-paprika resize-none"
+                  placeholder="Einen Schritt pro Zeile"
+                />
+              ) : (
+                <ol className="space-y-4">
+                  {recipe.steps.map((step, index) => (
+                    <li key={index} className="flex space-x-3">
+                      <div className="flex-shrink-0 w-6 h-6 bg-paprika text-white rounded-full flex items-center justify-center font-bold text-xs">
+                        {index + 1}
+                      </div>
+                      <p className="text-warmgray text-sm pt-0.5">{step}</p>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
           </div>
         </div>
