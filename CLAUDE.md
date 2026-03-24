@@ -158,12 +158,12 @@ Planned features and current implementation status (as of March 2026):
 
 ### Recipe Display & Navigation
 - Recipe list & detail view: 50% — list/grid toggle implemented
-- Ingredients & steps displayed separately (à la Dr. Oetker): 20% — data is separated, UI is not
-- Adjustable serving size + scaling: 0%
+- Ingredients & steps displayed separately (à la Dr. Oetker): 90% ✅ — 2-column layout on desktop, single-column on mobile
+- Adjustable serving size + scaling: 80% ✅ — ×0.5–×4 stepper with ingredient quantity scaling
 - Fix one ingredient as quantity → scale the rest: 0%
 - Fullscreen cook mode: 0%
-- Original recipe link: 0%
-- Recipe as separate page (not modal): 0%
+- Original recipe link: 100% ✅ — prominent button in action area + source box at bottom
+- Recipe as separate page (not modal): 100% ✅ — implemented via /recipe/:id route
 
 ### Shopping & Planning
 - Shopping list: 0%
