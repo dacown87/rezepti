@@ -1,4 +1,4 @@
-import type { Recipe, JobStatus } from '../../api/types'
+import type { Recipe, JobStatus } from '../api/types'
 
 export const mockRecipe: Recipe = {
   id: 1,
@@ -75,7 +75,7 @@ export const mockJobStatus: JobStatus = {
 
 export const mockPendingJobStatus: JobStatus = {
   jobId: 'test-job-456',
-  status: 'processing',
+  status: 'running',
   progress: 50,
   stage: 'Analyzing content',
   message: 'Processing video transcript'

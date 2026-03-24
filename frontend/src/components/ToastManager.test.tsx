@@ -1,23 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import React from 'react'
 import { ToastProvider, useToast, toastHelpers } from './ToastManager'
 
 describe('ToastProvider Component', () => {
-  const TestComponent: React.FC = () => {
-    const { addToast, removeToast } = useToast()
-    
-    return (
-      <div>
-        <button onClick={() => addToast('Success message', 'success')}>Add Success</button>
-        <button onClick={() => addToast('Error message', 'error')}>Add Error</button>
-        <button onClick={() => addToast('Info message', 'info')}>Add Info</button>
-        <button onClick={() => addToast('Loading message', 'loading')}>Add Loading</button>
-        <button onClick={() => removeToast('1')}>Remove Toast</button>
-      </div>
-    )
-  }
-
   describe('Rendering', () => {
     it('renders children correctly', () => {
       render(

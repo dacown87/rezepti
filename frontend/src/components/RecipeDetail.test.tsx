@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import RecipeDetail from './RecipeDetail'
 import { ToastProvider } from './ToastManager'
@@ -97,7 +97,7 @@ describe('RecipeDetail', () => {
       renderPage()
       
       await waitFor(() => {
-        mockRecipe.ingredients.forEach(ingredient => {
+        mockRecipe.ingredients.forEach((ingredient: string) => {
           expect(screen.getByText(ingredient)).toBeInTheDocument()
         })
       })
@@ -109,7 +109,7 @@ describe('RecipeDetail', () => {
       
       await waitFor(() => {
         expect(screen.getByText('1')).toBeInTheDocument()
-        mockRecipe.steps.forEach(step => {
+        mockRecipe.steps.forEach((step: string) => {
           expect(screen.getByText(step)).toBeInTheDocument()
         })
       })

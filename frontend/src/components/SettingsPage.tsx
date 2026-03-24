@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Loader2, Info } from 'lucide-react'
+import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Info } from 'lucide-react'
 import { validateApiKey, saveApiKey, clearApiKey } from '../api/services.js'
 import { useToast } from './ToastManager'
-import { SettingsCardSkeleton } from './SkeletonLoader'
 
 const ROADMAP = [
   {
@@ -120,9 +119,14 @@ const SettingsPage: React.FC = () => {
   const [showRoadmap, setShowRoadmap] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<{
-    isValid: boolean
+    valid: boolean
     error?: string
     remainingCredits?: number
+    rateLimits?: {
+      remaining: number
+      limit: number
+      reset: string
+    }
   } | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
   const { addToast } = useToast()
@@ -146,7 +150,7 @@ const SettingsPage: React.FC = () => {
       // First validate the key with our API
       const validation = await validateApiKey(userKey)
       
-      if (validation.isValid) {
+      if (validation.valid) {
         // Save to backend
         const saveResult = await saveApiKey(userKey)
         
@@ -155,7 +159,7 @@ const SettingsPage: React.FC = () => {
           localStorage.setItem('rezepti_groq_key', userKey)
           setSavedKey(userKey)
           setValidationResult({
-            isValid: true,
+            valid: true,
             remainingCredits: validation.remainingCredits,
             rateLimits: validation.rateLimits
           })
@@ -163,15 +167,15 @@ const SettingsPage: React.FC = () => {
         } else {
           const errorMsg = saveResult.error || 'Fehler beim Speichern des Keys'
           setValidationResult({
-            isValid: false,
+            valid: false,
             error: errorMsg
           })
           addToast(errorMsg, 'error')
         }
       } else {
-        const errorMsg = validation.error || 'Key konnte nicht validiert werden'
+        const errorMsg = validation.reason || 'Key konnte nicht validiert werden'
         setValidationResult({
-          isValid: false,
+          valid: false,
           error: errorMsg
         })
         addToast(errorMsg, 'error')
@@ -180,7 +184,7 @@ const SettingsPage: React.FC = () => {
       console.error('Key validation/saving error:', err)
       const errorMsg = err.message || 'Netzwerkfehler. Bitte versuche es erneut.'
       setValidationResult({
-        isValid: false,
+        valid: false,
         error: errorMsg
       })
       addToast(errorMsg, 'error')
@@ -190,7 +194,7 @@ const SettingsPage: React.FC = () => {
         localStorage.setItem('rezepti_groq_key', userKey)
         setSavedKey(userKey)
         setValidationResult({
-          isValid: true,
+          valid: true,
           remainingCredits: 1000
         })
         addToast('API Key gespeichert (lokale Validierung)', 'info')
@@ -288,21 +292,21 @@ const SettingsPage: React.FC = () => {
 
               {validationResult && (
                 <div className={`p-4 rounded-lg border ${
-                  validationResult.isValid 
+                  validationResult.valid 
                     ? 'bg-green-50 border-green-200' 
                     : 'bg-red-50 border-red-200'
                 }`}>
                   <div className="flex items-start space-x-3">
-                    {validationResult.isValid ? (
+                    {validationResult.valid ? (
                       <Check className="h-5 w-5 text-green-500 mt-0.5" />
                     ) : (
                       <X className="h-5 w-5 text-red-500 mt-0.5" />
                     )}
                     <div>
                       <p className={`font-medium ${
-                        validationResult.isValid ? 'text-green-700' : 'text-red-700'
+                        validationResult.valid ? 'text-green-700' : 'text-red-700'
                       }`}>
-                        {validationResult.isValid ? 'Key ist gültig!' : 'Key ist ungültig'}
+                        {validationResult.valid ? 'Key ist gültig!' : 'Key ist ungültig'}
                       </p>
                       {validationResult.error && (
                         <p className="text-sm text-red-600 mt-1">{validationResult.error}</p>

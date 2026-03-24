@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw } from 'lucide-react'
 import { getRecipe, deleteRecipe, updateRecipe } from '../api/services.js'
-import { parseServingsNumber, scaleIngredient } from '../utils/scaling.js'
+import { parseServingsNumber, scaleIngredient, parseIngredientNumber, splitIngredient } from '../utils/scaling.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeDetailSkeleton } from './SkeletonLoader'
@@ -18,9 +18,11 @@ const RecipeDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [editDraft, setEditDraft] = useState<{
     name: string; emoji: string; duration: string; servings: string
-    calories: string; tags: string; ingredients: string; steps: string
+    calories: string; tags: string; ingredients: string[]; steps: string[]
   } | null>(null)
   const [servingMultiplier, setServingMultiplier] = useState(1)
+  const [editingIngredientIndex, setEditingIngredientIndex] = useState<number | null>(null)
+  const [editingValue, setEditingValue] = useState('')
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -80,8 +82,8 @@ const RecipeDetail: React.FC = () => {
       servings: recipe.servings,
       calories: String(recipe.calories ?? ''),
       tags: recipe.tags.join(', '),
-      ingredients: recipe.ingredients.join('\n'),
-      steps: recipe.steps.join('\n'),
+      ingredients: [...recipe.ingredients],
+      steps: [...recipe.steps],
     })
     setIsEditing(true)
   }
@@ -102,8 +104,8 @@ const RecipeDetail: React.FC = () => {
         servings: editDraft.servings.trim(),
         calories: editDraft.calories ? parseInt(editDraft.calories) : undefined,
         tags: editDraft.tags.split(',').map(t => t.trim()).filter(Boolean),
-        ingredients: editDraft.ingredients.split('\n').map(l => l.trim()).filter(Boolean),
-        steps: editDraft.steps.split('\n').map(l => l.trim()).filter(Boolean),
+        ingredients: editDraft.ingredients.map(l => l.trim()).filter(Boolean),
+        steps: editDraft.steps.map(l => l.trim()).filter(Boolean),
       })
       const updated = await getRecipe(recipe.id)
       setRecipe(updated)
@@ -115,6 +117,18 @@ const RecipeDetail: React.FC = () => {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleIngredientConfirm = (index: number) => {
+    const enteredValue = parseFloat(editingValue)
+    if (!isNaN(enteredValue) && enteredValue > 0 && recipe) {
+      const originalNum = parseIngredientNumber(recipe.ingredients[index])
+      if (originalNum && originalNum > 0) {
+        setServingMultiplier(Math.max(0.01, enteredValue / originalNum))
+      }
+    }
+    setEditingIngredientIndex(null)
+    setEditingValue('')
   }
 
   if (isLoading) {
@@ -346,35 +360,109 @@ const RecipeDetail: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Ingredients */}
             <div>
-              {!isEditing && servingMultiplier !== 1 && (
-                <div className="mb-2 text-xs text-paprika font-medium flex items-center space-x-1">
-                  <span>Zutaten für ×{servingMultiplier} skaliert</span>
-                  <button onClick={() => setServingMultiplier(1)} className="ml-1 underline hover:no-underline">
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-warmgray/10">
+                <h2 className="text-xl font-display font-bold">Zutaten</h2>
+                {!isEditing && servingMultiplier !== 1 && (
+                  <button
+                    onClick={() => { setServingMultiplier(1); setEditingIngredientIndex(null) }}
+                    className="flex items-center gap-1 text-xs text-paprika/70 hover:text-paprika transition-colors"
+                  >
+                    <RotateCcw size={12} />
                     Zurücksetzen
                   </button>
-                </div>
-              )}
-              <h2 className="text-xl font-display font-bold mb-4 pb-2 border-b border-warmgray/10">
-                Zutaten
-              </h2>
+                )}
+              </div>
               {isEditing && editDraft ? (
-                <textarea
-                  value={editDraft.ingredients}
-                  onChange={e => setEditDraft(d => d && ({ ...d, ingredients: e.target.value }))}
-                  rows={recipe.ingredients.length + 2}
-                  className="w-full text-sm text-warmgray bg-warmgray/5 border border-warmgray/20 rounded-lg px-3 py-2 focus:outline-none focus:border-paprika resize-none"
-                  placeholder="Eine Zutat pro Zeile"
-                />
+                <>
+                  <ul className="space-y-2">
+                    {editDraft.ingredients.map((ing, i) => (
+                      <li key={i} className="flex items-baseline gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-paprika/40 flex-shrink-0 mt-2"></span>
+                        <input
+                          value={ing}
+                          onChange={e => setEditDraft(d => {
+                            if (!d) return d
+                            const ingredients = [...d.ingredients]
+                            ingredients[i] = e.target.value
+                            return { ...d, ingredients }
+                          })}
+                          className="flex-1 text-sm text-warmgray bg-transparent border-b border-dashed border-warmgray/30 py-0.5 focus:outline-none focus:border-paprika"
+                        />
+                        <button
+                          onClick={() => setEditDraft(d => {
+                            if (!d) return d
+                            return { ...d, ingredients: d.ingredients.filter((_, j) => j !== i) }
+                          })}
+                          className="ml-1 text-red-300 hover:text-red-500 text-lg leading-none flex-shrink-0"
+                        >×</button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => setEditDraft(d => d && { ...d, ingredients: [...d.ingredients, ''] })}
+                    className="mt-2 text-sm text-paprika/60 hover:text-paprika flex items-center gap-1 transition-colors"
+                  >
+                    <span className="text-base leading-none">+</span> Zutat hinzufügen
+                  </button>
+                </>
               ) : (
                 <ul className="space-y-2">
-                  {recipe.ingredients.map((ingredient, index) => (
-                    <li key={index} className="flex items-start space-x-3">
-                      <div className="w-2 h-2 bg-paprika rounded-full mt-2.5 flex-shrink-0"></div>
-                      <span className="text-warmgray text-sm">
-                        {servingMultiplier === 1 ? ingredient : scaleIngredient(ingredient, servingMultiplier)}
-                      </span>
-                    </li>
-                  ))}
+                  {recipe.ingredients.map((ingredient, index) => {
+                    const parsedNumber = parseIngredientNumber(ingredient)
+                    const canEdit = parsedNumber !== null
+                    const isEditingThis = editingIngredientIndex === index
+
+                    const scaledValue = parsedNumber !== null
+                      ? Math.round(parsedNumber * servingMultiplier * 10) / 10
+                      : null
+
+                    return (
+                      <li key={index} className="group flex items-start space-x-3">
+                        <div className="w-2 h-2 bg-paprika rounded-full mt-2.5 flex-shrink-0"></div>
+                        {isEditingThis ? (
+                          <div className="flex items-center gap-1 flex-1">
+                            <input
+                              type="number"
+                              value={editingValue}
+                              onChange={e => setEditingValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleIngredientConfirm(index)
+                                if (e.key === 'Escape') { setEditingIngredientIndex(null); setEditingValue('') }
+                              }}
+                              onBlur={() => handleIngredientConfirm(index)}
+                              className="w-20 text-sm text-warmgray bg-white border border-paprika rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-paprika"
+                              autoFocus
+                            />
+                            <span className="text-warmgray text-sm">{splitIngredient(ingredient)?.rest}</span>
+                            <button
+                              onClick={() => { setEditingIngredientIndex(null); setEditingValue('') }}
+                              className="ml-1 text-warmgray/40 hover:text-red-500 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-warmgray text-sm flex-1">
+                              {servingMultiplier === 1 ? ingredient : scaleIngredient(ingredient, servingMultiplier)}
+                            </span>
+                            {!isEditing && canEdit && (
+                              <button
+                                onClick={() => {
+                                  setEditingIngredientIndex(index)
+                                  setEditingValue(String(scaledValue))
+                                }}
+                                className="opacity-0 group-hover:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-warmgray/40 hover:text-paprika transition-opacity ml-auto"
+                                title="Menge anpassen"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>
@@ -385,13 +473,40 @@ const RecipeDetail: React.FC = () => {
                 Zubereitung
               </h2>
               {isEditing && editDraft ? (
-                <textarea
-                  value={editDraft.steps}
-                  onChange={e => setEditDraft(d => d && ({ ...d, steps: e.target.value }))}
-                  rows={recipe.steps.length + 2}
-                  className="w-full text-sm text-warmgray bg-warmgray/5 border border-warmgray/20 rounded-lg px-3 py-2 focus:outline-none focus:border-paprika resize-none"
-                  placeholder="Einen Schritt pro Zeile"
-                />
+                <>
+                  <ol className="space-y-3">
+                    {editDraft.steps.map((step, i) => (
+                      <li key={i} className="flex gap-3">
+                        <span className="w-6 h-6 rounded-full bg-paprika/10 flex items-center justify-center flex-shrink-0 mt-0.5 text-paprika text-xs font-bold font-display">
+                          {i + 1}
+                        </span>
+                        <input
+                          value={step}
+                          onChange={e => setEditDraft(d => {
+                            if (!d) return d
+                            const steps = [...d.steps]
+                            steps[i] = e.target.value
+                            return { ...d, steps }
+                          })}
+                          className="flex-1 text-sm text-warmgray bg-transparent border-b border-dashed border-warmgray/30 py-0.5 focus:outline-none focus:border-paprika"
+                        />
+                        <button
+                          onClick={() => setEditDraft(d => {
+                            if (!d) return d
+                            return { ...d, steps: d.steps.filter((_, j) => j !== i) }
+                          })}
+                          className="ml-1 text-red-300 hover:text-red-500 text-lg leading-none flex-shrink-0 mt-0.5"
+                        >×</button>
+                      </li>
+                    ))}
+                  </ol>
+                  <button
+                    onClick={() => setEditDraft(d => d && { ...d, steps: [...d.steps, ''] })}
+                    className="mt-2 text-sm text-paprika/60 hover:text-paprika flex items-center gap-1 transition-colors"
+                  >
+                    <span className="text-base leading-none">+</span> Schritt hinzufügen
+                  </button>
+                </>
               ) : (
                 <ol className="space-y-4">
                   {recipe.steps.map((step, index) => (
