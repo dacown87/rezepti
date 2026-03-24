@@ -188,10 +188,10 @@ const RecipeDetail: React.FC = () => {
                 href={recipe.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="Original-Rezept öffnen"
                 className="px-4 py-3 border border-warmgray/20 text-warmgray rounded-lg font-medium hover:bg-warmgray/5 transition-colors flex items-center space-x-2"
-                title="Original-Rezept öffnen"
               >
-                <ExternalLink size={20} />
+                <ExternalLink size={20} aria-hidden="true" />
                 <span className="hidden sm:inline">Zum Original</span>
               </a>
             )}
