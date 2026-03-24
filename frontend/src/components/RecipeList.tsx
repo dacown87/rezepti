@@ -27,7 +27,7 @@ const RecipeList: React.FC = () => {
     fetchRecipes()
   }, [])
 
-  const fetchRecipes = async (showToast = false) => {
+  const fetchRecipes = async (showToast = false): Promise<void> => {
     if (!showToast) {
       setIsLoading(true)
     } else {
@@ -63,7 +63,7 @@ const RecipeList: React.FC = () => {
         Rezept extrahieren
       </Link>
       {error && (
-        <button onClick={fetchRecipes} className="mt-3 text-paprika hover:text-paprika-dark text-sm font-medium">
+        <button onClick={() => fetchRecipes()} className="mt-3 text-paprika hover:text-paprika-dark text-sm font-medium">
           Erneut versuchen
         </button>
       )}
@@ -219,9 +219,6 @@ const RecipeList: React.FC = () => {
                     >
                       Öffnen
                     </Link>
-                    <button className="px-4 py-2 border border-warmgray/20 rounded-lg hover:bg-warmgray/5 transition-colors transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200">
-                      Bearbeiten
-                    </button>
                   </div>
                 </div>
               </div>

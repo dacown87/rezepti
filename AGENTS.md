@@ -75,6 +75,19 @@ npm run docker:restore    # Daten wiederherstellen
 - `better-sqlite3` ist host-spezifisch (nicht als Volume mounten)
 - Manuell via Browser/health endpoint testen ODER npm test / npm run docker:test
 
+## App Starten (Lokal)
+
+```bash
+# 1. React Frontend bauen (nicht dev:react - vermeidet Permission-Fehler mit .vite)
+npm run build:react
+
+# 2. Backend starten (served automatisch das built Frontend)
+npm run dev
+```
+
+- Frontend läuft auf http://localhost:3000/
+- Nicht `npm run dev:react` verwenden (Permissions-Fehler mit `.vite` Ordner)
+
 ## Neue Architektur (React Migration)
 
 - **React Frontend**: Vite + TypeScript + Tailwind CSS

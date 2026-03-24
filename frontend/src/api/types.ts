@@ -32,6 +32,12 @@ export interface ValidationResult {
   valid: boolean
   reason?: string
   model?: string
+  remainingCredits?: number
+  rateLimits?: {
+    remaining: number
+    limit: number
+    reset: string
+  }
 }
 
 export interface ApiResponse<T = any> {

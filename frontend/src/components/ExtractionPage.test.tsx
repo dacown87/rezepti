@@ -1,22 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import ExtractionPage from './ExtractionPage'
 import { ToastProvider } from './ToastManager'
 import * as services from '../api/services'
-import { mockJobStatus, mockPendingJobStatus, mockFailedJobStatus } from '../test/mocks'
+import { mockJobStatus } from '../test/mocks'
 
 vi.mock('../api/services', () => ({
   startExtraction: vi.fn(),
   pollJobStatus: vi.fn()
 }))
 
-const localStorageMock = {
+const localStorageMock: Partial<Storage> = {
   store: {} as Record<string, string>,
-  getItem: vi.fn((key: string) => localStorageMock.store[key] || null),
-  setItem: vi.fn((key: string, value: string) => { localStorageMock.store[key] = value }),
-  removeItem: vi.fn((key: string) => { delete localStorageMock.store[key] }),
-  clear: vi.fn(() => { localStorageMock.store = {} })
+  getItem: function(key: string): string | null { return this.store?.[key] ?? null },
+  setItem: function(key: string, value: string) { this.store![key] = value },
+  removeItem: function(key: string) { delete this.store![key] },
+  clear: function() { this.store = {} }
 }
 
 describe('ExtractionPage', () => {

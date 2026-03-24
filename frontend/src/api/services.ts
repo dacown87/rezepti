@@ -2,7 +2,7 @@
  * API Service Functions
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete, poll, ApiError } from './client.js'
+import { apiGet, apiPost, apiPatch, apiDelete, poll } from './client.js'
 import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse } from './types.js'
 
 // Recipes
