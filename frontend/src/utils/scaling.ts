@@ -1,3 +1,6 @@
+/** Matches a leading integer or decimal (dot or comma) at the start of an ingredient string. */
+const LEADING_NUMBER_RE = /^(\d+(?:[.,]\d+)?)/
+
 /**
  * Parses the numeric serving count from a servings string.
  * Examples: "4 Portionen" → 4, "2 Personen" → 2, "6" → 6
@@ -17,7 +20,7 @@ export function parseServingsNumber(servings: string): number {
  * Leaves strings without leading numbers unchanged.
  */
 export function scaleIngredient(ingredient: string, factor: number): string {
-  return ingredient.replace(/^(\d+(?:[.,]\d+)?)/, (match) => {
+  return ingredient.replace(LEADING_NUMBER_RE, (match) => {
     const num = parseFloat(match.replace(',', '.')) * factor
     const rounded = Math.round(num * 10) / 10
     // JavaScript's String() already strips trailing .0 (e.g. String(300.0) → "300")
@@ -32,7 +35,7 @@ export function scaleIngredient(ingredient: string, factor: number): string {
  * Examples: "150g Butter" → 150, "1,5 EL Öl" → 1.5, "Salz" → null
  */
 export function parseIngredientNumber(ingredient: string): number | null {
-  const match = ingredient.match(/^(\d+(?:[.,]\d+)?)/)
+  const match = ingredient.match(LEADING_NUMBER_RE)
   if (!match) return null
   return parseFloat(match[1].replace(',', '.'))
 }
@@ -44,7 +47,7 @@ export function parseIngredientNumber(ingredient: string): number | null {
  * Example: "150g Butter" → { num: "150", rest: "g Butter" }
  */
 export function splitIngredient(ingredient: string): { num: string; rest: string } | null {
-  const match = ingredient.match(/^(\d+(?:[.,]\d+)?)(.*)/)
+  const match = ingredient.match(new RegExp(LEADING_NUMBER_RE.source + '(.*)'))
   if (!match) return null
   return { num: match[1], rest: match[2] }
 }
