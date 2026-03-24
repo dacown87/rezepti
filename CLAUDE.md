@@ -84,8 +84,9 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 **Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
 - `ExtractionPage` — URL input, job polling, progress display
 - `RecipeList` — List/grid view toggle (default: list), persisted in localStorage
-- `RecipeDetail` — Single recipe view
+- `RecipeDetail` — Single recipe view with inline edit mode, serving size scaler, source link
 - `SettingsPage` — BYOK key management, App Status with Roadmap modal
+- `frontend/src/utils/scaling.ts` — `parseServingsNumber`, `scaleIngredient` for portion scaling
 
 ## External CLI Dependencies
 
@@ -164,6 +165,7 @@ Planned features and current implementation status (as of March 2026):
 - Fullscreen cook mode: 0%
 - Original recipe link: 100% ✅ — prominent button in action area + source box at bottom
 - Recipe as separate page (not modal): 100% ✅ — implemented via /recipe/:id route
+- Recipe inline editing: 100% ✅ — name, emoji, tags, duration, calories, ingredients, steps editable in-place; saves via PATCH /api/v1/recipes/:id
 
 ### Shopping & Planning
 - Shopping list: 0%
@@ -194,7 +196,8 @@ Planned features and current implementation status (as of March 2026):
 |------|-------|-------|
 | API Layer (client, services, types) | 91 | `test/api/` |
 | UI Components (Toast, SkeletonLoader) | 70 | `frontend/src/components/` |
-| Main Components (Extraction, RecipeList, RecipeDetail) | 37 | `frontend/src/components/` |
+| Main Components (Extraction, RecipeList, RecipeDetail) | 41 | `frontend/src/components/` |
+| Scaling utilities | 10 | `frontend/src/utils/` |
 | Backend Services (job-manager, byok-validator, db) | ~43 | `src/*.test.ts` |
 
 **E2E Tests (require running server):**
