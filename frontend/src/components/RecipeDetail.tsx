@@ -197,34 +197,39 @@ const RecipeDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Ingredients */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-display font-bold mb-4">Zutaten</h2>
-            <ul className="space-y-2">
-              {recipe.ingredients.map((ingredient, index) => (
-                <li key={index} className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-paprika rounded-full mt-2.5"></div>
-                  <span className="text-warmgray">{ingredient}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Ingredients + Steps: 2-column on desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Ingredients */}
+            <div>
+              <h2 className="text-xl font-display font-bold mb-4 pb-2 border-b border-warmgray/10">
+                Zutaten
+              </h2>
+              <ul className="space-y-2">
+                {recipe.ingredients.map((ingredient, index) => (
+                  <li key={index} className="flex items-start space-x-3">
+                    <div className="w-2 h-2 bg-paprika rounded-full mt-2.5 flex-shrink-0"></div>
+                    <span className="text-warmgray text-sm">{ingredient}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Steps */}
-          <div>
-            <h2 className="text-2xl font-display font-bold mb-4">Zubereitung</h2>
-            <ol className="space-y-6">
-              {recipe.steps.map((step, index) => (
-                <li key={index} className="flex space-x-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-paprika text-white rounded-full flex items-center justify-center font-bold">
-                    {index + 1}
-                  </div>
-                  <div className="pt-1">
-                    <p className="text-warmgray">{step}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            {/* Steps */}
+            <div>
+              <h2 className="text-xl font-display font-bold mb-4 pb-2 border-b border-warmgray/10">
+                Zubereitung
+              </h2>
+              <ol className="space-y-4">
+                {recipe.steps.map((step, index) => (
+                  <li key={index} className="flex space-x-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-paprika text-white rounded-full flex items-center justify-center font-bold text-xs">
+                      {index + 1}
+                    </div>
+                    <p className="text-warmgray text-sm pt-0.5">{step}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
         </div>
       </div>
