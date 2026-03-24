@@ -45,12 +45,10 @@ export async function deleteRecipe(id: number): Promise<{ success: boolean }> {
 // Extraction Jobs
 export async function startExtraction(url: string, userKey?: string): Promise<string> {
   try {
-    const params = new URLSearchParams({ url })
-    if (userKey) {
-      params.append('userKey', userKey)
-    }
-    
-    const data = await apiGet<{ jobId: string }>(`/api/v1/extract/react?${params}`)
+    const data = await apiPost<{ jobId: string }>('/api/v1/extract/react', {
+      url,
+      ...(userKey ? { apiKey: userKey } : {}),
+    })
     return data.jobId
   } catch (error) {
     console.error('Failed to start extraction:', error)
@@ -60,7 +58,7 @@ export async function startExtraction(url: string, userKey?: string): Promise<st
 
 export async function getJobStatus(jobId: string): Promise<JobStatus> {
   try {
-    return await apiGet<JobStatus>(`/api/v1/jobs/${jobId}`)
+    return await apiGet<JobStatus>(`/api/v1/extract/react/${jobId}`)
   } catch (error) {
     console.error(`Failed to get job status ${jobId}:`, error)
     throw error
@@ -85,26 +83,16 @@ export async function pollJobStatus(jobId: string): Promise<JobStatus> {
 // BYOK Management
 export async function validateApiKey(key: string): Promise<ValidationResult> {
   try {
-    return await apiPost<ValidationResult>('/api/v1/keys/validate', { key })
+    return await apiPost<ValidationResult>('/api/v1/keys/validate', { apiKey: key })
   } catch (error) {
     console.error('Failed to validate API key:', error)
-    // Fallback: basic format validation
-    if (key.startsWith('gsk_') && key.length > 30) {
-      return {
-        isValid: true,
-        remainingCredits: 1000 // Mock value
-      }
-    }
-    return {
-      isValid: false,
-      error: 'Invalid API key format or validation failed'
-    }
+    throw error
   }
 }
 
 export async function saveApiKey(key: string): Promise<KeyResponse> {
   try {
-    return await apiPost<KeyResponse>('/api/v1/keys', { key })
+    return await apiPost<KeyResponse>('/api/v1/keys', { apiKey: key })
   } catch (error) {
     console.error('Failed to save API key:', error)
     throw error

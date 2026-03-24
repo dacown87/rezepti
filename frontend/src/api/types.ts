@@ -20,7 +20,7 @@ export interface Recipe {
 
 export interface JobStatus {
   jobId: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed'
   progress: number
   stage?: string
   message?: string
@@ -29,13 +29,9 @@ export interface JobStatus {
 }
 
 export interface ValidationResult {
-  isValid: boolean
-  error?: string
-  remainingCredits?: number
-  rateLimits?: {
-    requestsPerMinute: number
-    tokensPerMinute: number
-  }
+  valid: boolean
+  reason?: string
+  model?: string
 }
 
 export interface ApiResponse<T = any> {

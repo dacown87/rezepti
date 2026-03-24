@@ -5,7 +5,7 @@
 
 import { describe, it, beforeAll, afterAll, beforeEach, afterEach, expect } from 'vitest';
 import { TestRunner, testUrls, defaultConfig } from '../utils/test-helpers.js';
-import { DatabaseManager } from '../../src/db-manager.js';
+import { ensureReactSchema } from '../../src/db-react.js';
 
 // Extend timeout for E2E tests
 const TEST_TIMEOUT = 60000;
@@ -26,7 +26,7 @@ describe('Rezepti React API E2E Tests', () => {
     });
 
     // Ensure React database schema exists
-    DatabaseManager.ensureSchema('react');
+    ensureReactSchema();
   }, TEST_TIMEOUT * 2);
 
   afterAll(async () => {
@@ -59,17 +59,6 @@ describe('Rezepti React API E2E Tests', () => {
   });
 
   describe('Health Endpoints', () => {
-    it('should check legacy health endpoint', async () => {
-      const result = await testRunner.testEndpoint(
-        'GET',
-        '/api/health',
-        null,
-        'Legacy health endpoint'
-      );
-      expect(result.success).toBe(true);
-      expect(result.data?.status).toBe('ok');
-    });
-
     it('should check React health endpoint', async () => {
       const result = await testRunner.testEndpoint(
         'GET',

@@ -131,6 +131,15 @@ export function deleteRecipeFromReactDb(id: number): boolean {
 }
 
 /**
+ * Get recipe count from React database (lightweight COUNT query)
+ */
+export function getRecipeCount(): number {
+  const db = getReactDb();
+  const result = db.$client.prepare("SELECT COUNT(*) AS count FROM recipes").get() as { count: number };
+  return result.count;
+}
+
+/**
  * Deserialize JSON fields from database row
  */
 function deserialize(row: typeof recipes.$inferSelect) {

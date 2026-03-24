@@ -1,8 +1,28 @@
 import React, { useState, useEffect } from 'react'
-import { Link, Globe, Youtube, Instagram, MessageSquare, AlertCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Youtube, Instagram, Globe } from 'lucide-react'
 import { startExtraction, pollJobStatus } from '../api/services.js'
 import { useToast } from './ToastManager'
-import { ExtractionProgressSkeleton } from './SkeletonLoader'
+
+const STAGES: Record<string, number> = {
+  classifying: 20,
+  fetching: 35,
+  transcribing: 50,
+  analyzing_image: 65,
+  extracting: 80,
+  exporting: 92,
+  done: 100,
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  classifying: 'URL wird analysiert',
+  fetching: 'Inhalte werden abgerufen',
+  transcribing: 'Audio wird transkribiert',
+  analyzing_image: 'Bild wird analysiert',
+  extracting: 'Rezept wird extrahiert',
+  exporting: 'Wird gespeichert',
+  done: 'Fertig!',
+}
 
 const ExtractionPage: React.FC = () => {
   const [url, setUrl] = useState('')
@@ -10,47 +30,44 @@ const ExtractionPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [jobId, setJobId] = useState<string | null>(null)
-  const [jobStatus, setJobStatus] = useState<{
-    status: string
-    progress: number
-    currentStage?: string
-    message?: string
-  } | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [stage, setStage] = useState<string | null>(null)
   const { addToast } = useToast()
 
   useEffect(() => {
-    // Poll job status if we have a jobId
-    if (jobId && jobStatus?.status !== 'completed' && jobStatus?.status !== 'failed') {
-      const interval = setInterval(async () => {
-        try {
-          const status = await pollJobStatus(jobId)
-          setJobStatus({
-            status: status.status,
-            progress: status.progress,
-            currentStage: status.stage,
-            message: status.message
-          })
-          
-          if (status.status === 'completed') {
-            setSuccess(true)
-            addToast('Rezept erfolgreich extrahiert!', 'success')
-            setJobId(null)
-            clearInterval(interval)
-          } else if (status.status === 'failed') {
-            const errorMsg = status.error || 'Extraction failed'
-            setError(errorMsg)
-            addToast(errorMsg, 'error')
-            setJobId(null)
-            clearInterval(interval)
-          }
-        } catch (err) {
-          console.error('Error polling job status:', err)
+    if (!jobId) return
+    if (progress >= 100) return
+
+    const interval = setInterval(async () => {
+      try {
+        const status = await pollJobStatus(jobId)
+        const p = status.progress ?? STAGES[status.stage ?? ''] ?? progress
+        setProgress(p)
+        if (status.stage) setStage(status.stage)
+
+        if (status.status === 'completed') {
+          setSuccess(true)
+          setProgress(100)
+          setStage('done')
+          setIsLoading(false)
+          setJobId(null)
+          addToast('Rezept erfolgreich extrahiert!', 'success')
+          clearInterval(interval)
+        } else if (status.status === 'failed') {
+          const msg = status.error || 'Extraktion fehlgeschlagen'
+          setError(msg)
+          setIsLoading(false)
+          setJobId(null)
+          addToast(msg, 'error')
+          clearInterval(interval)
         }
-      }, 1000)
-      
-      return () => clearInterval(interval)
-    }
-  }, [jobId, jobStatus])
+      } catch {
+        // keep polling on transient errors
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [jobId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,240 +76,158 @@ const ExtractionPage: React.FC = () => {
     setIsLoading(true)
     setError(null)
     setSuccess(false)
-    setJobStatus(null)
+    setProgress(5)
+    setStage('classifying')
 
     try {
-      // Get user's API key from localStorage
       const userKey = localStorage.getItem('rezepti_groq_key')
-      
-      // Start extraction job
       const newJobId = await startExtraction(url, userKey || undefined)
       setJobId(newJobId)
-      
-      // Set initial job status
-      setJobStatus({
-        status: 'pending',
-        progress: 0,
-        message: 'Job started...'
-      })
-      
     } catch (err: any) {
-      console.error('Extraction error:', err)
-      const errorMsg = err.message || 'Fehler beim Extrahieren des Rezepts. Bitte versuche es erneut.'
-      setError(errorMsg)
-      addToast(errorMsg, 'error')
+      setError(err.message || 'Fehler beim Starten der Extraktion')
+      addToast(err.message || 'Fehler beim Extrahieren', 'error')
       setIsLoading(false)
+      setProgress(0)
+      setStage(null)
     }
   }
 
-  const exampleUrls = [
-    {
-      platform: 'YouTube',
-      icon: <Youtube size={20} />,
-      color: 'bg-red-100 text-red-700',
-      examples: [
-        'https://www.youtube.com/watch?v=...',
-        'https://youtu.be/...',
-      ],
-    },
-    {
-      platform: 'Instagram',
-      icon: <Instagram size={20} />,
-      color: 'bg-pink-100 text-pink-700',
-      examples: [
-        'https://www.instagram.com/reel/...',
-        'https://www.instagram.com/p/...',
-      ],
-    },
-    {
-      platform: 'TikTok',
-      icon: <MessageSquare size={20} />,
-      color: 'bg-black text-white',
-      examples: [
-        'https://www.tiktok.com/@.../video/...',
-        'https://vm.tiktok.com/...',
-      ],
-    },
-    {
-      platform: 'Webseite',
-      icon: <Globe size={20} />,
-      color: 'bg-blue-100 text-blue-700',
-      examples: [
-        'https://chefkoch.de/rezepte/...',
-        'https://www.essen-und-trinken.de/rezept/...',
-      ],
-    },
-  ]
+  const reset = () => {
+    setUrl('')
+    setError(null)
+    setSuccess(false)
+    setProgress(0)
+    setStage(null)
+    setJobId(null)
+    setIsLoading(false)
+  }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold mb-2">Rezept extrahieren</h1>
-        <p className="text-warmgray">
-          Füge eine URL von YouTube, Instagram, TikTok oder einer Rezept-Webseite ein
+    <div className="relative overflow-hidden -mx-4 -mt-8 px-4 pt-16 pb-20 min-h-[70vh] flex flex-col items-center justify-center grain">
+      {/* Decorative blur orbs */}
+      <div
+        className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full blur-3xl"
+        style={{ background: 'rgba(236,173,75,0.08)' }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-16 -left-16 w-64 h-64 rounded-full blur-3xl"
+        style={{ background: 'rgba(200,75,49,0.07)' }}
+      />
+      <div
+        className="pointer-events-none absolute top-1/3 left-[6%] w-44 h-44 rounded-full blur-2xl animate-float-gentle"
+        style={{ background: 'rgba(236,173,75,0.09)' }}
+      />
+      <div
+        className="pointer-events-none absolute top-[18%] right-[10%] w-32 h-32 rounded-full blur-2xl animate-float-offset"
+        style={{ background: 'rgba(200,75,49,0.06)' }}
+      />
+
+      <div className="relative z-10 w-full max-w-xl mx-auto text-center">
+        {/* Eyebrow */}
+        <p className="animate-hero-rise delay-100 font-body text-xs tracking-[0.3em] uppercase text-warmgray/70 mb-5">
+          KI-gestützte Rezeptextraktion
         </p>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main extraction form */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-6">
-            <form onSubmit={handleSubmit}>
-              <div className="mb-6">
-                <label htmlFor="url" className="block text-sm font-medium text-warmgray mb-2">
-                  URL eingeben
-                </label>
-                <div className="flex space-x-2">
-<input
-                      type="url"
-                      id="url"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      className="flex-1 px-4 py-3 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika focus:border-transparent transition-colors duration-200 hover:border-warmgray/40 disabled:opacity-60 disabled:cursor-not-allowed"
-                      disabled={isLoading}
-                    />
-                  <button
-                    type="submit"
-                    disabled={isLoading || !url.trim() || !!jobId}
-                    className="bg-paprika text-white px-6 py-3 rounded-lg font-medium hover:bg-paprika-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
-                  >
-                    {isLoading || jobId ? 'Wird extrahiert...' : 'Extrahiere'}
-                  </button>
+        {/* Headline */}
+        <h1 className="animate-hero-rise delay-200 font-display text-[clamp(2.4rem,6vw,4rem)] font-semibold leading-[1.08] tracking-tight text-espresso mb-5">
+          Rezepte,{' '}
+          <span className="italic text-paprika">ein Link entfernt.</span>
+        </h1>
+
+        {/* Subtitle */}
+        <p className="animate-hero-rise delay-300 font-body text-warmgray text-lg max-w-md mx-auto mb-10 leading-relaxed">
+          Füge eine URL ein — Rezepti extrahiert das Rezept automatisch und übersetzt es ins Deutsche.
+        </p>
+
+        {/* Form */}
+        {!success ? (
+          <form onSubmit={handleSubmit} className="animate-hero-rise delay-400 mb-8">
+            <div className="flex items-center gap-3 max-w-lg mx-auto">
+              <div className="relative flex-1">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-warmgray/40 pointer-events-none">
+                  <Globe size={18} />
+                </span>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=…"
+                  disabled={isLoading}
+                  className="w-full pl-11 pr-4 py-4 rounded-2xl border-2 border-espresso/[0.08] bg-white/80 backdrop-blur-sm text-espresso placeholder-warmgray/40 focus:outline-none focus:border-paprika/40 focus:bg-white text-base font-body transition-all duration-300 disabled:opacity-60"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading || !url.trim()}
+                className="whitespace-nowrap px-6 py-4 rounded-2xl bg-paprika text-white font-semibold hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-[0.97] transition-transform duration-150"
+              >
+                {isLoading ? 'Läuft…' : 'Extrahieren'}
+              </button>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="mt-4 max-w-lg mx-auto p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm text-left">
+                {error}
+                <button onClick={reset} className="ml-3 underline text-xs">Zurücksetzen</button>
+              </div>
+            )}
+
+            {/* Progress */}
+            {isLoading && (
+              <div className="mt-6 max-w-lg mx-auto">
+                <div className="flex justify-between items-center mb-2 text-sm text-warmgray">
+                  <span>{stage ? (STAGE_LABELS[stage] ?? stage) : 'Wird gestartet…'}</span>
+                  <span className="font-medium text-paprika">{progress}%</span>
+                </div>
+                <div className="h-2 bg-warmgray/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-paprika to-saffron rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
               </div>
-
-              {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
-                  <p className="text-red-700">{error}</p>
-                </div>
-              )}
-
-              {success && (
-                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-700 font-medium">Rezept erfolgreich extrahiert!</p>
-                  <p className="text-green-600 text-sm mt-1">
-                    Das Rezept wurde in deiner Sammlung gespeichert.
-                  </p>
-                  <Link to="/" className="inline-block mt-3 text-paprika hover:text-paprika-dark font-medium">
-                    Zu den Rezepten →
-                  </Link>
-                </div>
-              )}
-
-              {/* Progress indicator */}
-               {(isLoading || jobStatus) && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-warmgray">
-                      {jobStatus?.currentStage 
-                        ? `${jobStatus.currentStage}...` 
-                        : 'URL wird analysiert...'
-                      }
-                    </span>
-                    <span className="text-sm font-medium text-paprika">{jobStatus?.progress || 0}%</span>
-                  </div>
-                  <div className="h-3 bg-warmgray/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-paprika to-paprika-dark transition-all duration-500 ease-out shadow-sm"
-                      style={{ width: `${jobStatus?.progress || 0}%` }}
-                    >
-                      <div className="h-full w-full bg-gradient-to-r from-transparent to-white/20 animate-pulse"></div>
-                    </div>
-                  </div>
-                  {jobStatus?.message && (
-                    <div className="mt-2 text-xs text-warmgray/70 animate-pulse">
-                      {jobStatus.message}
-                    </div>
-                  )}
-                  {!jobStatus?.message && (
-                    <div className="mt-2">
-                      <ExtractionProgressSkeleton />
-                    </div>
-                  )}
-                </div>
-              )}
-            </form>
-
-            <div className="border-t border-warmgray/10 pt-6">
-              <h3 className="font-display font-bold text-lg mb-4">Unterstützte Plattformen</h3>
-              <div className="space-y-4">
-                {exampleUrls.map((platform) => (
-                  <div key={platform.platform} className="p-4 border border-warmgray/10 rounded-lg">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <div className={`p-2 rounded-lg ${platform.color}`}>
-                        {platform.icon}
-                      </div>
-                      <span className="font-medium">{platform.platform}</span>
-                    </div>
-                    <div className="space-y-1">
-                      {platform.examples.map((example, idx) => (
-                        <div key={idx} className="text-sm text-warmgray font-mono bg-warmgray/5 p-2 rounded">
-                          {example}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            )}
+          </form>
+        ) : (
+          <div className="animate-hero-rise delay-100 mb-8 max-w-lg mx-auto p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-saffron/30 shadow-lg">
+            <p className="text-2xl mb-2">🎉</p>
+            <h3 className="font-display font-bold text-xl mb-1">Rezept gespeichert!</h3>
+            <p className="text-warmgray text-sm mb-4">Das Rezept wurde extrahiert und in deiner Sammlung gespeichert.</p>
+            <div className="flex gap-3 justify-center">
+              <Link
+                to="/"
+                className="px-5 py-2.5 bg-paprika text-white rounded-xl font-medium hover:bg-paprika-dark transition-colors text-sm"
+              >
+                Zur Sammlung
+              </Link>
+              <button
+                onClick={reset}
+                className="px-5 py-2.5 border border-warmgray/20 text-warmgray rounded-xl font-medium hover:bg-warmgray/5 transition-colors text-sm"
+              >
+                Weiteres Rezept
+              </button>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* BYOK Info */}
-          <div className="bg-saffron/10 border border-saffron/20 rounded-2xl p-6">
-            <h3 className="font-display font-bold text-lg mb-3">BYOK Support</h3>
-            <p className="text-warmgray text-sm mb-4">
-              Nutze deinen eigenen Groq API Key, um Rate Limits zu vermeiden.
-            </p>
-            <Link 
-              to="/settings" 
-              className="inline-block w-full bg-saffron text-espresso py-2 px-4 rounded-lg font-medium text-center hover:bg-saffron-light transition-colors"
+        {/* Platform badges */}
+        <div className="animate-hero-rise delay-500 flex items-center justify-center gap-2 flex-wrap">
+          <span className="text-warmgray/50 text-xs mr-1">Unterstützt</span>
+          {[
+            { label: 'YouTube', icon: <Youtube size={14} /> },
+            { label: 'Instagram', icon: <Instagram size={14} /> },
+            { label: 'TikTok', icon: <span className="text-xs font-bold">T</span> },
+            { label: 'Webseiten', icon: <Globe size={14} /> },
+          ].map(({ label, icon }) => (
+            <span
+              key={label}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/60 backdrop-blur-sm border border-espresso/[0.07] text-xs font-medium text-espresso/70"
             >
-              Key verwalten
-            </Link>
-          </div>
-
-          {/* Tips */}
-          <div className="bg-white border border-warmgray/10 rounded-2xl p-6">
-            <h3 className="font-display font-bold text-lg mb-3">Tipps für beste Ergebnisse</h3>
-            <ul className="space-y-2 text-sm text-warmgray">
-              <li className="flex items-start space-x-2">
-                <div className="w-2 h-2 bg-paprika rounded-full mt-1.5"></div>
-                <span>YouTube-Videos mit deutschen Untertiteln funktionieren am besten</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <div className="w-2 h-2 bg-paprika rounded-full mt-1.5"></div>
-                <span>Rezept-Webseiten mit Schema.org Markup werden schneller extrahiert</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <div className="w-2 h-2 bg-paprika rounded-full mt-1.5"></div>
-                <span>Instagram/TikTok Videos sollten Rezepte im Video zeigen</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Status */}
-          <div className="bg-white border border-warmgray/10 rounded-2xl p-6">
-            <h3 className="font-display font-bold text-lg mb-3">Extraction Status</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-warmgray">Verfügbare Plattformen</span>
-                <span className="font-medium">4/4</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-warmgray">API Verfügbarkeit</span>
-                <span className="font-medium text-green-600">Online</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-warmgray">Letzte Extraktion</span>
-                <span className="font-medium">–</span>
-              </div>
-            </div>
-          </div>
+              {icon}
+              {label}
+            </span>
+          ))}
         </div>
       </div>
     </div>

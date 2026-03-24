@@ -1,11 +1,123 @@
 import React, { useState, useEffect } from 'react'
-import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Loader2 } from 'lucide-react'
+import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Loader2, Info } from 'lucide-react'
 import { validateApiKey, saveApiKey, clearApiKey } from '../api/services.js'
 import { useToast } from './ToastManager'
 import { SettingsCardSkeleton } from './SkeletonLoader'
 
+const ROADMAP = [
+  {
+    category: '📥 Import & Extraktion',
+    items: [
+      { label: 'Webseiten (allgemein)', percent: 80 },
+      { label: 'YouTube', percent: 80 },
+      { label: 'TikTok', percent: 70 },
+      { label: 'Instagram', percent: 70 },
+      { label: 'Chefkoch', percent: 40 },
+      { label: 'Cookidoo', percent: 10 },
+      { label: 'Pinterest', percent: 0 },
+      { label: 'Facebook', percent: 0 },
+      { label: 'Foto-Import', percent: 0 },
+    ],
+  },
+  {
+    category: '🍽️ Rezeptanzeige & Navigation',
+    items: [
+      { label: 'Rezeptliste & Detailansicht', percent: 50 },
+      { label: 'Zutaten & Schritte getrennt', percent: 20 },
+      { label: 'Personenzahl & Skalierung', percent: 0 },
+      { label: 'Fullscreen Koch-Modus', percent: 0 },
+      { label: 'Original-Rezept-Link', percent: 0 },
+      { label: 'Rezept als separate Seite', percent: 0 },
+    ],
+  },
+  {
+    category: '🛒 Einkauf & Planung',
+    items: [
+      { label: 'Einkaufsliste', percent: 0 },
+      { label: 'Rezeptvorschläge aus Zutaten', percent: 0 },
+    ],
+  },
+  {
+    category: '👥 Community & Sozial',
+    items: [
+      { label: 'Benutzer-Login', percent: 0 },
+      { label: 'Bewertungsfunktion (Sterne)', percent: 0 },
+      { label: 'Kommentarfunktion', percent: 0 },
+      { label: 'Rezepte via QR-Code teilen', percent: 0 },
+    ],
+  },
+  {
+    category: '📄 Export & Druck',
+    items: [
+      { label: 'Rezeptkarte als PDF', percent: 0 },
+    ],
+  },
+  {
+    category: '📱 Mobile',
+    items: [
+      { label: 'Mobile-First-Ansatz', percent: 100 },
+      { label: 'Responsive Design', percent: 80 },
+      { label: 'Android App', percent: 0 },
+    ],
+  },
+]
+
+function barColor(percent: number) {
+  if (percent >= 60) return 'bg-green-500'
+  if (percent >= 20) return 'bg-yellow-400'
+  return 'bg-warmgray/30'
+}
+
+const RoadmapModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+    onClick={onClose}
+  >
+    <div
+      className="bg-white rounded-2xl shadow-2xl border border-warmgray/10 w-full max-w-lg max-h-[85vh] flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between p-6 border-b border-warmgray/10">
+        <div>
+          <h2 className="text-xl font-display font-bold">Roadmap</h2>
+          <p className="text-sm text-warmgray mt-0.5">Gesamtfortschritt ~25%</p>
+        </div>
+        <button onClick={onClose} className="text-warmgray hover:text-gray-700 transition-colors">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="overflow-y-auto p-6 space-y-6">
+        {ROADMAP.map((section) => (
+          <div key={section.category}>
+            <h3 className="font-display font-bold text-base mb-3">{section.category}</h3>
+            <div className="space-y-2">
+              {section.items.map((item) => (
+                <div key={item.label}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-warmgray">{item.label}</span>
+                    <span className={`font-medium ${item.percent >= 60 ? 'text-green-600' : item.percent >= 20 ? 'text-yellow-600' : 'text-warmgray/50'}`}>
+                      {item.percent}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-warmgray/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${barColor(item.percent)}`}
+                      style={{ width: `${item.percent}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)
+
 const SettingsPage: React.FC = () => {
   const [userKey, setUserKey] = useState('')
+  const [showRoadmap, setShowRoadmap] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<{
     isValid: boolean
@@ -112,6 +224,8 @@ const SettingsPage: React.FC = () => {
   }
 
   return (
+    <>
+    {showRoadmap && <RoadmapModal onClose={() => setShowRoadmap(false)} />}
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-display font-bold mb-2">Einstellungen</h1>
@@ -321,7 +435,16 @@ const SettingsPage: React.FC = () => {
 
           {/* Status Card */}
           <div className="bg-white border border-warmgray/10 rounded-2xl p-6">
-            <h3 className="font-display font-bold text-lg mb-4">App Status</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-bold text-lg">App Status</h3>
+              <button
+                onClick={() => setShowRoadmap(true)}
+                className="text-warmgray hover:text-paprika transition-colors"
+                title="Roadmap anzeigen"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            </div>
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-1">
@@ -371,6 +494,7 @@ const SettingsPage: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

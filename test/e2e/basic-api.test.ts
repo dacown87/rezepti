@@ -30,18 +30,6 @@ describe('Basic API Tests', () => {
     expect(result.data?.database).toBe('react');
   });
 
-  it('should respond to legacy health check', async () => {
-    const result = await testRunner.testEndpoint(
-      'GET',
-      '/api/health',
-      null,
-      'Legacy health endpoint'
-    );
-    
-    expect(result.success).toBe(true);
-    expect(result.data?.server).toBe(true);
-  });
-
   it('should list recipes from React database', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
