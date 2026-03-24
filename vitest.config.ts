@@ -17,7 +17,10 @@ const frontendConfig = defineConfig({
   },
 });
 
-export default defineConfig({
+// Determine if we're running frontend or backend tests
+const isFrontendTest = process.argv.some(arg => arg.includes('frontend/src/'));
+
+const backendConfig = defineConfig({
   test: {
     globals: true,
     environment: 'node',
@@ -50,10 +53,10 @@ export default defineConfig({
     // Configure test timeouts
     testTimeout: 60000,
     hookTimeout: 60000,
-    
+
     // Test reporters
     reporters: ['verbose'],
-    
+
     // Configure alias for module resolution
     alias: {
       '@': './src',
@@ -62,3 +65,5 @@ export default defineConfig({
     },
   },
 });
+
+export default isFrontendTest ? frontendConfig : backendConfig;
