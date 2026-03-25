@@ -12,8 +12,10 @@ const newVersion = `${major}.${minor}.${patch + 1}`
 pkg.version = newVersion
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
 
-// --- Collect recent commits (only user-relevant feat/fix, clean display) ---
-const rawCommits = execSync('git log --no-merges --pretty=format:"%s" -50')
+// --- Collect commits since last version bump (only user-relevant feat/fix) ---
+const lastBump = execSync('git log --pretty=format:"%H" --grep="\\[skip ci\\]" -1').toString().trim()
+const range = lastBump ? `${lastBump}..HEAD` : '-20'
+const rawCommits = execSync(`git log --no-merges --pretty=format:"%s" ${range}`)
   .toString()
   .split('\n')
   .map(s => s.trim())
