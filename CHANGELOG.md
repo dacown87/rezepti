@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.15] – 2026-03-25
+
+- correct created_at storage, date display and footer timezone
+
 ## [1.0.14] – 2026-03-25
 
 - correct recipe date display and changelog version numbers
