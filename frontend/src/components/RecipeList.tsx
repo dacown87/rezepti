@@ -8,6 +8,24 @@ import { RecipeListSkeleton } from './SkeletonLoader'
 
 type ViewMode = 'list' | 'grid'
 
+const EmptyState: React.FC<{ colSpan: string; error: string | null; onRetry: () => void }> = ({ colSpan, error, onRetry }) => (
+  <div className={`${colSpan} bg-white rounded-2xl shadow-lg border border-warmgray/10 border-dashed p-8 text-center flex flex-col items-center justify-center`}>
+    <ChefHat className="h-12 w-12 text-warmgray/40 mb-4" />
+    <h3 className="font-display font-bold text-xl mb-2">Keine Rezepte</h3>
+    <p className="text-warmgray mb-4">
+      {error || 'Extrahiere dein erstes Rezept aus YouTube, Instagram oder einer Webseite'}
+    </p>
+    <Link to="/extract" className="bg-saffron text-espresso py-2 px-6 rounded-lg font-medium hover:bg-saffron-light transition-colors">
+      Rezept extrahieren
+    </Link>
+    {error && (
+      <button onClick={onRetry} className="mt-3 text-paprika hover:text-paprika-dark text-sm font-medium">
+        Erneut versuchen
+      </button>
+    )}
+  </div>
+)
+
 const RecipeList: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -52,23 +70,6 @@ const RecipeList: React.FC = () => {
     }
   }
 
-  const emptyState = (colSpan: string) => (
-    <div className={`${colSpan} bg-white rounded-2xl shadow-lg border border-warmgray/10 border-dashed p-8 text-center flex flex-col items-center justify-center`}>
-      <ChefHat className="h-12 w-12 text-warmgray/40 mb-4" />
-      <h3 className="font-display font-bold text-xl mb-2">Keine Rezepte</h3>
-      <p className="text-warmgray mb-4">
-        {error || 'Extrahiere dein erstes Rezept aus YouTube, Instagram oder einer Webseite'}
-      </p>
-      <Link to="/extract" className="bg-saffron text-espresso py-2 px-6 rounded-lg font-medium hover:bg-saffron-light transition-colors">
-        Rezept extrahieren
-      </Link>
-      {error && (
-        <button onClick={() => fetchRecipes()} className="mt-3 text-paprika hover:text-paprika-dark text-sm font-medium">
-          Erneut versuchen
-        </button>
-      )}
-    </div>
-  )
 
   return (
     <div>
@@ -157,7 +158,7 @@ const RecipeList: React.FC = () => {
               </Link>
             ))
           ) : (
-            emptyState('w-full')
+            <EmptyState colSpan="w-full" error={error} onRetry={() => fetchRecipes()} />
           )}
         </div>
       )}
@@ -224,7 +225,7 @@ const RecipeList: React.FC = () => {
               </div>
             ))
           ) : (
-            emptyState('lg:col-span-3')
+            <EmptyState colSpan="lg:col-span-3" error={error} onRetry={() => fetchRecipes()} />
           )}
         </div>
       )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChefHat, Settings, Home, PlusCircle, BookOpen, X } from 'lucide-react'
 
@@ -6,36 +6,43 @@ interface LayoutProps {
   children: React.ReactNode
 }
 
-const changelogs = [
-  {
-    version: '1.0.0',
-    date: '25.03.2026',
-    changes: [
-      'Komplette React-Migration abgeschlossen',
-      'Modernes Frontend mit Vite + TypeScript + Tailwind CSS',
-      'BYOK Support - User können eigenen Groq Key verwenden',
-      'Polling API für React Frontend optimiert',
-      'Docker Deployment mit Multi-stage Build',
-      'E2E Testing Suite (1000+ Zeilen)',
-      'Unit Tests (254+ Tests)',
-      'Neues UI Design mit Toast Notifications',
-      'Import-Warnungen behoben',
-      'Portionsgrößen-Skalierung mit +/- Buttons',
-      'Rezept-Detailseite mit Quellen-Button',
-      'Löschen mit Bestätigungsmodal',
-    ],
-  },
+interface ChangelogEntry {
+  version: string
+  date: string
+  changes: string[]
+}
+
+const navItems = [
+  { path: '/', label: 'Rezepte', icon: <Home size={20} /> },
+  { path: '/extract', label: 'Extrahiere', icon: <PlusCircle size={20} /> },
+  { path: '/settings', label: 'Einstellungen', icon: <Settings size={20} /> },
 ]
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation()
   const [showChangelog, setShowChangelog] = useState(false)
+  const [entries, setEntries] = useState<ChangelogEntry[]>([])
+  const [currentVersion, setCurrentVersion] = useState('')
 
-  const navItems = [
-    { path: '/', label: 'Rezepte', icon: <Home size={20} /> },
-    { path: '/extract', label: 'Extrahiere', icon: <PlusCircle size={20} /> },
-    { path: '/settings', label: 'Einstellungen', icon: <Settings size={20} /> },
-  ]
+  const close = useCallback(() => setShowChangelog(false), [])
+
+  useEffect(() => {
+    if (!showChangelog || entries.length > 0) return
+    fetch('/changelog.json')
+      .then(r => r.json())
+      .then(data => {
+        setCurrentVersion(data.version ?? '')
+        setEntries(data.entries ?? [])
+      })
+      .catch(() => {})
+  }, [showChangelog])
+
+  useEffect(() => {
+    if (!showChangelog) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showChangelog, close])
 
   return (
     <div className="min-h-screen bg-cream text-espresso">
@@ -47,7 +54,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <ChefHat className="h-8 w-8 text-paprika" />
               <h1 className="text-2xl font-display font-bold">Rezepti</h1>
             </div>
-            
+
             <div className="flex items-center space-x-1">
               {navItems.map((item) => (
                 <Link
@@ -91,36 +98,50 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Changelog Modal */}
       {showChangelog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={close}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-4 border-b border-warmgray/10">
-              <h2 className="text-xl font-display font-bold">Changelog</h2>
+              <div>
+                <h2 className="text-xl font-display font-bold">Changelog</h2>
+                {currentVersion && (
+                  <p className="text-sm text-warmgray mt-0.5">Aktuelle Version: v{currentVersion}</p>
+                )}
+              </div>
               <button
-                onClick={() => setShowChangelog(false)}
+                onClick={close}
                 className="p-2 hover:bg-warmgray/10 rounded-lg transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="overflow-y-auto p-4 space-y-6">
-              {changelogs.map((log) => (
-                <div key={log.version} className="border-b border-warmgray/10 pb-4 last:border-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="bg-paprika text-white px-3 py-1 rounded-full text-sm font-bold">
-                      {log.version}
-                    </span>
-                    <span className="text-warmgray text-sm">{log.date}</span>
+              {entries.length === 0
+                ? <p className="text-warmgray text-sm">Keine Einträge vorhanden.</p>
+                : entries.map((log) => (
+                  <div key={log.version} className="border-b border-warmgray/10 pb-4 last:border-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="bg-paprika text-white px-3 py-1 rounded-full text-sm font-bold">
+                        {log.version}
+                      </span>
+                      <span className="text-warmgray text-sm">{log.date}</span>
+                    </div>
+                    <ul className="space-y-1">
+                      {log.changes.map((change, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-warmgray">
+                          <span className="w-1.5 h-1.5 bg-paprika rounded-full mt-1.5 flex-shrink-0" />
+                          {change}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="space-y-1">
-                    {log.changes.map((change, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-warmgray">
-                        <span className="w-1.5 h-1.5 bg-paprika rounded-full mt-1.5 flex-shrink-0" />
-                        {change}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                ))
+              }
             </div>
           </div>
         </div>

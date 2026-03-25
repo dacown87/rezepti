@@ -37,12 +37,13 @@ changelog = changelog.replace(/^(# Changelog\n+)/, `$1${newSection}\n`)
 fs.writeFileSync('CHANGELOG.md', changelog)
 
 // --- Update public/changelog.json ---
+const changelogJsonPath = 'frontend/public/changelog.json'
 let data = { version: newVersion, entries: [] }
-if (fs.existsSync('public/changelog.json')) {
-  try { data = JSON.parse(fs.readFileSync('public/changelog.json', 'utf8')) } catch {}
+if (fs.existsSync(changelogJsonPath)) {
+  try { data = JSON.parse(fs.readFileSync(changelogJsonPath, 'utf8')) } catch {}
 }
 data.version = newVersion
 data.entries = [{ version: newVersion, date, changes: rawCommits }, ...data.entries].slice(0, 30)
-fs.writeFileSync('frontend/public/changelog.json', JSON.stringify(data, null, 2) + '\n')
+fs.writeFileSync(changelogJsonPath, JSON.stringify(data, null, 2) + '\n')
 
 console.log(`✅ Version bumped to ${newVersion}`)

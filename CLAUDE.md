@@ -85,7 +85,8 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 - `ExtractionPage` — URL input, job polling, progress display
 - `RecipeList` — List/grid view toggle (default: list), persisted in localStorage
 - `RecipeDetail` — Single recipe view with inline edit mode, serving size scaler, source link
-- `SettingsPage` — BYOK key management, App Status with Roadmap modal
+- `SettingsPage` — BYOK key management, App Status with Roadmap modal + Changelog modal (fetches `/changelog.json` dynamically); localStorage read via `useState` initializer (no useEffect)
+- `RecipeList` — List/grid toggle; `EmptyState` is a standalone module-level component
 - `frontend/src/utils/scaling.ts` — `parseServingsNumber`, `scaleIngredient` for portion scaling
 
 ## External CLI Dependencies
@@ -126,10 +127,13 @@ Host github.com
 
 ## Working Notes (Claude)
 
-- **Active branch:** `feature/react-migration` — all commits go here, never directly to `main`
+- **Active branch:** Work on feature branches, never commit directly to `main`. Current branch: `review`
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
 - **After frontend changes:** Always run `npm run build:react` to update `public/`
+- **Changelog automation:** GitHub Actions (`.github/workflows/changelog-update.yml`) bumps patch version and updates `CHANGELOG.md` + `frontend/public/changelog.json` on every push to `main`. Commits with `[skip ci]` are skipped to avoid infinite loops.
+- **Changelog in Layout.tsx:** Fetches `/changelog.json` dynamically on modal open (lazy, only once). Supports Escape key + backdrop click to close.
+- **`pollJobStatus` entfernt:** `ExtractionPage.tsx` ruft jetzt direkt `getJobStatus` auf und steuert das Polling selbst via `setInterval`.
 
 ## Cleanup (March 2026) ✅
 
@@ -163,7 +167,7 @@ Planned features and current implementation status (as of March 2026):
 - Adjustable serving size + scaling: 80% ✅ — ×0.5–×4 stepper with ingredient quantity scaling
 - Fix one ingredient as quantity → scale the rest: 0%
 - Fullscreen cook mode: 0%
-- Original recipe link: 100% ✅ — prominent button in action area + source box at bottom
+- Original recipe link: 100% ✅ — "Zum Original" button in Quelle section at bottom of RecipeDetail (not in action area)
 - Recipe as separate page (not modal): 100% ✅ — implemented via /recipe/:id route
 - Recipe inline editing: 100% ✅ — name, emoji, tags, duration, calories, ingredients, steps editable in-place; saves via PATCH /api/v1/recipes/:id
 
