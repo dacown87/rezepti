@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Youtube, Instagram, Globe } from 'lucide-react'
+import { Play, Camera, Globe } from 'lucide-react'
 import { startExtraction, pollJobStatus } from '../api/services.js'
 import { useToast } from './ToastManager'
 
@@ -215,8 +215,8 @@ const ExtractionPage: React.FC = () => {
         <div className="animate-hero-rise delay-500 flex items-center justify-center gap-2 flex-wrap">
           <span className="text-warmgray/50 text-xs mr-1">Unterstützt</span>
           {[
-            { label: 'YouTube', icon: <Youtube size={14} /> },
-            { label: 'Instagram', icon: <Instagram size={14} /> },
+            { label: 'YouTube', icon: <Play size={14} /> },
+            { label: 'Instagram', icon: <Camera size={14} /> },
             { label: 'TikTok', icon: <span className="text-xs font-bold">T</span> },
             { label: 'Webseiten', icon: <Globe size={14} /> },
           ].map(({ label, icon }) => (
