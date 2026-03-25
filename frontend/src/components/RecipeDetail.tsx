@@ -23,6 +23,7 @@ const RecipeDetail: React.FC = () => {
   const [servingMultiplier, setServingMultiplier] = useState(1)
   const [editingIngredientIndex, setEditingIngredientIndex] = useState<number | null>(null)
   const [editingValue, setEditingValue] = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -54,11 +55,15 @@ const RecipeDetail: React.FC = () => {
   }
 
   const handleDelete = async () => {
-    if (!recipe || !confirm('Möchtest du dieses Rezept wirklich löschen?')) {
-      return
-    }
+    if (!recipe) return
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!recipe) return
     
     setIsDeleting(true)
+    setShowDeleteModal(false)
     
     try {
       await deleteRecipe(recipe.id)
@@ -235,70 +240,72 @@ const RecipeDetail: React.FC = () => {
 
         <div className="p-6">
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="text-center p-4 bg-cream rounded-xl">
-              <div className="flex items-center justify-center space-x-2 text-warmgray mb-2">
-                <Clock size={20} />
-                {isEditing && editDraft ? (
-                  <input
-                    value={editDraft.duration}
-                    onChange={e => setEditDraft(d => d && ({ ...d, duration: e.target.value }))}
-                    className="w-20 text-center font-medium bg-white border border-warmgray/30 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-paprika"
-                    placeholder="30 min"
-                  />
-                ) : (
-                  <span className="font-medium">{recipe.duration}</span>
-                )}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
+            {/* Dauer */}
+            <div className="text-center p-3 sm:p-4 bg-cream rounded-xl">
+              <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
+                <Clock size={16} />
+                <span className="text-xs sm:text-sm">Dauer</span>
               </div>
-              <div className="text-sm text-warmgray">Dauer</div>
+              {isEditing && editDraft ? (
+                <input
+                  value={editDraft.duration}
+                  onChange={e => setEditDraft(d => d && ({ ...d, duration: e.target.value }))}
+                  className="w-full text-center font-bold text-espresso bg-white border border-warmgray/30 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-paprika"
+                  placeholder="30 min"
+                />
+              ) : (
+                <div className="font-bold text-espresso text-sm sm:text-base">{recipe.duration}</div>
+              )}
             </div>
-            
-            <div className="text-center p-4 bg-cream rounded-xl">
-              <div className="flex items-center justify-center space-x-2 text-warmgray mb-2">
-                <Users size={20} />
-                <span className="font-medium">
-                  {Math.round(parseServingsNumber(recipe.servings) * servingMultiplier)}{' '}
-                  {recipe.servings.replace(/^\d+\s*/, '') || 'Portionen'}
-                </span>
+
+            {/* Portionen */}
+            <div className="text-center p-3 sm:p-4 bg-cream rounded-xl">
+              <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
+                <Users size={16} />
+                <span className="text-xs sm:text-sm">Portionen</span>
               </div>
-              <div className="text-sm text-warmgray mb-2">Portionen</div>
-              <div className="flex items-center justify-center space-x-2">
+              <div className="font-bold text-espresso text-sm sm:text-base mb-2">
+                {Math.round(parseServingsNumber(recipe.servings) * servingMultiplier)}
+              </div>
+              <div className="flex items-center justify-center gap-1">
                 <button
                   onClick={() => setServingMultiplier(m => Math.max(0.5, m - 0.5))}
                   disabled={servingMultiplier <= 0.5}
-                  className="w-6 h-6 bg-paprika text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-4 h-4 bg-paprika text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   −
                 </button>
-                <span className="text-xs text-warmgray w-8 text-center">
-                  {servingMultiplier === 1 ? 'Normal' : `×${servingMultiplier}`}
+                <span className="text-xs text-warmgray text-center whitespace-nowrap">
+                  ×{servingMultiplier}
                 </span>
                 <button
                   onClick={() => setServingMultiplier(m => Math.min(4, m + 0.5))}
                   disabled={servingMultiplier >= 4}
-                  className="w-6 h-6 bg-paprika text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-4 h-4 bg-paprika text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   +
                 </button>
               </div>
             </div>
-            
-            <div className="text-center p-4 bg-cream rounded-xl">
-              <div className="flex items-center justify-center space-x-2 text-warmgray mb-2">
-                <Flame size={20} />
-                {isEditing && editDraft ? (
-                  <input
-                    type="number"
-                    value={editDraft.calories}
-                    onChange={e => setEditDraft(d => d && ({ ...d, calories: e.target.value }))}
-                    className="w-20 text-center font-medium bg-white border border-warmgray/30 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-paprika"
-                    placeholder="kcal"
-                  />
-                ) : (
-                  <span className="font-medium">{recipe.calories} kcal</span>
-                )}
+
+            {/* Pro Portion */}
+            <div className="text-center p-3 sm:p-4 bg-cream rounded-xl">
+              <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
+                <Flame size={16} />
+                <span className="text-xs sm:text-sm whitespace-nowrap">Pro Portion</span>
               </div>
-              <div className="text-sm text-warmgray">Pro Portion</div>
+              {isEditing && editDraft ? (
+                <input
+                  type="number"
+                  value={editDraft.calories}
+                  onChange={e => setEditDraft(d => d && ({ ...d, calories: e.target.value }))}
+                  className="w-full text-center font-bold text-espresso bg-white border border-warmgray/30 rounded px-1 py-0.5 text-sm focus:outline-none focus:border-paprika"
+                  placeholder="kcal"
+                />
+              ) : (
+                <div className="font-bold text-espresso text-sm sm:text-base">{recipe.calories} kcal</div>
+              )}
             </div>
           </div>
 
@@ -324,35 +331,13 @@ const RecipeDetail: React.FC = () => {
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  onClick={handleEdit}
-                  className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
-                >
-                  <Edit size={20} />
-                  <span>Rezept bearbeiten</span>
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="px-6 py-3 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200"
-                >
-                  <Trash2 size={20} className={isDeleting ? 'animate-spin' : ''} />
-                  <span>{isDeleting ? 'Löschen...' : 'Löschen'}</span>
-                </button>
-              </>
-            )}
-            {!isEditing && recipe.source_url && (
-              <a
-                href={recipe.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Original-Rezept öffnen"
-                className="px-4 py-3 border border-warmgray/20 text-warmgray rounded-lg font-medium hover:bg-warmgray/5 transition-colors flex items-center space-x-2"
+              <button
+                onClick={handleEdit}
+                className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
               >
-                <ExternalLink size={20} aria-hidden="true" />
-                <span className="hidden sm:inline">Zum Original</span>
-              </a>
+                <Edit size={20} />
+                <span>Rezept bearbeiten</span>
+              </button>
             )}
           </div>
 
@@ -528,18 +513,22 @@ const RecipeDetail: React.FC = () => {
       {recipe.source_url && (
         <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-6 mb-8">
           <h3 className="font-display font-bold text-lg mb-3">Quelle</h3>
-          <div className="flex items-center justify-between">
-            <a
-              href={recipe.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-paprika hover:text-paprika-dark font-medium truncate"
-            >
-              {recipe.source_url}
-            </a>
-            <span className="text-sm text-warmgray">
-              Extrahiert am {new Date(recipe.created_at).toLocaleDateString('de-DE')}
-            </span>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-paprika truncate">{recipe.source_url}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-warmgray">
+                Extrahiert am {new Date(recipe.created_at).toLocaleDateString('de-DE')}
+              </span>
+              <a
+                href={recipe.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-2 px-4 py-2 border border-warmgray/20 text-warmgray rounded-lg font-medium hover:bg-warmgray/5 transition-colors"
+              >
+                <ExternalLink size={16} />
+                <span>Zum Original</span>
+              </a>
+            </div>
           </div>
         </div>
       )}
@@ -562,6 +551,44 @@ const RecipeDetail: React.FC = () => {
           </li>
         </ul>
       </div>
+
+      {/* Delete button */}
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="text-red-500 text-sm hover:text-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+        >
+          <Trash2 size={16} />
+          <span>Rezept löschen</span>
+        </button>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-display font-bold mb-4">Rezept löschen</h3>
+            <p className="text-warmgray mb-6">Rezept wird dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-2 border border-warmgray/30 text-warmgray rounded-lg font-medium hover:bg-warmgray/5 transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? <Loader2 size={16} className="animate-spin" /> : null}
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

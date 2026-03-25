@@ -2,7 +2,7 @@
  * API Service Functions
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete, poll } from './client.js'
+import { apiGet, apiPost, apiPatch, apiDelete } from './client.js'
 import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse } from './types.js'
 
 // Recipes
@@ -66,18 +66,7 @@ export async function getJobStatus(jobId: string): Promise<JobStatus> {
 }
 
 export async function pollJobStatus(jobId: string): Promise<JobStatus> {
-  return poll<JobStatus>(
-    () => getJobStatus(jobId),
-    (status) => status.status === 'completed' || status.status === 'failed',
-    {
-      interval: 1000,
-      maxAttempts: 300, // 5 minutes max
-      exponentialBackoff: true,
-      onProgress: (status, attempt) => {
-        console.log(`Job ${jobId} progress: ${status.progress}% (attempt ${attempt})`)
-      }
-    }
-  )
+  return getJobStatus(jobId)
 }
 
 // BYOK Management

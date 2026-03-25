@@ -1,7 +1,73 @@
 import React, { useState, useEffect } from 'react'
-import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Info } from 'lucide-react'
+import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Info, ScrollText } from 'lucide-react'
 import { validateApiKey, saveApiKey, clearApiKey } from '../api/services.js'
 import { useToast } from './ToastManager'
+
+interface ChangelogEntry {
+  version: string
+  date: string
+  changes: string[]
+}
+
+const ChangelogModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [entries, setEntries] = useState<ChangelogEntry[]>([])
+  const [currentVersion, setCurrentVersion] = useState('')
+
+  useEffect(() => {
+    fetch('/changelog.json')
+      .then(r => r.json())
+      .then(data => {
+        setCurrentVersion(data.version)
+        setEntries(data.entries ?? [])
+      })
+      .catch(() => {})
+  }, [])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-warmgray/10 w-full max-w-lg max-h-[85vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-6 border-b border-warmgray/10">
+          <div>
+            <h2 className="text-xl font-display font-bold">Changelog</h2>
+            {currentVersion && (
+              <p className="text-sm text-warmgray mt-0.5">Aktuelle Version: v{currentVersion}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-warmgray hover:text-gray-700 transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="overflow-y-auto p-6 space-y-6">
+          {entries.length === 0 && (
+            <p className="text-warmgray text-sm">Keine Einträge vorhanden.</p>
+          )}
+          {entries.map(entry => (
+            <div key={entry.version}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-display font-bold text-base">v{entry.version}</span>
+                <span className="text-xs text-warmgray">{entry.date}</span>
+              </div>
+              <ul className="space-y-1">
+                {entry.changes.map((change, i) => (
+                  <li key={i} className="flex items-start space-x-2 text-sm text-warmgray">
+                    <span className="w-1.5 h-1.5 rounded-full bg-paprika/50 flex-shrink-0 mt-1.5" />
+                    <span>{change}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const ROADMAP = [
   {
@@ -126,6 +192,7 @@ const RoadmapModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 const SettingsPage: React.FC = () => {
   const [userKey, setUserKey] = useState('')
   const [showRoadmap, setShowRoadmap] = useState(false)
+  const [showChangelog, setShowChangelog] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<{
     valid: boolean
@@ -239,6 +306,7 @@ const SettingsPage: React.FC = () => {
   return (
     <>
     {showRoadmap && <RoadmapModal onClose={() => setShowRoadmap(false)} />}
+    {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-display font-bold mb-2">Einstellungen</h1>
@@ -450,13 +518,22 @@ const SettingsPage: React.FC = () => {
           <div className="bg-white border border-warmgray/10 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display font-bold text-lg">App Status</h3>
-              <button
-                onClick={() => setShowRoadmap(true)}
-                className="text-warmgray hover:text-paprika transition-colors"
-                title="Roadmap anzeigen"
-              >
-                <Info className="h-4 w-4" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowChangelog(true)}
+                  className="text-warmgray hover:text-paprika transition-colors"
+                  title="Changelog anzeigen"
+                >
+                  <ScrollText className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setShowRoadmap(true)}
+                  className="text-warmgray hover:text-paprika transition-colors"
+                  title="Roadmap anzeigen"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <div className="space-y-4">
               <div>
