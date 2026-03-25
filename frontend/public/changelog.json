@@ -9,11 +9,11 @@
       "version": "1.0.13",
       "date": "2026-03-25",
       "changes": [
-        "trigger Docker build via workflow_run after changelog completes"
+        "Zuverlässiger Docker-Deploy nach jedem Release"
       ]
     },
     {
-      "version": "1.0.3",
+      "version": "1.0.11",
       "date": "2026-03-25",
       "changes": [
         "Fehlerdetails bei Extraktion – Details-Button mit Kopier-Funktion",
