@@ -1,16 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChefHat, Settings, Home, PlusCircle, BookOpen, X } from 'lucide-react'
+import { ChefHat, Settings, Home, PlusCircle, BookOpen } from 'lucide-react'
+import ChangelogModal from './ChangelogModal.js'
 
 interface LayoutProps {
   children: React.ReactNode
-}
-
-interface ChangelogEntry {
-  version: string
-  date: string
-  time?: string
-  changes: string[]
 }
 
 interface LastUpdated {
@@ -27,29 +21,18 @@ const navItems = [
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation()
   const [showChangelog, setShowChangelog] = useState(false)
-  const [entries, setEntries] = useState<ChangelogEntry[]>([])
   const [currentVersion, setCurrentVersion] = useState('')
   const [lastUpdated, setLastUpdated] = useState<LastUpdated | null>(null)
-
-  const close = useCallback(() => setShowChangelog(false), [])
 
   useEffect(() => {
     fetch('/changelog.json')
       .then(r => r.json())
       .then(data => {
         setCurrentVersion(data.version ?? '')
-        setEntries(data.entries ?? [])
         setLastUpdated(data.lastUpdated ?? null)
       })
       .catch(() => {})
   }, [])
-
-  useEffect(() => {
-    if (!showChangelog) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [showChangelog, close])
 
   return (
     <div className="min-h-screen bg-cream text-espresso">
@@ -108,56 +91,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </footer>
 
-      {/* Changelog Modal */}
-      {showChangelog && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={close}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-warmgray/10">
-              <div>
-                <h2 className="text-xl font-display font-bold">Changelog</h2>
-                {currentVersion && (
-                  <p className="text-sm text-warmgray mt-0.5">Aktuelle Version: v{currentVersion}</p>
-                )}
-              </div>
-              <button
-                onClick={close}
-                className="p-2 hover:bg-warmgray/10 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="overflow-y-auto p-4 space-y-6">
-              {entries.length === 0
-                ? <p className="text-warmgray text-sm">Keine Einträge vorhanden.</p>
-                : entries.map((log) => (
-                  <div key={log.version} className="border-b border-warmgray/10 pb-4 last:border-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="bg-paprika text-white px-3 py-1 rounded-full text-sm font-bold">
-                        {log.version}
-                      </span>
-                      <span className="text-warmgray text-sm">{log.date}</span>
-                    </div>
-                    <ul className="space-y-1">
-                      {log.changes.map((change, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-warmgray">
-                          <span className="w-1.5 h-1.5 bg-paprika rounded-full mt-1.5 flex-shrink-0" />
-                          {change}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-      )}
+      {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
     </div>
   )
 }
