@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Play, Camera, Globe } from 'lucide-react'
+import { Play, Camera, Globe, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react'
 import { startExtraction, pollJobStatus } from '../api/services.js'
 import { useToast } from './ToastManager'
 
@@ -28,6 +28,9 @@ const ExtractionPage: React.FC = () => {
   const [url, setUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<{ url: string; jobId: string | null; time: string } | null>(null)
+  const [showDetails, setShowDetails] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [success, setSuccess] = useState(false)
   const [jobId, setJobId] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
@@ -56,6 +59,7 @@ const ExtractionPage: React.FC = () => {
         } else if (status.status === 'failed') {
           const msg = status.error || 'Extraktion fehlgeschlagen'
           setError(msg)
+          setErrorDetails({ url, jobId, time: new Date().toLocaleString('de-DE') })
           setIsLoading(false)
           setJobId(null)
           addToast(msg, 'error')
@@ -84,8 +88,10 @@ const ExtractionPage: React.FC = () => {
       const newJobId = await startExtraction(url, userKey || undefined)
       setJobId(newJobId)
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Starten der Extraktion')
-      addToast(err.message || 'Fehler beim Extrahieren', 'error')
+      const msg = err.message || 'Fehler beim Starten der Extraktion'
+      setError(msg)
+      setErrorDetails({ url, jobId: null, time: new Date().toLocaleString('de-DE') })
+      addToast(msg, 'error')
       setIsLoading(false)
       setProgress(0)
       setStage(null)
@@ -95,11 +101,27 @@ const ExtractionPage: React.FC = () => {
   const reset = () => {
     setUrl('')
     setError(null)
+    setErrorDetails(null)
+    setShowDetails(false)
+    setCopied(false)
     setSuccess(false)
     setProgress(0)
     setStage(null)
     setJobId(null)
     setIsLoading(false)
+  }
+
+  const copyError = () => {
+    if (!error || !errorDetails) return
+    const text = [
+      `Fehler: ${error}`,
+      `URL: ${errorDetails.url}`,
+      errorDetails.jobId ? `Job-ID: ${errorDetails.jobId}` : null,
+      `Zeit: ${errorDetails.time}`,
+    ].filter(Boolean).join('\n')
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -167,9 +189,35 @@ const ExtractionPage: React.FC = () => {
 
             {/* Error */}
             {error && (
-              <div className="mt-4 max-w-lg mx-auto p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm text-left">
-                {error}
-                <button onClick={reset} className="ml-3 underline text-xs">Zurücksetzen</button>
+              <div className="mt-4 max-w-lg mx-auto bg-red-50 border border-red-200 rounded-xl text-sm text-left overflow-hidden">
+                <div className="flex items-start justify-between gap-3 p-3">
+                  <span className="text-red-700 flex-1">{error}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setShowDetails(v => !v)}
+                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      Details {showDetails ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    <button onClick={reset} className="text-xs text-red-400 hover:text-red-600 underline transition-colors">
+                      Zurücksetzen
+                    </button>
+                  </div>
+                </div>
+                {showDetails && errorDetails && (
+                  <div className="border-t border-red-200 bg-red-100/60 p-3">
+                    <pre className="text-xs text-red-800 font-mono whitespace-pre-wrap break-all leading-relaxed">
+                      {`Fehler: ${error}\nURL:    ${errorDetails.url}${errorDetails.jobId ? `\nJob-ID: ${errorDetails.jobId}` : ''}\nZeit:   ${errorDetails.time}`}
+                    </pre>
+                    <button
+                      onClick={copyError}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-red-600 hover:text-red-800 transition-colors"
+                    >
+                      {copied ? <Check size={13} /> : <Copy size={13} />}
+                      {copied ? 'Kopiert!' : 'Kopieren'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

@@ -1,10 +1,58 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.8",
   "lastUpdated": {
     "date": "2026-03-25",
-    "time": "13:00"
+    "time": "13:15"
   },
   "entries": [
+    {
+      "version": "1.0.8",
+      "date": "2026-03-25",
+      "changes": [
+        "fix: copy frontend/public/changelog.json into Docker production image",
+        "fix: read and write changelog.json from same file (frontend/public/)",
+        "feat: use file mtime as lastUpdated in changelog.json response",
+        "fix: serve changelog.json from frontend/public/ (source of truth)",
+        "fix: serve /changelog.json as static route",
+        "fix: add lastUpdated field to changelog.json and update script",
+        "fix: restore lastUpdated footer and dynamic changelog in Layout",
+        "fix: convert update-changelog.js to ES module syntax",
+        "chore: npm audit fix – flatted Schwachstelle behoben",
+        "feat: mobile UI improvements + auto-changelog workflow"
+      ]
+    },
+    {
+      "version": "1.0.7",
+      "date": "2026-03-25",
+      "changes": [
+        "fix: read and write changelog.json from same file (frontend/public/)",
+        "feat: use file mtime as lastUpdated in changelog.json response",
+        "fix: serve changelog.json from frontend/public/ (source of truth)",
+        "fix: serve /changelog.json as static route",
+        "fix: add lastUpdated field to changelog.json and update script",
+        "fix: restore lastUpdated footer and dynamic changelog in Layout",
+        "fix: convert update-changelog.js to ES module syntax",
+        "chore: npm audit fix – flatted Schwachstelle behoben",
+        "feat: mobile UI improvements + auto-changelog workflow",
+        "docs: clean up and improve README"
+      ]
+    },
+    {
+      "version": "1.0.6",
+      "date": "2026-03-25",
+      "changes": [
+        "feat: use file mtime as lastUpdated in changelog.json response",
+        "fix: serve changelog.json from frontend/public/ (source of truth)",
+        "fix: serve /changelog.json as static route",
+        "fix: add lastUpdated field to changelog.json and update script",
+        "fix: restore lastUpdated footer and dynamic changelog in Layout",
+        "fix: convert update-changelog.js to ES module syntax",
+        "chore: npm audit fix – flatted Schwachstelle behoben",
+        "feat: mobile UI improvements + auto-changelog workflow",
+        "docs: clean up and improve README",
+        "docs: add fork comparison table to README"
+      ]
+    },
     {
       "version": "1.0.1",
       "date": "2026-03-25",
