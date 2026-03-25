@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.16] – 2026-03-25
+
+- increase serving size stepper buttons from w-4 to w-7
+
 ## [1.0.15] – 2026-03-25
 
 - correct created_at storage, date display and footer timezone
