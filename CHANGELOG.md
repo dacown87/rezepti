@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.4] – 2026-03-25
+
+- fix: serve /changelog.json as static route
+- fix: add lastUpdated field to changelog.json and update script
+- fix: restore lastUpdated footer and dynamic changelog in Layout
+- fix: convert update-changelog.js to ES module syntax
+- chore: npm audit fix – flatted Schwachstelle behoben
+- feat: mobile UI improvements + auto-changelog workflow
+- docs: clean up and improve README
+- docs: add fork comparison table to README
+- docs: update roadmap and fix lucide-react icons
+- chore: update package-lock.json
+
 ## [1.0.3] – 2026-03-25
 
 - fix: add lastUpdated field to changelog.json and update script
