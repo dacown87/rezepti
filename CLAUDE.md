@@ -135,6 +135,7 @@ Host github.com
   - Workflow nutzt Node.js 24 + `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`
   - Push-Schritt muss `git push origin HEAD:main` lauten (nicht nur `git push`) — sonst schlägt der CI-Push fehl
   - `changelog.json` enthält pro Eintrag `date` + `time` (HH:MM UTC)
+  - `.github/scripts/update-changelog.js` muss ESM-Syntax (`import`) verwenden — `package.json` hat `"type": "module"`, daher schlägt `require()` in CI fehl
   - Server-Route `/changelog.json` muss in `src/index.ts` explizit registriert sein — wird nicht automatisch durch den Static-File-Handler abgedeckt
 - **Changelog in Layout.tsx:** Fetches `/changelog.json` dynamically on modal open (lazy, only once). Supports Escape key + backdrop click to close.
 - **`pollJobStatus` entfernt:** `ExtractionPage.tsx` ruft jetzt direkt `getJobStatus` auf und steuert das Polling selbst via `setInterval`.
