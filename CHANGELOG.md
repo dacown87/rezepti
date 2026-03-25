@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.8] – 2026-03-25
+
+- fix: copy frontend/public/changelog.json into Docker production image
+- fix: read and write changelog.json from same file (frontend/public/)
+- feat: use file mtime as lastUpdated in changelog.json response
+- fix: serve changelog.json from frontend/public/ (source of truth)
+- fix: serve /changelog.json as static route
+- fix: add lastUpdated field to changelog.json and update script
+- fix: restore lastUpdated footer and dynamic changelog in Layout
+- fix: convert update-changelog.js to ES module syntax
+- chore: npm audit fix – flatted Schwachstelle behoben
+- feat: mobile UI improvements + auto-changelog workflow
+
 ## [1.0.7] – 2026-03-25
 
 - fix: read and write changelog.json from same file (frontend/public/)
