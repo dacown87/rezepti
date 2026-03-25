@@ -1,10 +1,17 @@
 {
-  "version": "1.0.13",
+  "version": "1.0.14",
   "lastUpdated": {
     "date": "2026-03-25",
-    "time": "13:54"
+    "time": "14:30"
   },
   "entries": [
+    {
+      "version": "1.0.14",
+      "date": "2026-03-25",
+      "changes": [
+        "correct recipe date display and changelog version numbers"
+      ]
+    },
     {
       "version": "1.0.13",
       "date": "2026-03-25",
