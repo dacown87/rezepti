@@ -13,13 +13,11 @@ test/
 │   └── test-data.ts       # Sample recipes, URLs, API keys
 ├── scripts/               # Test execution scripts
 │   ├── test-local.sh      # Local environment test runner
-│   ├── test-docker.sh     # Docker environment test runner
-│   └── run-tests.ts       # TypeScript test runner
+│   └── test-docker.sh     # Docker environment test runner
 ├── unit/                  # Unit tests
 │   └── key-manager.test.ts
 ├── utils/                 # Test utilities
 │   ├── test-helpers.ts    # Common test utilities
-│   ├── test-setup.ts      # Database setup/teardown
 │   └── performance-test.ts # Performance testing
 ├── setup.ts              # Test environment setup
 └── README.md             # This file
