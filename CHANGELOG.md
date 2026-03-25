@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.6] – 2026-03-25
+
+- feat: use file mtime as lastUpdated in changelog.json response
+- fix: serve changelog.json from frontend/public/ (source of truth)
+- fix: serve /changelog.json as static route
+- fix: add lastUpdated field to changelog.json and update script
+- fix: restore lastUpdated footer and dynamic changelog in Layout
+- fix: convert update-changelog.js to ES module syntax
+- chore: npm audit fix – flatted Schwachstelle behoben
+- feat: mobile UI improvements + auto-changelog workflow
+- docs: clean up and improve README
+- docs: add fork comparison table to README
+
 ## [1.0.5] – 2026-03-25
 
 - fix: serve changelog.json from frontend/public/ (source of truth)
