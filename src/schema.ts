@@ -16,7 +16,7 @@ export const recipes = sqliteTable("recipes", {
   transcript:  text("transcript"),
   tried:       integer("tried", { mode: "boolean" }).default(false),
   created_at:  integer("created_at", { mode: "timestamp" })
-                 .default(sql`CURRENT_TIMESTAMP`),
+                 .default(sql`(strftime('%s', 'now'))`),
 });
 
 export type Recipe = typeof recipes.$inferSelect;

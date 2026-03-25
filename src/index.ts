@@ -49,8 +49,8 @@ app.get("/changelog.json", (c) => {
     const data = JSON.parse(readFileSync(fullPath, "utf-8"));
     const mtime = statSync(fullPath).mtime;
     data.lastUpdated = {
-      date: mtime.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit" }),
-      time: mtime.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+      date: mtime.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Berlin" }),
+      time: mtime.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }),
     };
     return c.json(data);
   } catch {

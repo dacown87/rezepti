@@ -56,6 +56,10 @@ export function ensureReactSchema() {
       created_at  INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
+  // Migration: add created_at column to older DBs that lack it
+  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN created_at INTEGER DEFAULT (strftime('%s', 'now'))`); } catch {}
+  // Migration: fix rows where created_at is NULL or stored as text (e.g. "2026-03-25 13:54:00")
+  db.$client.exec(`UPDATE recipes SET created_at = strftime('%s', 'now') WHERE created_at IS NULL OR typeof(created_at) = 'text'`);
 }
 
 /**

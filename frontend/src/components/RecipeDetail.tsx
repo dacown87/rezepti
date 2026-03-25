@@ -517,7 +517,7 @@ const RecipeDetail: React.FC = () => {
             <p className="text-sm text-paprika truncate">{recipe.source_url}</p>
             <div className="flex items-center justify-between">
               <span className="text-sm text-warmgray">
-                Extrahiert am {new Date(recipe.created_at).toLocaleDateString('de-DE')}
+                {recipe.created_at ? `Extrahiert am ${new Date(recipe.created_at).toLocaleDateString('de-DE')}` : ''}
               </span>
               <a
                 href={recipe.source_url}
