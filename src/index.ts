@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 import { config } from "./config.js";
 import { ensureReactSchema } from "./db-react.js";
@@ -46,8 +46,13 @@ app.get("/vite.svg", (c) => servePublicFile(c, "vite.svg"));
 app.get("/changelog.json", (c) => {
   const fullPath = join(import.meta.dirname, "..", "frontend", "public", "changelog.json");
   try {
-    const content = readFileSync(fullPath);
-    return c.body(content, 200, { "Content-Type": "application/json" });
+    const data = JSON.parse(readFileSync(fullPath, "utf-8"));
+    const mtime = statSync(fullPath).mtime;
+    data.lastUpdated = {
+      date: mtime.toLocaleDateString("de-DE", { year: "numeric", month: "2-digit", day: "2-digit" }),
+      time: mtime.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+    };
+    return c.json(data);
   } catch {
     return c.text("Not found", 404);
   }
