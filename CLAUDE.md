@@ -34,6 +34,8 @@ Test suite: Vitest for unit/e2e tests.
 
 **Wichtig:** `./node_modules` nie als Volume mounten — `better-sqlite3` ist host-spezifisch kompiliert und inkompatibel mit Linux im Container.
 
+**Lock-File:** Nach jeder Änderung an `package.json` muss lokal `npm install` ausgeführt werden, damit `package-lock.json` synchron bleibt. Docker nutzt `npm ci`, das bei Abweichungen abbricht.
+
 **GitHub Secrets (einmalig im Repo setzen):**
 - `DOCKERHUB_USERNAME` = `dacown`
 - `DOCKERHUB_TOKEN` = Access Token von hub.docker.com → Account Settings → Personal access tokens
