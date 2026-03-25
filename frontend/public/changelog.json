@@ -1,14 +1,15 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "lastUpdated": {
     "date": "2026-03-25",
-    "time": "13:00"
+    "time": "12:48"
   },
   "entries": [
     {
-      "version": "1.0.2",
+      "version": "1.0.3",
       "date": "2026-03-25",
       "changes": [
+        "fix: add lastUpdated field to changelog.json and update script",
         "fix: restore lastUpdated footer and dynamic changelog in Layout",
         "fix: convert update-changelog.js to ES module syntax",
         "chore: npm audit fix – flatted Schwachstelle behoben",
@@ -17,8 +18,23 @@
         "docs: add fork comparison table to README",
         "docs: update roadmap and fix lucide-react icons",
         "chore: update package-lock.json",
+        "chore: complete dependency updates"
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-03-25",
+      "changes": [
+        "fix: convert update-changelog.js to ES module syntax",
+        "chore: npm audit fix – flatted Schwachstelle behoben",
+        "feat: mobile UI improvements + auto-changelog workflow",
+        "docs: clean up and improve README",
+        "docs: add fork comparison table to README",
+        "docs: update roadmap and fix lucide-react icons",
+        "chore: update package-lock.json",
         "chore: complete dependency updates",
-        "chore: update dependencies to latest versions"
+        "chore: update dependencies to latest versions",
+        "fix: include public/index.html in Docker build"
       ]
     },
     {
