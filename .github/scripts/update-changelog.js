@@ -12,13 +12,25 @@ const newVersion = `${major}.${minor}.${patch + 1}`
 pkg.version = newVersion
 writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
 
-// --- Collect recent commits (exclude bot/skip-ci commits) ---
-const rawCommits = execSync('git log --no-merges --pretty=format:"%s" -20')
+// --- Collect recent commits (only user-relevant: feat/fix, exclude chore/docs/test/ci/refactor) ---
+const EXCLUDED_PREFIXES = ['chore:', 'docs:', 'test:', 'ci:', 'refactor:', 'style:', 'build:']
+const rawCommits = execSync('git log --no-merges --pretty=format:"%s" -50')
   .toString()
   .split('\n')
   .map(s => s.trim())
-  .filter(s => s && !s.includes('[skip ci]') && !s.startsWith('chore: v'))
+  .filter(s =>
+    s &&
+    !s.includes('[skip ci]') &&
+    !s.startsWith('chore: v') &&
+    !EXCLUDED_PREFIXES.some(prefix => s.startsWith(prefix))
+  )
   .slice(0, 10)
+
+// Skip if no user-relevant changes
+if (rawCommits.length === 0) {
+  console.log('⏭ No user-relevant changes — skipping version bump')
+  process.exit(0)
+}
 
 const now = new Date()
 const date = now.toISOString().split('T')[0]
