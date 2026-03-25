@@ -12,15 +12,18 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     permissions:
       contents: write
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 20
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Bump version & update changelog
         run: node .github/scripts/update-changelog.js
@@ -33,4 +36,4 @@ jobs:
           git add package.json CHANGELOG.md frontend/public/changelog.json
           git diff --staged --quiet && echo "Nothing to commit" && exit 0
           git commit -m "chore: v${VERSION} [skip ci]"
-          git push
+          git push origin HEAD:main
