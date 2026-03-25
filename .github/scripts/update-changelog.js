@@ -20,7 +20,9 @@ const rawCommits = execSync('git log --no-merges --pretty=format:"%s" -20')
   .filter(s => s && !s.includes('[skip ci]') && !s.startsWith('chore: v'))
   .slice(0, 10)
 
-const date = new Date().toISOString().split('T')[0]
+const now = new Date()
+const date = now.toISOString().split('T')[0]
+const time = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })
 
 // --- Update CHANGELOG.md ---
 const newSection =
@@ -42,6 +44,7 @@ if (fs.existsSync('public/changelog.json')) {
   try { data = JSON.parse(fs.readFileSync('public/changelog.json', 'utf8')) } catch {}
 }
 data.version = newVersion
+data.lastUpdated = { date, time }
 data.entries = [{ version: newVersion, date, changes: rawCommits }, ...data.entries].slice(0, 30)
 fs.writeFileSync('frontend/public/changelog.json', JSON.stringify(data, null, 2) + '\n')
 
