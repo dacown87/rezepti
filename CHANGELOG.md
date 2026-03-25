@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.13] – 2026-03-25
+
+- trigger Docker build via workflow_run after changelog completes
+
 ## [1.0.12] – 2026-03-25
 
 
