@@ -21,9 +21,9 @@ const ROADMAP = [
   {
     category: '🍽️ Rezeptanzeige & Navigation',
     items: [
-      { label: 'Rezeptliste & Detailansicht', percent: 50 },
-      { label: 'Zutaten & Schritte getrennt', percent: 20 },
-      { label: 'Personenzahl & Skalierung', percent: 0 },
+      { label: 'Rezeptliste & Detailansicht', percent: 70 },
+      { label: 'Zutaten & Schritte getrennt', percent: 70 },
+      { label: 'Personenzahl & Skalierung', percent: 30 },
       { label: 'Fullscreen Koch-Modus', percent: 0 },
       { label: 'Original-Rezept-Link', percent: 0 },
       { label: 'Rezept als separate Seite', percent: 0 },
@@ -59,6 +59,15 @@ const ROADMAP = [
       { label: 'Android App', percent: 0 },
     ],
   },
+  {
+    category: '⚙️ Tech Stack (März 2026)',
+    items: [
+      { label: 'React 19', percent: 100 },
+      { label: 'Vite 8', percent: 100 },
+      { label: 'TypeScript 6', percent: 100 },
+      { label: 'vitest 3', percent: 100 },
+    ],
+  },
 ]
 
 function barColor(percent: number) {
@@ -79,7 +88,7 @@ const RoadmapModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
       <div className="flex items-center justify-between p-6 border-b border-warmgray/10">
         <div>
           <h2 className="text-xl font-display font-bold">Roadmap</h2>
-          <p className="text-sm text-warmgray mt-0.5">Gesamtfortschritt ~25%</p>
+          <p className="text-sm text-warmgray mt-0.5">Dependencies aktualisiert • React 19, Vite 8, TS 6</p>
         </div>
         <button onClick={onClose} className="text-warmgray hover:text-gray-700 transition-colors">
           <X className="h-5 w-5" />

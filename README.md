@@ -160,7 +160,7 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 ## Roadmap
 
-> Stand: März 2026 — **React Migration Phase 2 abgeschlossen** ✅
+> Stand: März 2026 — **Dependencies aktualisiert** ✅ | React 19, Vite 8, TypeScript 6
 
 ---
 
@@ -184,11 +184,11 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
-| Webseite neu gestalten mit Menüleiste | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Rezeptliste & Detailansicht | █████░░░░░ 50% | Grundstruktur vorhanden |
-| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ██░░░░░░░░ 20% | Daten liegen getrennt vor, UI nicht |
-| Personenzahl einstellbar + Hochskalierung | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Zutat als Fixgröße → Rest hochskalieren | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Webseite neu gestalten mit Menüleiste | ███░░░░░░░ 30% | In Entwicklung |
+| Rezeptliste & Detailansicht | ███████░░░ 70% | Verbessert |
+| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ███████░░░ 70% | UI vorhanden |
+| Personenzahl einstellbar + Hochskalierung | ███░░░░░░░ 30% | In Entwicklung |
+| Zutat als Fixgröße → Rest hochskalieren | ██░░░░░░░░ 20% | In Entwicklung |
 
 ---
 
