@@ -1,10 +1,17 @@
 {
-  "version": "1.0.10",
+  "version": "1.0.11",
   "lastUpdated": {
     "date": "2026-03-25",
-    "time": "13:29"
+    "time": "13:37"
   },
   "entries": [
+    {
+      "version": "1.0.11",
+      "date": "2026-03-25",
+      "changes": [
+        "correct recipe date display (Unix seconds → milliseconds)"
+      ]
+    },
     {
       "version": "1.0.10",
       "date": "2026-03-25",
