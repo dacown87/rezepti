@@ -12,12 +12,13 @@ const newVersion = `${major}.${minor}.${patch + 1}`
 pkg.version = newVersion
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
 
-// --- Collect recent commits (exclude bot/skip-ci commits) ---
-const rawCommits = execSync('git log --no-merges --pretty=format:"%s" -20')
+// --- Collect recent commits (only user-relevant feat/fix, clean display) ---
+const rawCommits = execSync('git log --no-merges --pretty=format:"%s" -50')
   .toString()
   .split('\n')
   .map(s => s.trim())
-  .filter(s => s && !s.includes('[skip ci]') && !s.startsWith('chore: v'))
+  .filter(s => s && (s.startsWith('feat:') || s.startsWith('fix:')))
+  .map(s => s.replace(/^(feat|fix):\s*/, ''))
   .slice(0, 10)
 
 const now = new Date()
