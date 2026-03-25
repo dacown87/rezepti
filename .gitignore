@@ -7,3 +7,4 @@ data/*.db-shm
 data/*.db-wal
 LoginData
 data/cookidoo-session.json
+screenshots/
