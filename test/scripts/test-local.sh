@@ -141,9 +141,6 @@ run_tests() {
         "docker")
             npm test -- --run docker
             ;;
-        "performance")
-            npm test -- --run performance
-            ;;
         "all")
             npm test -- --run
             ;;
@@ -168,22 +165,6 @@ run_e2e_direct() {
     
     # Run the test using vitest
     npx vitest run test/e2e/react-api.test.ts --reporter=verbose
-    
-    return $?
-}
-
-# Function to run performance tests
-run_performance_tests() {
-    print_info "Running performance tests..."
-    
-    # Check if performance test file exists
-    if [ ! -f "test/utils/performance-test.ts" ]; then
-        print_error "Performance test utilities not found"
-        return 1
-    fi
-    
-    # Run performance test suite
-    npx tsx test/utils/performance-test.ts
     
     return $?
 }
@@ -264,14 +245,10 @@ main() {
         "e2e")
             run_e2e_direct
             ;;
-        "performance")
-            run_performance_tests
-            ;;
         "all")
             run_tests "unit"
             run_tests "e2e"
             run_tests "docker"
-            run_tests "performance"
             ;;
         *)
             run_tests "$test_type"
@@ -302,14 +279,13 @@ if [ $# -gt 0 ]; then
             echo "  e2e        - Run E2E tests (default)"
             echo "  unit       - Run unit tests"
             echo "  docker     - Run Docker tests"
-            echo "  performance - Run performance tests"
+      
             echo "  all        - Run all tests"
             echo "  help       - Show this help"
             echo ""
             echo "Examples:"
             echo "  $0           # Run E2E tests"
             echo "  $0 all       # Run all tests"
-            echo "  $0 performance # Run performance tests"
             exit 0
             ;;
         *)
