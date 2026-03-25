@@ -71,8 +71,6 @@ docker compose --profile react restart
 
 # Alle stoppen
 docker compose --profile react --profile react-prod --profile prod down
-
-# Volle Dokumentation → Siehe DOCKER_DEPLOYMENT.md
 ```
 
 ### Daten sichern
@@ -82,8 +80,8 @@ docker compose --profile react --profile react-prod --profile prod down
 mkdir -p backups
 tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/
 
-# Wiederherstellen
-tar -xzf backups/rezepti-20260322.tar.gz
+# Wiederherstellen (YYYYMMDD durch Backup-Datum ersetzen)
+tar -xzf backups/rezepti-YYYYMMDD.tar.gz
 ```
 
 ---

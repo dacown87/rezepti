@@ -322,22 +322,6 @@ export const edgeCaseUrls: TestUrl[] = [
   }
 ];
 
-// Performance test data
-export const performanceTestData = {
-  concurrentRequests: 10,
-  batchSize: 5,
-  pollInterval: 1000,
-  timeout: 30000,
-  
-  // Stress test URLs (won't actually be processed, just for testing)
-  stressUrls: Array.from({ length: 20 }, (_, i) => ({
-    url: `https://example.com/recipe-${i}`,
-    type: 'website' as const,
-    shouldWork: false,
-    description: `Stress test URL ${i}`
-  }))
-};
-
 // Database test data
 export const dbTestData = {
   recipeCount: 50,

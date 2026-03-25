@@ -126,21 +126,24 @@ Host github.com
 
 ## Working Notes (Claude)
 
-- **Active branch:** `feature/react-migration` — all commits go here, never directly to `main`
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
 - **After frontend changes:** Always run `npm run build:react` to update `public/`
 
 ## Cleanup (March 2026) ✅
 
-Legacy code removed in this session:
+Legacy code and dead files removed:
 - ❌ `src/db.ts` — deleted (replaced by `src/db-react.ts`)
 - ❌ `src/db-manager.ts` — deleted (dual-DB abstraction no longer needed)
 - ❌ `src/react-job-manager.ts` — deleted (superseded by `job-manager.ts`)
 - ❌ SSE endpoint `/api/extract` — removed
 - ❌ Legacy `/api/recipes` and `/api/health` routes — removed
 - ❌ Design variants `public/v1–v4.html`, `public/legacy-index.html` — removed
-- ❌ `test/unit/db-manager.test.ts` — removed
+- ❌ `AGENTS.md`, `REACT_API.md`, `components.md`, `DOCKER_DEPLOYMENT.md` — outdated docs removed
+- ❌ `scripts/migrate-to-react-db.ts` — one-time migration script removed
+- ❌ `test/unit/key-manager.test.ts`, `test/react-components/`, `test/utils/performance-test.ts`, `test/setup-react.ts` — dead test files removed
+- ❌ Implemented plan/spec docs (Cookidoo, Docker) removed from `docs/superpowers/`
+- ❌ Dead `src/interfaces/` — removed
 
 ## Roadmap
 
@@ -152,7 +155,7 @@ Planned features and current implementation status (as of March 2026):
 - TikTok: 70% — via yt-dlp
 - Instagram: 70% — via yt-dlp
 - Chefkoch: 40% — Schema.org partially works
-- Cookidoo: 10% — credentials in .env, no scraper implemented
+- Cookidoo: 70% — OAuth2 ROPC flow implemented in `src/fetchers/cookidoo.ts`
 - Pinterest: 0%
 - Facebook: 0%
 - Photo import (camera/gallery): 0% — vision model available, no upload flow
