@@ -136,10 +136,12 @@ Host github.com
 - **Changelog automation:** GitHub Actions (`.github/workflows/changelog-update.yml`) bumps patch version and updates `CHANGELOG.md` + `frontend/public/changelog.json` on every push to `main`. Commits with `[skip ci]` are skipped to avoid infinite loops.
   - Workflow nutzt Node.js 24 + `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`
   - Push-Schritt muss `git push origin HEAD:main` lauten (nicht nur `git push`) — sonst schlägt der CI-Push fehl
-  - `changelog.json` enthält pro Eintrag `date` + `time` (HH:MM UTC)
+  - `changelog.json` enthält pro Eintrag `date` + `time` (HH:MM UTC) sowie ein Top-Level-Feld `lastUpdated: { date, time }`, das bei **jedem** Push aktualisiert wird
+  - Changelog-Einträge und Versionsbump erfolgen nur bei `feat:` / `fix:` Commits — `chore:`, `docs:`, `test:`, `ci:`, `refactor:`, `style:`, `build:` werden gefiltert
+  - Gibt es keine nutzerrelevanten Commits, wird nur `lastUpdated` aktualisiert (kein Versionsbump)
   - `.github/scripts/update-changelog.js` muss ESM-Syntax (`import`) verwenden — `package.json` hat `"type": "module"`, daher schlägt `require()` in CI fehl
   - Server-Route `/changelog.json` muss in `src/index.ts` explizit registriert sein — wird nicht automatisch durch den Static-File-Handler abgedeckt
-- **Changelog in Layout.tsx:** Fetches `/changelog.json` dynamically on modal open (lazy, only once). Supports Escape key + backdrop click to close.
+- **Changelog in Layout.tsx:** Fetches `/changelog.json` eagerly on mount (for footer). Footer reads `lastUpdated` field (always current); modal shows filtered `entries`. Supports Escape key + backdrop click to close.
 - **`pollJobStatus` entfernt:** `ExtractionPage.tsx` ruft jetzt direkt `getJobStatus` auf und steuert das Polling selbst via `setInterval`.
 
 ## Cleanup (March 2026) ✅
