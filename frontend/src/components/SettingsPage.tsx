@@ -439,51 +439,6 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* App Settings */}
-          <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-6">
-            <h2 className="text-xl font-display font-bold mb-6">App Einstellungen</h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Dunkelmodus</p>
-                  <p className="text-sm text-warmgray">Interface in dunklem Design anzeigen</p>
-                </div>
-                <div className="relative inline-block w-12 h-6">
-                  <input type="checkbox" className="sr-only" id="dark-mode" />
-                  <label htmlFor="dark-mode" className="block w-12 h-6 bg-warmgray/20 rounded-full cursor-pointer">
-                    <span className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Automatische Extraktion</p>
-                  <p className="text-sm text-warmgray">Rezepte automatisch nach Download speichern</p>
-                </div>
-                <div className="relative inline-block w-12 h-6">
-                  <input type="checkbox" className="sr-only" id="auto-extract" defaultChecked />
-                  <label htmlFor="auto-extract" className="block w-12 h-6 bg-paprika rounded-full cursor-pointer">
-                    <span className="dot absolute right-1 top-1 bg-white w-4 h-4 rounded-full transition"></span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">High Quality Images</p>
-                  <p className="text-sm text-warmgray">Höhere Bildqualität für Rezept-Fotos</p>
-                </div>
-                <div className="relative inline-block w-12 h-6">
-                  <input type="checkbox" className="sr-only" id="hq-images" defaultChecked />
-                  <label htmlFor="hq-images" className="block w-12 h-6 bg-paprika rounded-full cursor-pointer">
-                    <span className="dot absolute right-1 top-1 bg-white w-4 h-4 rounded-full transition"></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Sidebar */}

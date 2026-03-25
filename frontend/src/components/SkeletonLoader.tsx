@@ -146,38 +146,4 @@ export const RecipeDetailSkeleton: React.FC = () => {
   )
 }
 
-// Extraction Progress Skeleton
-export const ExtractionProgressSkeleton: React.FC = () => {
-  return (
-    <div className="space-y-4">
-      <div className="h-2 bg-gray-200 animate-pulse rounded-full"></div>
-      <div className="flex justify-between">
-        <div className="h-4 bg-gray-200 animate-pulse rounded w-32"></div>
-        <div className="h-4 bg-gray-200 animate-pulse rounded w-16"></div>
-      </div>
-    </div>
-  )
-}
-
-// Settings Card Skeleton
-export const SettingsCardSkeleton: React.FC = () => {
-  return (
-    <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="space-y-2">
-          <div className="h-6 bg-gray-200 animate-pulse rounded w-32"></div>
-          <div className="h-4 bg-gray-200 animate-pulse rounded w-48"></div>
-        </div>
-        <div className="h-6 bg-gray-200 animate-pulse rounded w-16"></div>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="h-12 bg-gray-200 animate-pulse rounded-lg"></div>
-        <div className="h-4 bg-gray-200 animate-pulse rounded w-full"></div>
-        <div className="h-24 bg-gray-200 animate-pulse rounded-lg"></div>
-      </div>
-    </div>
-  )
-}
-
 export default SkeletonLoader

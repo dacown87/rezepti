@@ -59,11 +59,3 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     </ToastContext.Provider>
   )
 }
-
-// Helper functions for common toast types
-export const toastHelpers = {
-  success: (message: string, duration?: number) => ({ message, type: 'success' as ToastType, duration }),
-  error: (message: string, duration?: number) => ({ message, type: 'error' as ToastType, duration }),
-  info: (message: string, duration?: number) => ({ message, type: 'info' as ToastType, duration }),
-  loading: (message: string, duration?: number) => ({ message, type: 'loading' as ToastType, duration })
-}

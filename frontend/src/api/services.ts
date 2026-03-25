@@ -106,23 +106,3 @@ export async function checkHealth(): Promise<HealthStatus> {
     throw error
   }
 }
-
-// Migration (admin only)
-export async function migrateRecipes(): Promise<{ success: boolean; message: string }> {
-  try {
-    return await apiPost<{ success: boolean; message: string }>('/api/v1/migrate')
-  } catch (error) {
-    console.error('Failed to migrate recipes:', error)
-    throw error
-  }
-}
-
-// Utility function to check if backend supports React API
-export async function checkReactApiSupport(): Promise<boolean> {
-  try {
-    await checkHealth()
-    return true
-  } catch (error) {
-    return false
-  }
-}

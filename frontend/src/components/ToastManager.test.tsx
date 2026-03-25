@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { ToastProvider, useToast, toastHelpers } from './ToastManager'
+import { ToastProvider, useToast } from './ToastManager'
 
 describe('ToastProvider Component', () => {
   describe('Rendering', () => {
@@ -68,24 +68,3 @@ describe('ToastProvider Component', () => {
   })
 })
 
-describe('toastHelpers', () => {
-  it('creates success toast object', () => {
-    const result = toastHelpers.success('Test', 5000)
-    expect(result).toEqual({ message: 'Test', type: 'success', duration: 5000 })
-  })
-
-  it('creates error toast object', () => {
-    const result = toastHelpers.error('Error occurred')
-    expect(result).toEqual({ message: 'Error occurred', type: 'error', duration: undefined })
-  })
-
-  it('creates info toast object', () => {
-    const result = toastHelpers.info('Info message', 3000)
-    expect(result).toEqual({ message: 'Info message', type: 'info', duration: 3000 })
-  })
-
-  it('creates loading toast object', () => {
-    const result = toastHelpers.loading('Loading...')
-    expect(result).toEqual({ message: 'Loading...', type: 'loading', duration: undefined })
-  })
-})
