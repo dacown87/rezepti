@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.7] – 2026-03-25
+
+- feat: always update lastUpdated timestamp in footer on every push
+- feat: filter changelog to only show user-relevant commits (feat/fix)
+- fix: sync package-lock.json with package.json (esbuild 0.27.4)
+- fix: convert update-changelog.js to ESM (package.json has type:module)
+- fix: update changelog workflow to Node 24, fix git push target
+- feat: show last update time in footer
+- fix: apply review fixes and React best practices
+- Merge branch 'ui-improvements' into main
+
 ## [1.0.6] – 2026-03-25
 
 - feat: filter changelog to only show user-relevant commits (feat/fix)
