@@ -144,6 +144,14 @@ Legacy code and dead files removed:
 - ❌ `test/unit/key-manager.test.ts`, `test/react-components/`, `test/utils/performance-test.ts`, `test/setup-react.ts` — dead test files removed
 - ❌ Implemented plan/spec docs (Cookidoo, Docker) removed from `docs/superpowers/`
 - ❌ Dead `src/interfaces/` — removed
+- ❌ `check-dbs.js`, `test-react-endpoints.ts` — orphan root scripts removed
+- ❌ `scripts/test-migration.ts`, `scripts/verify-migration.js` — dual-DB migration scripts removed
+- ❌ `src/fetchers/cobalt.placeholder.ts` — unimplemented fetcher removed
+- ❌ `vitest.react.config.ts`, `frontend-vitest.config.ts` — redundant vitest configs removed
+- ❌ `docs/database-migration.md`, `PROGRESS.md` — stale docs removed
+- ❌ Frontend `.d.ts` stub files — removed (auto-generated, not hand-written)
+- ❌ `test/scripts/run-tests.ts`, `test/utils/test-setup.ts` — broken test utilities removed
+- ✅ `frontend/src/components/ChangelogModal.tsx` — extracted as shared component (no longer duplicated in Layout + SettingsPage)
 
 ## Roadmap
 
