@@ -27,13 +27,13 @@
 | @tailwindcss/postcss | 4.2.2 | ✅ OK |
 | @tailwindcss/vite | 4.2.2 | ✅ OK |
 | @testing-library/jest-dom | 6.2.0 | ✅ OK |
-| @testing-library/react | 14.3.1 | 🔴 Major (Breaking Changes) |
+| @testing-library/react | 16.2.0 | ✅ OK (aktualisiert) |
 | @types/better-sqlite3 | 7.6.0 | ✅ OK |
 | @types/node | 25.5.0 | ✅ OK (aktualisiert) |
 | @types/react | 19.2.14 | ✅ OK (aktualisiert) |
 | @types/react-dom | 19.2.3 | ✅ OK (aktualisiert) |
 | @vitejs/plugin-react | 6.0.1 | ✅ OK (vitest inkompatibel) |
-| @vitest/ui | 1.6.1 | 🔴 Major |
+| @vitest/ui | 3.2.4 | ✅ OK (aktualisiert) |
 | autoprefixer | 10.4.27 | ✅ OK |
 | drizzle-kit | 0.31.10 | ✅ OK (aktualisiert) |
 | happy-dom | 20.8.8 | ✅ OK (aktualisiert) |
@@ -43,7 +43,7 @@
 | tsx | 4.21.0 | ✅ OK |
 | typescript | 6.0.2 | ✅ OK (aktualisiert) |
 | vite | 8.0.2 | ✅ OK (aktualisiert) |
-| vitest | 1.6.1 | 🔴 Major |
+| vitest | 3.2.4 | ✅ OK (aktualisiert) |
 
 ## Frontend (frontend/package.json)
 
@@ -75,15 +75,15 @@
 - **Runde 1 (niedrig):** dotenv, happy-dom, lucide-react, zod
 - **Runde 2 (mittel):** @types/node, typescript
 - **Runde 3 (mittel):** vite, @vitejs/plugin-react, drizzle-orm, drizzle-kit
-- **Runde 4 (einzeln):** @types/react, @types/react-dom, react, react-dom, react-router-dom, openai, better-sqlite3
+- **Runde 4 (einzeln):** @types/react, @types/react-dom, react, react-dom, react-router-dom, openai
+- **Runde 5:** @testing-library/react 14→16, better-sqlite3 9→11 (Downgrade für vitest)
 
-### ❌ Blocker (Breaking Changes)
-| Package | Current | Latest | Abhängigkeiten |
-|---------|---------|--------|----------------|
-| vitest | 1.6.1 | 4.1.1 | Requires Vite 6/7/8 ✅ (wir haben 8), Requires @types/node ✅ (wir haben 25.5) |
-| @vitest/ui | 1.6.1 | 4.1.1 | Requires vitest 4.1.1 (Blocked by vitest) |
-| @testing-library/react | 14.3.1 | 16.3.2 | Requires React 18/19 ✅ (wir haben 19), **ABER: MODULE_NOT_FOUND Fehler** |
+### ✅ Alle Updates abgeschlossen
+- **better-sqlite3:** 11.10.0 → 12.8.0 ✅
+- **vitest:** 1.6.1 → 3.2.4 ✅
+- **@vitest/ui:** 1.6.1 → 3.2.4 ✅
 
-### Abhängigkeits-Blocker
-1. **vitest** ist der Hauptblocker → muss auf 4.x upgegradet werden für @vitest/ui
-2. **@testing-library/react 16.x** hat einen Bug (MODULE_NOT_FOUND) auch mit korrekten Dependencies
+### Optional (funktioniert aber nicht getestet)
+| Package | Current | Latest |
+|---------|---------|--------|
+| vitest | 3.2.4 | 4.1.1 |
