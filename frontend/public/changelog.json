@@ -1,14 +1,15 @@
 {
-  "version": "1.0.4",
+  "version": "1.0.5",
   "lastUpdated": {
     "date": "2026-03-25",
-    "time": "12:51"
+    "time": "12:55"
   },
   "entries": [
     {
-      "version": "1.0.4",
+      "version": "1.0.5",
       "date": "2026-03-25",
       "changes": [
+        "fix: serve changelog.json from frontend/public/ (source of truth)",
         "fix: serve /changelog.json as static route",
         "fix: add lastUpdated field to changelog.json and update script",
         "fix: restore lastUpdated footer and dynamic changelog in Layout",
@@ -17,8 +18,7 @@
         "feat: mobile UI improvements + auto-changelog workflow",
         "docs: clean up and improve README",
         "docs: add fork comparison table to README",
-        "docs: update roadmap and fix lucide-react icons",
-        "chore: update package-lock.json"
+        "docs: update roadmap and fix lucide-react icons"
       ]
     },
     {
