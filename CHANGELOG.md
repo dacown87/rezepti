@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.12] – 2026-03-25
+
+
+
 ## [1.0.11] – 2026-03-25
 
 - correct recipe date display (Unix seconds → milliseconds)
