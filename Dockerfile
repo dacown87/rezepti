@@ -46,6 +46,7 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 # Nur public/index.html wird kopiert — public/v*.html ist via .dockerignore ausgeschlossen
 COPY public/ ./public/
+COPY frontend/public/changelog.json ./frontend/public/changelog.json
 
 EXPOSE 3000
 
