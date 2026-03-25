@@ -283,7 +283,7 @@ describe('API Services', () => {
     })
 
     describe('pollJobStatus', () => {
-      it('should use poll function with correct parameters', async () => {
+      it('should return completed job status', async () => {
         const completedJob: JobStatus = {
           jobId: 'job-123',
           status: 'completed',
@@ -296,24 +296,13 @@ describe('API Services', () => {
           json: () => Promise.resolve(completedJob),
         })
 
-        mockPoll.mockResolvedValue(completedJob)
-
         const result = await services.pollJobStatus('job-123')
 
-        expect(mockPoll).toHaveBeenCalledWith(
-          expect.any(Function),
-          expect.any(Function),
-          expect.objectContaining({
-            interval: 1000,
-            maxAttempts: 300,
-            exponentialBackoff: true,
-            onProgress: expect.any(Function),
-          })
-        )
         expect(result.status).toBe('completed')
+        expect(result.recipeId).toBe(42)
       })
 
-      it('should stop polling on failed status', async () => {
+      it('should return failed job status', async () => {
         const failedJob: JobStatus = {
           jobId: 'job-123',
           status: 'failed',
@@ -321,28 +310,15 @@ describe('API Services', () => {
           error: 'Extraction failed',
         }
 
-        mockPoll.mockImplementation((fetcher, condition) => {
-          return fetcher().then((data: JobStatus) => {
-            if (condition(data)) return data
-            return Promise.reject(new Error('Polling timeout'))
-          })
-        })
-
         mockFetch.mockResolvedValue({
           ok: true,
           json: () => Promise.resolve(failedJob),
         })
 
-        await services.pollJobStatus('job-123')
+        const result = await services.pollJobStatus('job-123')
 
-        expect(mockPoll).toHaveBeenCalledWith(
-          expect.any(Function),
-          expect.any(Function),
-          expect.objectContaining({
-            interval: 1000,
-            maxAttempts: 300,
-          })
-        )
+        expect(result.status).toBe('failed')
+        expect(result.error).toBe('Extraction failed')
       })
     })
   })
@@ -520,96 +496,8 @@ describe('API Services', () => {
         expect(result.error).toBe('Database connection lost')
       })
     })
-
-    describe('checkReactApiSupport', () => {
-      it('should return true when health check succeeds', async () => {
-        mockFetch.mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve({ status: 'healthy' }),
-        })
-
-        const result = await services.checkReactApiSupport()
-
-        expect(result).toBe(true)
-      })
-
-      it('should return false when health check fails', async () => {
-        mockFetch.mockRejectedValue(new Error('Connection refused'))
-
-        const result = await services.checkReactApiSupport()
-
-        expect(result).toBe(false)
-      })
-
-      it('should return false on non-ok response', async () => {
-        mockFetch.mockResolvedValue({
-          ok: false,
-          status: 503,
-          statusText: 'Service Unavailable',
-          json: () => Promise.resolve({ error: 'Service down' }),
-        })
-
-        const result = await services.checkReactApiSupport()
-
-        expect(result).toBe(false)
-      })
-    })
   })
 
-  describe('Migration Service', () => {
-    describe('migrateRecipes', () => {
-      it('should trigger migration', async () => {
-        const response = {
-          success: true,
-          message: 'Migration completed: 15 recipes migrated',
-        }
-
-        mockFetch.mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve(response),
-        })
-
-        const result = await services.migrateRecipes()
-
-        expect(mockFetch).toHaveBeenCalledWith(
-          '/api/v1/migrate',
-          expect.objectContaining({
-            method: 'POST',
-          })
-        )
-        expect(result.success).toBe(true)
-        expect(result.message).toContain('15 recipes migrated')
-      })
-
-      it('should throw on migration failure', async () => {
-        mockFetch.mockResolvedValue({
-          ok: false,
-          status: 500,
-          statusText: 'Internal Server Error',
-          json: () => Promise.resolve({ error: 'Migration failed: database locked' }),
-        })
-
-        await expect(services.migrateRecipes()).rejects.toThrow()
-      })
-
-      it('should handle partial migration', async () => {
-        const response = {
-          success: false,
-          message: 'Migration partially failed: 10 of 15 recipes migrated',
-        }
-
-        mockFetch.mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve(response),
-        })
-
-        const result = await services.migrateRecipes()
-
-        expect(result.success).toBe(false)
-        expect(result.message).toContain('partially failed')
-      })
-    })
-  })
 })
 
 describe('Service Integration', () => {

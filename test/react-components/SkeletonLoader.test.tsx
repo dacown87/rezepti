@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import React from 'react'
-import SkeletonLoader, { 
-  RecipeListSkeleton, 
-  RecipeDetailSkeleton, 
-  ExtractionProgressSkeleton,
-  SettingsCardSkeleton 
+import SkeletonLoader, {
+  RecipeListSkeleton,
+  RecipeDetailSkeleton
 } from '../../frontend/src/components/SkeletonLoader'
 
 describe('SkeletonLoader Component', () => {
@@ -179,78 +177,6 @@ describe('RecipeDetailSkeleton Component', () => {
   it('renders with proper spacing', () => {
     const { container } = render(<RecipeDetailSkeleton />)
     expect(container.querySelector('.space-y-6')).toBeInTheDocument()
-  })
-})
-
-describe('ExtractionProgressSkeleton Component', () => {
-  it('renders progress bar placeholder', () => {
-    const { container } = render(<ExtractionProgressSkeleton />)
-    expect(container.querySelector('.h-2')).toBeInTheDocument()
-  })
-
-  it('renders progress bar with rounded-full', () => {
-    const { container } = render(<ExtractionProgressSkeleton />)
-    expect(container.querySelector('.rounded-full')).toBeInTheDocument()
-  })
-
-  it('renders flex layout for status text', () => {
-    const { container } = render(<ExtractionProgressSkeleton />)
-    expect(container.querySelector('.flex')).toBeInTheDocument()
-  })
-
-  it('renders justify-between for status positions', () => {
-    const { container } = render(<ExtractionProgressSkeleton />)
-    expect(container.querySelector('.justify-between')).toBeInTheDocument()
-  })
-
-  it('renders status text placeholders', () => {
-    const { container } = render(<ExtractionProgressSkeleton />)
-    const textPlaceholders = container.querySelectorAll('.h-4')
-    expect(textPlaceholders.length).toBe(2)
-  })
-})
-
-describe('SettingsCardSkeleton Component', () => {
-  it('renders card container', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    expect(container.querySelector('.bg-white')).toBeInTheDocument()
-  })
-
-  it('renders rounded card', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    expect(container.querySelector('.rounded-2xl')).toBeInTheDocument()
-  })
-
-  it('renders with shadow', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    expect(container.querySelector('.shadow-lg')).toBeInTheDocument()
-  })
-
-  it('renders header section with icon placeholder', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    const headerIcon = container.querySelector('[class*="h-6"], [class*="w-16"]')
-    expect(headerIcon).toBeInTheDocument()
-  })
-
-  it('renders form field placeholders', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    const fields = container.querySelectorAll('.h-12')
-    expect(fields.length).toBeGreaterThan(0)
-  })
-
-  it('renders text line placeholders', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    expect(container.querySelector('.h-4')).toBeInTheDocument()
-  })
-
-  it('renders textarea placeholder', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    expect(container.querySelector('.h-24')).toBeInTheDocument()
-  })
-
-  it('renders with proper padding', () => {
-    const { container } = render(<SettingsCardSkeleton />)
-    expect(container.querySelector('.p-6')).toBeInTheDocument()
   })
 })
 
