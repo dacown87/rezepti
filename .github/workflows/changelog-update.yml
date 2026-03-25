@@ -1,0 +1,36 @@
+name: Update Changelog & Version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    # Skip if the push itself was made by this workflow (avoids infinite loop)
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bump version & update changelog
+        run: node .github/scripts/update-changelog.js
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          VERSION=$(node -p "require('./package.json').version")
+          git add package.json CHANGELOG.md frontend/public/changelog.json
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: v${VERSION} [skip ci]"
+          git push
