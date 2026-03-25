@@ -43,6 +43,7 @@ function servePublicFile(c: any, filePath: string) {
 app.get("/public/*", (c) => servePublicFile(c, c.req.path.replace("/public/", "")));
 app.get("/assets/*", (c) => servePublicFile(c, c.req.path.slice(1)));
 app.get("/vite.svg", (c) => servePublicFile(c, "vite.svg"));
+app.get("/changelog.json", (c) => servePublicFile(c, "changelog.json"));
 
 // Mount React API routes
 app.route("/", reactApi);
