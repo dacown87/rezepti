@@ -1,5 +1,15 @@
 # Rezepti
 
+> **Dieser Fork** — Fork von [keno303/rezepti](https://github.com/keno303/rezepti)
+
+| | Original (keno303) | **Dieser Fork (dacown87)** |
+|---|---|---|
+| **Frontend** | Vanilla JS + Tailwind (CDN) | **React + Vite + TypeScript** |
+| **LLM** | Ollama (lokal) | **Groq API** (Cloud) |
+| **Export** | Notion | **SQLite (lokal)** |
+| **Deployment** | Manuell | **Docker** |
+| **Features** | Basic | **BYOK, React UI, Polling API** |
+
 Rezepti extrahiert Rezepte aus URLs — YouTube, Instagram, TikTok, Webseiten — übersetzt sie ins Deutsche, normalisiert Einheiten und speichert sie in einer lokalen SQLite-Datenbank.
 
 ---
