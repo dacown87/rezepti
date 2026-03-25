@@ -53,19 +53,6 @@ docker compose --profile prod up
 
 ## Docker Deployment
 
-### Schnellstart mit Docker
-
-```bash
-# 1. .env anlegen (falls nicht vorhanden)
-cp .env.example .env
-# → .env öffnen und GROQ_API_KEY eintragen
-
-# 2. React Development starten
-docker compose --profile react up
-```
-
-Zugriff: [http://localhost:3000](http://localhost:3000)
-
 **Verfügbare Profile:**
 
 | Profile | Beschreibung |
@@ -74,7 +61,7 @@ Zugriff: [http://localhost:3000](http://localhost:3000)
 | `react-prod` | React Production Build |
 | `prod` | Legacy Production (Docker Hub Image) |
 
-**Docker-spezifische Befehle:**
+**Nützliche Befehle:**
 ```bash
 # Logs anzeigen
 docker compose --profile react logs -f
@@ -82,8 +69,10 @@ docker compose --profile react logs -f
 # Container neu starten
 docker compose --profile react restart
 
-# Volle Dokumentation
-# → Siehe DOCKER_DEPLOYMENT.md
+# Alle stoppen
+docker compose --profile react --profile react-prod --profile prod down
+
+# Volle Dokumentation → Siehe DOCKER_DEPLOYMENT.md
 ```
 
 ### Daten sichern
@@ -158,8 +147,8 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 ## Technologie
 
-- **Frontend:** React 18 + Vite + TypeScript + Tailwind CSS
-- **Server:** Node.js 20, TypeScript, [Hono](https://hono.dev)
+- **Frontend:** React 19 + Vite 8 + TypeScript 6 + Tailwind CSS
+- **Server:** Node.js 22, TypeScript, [Hono](https://hono.dev)
 - **KI:** [Groq API](https://console.groq.com) (Llama 3.3 / Llama 4 / Whisper)
 - **BYOK:** Bring Your Own Key Support (User können eigenen Groq Key verwenden)
 - **Datenbank:** SQLite via [Drizzle ORM](https://orm.drizzle.team)
@@ -234,34 +223,17 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
-| Mobile-First-Ansatz | ░░░░░░░░░░ 0% | Zuerst für Mobilgeräte optimieren, dann Desktop |
-| Media Queries für typische Bildschirmgrößen | ░░░░░░░░░░ 0% | Responsive Breakpoints für Handys, Tablets, Desktops |
-| Android App (Flutter) | ░░░░░░░░░░ 0% | Nicht implementiert — ggf. Framework-Wechsel nötig |
+| Mobile-First / Responsive | ███████░░░ 80% | ✅ Implementiert |
+| Android App | ░░░░░░░░░░ 0% | Nicht implementiert |
 
 ---
 
-### 🍽️ Rezeptanzeige & Navigation (Aktualisiert)
-
-| Feature | Fortschritt | Status |
-|---------|-------------|--------|
-| Webseite neu gestalten mit Menüleiste | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Rezeptliste & Detailansicht | █████░░░░░ 50% | Grundstruktur vorhanden |
-| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ██░░░░░░░░ 20% | Daten liegen getrennt vor, UI nicht |
-| Personenzahl einstellbar + Hochskalierung | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Zutat als Fixgröße → Rest hochskalieren | ░░░░░░░░░░ 0% | Nicht implementiert |
-| **Fullscreen Cook Mode** | ░░░░░░░░░░ 0% | Vollbild-Ansicht für Schritt-für-Schritt-Kochen |
-| **Original-Rezept-Link** | ░░░░░░░░░░ 0% | Link zur Quell-Webseite in Rezeptansicht |
-| **Rezept als separate Seite (kein Modal)** | ░░░░░░░░░░ 0% | Dedizierte Rezeptseite statt Modal |
-
----
-
-### Gesamtfortschritt: ~25%
+### Gesamtfortschritt: ~35%
 
 ```
 Import/Extraktion     ████████░░░░░░░░░░░░ 55%
-Rezeptanzeige         ████░░░░░░░░░░░░░░░░ 35%
+Rezeptanzeige         ███████░░░░░░░░░░░░░ 45%
 Einkauf & Planung     ░░░░░░░░░░░░░░░░░░░░  0%
 Community & Sozial    ░░░░░░░░░░░░░░░░░░░░  0%
 Export & Druck        ░░░░░░░░░░░░░░░░░░░░  0%
-Mobile (Flutter)      ░░░░░░░░░░░░░░░░░░░░  0%
 ```
