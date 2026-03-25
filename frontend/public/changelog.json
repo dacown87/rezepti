@@ -9,110 +9,30 @@
       "version": "1.0.11",
       "date": "2026-03-25",
       "changes": [
-        "correct recipe date display (Unix seconds → milliseconds)"
+        "Fehlerdetails bei Extraktion – Details-Button mit Kopier-Funktion",
+        "Datumsanzeige bei Rezepten korrigiert"
       ]
     },
     {
-      "version": "1.0.10",
+      "version": "1.0.2",
       "date": "2026-03-25",
       "changes": [
-        "add error details panel with copy button on extraction failure",
-        "filter changelog to only user-relevant commits, strip prefixes",
-        "copy frontend/public/changelog.json into Docker production image",
-        "read and write changelog.json from same file (frontend/public/)",
-        "use file mtime as lastUpdated in changelog.json response",
-        "serve changelog.json from frontend/public/ (source of truth)",
-        "serve /changelog.json as static route",
-        "add lastUpdated field to changelog.json and update script",
-        "restore lastUpdated footer and dynamic changelog in Layout",
-        "convert update-changelog.js to ES module syntax"
-      ]
-    },
-    {
-      "version": "1.0.9",
-      "date": "2026-03-25",
-      "changes": [
-        "filter changelog to only user-relevant commits, strip prefixes",
-        "copy frontend/public/changelog.json into Docker production image",
-        "read and write changelog.json from same file (frontend/public/)",
-        "use file mtime as lastUpdated in changelog.json response",
-        "serve changelog.json from frontend/public/ (source of truth)",
-        "serve /changelog.json as static route",
-        "add lastUpdated field to changelog.json and update script",
-        "restore lastUpdated footer and dynamic changelog in Layout",
-        "convert update-changelog.js to ES module syntax",
-        "mobile UI improvements + auto-changelog workflow"
-      ]
-    },
-    {
-      "version": "1.0.8",
-      "date": "2026-03-25",
-      "changes": [
-        "fix: copy frontend/public/changelog.json into Docker production image",
-        "fix: read and write changelog.json from same file (frontend/public/)",
-        "feat: use file mtime as lastUpdated in changelog.json response",
-        "fix: serve changelog.json from frontend/public/ (source of truth)",
-        "fix: serve /changelog.json as static route",
-        "fix: add lastUpdated field to changelog.json and update script",
-        "fix: restore lastUpdated footer and dynamic changelog in Layout",
-        "fix: convert update-changelog.js to ES module syntax",
-        "chore: npm audit fix – flatted Schwachstelle behoben",
-        "feat: mobile UI improvements + auto-changelog workflow"
-      ]
-    },
-    {
-      "version": "1.0.7",
-      "date": "2026-03-25",
-      "changes": [
-        "fix: read and write changelog.json from same file (frontend/public/)",
-        "feat: use file mtime as lastUpdated in changelog.json response",
-        "fix: serve changelog.json from frontend/public/ (source of truth)",
-        "fix: serve /changelog.json as static route",
-        "fix: add lastUpdated field to changelog.json and update script",
-        "fix: restore lastUpdated footer and dynamic changelog in Layout",
-        "fix: convert update-changelog.js to ES module syntax",
-        "chore: npm audit fix – flatted Schwachstelle behoben",
-        "feat: mobile UI improvements + auto-changelog workflow",
-        "docs: clean up and improve README"
-      ]
-    },
-    {
-      "version": "1.0.6",
-      "date": "2026-03-25",
-      "changes": [
-        "feat: use file mtime as lastUpdated in changelog.json response",
-        "fix: serve changelog.json from frontend/public/ (source of truth)",
-        "fix: serve /changelog.json as static route",
-        "fix: add lastUpdated field to changelog.json and update script",
-        "fix: restore lastUpdated footer and dynamic changelog in Layout",
-        "fix: convert update-changelog.js to ES module syntax",
-        "chore: npm audit fix – flatted Schwachstelle behoben",
-        "feat: mobile UI improvements + auto-changelog workflow",
-        "docs: clean up and improve README",
-        "docs: add fork comparison table to README"
+        "Changelog & \"Zuletzt aktualisiert\" in der Fußzeile"
       ]
     },
     {
       "version": "1.0.1",
       "date": "2026-03-25",
       "changes": [
-        "fix: convert update-changelog.js to ES module syntax",
-        "chore: npm audit fix – flatted Schwachstelle behoben",
-        "feat: mobile UI improvements + auto-changelog workflow",
-        "docs: clean up and improve README",
-        "docs: add fork comparison table to README",
-        "docs: update roadmap and fix lucide-react icons",
-        "chore: update package-lock.json",
-        "chore: complete dependency updates",
-        "chore: update dependencies to latest versions",
-        "fix: include public/index.html in Docker build"
+        "Mobile UI verbessert",
+        "Auto-Changelog bei jedem Release"
       ]
     },
     {
       "version": "1.0.0",
       "date": "2026-03-25",
       "changes": [
-        "Initial release"
+        "Erstes Release – React-Frontend, Rezeptextraktion, BYOK, Docker-Deployment"
       ]
     }
   ]
