@@ -2,8 +2,8 @@
 // Bumps patch version, updates CHANGELOG.md and public/changelog.json
 // Runs in GitHub Actions on push to main
 
-const fs = require('fs')
-const { execSync } = require('child_process')
+import fs from 'fs'
+import { execSync } from 'child_process'
 
 // --- Version bump ---
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
