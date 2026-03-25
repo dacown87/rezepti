@@ -26,15 +26,24 @@ const rawCommits = execSync('git log --no-merges --pretty=format:"%s" -50')
   )
   .slice(0, 10)
 
-// Skip if no user-relevant changes
-if (rawCommits.length === 0) {
-  console.log('⏭ No user-relevant changes — skipping version bump')
-  process.exit(0)
-}
-
 const now = new Date()
 const date = now.toISOString().split('T')[0]
 const time = now.toISOString().split('T')[1].slice(0, 5) // HH:MM UTC
+
+// --- Always update lastUpdated in changelog.json (shown in footer) ---
+const changelogJsonPath = 'frontend/public/changelog.json'
+let data = { version: pkg.version, lastUpdated: { date, time }, entries: [] }
+if (existsSync(changelogJsonPath)) {
+  try { data = JSON.parse(readFileSync(changelogJsonPath, 'utf8')) } catch {}
+}
+data.lastUpdated = { date, time }
+
+if (rawCommits.length === 0) {
+  // No user-relevant changes — only update timestamp, skip version bump
+  writeFileSync(changelogJsonPath, JSON.stringify(data, null, 2) + '\n')
+  console.log('⏭ No user-relevant changes — only updated lastUpdated timestamp')
+  process.exit(0)
+}
 
 // --- Update CHANGELOG.md ---
 const newSection =
@@ -49,12 +58,7 @@ let changelog = existsSync('CHANGELOG.md')
 changelog = changelog.replace(/^(# Changelog\n+)/, `$1${newSection}\n`)
 writeFileSync('CHANGELOG.md', changelog)
 
-// --- Update public/changelog.json ---
-const changelogJsonPath = 'frontend/public/changelog.json'
-let data = { version: newVersion, entries: [] }
-if (existsSync(changelogJsonPath)) {
-  try { data = JSON.parse(readFileSync(changelogJsonPath, 'utf8')) } catch {}
-}
+// --- Update changelog.json with new version entry ---
 data.version = newVersion
 data.entries = [{ version: newVersion, date, time, changes: rawCommits }, ...data.entries].slice(0, 30)
 writeFileSync(changelogJsonPath, JSON.stringify(data, null, 2) + '\n')

@@ -13,6 +13,11 @@ interface ChangelogEntry {
   changes: string[]
 }
 
+interface LastUpdated {
+  date: string
+  time: string
+}
+
 const navItems = [
   { path: '/', label: 'Rezepte', icon: <Home size={20} /> },
   { path: '/extract', label: 'Extrahiere', icon: <PlusCircle size={20} /> },
@@ -24,6 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [showChangelog, setShowChangelog] = useState(false)
   const [entries, setEntries] = useState<ChangelogEntry[]>([])
   const [currentVersion, setCurrentVersion] = useState('')
+  const [lastUpdated, setLastUpdated] = useState<LastUpdated | null>(null)
 
   const close = useCallback(() => setShowChangelog(false), [])
 
@@ -33,6 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       .then(data => {
         setCurrentVersion(data.version ?? '')
         setEntries(data.entries ?? [])
+        setLastUpdated(data.lastUpdated ?? null)
       })
       .catch(() => {})
   }, [])
@@ -93,10 +100,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="border-t border-warmgray/10 py-6 mt-12">
         <div className="container mx-auto px-4 text-center text-warmgray/50 text-xs tracking-wide space-y-1">
           <div>Rezepti — Rezepte aus dem Netz</div>
-          {currentVersion && entries[0] && (
+          {currentVersion && lastUpdated && (
             <div>
-              v{currentVersion} · Zuletzt aktualisiert: {entries[0].date}
-              {entries[0].time && ` um ${entries[0].time} Uhr`}
+              v{currentVersion} · Zuletzt aktualisiert: {lastUpdated.date} um {lastUpdated.time} Uhr
             </div>
           )}
         </div>
