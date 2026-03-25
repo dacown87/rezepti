@@ -65,6 +65,9 @@ export async function getJobStatus(jobId: string): Promise<JobStatus> {
   }
 }
 
+export async function pollJobStatus(jobId: string): Promise<JobStatus> {
+  return getJobStatus(jobId)
+}
 
 // BYOK Management
 export async function validateApiKey(key: string): Promise<ValidationResult> {

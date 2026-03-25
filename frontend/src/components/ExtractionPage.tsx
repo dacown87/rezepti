@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Play, Camera, Globe } from 'lucide-react'
-import { startExtraction, getJobStatus } from '../api/services.js'
+import { startExtraction, pollJobStatus } from '../api/services.js'
 import { useToast } from './ToastManager'
 
 const STAGES: Record<string, number> = {
@@ -40,7 +40,7 @@ const ExtractionPage: React.FC = () => {
 
     const interval = setInterval(async () => {
       try {
-        const status = await getJobStatus(jobId)
+        const status = await pollJobStatus(jobId)
         const p = status.progress ?? STAGES[status.stage ?? ''] ?? progress
         setProgress(p)
         if (status.stage) setStage(status.stage)
@@ -67,7 +67,7 @@ const ExtractionPage: React.FC = () => {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [jobId, addToast])
+  }, [jobId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

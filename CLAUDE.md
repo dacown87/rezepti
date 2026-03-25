@@ -34,8 +34,6 @@ Test suite: Vitest for unit/e2e tests.
 
 **Wichtig:** `./node_modules` nie als Volume mounten — `better-sqlite3` ist host-spezifisch kompiliert und inkompatibel mit Linux im Container.
 
-**Lock-File:** Nach jeder Änderung an `package.json` muss lokal `npm install` ausgeführt werden, damit `package-lock.json` synchron bleibt. Docker nutzt `npm ci`, das bei Abweichungen abbricht.
-
 **GitHub Secrets (einmalig im Repo setzen):**
 - `DOCKERHUB_USERNAME` = `dacown`
 - `DOCKERHUB_TOKEN` = Access Token von hub.docker.com → Account Settings → Personal access tokens
@@ -87,8 +85,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 - `ExtractionPage` — URL input, job polling, progress display
 - `RecipeList` — List/grid view toggle (default: list), persisted in localStorage
 - `RecipeDetail` — Single recipe view with inline edit mode, serving size scaler, source link
-- `SettingsPage` — BYOK key management, App Status with Roadmap modal + Changelog modal (fetches `/changelog.json` dynamically); localStorage read via `useState` initializer (no useEffect)
-- `RecipeList` — List/grid toggle; `EmptyState` is a standalone module-level component
+- `SettingsPage` — BYOK key management, App Status with Roadmap modal
 - `frontend/src/utils/scaling.ts` — `parseServingsNumber`, `scaleIngredient` for portion scaling
 
 ## External CLI Dependencies
@@ -129,20 +126,10 @@ Host github.com
 
 ## Working Notes (Claude)
 
-- **Active branch:** Work on feature branches, never commit directly to `main`. Current branch: `review`
+- **Active branch:** `feature/react-migration` — all commits go here, never directly to `main`
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
 - **After frontend changes:** Always run `npm run build:react` to update `public/`
-- **Changelog automation:** GitHub Actions (`.github/workflows/changelog-update.yml`) bumps patch version and updates `CHANGELOG.md` + `frontend/public/changelog.json` on every push to `main`. Commits with `[skip ci]` are skipped to avoid infinite loops.
-  - Workflow nutzt Node.js 24 + `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`
-  - Push-Schritt muss `git push origin HEAD:main` lauten (nicht nur `git push`) — sonst schlägt der CI-Push fehl
-  - `changelog.json` enthält pro Eintrag `date` + `time` (HH:MM UTC) sowie ein Top-Level-Feld `lastUpdated: { date, time }`, das bei **jedem** Push aktualisiert wird
-  - Changelog-Einträge und Versionsbump erfolgen nur bei `feat:` / `fix:` Commits — `chore:`, `docs:`, `test:`, `ci:`, `refactor:`, `style:`, `build:` werden gefiltert
-  - Gibt es keine nutzerrelevanten Commits, wird nur `lastUpdated` aktualisiert (kein Versionsbump)
-  - `.github/scripts/update-changelog.js` muss ESM-Syntax (`import`) verwenden — `package.json` hat `"type": "module"`, daher schlägt `require()` in CI fehl
-  - Server-Route `/changelog.json` muss in `src/index.ts` explizit registriert sein — wird nicht automatisch durch den Static-File-Handler abgedeckt
-- **Changelog in Layout.tsx:** Fetches `/changelog.json` eagerly on mount (for footer). Footer reads `lastUpdated` field (always current); modal shows filtered `entries`. Supports Escape key + backdrop click to close.
-- **`pollJobStatus` entfernt:** `ExtractionPage.tsx` ruft jetzt direkt `getJobStatus` auf und steuert das Polling selbst via `setInterval`.
 
 ## Cleanup (March 2026) ✅
 
@@ -176,7 +163,7 @@ Planned features and current implementation status (as of March 2026):
 - Adjustable serving size + scaling: 80% ✅ — ×0.5–×4 stepper with ingredient quantity scaling
 - Fix one ingredient as quantity → scale the rest: 0%
 - Fullscreen cook mode: 0%
-- Original recipe link: 100% ✅ — "Zum Original" button in Quelle section at bottom of RecipeDetail (not in action area)
+- Original recipe link: 100% ✅ — prominent button in action area + source box at bottom
 - Recipe as separate page (not modal): 100% ✅ — implemented via /recipe/:id route
 - Recipe inline editing: 100% ✅ — name, emoji, tags, duration, calories, ingredients, steps editable in-place; saves via PATCH /api/v1/recipes/:id
 

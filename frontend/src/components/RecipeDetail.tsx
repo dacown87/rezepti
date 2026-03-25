@@ -272,7 +272,7 @@ const RecipeDetail: React.FC = () => {
                 <button
                   onClick={() => setServingMultiplier(m => Math.max(0.5, m - 0.5))}
                   disabled={servingMultiplier <= 0.5}
-                  className="w-7 h-7 bg-paprika text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  className="w-4 h-4 bg-paprika text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   −
                 </button>
@@ -282,7 +282,7 @@ const RecipeDetail: React.FC = () => {
                 <button
                   onClick={() => setServingMultiplier(m => Math.min(4, m + 0.5))}
                   disabled={servingMultiplier >= 4}
-                  className="w-7 h-7 bg-paprika text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  className="w-4 h-4 bg-paprika text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   +
                 </button>

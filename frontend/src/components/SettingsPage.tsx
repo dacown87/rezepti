@@ -190,7 +190,7 @@ const RoadmapModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 )
 
 const SettingsPage: React.FC = () => {
-  const [userKey, setUserKey] = useState(() => localStorage.getItem('rezepti_groq_key') ?? '')
+  const [userKey, setUserKey] = useState('')
   const [showRoadmap, setShowRoadmap] = useState(false)
   const [showChangelog, setShowChangelog] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
@@ -204,8 +204,17 @@ const SettingsPage: React.FC = () => {
       reset: string
     }
   } | null>(null)
-  const [savedKey, setSavedKey] = useState<string | null>(() => localStorage.getItem('rezepti_groq_key'))
+  const [savedKey, setSavedKey] = useState<string | null>(null)
   const { addToast } = useToast()
+
+  // Load saved key on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('rezepti_groq_key')
+    if (saved) {
+      setSavedKey(saved)
+      setUserKey(saved)
+    }
+  }, [])
 
   const handleSaveKey = async () => {
     if (!userKey.trim()) return
