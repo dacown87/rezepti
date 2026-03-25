@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.10] – 2026-03-25
+
+- add error details panel with copy button on extraction failure
+- filter changelog to only user-relevant commits, strip prefixes
+- copy frontend/public/changelog.json into Docker production image
+- read and write changelog.json from same file (frontend/public/)
+- use file mtime as lastUpdated in changelog.json response
+- serve changelog.json from frontend/public/ (source of truth)
+- serve /changelog.json as static route
+- add lastUpdated field to changelog.json and update script
+- restore lastUpdated footer and dynamic changelog in Layout
+- convert update-changelog.js to ES module syntax
+
 ## [1.0.9] – 2026-03-25
 
 - filter changelog to only user-relevant commits, strip prefixes
