@@ -254,12 +254,24 @@ const RecipeDetail: React.FC = () => {
                   <span className="text-4xl">{recipe.emoji}</span>
                   <h1 className="text-3xl md:text-4xl font-display font-bold">{recipe.name}</h1>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {recipe.tags.map((tag) => (
                     <span key={tag} className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
                       {tag}
                     </span>
                   ))}
+                  {rating && (
+                    <div className="flex items-center space-x-0.5 ml-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          size={14}
+                          className={s <= rating ? 'text-saffron' : 'text-white/20'}
+                          fill={s <= rating ? 'currentColor' : 'none'}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}

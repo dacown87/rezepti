@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List } from 'lucide-react'
+import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getRecipes } from '../api/services.js'
 import { parseServingsNumber } from '../utils/scaling.js'
@@ -127,12 +127,24 @@ const RecipeList: React.FC = () => {
                   <p className="font-display font-bold text-base truncate group-hover:text-paprika transition-colors">
                     {recipe.name}
                   </p>
-                  <div className="flex flex-wrap gap-1 mt-1">
+                  <div className="flex flex-wrap items-center gap-1 mt-1">
                     {recipe.tags?.slice(0, 3).map((tag) => (
                       <span key={tag} className="px-2 py-0.5 bg-paprika/10 text-paprika text-xs rounded-full">
                         {tag}
                       </span>
                     ))}
+                    {recipe.rating && (
+                      <div className="flex items-center space-x-0.5 ml-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            size={11}
+                            className={s <= recipe.rating! ? 'text-saffron' : 'text-warmgray/20'}
+                            fill={s <= recipe.rating! ? 'currentColor' : 'none'}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="hidden sm:flex items-center space-x-5 ml-4 flex-shrink-0 text-warmgray text-sm">
@@ -179,7 +191,21 @@ const RecipeList: React.FC = () => {
                     <div className="flex items-center space-x-3">
                       <span className="text-3xl">{recipe.emoji}</span>
                       <div>
-                        <h3 className="font-display font-bold text-xl">{recipe.name}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display font-bold text-xl">{recipe.name}</h3>
+                          {recipe.rating && (
+                            <div className="flex items-center space-x-0.5">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star
+                                  key={s}
+                                  size={13}
+                                  className={s <= recipe.rating! ? 'text-saffron' : 'text-warmgray/20'}
+                                  fill={s <= recipe.rating! ? 'currentColor' : 'none'}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         <div className="flex flex-wrap gap-2 mt-2">
                           {recipe.tags?.map((tag) => (
                             <span key={tag} className="px-2 py-1 bg-paprika/10 text-paprika text-xs rounded-full">
