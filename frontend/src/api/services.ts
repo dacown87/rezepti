@@ -46,6 +46,15 @@ export async function deleteRecipe(id: number): Promise<{ success: boolean }> {
   }
 }
 
+export async function saveRecipe(recipe: Partial<Recipe>, sourceUrl: string): Promise<{ id: number }> {
+  try {
+    return await apiPost<{ id: number }>('/api/v1/recipes', { recipe, sourceUrl })
+  } catch (error) {
+    console.error('Failed to save recipe:', error)
+    throw error
+  }
+}
+
 // Extraction Jobs
 export async function startPhotoExtraction(file: File): Promise<string> {
   const formData = new FormData()
@@ -210,6 +219,56 @@ export async function matchDictionary(name: string): Promise<{ match: Dictionary
     return await apiGet<{ match: DictionaryEntry | null }>(`/api/v1/dictionary/match?name=${encodeURIComponent(name)}`)
   } catch (error) {
     console.error('Failed to match dictionary:', error)
+    throw error
+  }
+}
+
+// Meal Plan (Phase 5)
+export interface MealPlanEntry {
+  id: number
+  recipe_id: number
+  day_of_week: number
+  week_start: number
+  created_at: string
+}
+
+export async function getMealPlan(weekStart?: number): Promise<{ entries: MealPlanEntry[]; weekStart: number }> {
+  try {
+    const url = weekStart ? `/api/v1/planner?week=${weekStart}` : '/api/v1/planner'
+    return await apiGet<{ entries: MealPlanEntry[]; weekStart: number }>(url)
+  } catch (error) {
+    console.error('Failed to fetch meal plan:', error)
+    throw error
+  }
+}
+
+export async function addToMealPlan(recipeId: number, dayOfWeek: number, weekStart: number): Promise<{ success: boolean; id: number }> {
+  try {
+    return await apiPost<{ success: boolean; id: number }>('/api/v1/planner', {
+      recipeId,
+      dayOfWeek,
+      weekStart,
+    })
+  } catch (error) {
+    console.error('Failed to add to meal plan:', error)
+    throw error
+  }
+}
+
+export async function removeFromMealPlan(id: number): Promise<{ success: boolean }> {
+  try {
+    return await apiDelete<{ success: boolean }>(`/api/v1/planner/${id}`)
+  } catch (error) {
+    console.error('Failed to remove from meal plan:', error)
+    throw error
+  }
+}
+
+export async function clearMealPlan(weekStart: number): Promise<{ success: boolean }> {
+  try {
+    return await apiDelete<{ success: boolean }>(`/api/v1/planner/week/${weekStart}`)
+  } catch (error) {
+    console.error('Failed to clear meal plan:', error)
     throw error
   }
 }

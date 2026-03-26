@@ -22,6 +22,10 @@ import {
   getAllDictionaryEntries,
   addToDictionary,
   findCanonicalBySimilarity,
+  getMealPlanForWeek,
+  addRecipeToMealPlan,
+  removeRecipeFromMealPlan,
+  clearMealPlanForWeek,
 } from "./db-react.js";
 import { jobManager } from "./job-manager.js";
 import { BYOKValidator } from "./byok-validator.js";
@@ -501,6 +505,74 @@ app.get("/api/v1/dictionary/match", (c) => {
   } catch (error) {
     console.error("Error matching dictionary:", error);
     return c.json({ error: "Failed to match" }, 500);
+  }
+});
+
+// Meal Plan API (Phase 5)
+app.get("/api/v1/planner", (c) => {
+  try {
+    const queryWeek = c.req.query("week");
+    let weekStart: number;
+    
+    if (queryWeek) {
+      weekStart = parseInt(queryWeek);
+    } else {
+      const now = new Date();
+      const day = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+      monday.setHours(0, 0, 0, 0);
+      weekStart = Math.floor(monday.getTime() / 1000);
+    }
+    const entries = getMealPlanForWeek(weekStart);
+    return c.json({ entries, weekStart });
+  } catch (error) {
+    console.error("Error fetching meal plan:", error);
+    return c.json({ error: "Failed to fetch meal plan" }, 500);
+  }
+});
+
+app.post("/api/v1/planner", async (c) => {
+  try {
+    const { recipeId, dayOfWeek, weekStart } = await c.req.json();
+    
+    if (!recipeId || dayOfWeek === undefined || !weekStart) {
+      return c.json({ error: "recipeId, dayOfWeek, and weekStart are required" }, 400);
+    }
+    
+    const result = addRecipeToMealPlan(recipeId, dayOfWeek, weekStart);
+    return c.json({ success: true, id: result.id }, 201);
+  } catch (error) {
+    console.error("Error adding to meal plan:", error);
+    return c.json({ error: "Failed to add to meal plan" }, 500);
+  }
+});
+
+app.delete("/api/v1/planner/:id", (c) => {
+  try {
+    const id = parseInt(c.req.param("id"), 10);
+    if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+    
+    const removed = removeRecipeFromMealPlan(id);
+    if (!removed) return c.json({ error: "Not found" }, 404);
+    
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Error removing from meal plan:", error);
+    return c.json({ error: "Failed to remove" }, 500);
+  }
+});
+
+app.delete("/api/v1/planner/week/:weekStart", (c) => {
+  try {
+    const weekStart = parseInt(c.req.param("weekStart"), 10);
+    if (isNaN(weekStart)) return c.json({ error: "Invalid weekStart" }, 400);
+    
+    clearMealPlanForWeek(weekStart);
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Error clearing meal plan:", error);
+    return c.json({ error: "Failed to clear" }, 500);
   }
 });
 

@@ -1,10 +1,10 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, lt } from "drizzle-orm";
 import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { config } from "./config.js";
-import { recipes, ingredientDictionary, shoppingList } from "./schema.js";
+import { recipes, ingredientDictionary, shoppingList, mealPlan } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
 
@@ -23,7 +23,7 @@ function openReactDb() {
   }
   const sqlite = new Database(resolvedPath);
   sqlite.pragma("journal_mode = WAL");
-  return drizzle(sqlite, { schema: { recipes, ingredientDictionary, shoppingList } });
+  return drizzle(sqlite, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan } });
 }
 
 // Lazy singleton for React database
@@ -76,6 +76,14 @@ export function ensureReactSchema() {
     quantity TEXT,
     unit TEXT,
     checked INTEGER DEFAULT 0,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  )`); } catch {}
+  // Migration: meal_plan (Phase 5)
+  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS meal_plan (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipe_id INTEGER NOT NULL,
+    day_of_week INTEGER NOT NULL,
+    week_start INTEGER NOT NULL,
     created_at INTEGER DEFAULT (strftime('%s', 'now'))
   )`); } catch {}
   // Migration: fix rows where created_at is NULL or stored as text (e.g. "2026-03-25 13:54:00")
@@ -273,4 +281,31 @@ export function clearCheckedItems() {
 export function clearAllShoppingItems() {
   const db = getReactDb();
   db.delete(shoppingList).run();
+}
+
+// ============ Meal Plan CRUD ============
+
+export function getMealPlanForWeek(weekStart: number) {
+  const db = getReactDb();
+  return db.select().from(mealPlan).where(eq(mealPlan.weekStart, weekStart)).all();
+}
+
+export function addRecipeToMealPlan(recipeId: number, dayOfWeek: number, weekStart: number) {
+  const db = getReactDb();
+  return db.insert(mealPlan).values({
+    recipeId,
+    dayOfWeek,
+    weekStart,
+  }).returning({ id: mealPlan.id }).get();
+}
+
+export function removeRecipeFromMealPlan(id: number) {
+  const db = getReactDb();
+  const result = db.delete(mealPlan).where(eq(mealPlan.id, id)).returning({ id: mealPlan.id }).get();
+  return !!result;
+}
+
+export function clearMealPlanForWeek(weekStart: number) {
+  const db = getReactDb();
+  db.delete(mealPlan).where(eq(mealPlan.weekStart, weekStart)).run();
 }

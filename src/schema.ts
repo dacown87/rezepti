@@ -38,9 +38,20 @@ export const shoppingList = sqliteTable("shopping_list", {
                .default(sql`(strftime('%s', 'now'))`),
 });
 
+export const mealPlan = sqliteTable("meal_plan", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  recipeId: integer("recipe_id").notNull(),
+  dayOfWeek: integer("day_of_week").notNull(), // 0=Montag, 6=Sonntag
+  weekStart: integer("week_start").notNull(), // ISO-Wochenstart (Montag) als Unix-Timestamp
+  createdAt: integer("created_at", { mode: "timestamp" })
+               .default(sql`(strftime('%s', 'now'))`),
+});
+
 export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type IngredientDictionaryEntry = typeof ingredientDictionary.$inferSelect;
 export type NewIngredientDictionaryEntry = typeof ingredientDictionary.$inferInsert;
 export type ShoppingListItem = typeof shoppingList.$inferSelect;
 export type NewShoppingListItem = typeof shoppingList.$inferInsert;
+export type MealPlanEntry = typeof mealPlan.$inferSelect;
+export type NewMealPlanEntry = typeof mealPlan.$inferInsert;

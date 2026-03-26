@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import type { Recipe } from '../api/types.js'
+import { encodeRecipeToCompactJSON } from './recipe-qr.js'
 
 export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
   const doc = new jsPDF({
@@ -128,11 +129,14 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
   }
 
   // QR Code on last page
-  if (recipe.source_url) {
-    y = doc.internal.pageSize.getHeight() - 40
-    
+  y = doc.internal.pageSize.getHeight() - 50
+  
+  // Try to generate offline recipe QR (compact JSON, max 2KB)
+  const offlineQR = encodeRecipeToCompactJSON(recipe)
+  
+  if (offlineQR) {
     try {
-      const qrDataUrl = await QRCode.toDataURL(recipe.source_url, {
+      const qrDataUrl = await QRCode.toDataURL(offlineQR, {
         width: 80,
         margin: 1,
       })
@@ -140,9 +144,26 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
       
       doc.setFontSize(8)
       doc.setTextColor(100)
-      doc.text('QR-Code zur Original-Rezeptseite', margin, y + 32)
+      doc.text('QR-Code: Rezept scannen → in App importieren', margin, y + 32)
     } catch (err) {
-      console.error('QR generation failed:', err)
+      console.error('Offline QR generation failed:', err)
+    }
+  } else {
+    // Recipe too large for offline QR, show URL QR instead
+    if (recipe.source_url) {
+      try {
+        const qrDataUrl = await QRCode.toDataURL(recipe.source_url, {
+          width: 80,
+          margin: 1,
+        })
+        doc.addImage(qrDataUrl, 'PNG', margin, y, 30, 30)
+        
+        doc.setFontSize(8)
+        doc.setTextColor(100)
+        doc.text('QR-Code zur Original-Rezeptseite', margin, y + 32)
+      } catch (err) {
+        console.error('QR generation failed:', err)
+      }
     }
   }
 
