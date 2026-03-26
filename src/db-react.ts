@@ -4,8 +4,9 @@ import { eq } from "drizzle-orm";
 import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { config } from "./config.js";
-import { recipes } from "./schema.js";
+import { recipes, ingredientDictionary, shoppingList } from "./schema.js";
 import type { RecipeData } from "./types.js";
+import { isSimilar } from "./ingredient-dictionary.js";
 
 /**
  * React-specific database connection
@@ -22,7 +23,7 @@ function openReactDb() {
   }
   const sqlite = new Database(resolvedPath);
   sqlite.pragma("journal_mode = WAL");
-  return drizzle(sqlite, { schema: { recipes } });
+  return drizzle(sqlite, { schema: { recipes, ingredientDictionary, shoppingList } });
 }
 
 // Lazy singleton for React database
@@ -61,6 +62,22 @@ export function ensureReactSchema() {
   // Migration: rating + notes (Phase 3a)
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN rating INTEGER`); } catch {}
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN notes TEXT`); } catch {}
+  // Migration: ingredient_dictionary (Phase 3c)
+  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS ingredient_dictionary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_name TEXT NOT NULL UNIQUE,
+    aliases TEXT
+  )`); } catch {}
+  // Migration: shopping_list (Phase 3c)
+  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS shopping_list (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipe_id INTEGER,
+    canonical_name TEXT NOT NULL,
+    quantity TEXT,
+    unit TEXT,
+    checked INTEGER DEFAULT 0,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  )`); } catch {}
   // Migration: fix rows where created_at is NULL or stored as text (e.g. "2026-03-25 13:54:00")
   db.$client.exec(`UPDATE recipes SET created_at = strftime('%s', 'now') WHERE created_at IS NULL OR typeof(created_at) = 'text'`);
 }
@@ -158,4 +175,78 @@ function deserialize(row: typeof recipes.$inferSelect) {
     ingredients: JSON.parse(row.ingredients) as string[],
     steps:       JSON.parse(row.steps) as string[],
   };
+}
+
+// ============ Ingredient Dictionary CRUD ============
+
+export function getAllDictionaryEntries() {
+  const db = getReactDb();
+  return db.select().from(ingredientDictionary).all();
+}
+
+export function addToDictionary(canonicalName: string, aliases: string[] = []) {
+  const db = getReactDb();
+  return db.insert(ingredientDictionary).values({
+    canonicalName,
+    aliases: JSON.stringify(aliases),
+  }).returning({ id: ingredientDictionary.id }).get();
+}
+
+export function findCanonicalBySimilarity(name: string): typeof ingredientDictionary.$inferSelect | null {
+  const db = getReactDb();
+  const entries = db.select().from(ingredientDictionary).all();
+  
+  for (const entry of entries) {
+    const aliases = JSON.parse(entry.aliases ?? "[]") as string[];
+    const allNames = [entry.canonicalName, ...aliases];
+    
+    for (const knownName of allNames) {
+      if (isSimilar(name, knownName)) {
+        return entry;
+      }
+    }
+  }
+  return null;
+}
+
+// ============ Shopping List CRUD ============
+
+export function getShoppingList() {
+  const db = getReactDb();
+  return db.select().from(shoppingList).orderBy(shoppingList.createdAt).all();
+}
+
+export function addToShoppingList(recipeId: number | null, canonicalName: string, quantity?: string, unit?: string) {
+  const db = getReactDb();
+  return db.insert(shoppingList).values({
+    recipeId,
+    canonicalName,
+    quantity,
+    unit,
+  }).returning({ id: shoppingList.id }).get();
+}
+
+export function toggleShoppingItem(id: number) {
+  const db = getReactDb();
+  const item = db.select().from(shoppingList).where(eq(shoppingList.id, id)).get();
+  if (!item) return false;
+  
+  db.update(shoppingList).set({ checked: !item.checked }).where(eq(shoppingList.id, id)).run();
+  return true;
+}
+
+export function deleteShoppingItem(id: number) {
+  const db = getReactDb();
+  const result = db.delete(shoppingList).where(eq(shoppingList.id, id)).returning({ id: shoppingList.id }).get();
+  return !!result;
+}
+
+export function clearCheckedItems() {
+  const db = getReactDb();
+  db.delete(shoppingList).where(eq(shoppingList.checked, true)).run();
+}
+
+export function clearAllShoppingItems() {
+  const db = getReactDb();
+  db.delete(shoppingList).run();
 }

@@ -63,3 +63,19 @@ export interface KeyResponse {
   error?: string
   keySaved?: boolean
 }
+
+export interface ShoppingItem {
+  id: number
+  recipe_id: number | null
+  canonical_name: string
+  quantity?: string
+  unit?: string
+  checked: boolean
+  created_at: string
+}
+
+export interface DictionaryEntry {
+  id: number
+  canonical_name: string
+  aliases: string[]
+}

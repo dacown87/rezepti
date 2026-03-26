@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Settings, Home, PlusCircle, BookOpen } from 'lucide-react'
+import { Settings, Home, PlusCircle, BookOpen, ShoppingCart } from 'lucide-react'
 import ChangelogModal from './ChangelogModal.js'
 
 interface LayoutProps {
@@ -15,6 +15,7 @@ interface LastUpdated {
 const navItems = [
   { path: '/', label: 'Rezepte', icon: <Home size={20} /> },
   { path: '/extract', label: 'Extrahiere', icon: <PlusCircle size={20} /> },
+  { path: '/shopping', label: 'Einkauf', icon: <ShoppingCart size={20} /> },
   { path: '/settings', label: 'Einstellungen', icon: <Settings size={20} /> },
 ]
 

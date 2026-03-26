@@ -3,7 +3,7 @@
  */
 
 import { apiGet, apiPost, apiPatch, apiDelete } from './client.js'
-import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse } from './types.js'
+import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse, ShoppingItem, DictionaryEntry } from './types.js'
 
 // Recipes
 export async function getRecipes(): Promise<Recipe[]> {
@@ -115,6 +115,97 @@ export async function checkHealth(): Promise<HealthStatus> {
     return await apiGet<HealthStatus>('/api/v1/health')
   } catch (error) {
     console.error('Failed to check health:', error)
+    throw error
+  }
+}
+
+// Shopping List (Phase 3c)
+export async function getShoppingList(): Promise<{ items: ShoppingItem[] }> {
+  try {
+    return await apiGet<{ items: ShoppingItem[] }>('/api/v1/shopping')
+  } catch (error) {
+    console.error('Failed to fetch shopping list:', error)
+    throw error
+  }
+}
+
+export async function addShoppingItem(recipeId: number | null, canonicalName: string, quantity?: string, unit?: string): Promise<{ success: boolean; id: number }> {
+  try {
+    return await apiPost<{ success: boolean; id: number }>('/api/v1/shopping', {
+      recipeId,
+      canonicalName,
+      quantity,
+      unit,
+    })
+  } catch (error) {
+    console.error('Failed to add shopping item:', error)
+    throw error
+  }
+}
+
+export async function toggleShoppingItem(id: number): Promise<{ success: boolean }> {
+  try {
+    return await apiPatch<{ success: boolean }>(`/api/v1/shopping/${id}`, {})
+  } catch (error) {
+    console.error(`Failed to toggle shopping item ${id}:`, error)
+    throw error
+  }
+}
+
+export async function deleteShoppingItem(id: number): Promise<{ success: boolean }> {
+  try {
+    return await apiDelete<{ success: boolean }>(`/api/v1/shopping/${id}`)
+  } catch (error) {
+    console.error(`Failed to delete shopping item ${id}:`, error)
+    throw error
+  }
+}
+
+export async function clearCheckedItems(): Promise<{ success: boolean }> {
+  try {
+    return await apiDelete<{ success: boolean }>('/api/v1/shopping/checked')
+  } catch (error) {
+    console.error('Failed to clear checked items:', error)
+    throw error
+  }
+}
+
+export async function clearAllShoppingItems(): Promise<{ success: boolean }> {
+  try {
+    return await apiDelete<{ success: boolean }>('/api/v1/shopping/all')
+  } catch (error) {
+    console.error('Failed to clear shopping list:', error)
+    throw error
+  }
+}
+
+// Ingredient Dictionary
+export async function getDictionaryEntries(): Promise<{ entries: DictionaryEntry[] }> {
+  try {
+    return await apiGet<{ entries: DictionaryEntry[] }>('/api/v1/dictionary')
+  } catch (error) {
+    console.error('Failed to fetch dictionary:', error)
+    throw error
+  }
+}
+
+export async function addDictionaryEntry(canonicalName: string, aliases: string[] = []): Promise<{ success: boolean; id: number }> {
+  try {
+    return await apiPost<{ success: boolean; id: number }>('/api/v1/dictionary', {
+      canonicalName,
+      aliases,
+    })
+  } catch (error) {
+    console.error('Failed to add dictionary entry:', error)
+    throw error
+  }
+}
+
+export async function matchDictionary(name: string): Promise<{ match: DictionaryEntry | null }> {
+  try {
+    return await apiGet<{ match: DictionaryEntry | null }>(`/api/v1/dictionary/match?name=${encodeURIComponent(name)}`)
+  } catch (error) {
+    console.error('Failed to match dictionary:', error)
     throw error
   }
 }

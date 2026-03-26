@@ -5,6 +5,7 @@ import ExtractionPage from './components/ExtractionPage'
 import SettingsPage from './components/SettingsPage'
 import RecipeDetail from './components/RecipeDetail'
 import CookMode from './components/CookMode'
+import ShoppingPage from './components/ShoppingPage'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/" element={<RecipeList />} />
             <Route path="/extract" element={<ExtractionPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/shopping" element={<ShoppingPage />} />
             <Route path="/recipe/:id" element={<RecipeDetail />} />
           </Routes>
         </Layout>

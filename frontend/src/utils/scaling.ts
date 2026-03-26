@@ -51,3 +51,26 @@ export function splitIngredient(ingredient: string): { num: string; rest: string
   if (!match) return null
   return { num: match[1], rest: match[2] }
 }
+
+const UNIT_RE = /\b(g|kg|ml|l|el|tl|tsp|tbsp|prise|stk|stück|pack|päckchen|dose|n)\b/i
+
+export function extractIngredientName(fullIngredient: string): string {
+  const split = splitIngredient(fullIngredient)
+
+  if (!split) {
+    return fullIngredient.trim()
+  }
+
+  const rest = split.rest.trim()
+
+  const unitMatch = rest.match(UNIT_RE)
+  if (unitMatch) {
+    const unitEnd = unitMatch.index! + unitMatch[0].length
+    const afterUnit = rest.slice(unitEnd).trim()
+    if (afterUnit) {
+      return afterUnit
+    }
+  }
+
+  return rest || fullIngredient.trim()
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed, Star } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed, Star, ShoppingCart } from 'lucide-react'
 import { getRecipe, deleteRecipe, updateRecipe } from '../api/services.js'
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber, splitIngredient } from '../utils/scaling.js'
 import type { Recipe } from '../api/types.js'
@@ -380,6 +380,23 @@ const RecipeDetail: React.FC = () => {
                 >
                   <UtensilsCrossed size={20} />
                   <span>Kochen</span>
+                </Link>
+                <Link
+                  to="/shopping"
+                  onClick={() => {
+                    const canonicalNames = recipe?.ingredients.map(i => {
+                      const match = i.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)?\s+(.*)/)
+                      return match ? match[3] || i : i
+                    }) || []
+                    localStorage.setItem('pendingShoppingItems', JSON.stringify({
+                      recipeId: recipe?.id,
+                      ingredients: canonicalNames
+                    }))
+                  }}
+                  className="flex-1 bg-saffron/20 text-saffron-dark py-3 px-6 rounded-lg font-medium hover:bg-saffron/30 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <ShoppingCart size={20} />
+                  <span>Einkauf</span>
                 </Link>
                 <button
                   onClick={handleEdit}
