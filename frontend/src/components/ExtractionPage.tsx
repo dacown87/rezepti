@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Play, Camera, Globe, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react'
 import { startExtraction, pollJobStatus } from '../api/services.js'
@@ -36,19 +36,25 @@ const ExtractionPage: React.FC = () => {
   const [progress, setProgress] = useState(0)
   const [stage, setStage] = useState<string | null>(null)
   const { addToast } = useToast()
+  const handledRef = useRef(false)
+  const urlRef = useRef(url)
+
+  useEffect(() => { urlRef.current = url }, [url])
 
   useEffect(() => {
     if (!jobId) return
-    if (progress >= 100) return
+    handledRef.current = false
 
     const interval = setInterval(async () => {
+      if (handledRef.current) return
       try {
         const status = await pollJobStatus(jobId)
-        const p = status.progress ?? STAGES[status.stage ?? ''] ?? progress
+        const p = status.progress ?? STAGES[status.stage ?? ''] ?? 0
         setProgress(p)
         if (status.stage) setStage(status.stage)
 
         if (status.status === 'completed') {
+          handledRef.current = true
           setSuccess(true)
           setProgress(100)
           setStage('done')
@@ -57,9 +63,10 @@ const ExtractionPage: React.FC = () => {
           addToast('Rezept erfolgreich extrahiert!', 'success')
           clearInterval(interval)
         } else if (status.status === 'failed') {
+          handledRef.current = true
           const msg = status.error || 'Extraktion fehlgeschlagen'
           setError(msg)
-          setErrorDetails({ url, jobId, time: new Date().toLocaleString('de-DE') })
+          setErrorDetails({ url: urlRef.current, jobId, time: new Date().toLocaleString('de-DE') })
           setIsLoading(false)
           setJobId(null)
           addToast(msg, 'error')
@@ -158,7 +165,7 @@ const ExtractionPage: React.FC = () => {
 
         {/* Subtitle */}
         <p className="animate-hero-rise delay-300 font-body text-warmgray text-lg max-w-md mx-auto mb-10 leading-relaxed">
-          Füge eine URL ein — Rezepti extrahiert das Rezept automatisch und übersetzt es ins Deutsche.
+          Füge eine URL ein — RecipeDeck extrahiert das Rezept automatisch und übersetzt es ins Deutsche.
         </p>
 
         {/* Form */}
@@ -225,12 +232,17 @@ const ExtractionPage: React.FC = () => {
             {isLoading && (
               <div className="mt-6 max-w-lg mx-auto">
                 <div className="flex justify-between items-center mb-2 text-sm text-warmgray">
-                  <span>{stage ? (STAGE_LABELS[stage] ?? stage) : 'Wird gestartet…'}</span>
+                  <span>
+                    {stage ? (STAGE_LABELS[stage] ?? stage) : 'Wird gestartet…'}
+                    {(stage === 'transcribing' || stage === 'analyzing_image' || stage === 'extracting') && (
+                      <span className="opacity-50"> — bitte warten</span>
+                    )}
+                  </span>
                   <span className="font-medium text-paprika">{progress}%</span>
                 </div>
                 <div className="h-2 bg-warmgray/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-paprika to-saffron rounded-full transition-all duration-700 ease-out"
+                    className="h-full bg-gradient-to-r from-paprika to-saffron rounded-full transition-all duration-700 ease-out progress-shimmer"
                     style={{ width: `${progress}%` }}
                   />
                 </div>

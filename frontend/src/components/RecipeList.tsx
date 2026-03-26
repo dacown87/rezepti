@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getRecipes } from '../api/services.js'
+import { parseServingsNumber } from '../utils/scaling.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeListSkeleton } from './SkeletonLoader'
@@ -200,7 +201,7 @@ const RecipeList: React.FC = () => {
                     <div className="text-center">
                       <div className="flex items-center justify-center space-x-1 text-warmgray mb-1">
                         <Users size={16} />
-                        <span className="text-sm font-medium">{recipe.servings}</span>
+                        <span className="text-sm font-medium">{parseServingsNumber(recipe.servings)}</span>
                       </div>
                       <div className="text-xs text-warmgray">Portionen</div>
                     </div>

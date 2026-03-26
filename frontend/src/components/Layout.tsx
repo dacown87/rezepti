@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChefHat, Settings, Home, PlusCircle, BookOpen } from 'lucide-react'
+import { Settings, Home, PlusCircle, BookOpen } from 'lucide-react'
 import ChangelogModal from './ChangelogModal.js'
 
 interface LayoutProps {
@@ -41,8 +41,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <ChefHat className="h-8 w-8 text-paprika" />
-              <h1 className="text-2xl font-display font-bold">Rezepti</h1>
+              <img src="/Logo.png" alt="RecipeDeck" className="h-8 w-8" />
+              <h1 className="hidden sm:block text-2xl font-display font-bold">RecipeDeck</h1>
             </div>
 
             <div className="flex items-center space-x-1">
@@ -82,7 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Footer */}
       <footer className="border-t border-warmgray/10 py-6 mt-12">
         <div className="container mx-auto px-4 text-center text-warmgray/50 text-xs tracking-wide space-y-1">
-          <div>Rezepti — Rezepte aus dem Netz</div>
+          <div>RecipeDeck — Rezepte aus dem Netz</div>
           {currentVersion && lastUpdated && (
             <div>
               v{currentVersion} · Zuletzt aktualisiert: {lastUpdated.date} um {lastUpdated.time} Uhr

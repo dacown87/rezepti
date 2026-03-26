@@ -265,27 +265,29 @@ const RecipeDetail: React.FC = () => {
                 <Users size={16} />
                 <span className="text-xs sm:text-sm">Portionen</span>
               </div>
-              <div className="font-bold text-espresso text-sm sm:text-base mb-2">
+              <div className="font-bold text-espresso text-sm sm:text-base mb-3">
                 {Math.round(parseServingsNumber(recipe.servings) * servingMultiplier)}
               </div>
-              <div className="flex items-center justify-center gap-1">
-                <button
-                  onClick={() => setServingMultiplier(m => Math.max(0.5, m - 0.5))}
-                  disabled={servingMultiplier <= 0.5}
-                  className="w-7 h-7 bg-paprika text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                >
-                  −
-                </button>
-                <span className="text-xs text-warmgray text-center whitespace-nowrap">
-                  ×{servingMultiplier}
-                </span>
-                <button
-                  onClick={() => setServingMultiplier(m => Math.min(4, m + 0.5))}
-                  disabled={servingMultiplier >= 4}
-                  className="w-7 h-7 bg-paprika text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                >
-                  +
-                </button>
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setServingMultiplier(m => Math.max(0.5, m - 0.5))}
+                    disabled={servingMultiplier <= 0.5}
+                    className="w-8 h-8 bg-paprika text-white rounded-full flex items-center justify-center text-base font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  >
+                    −
+                  </button>
+                  <button
+                    onClick={() => setServingMultiplier(m => Math.min(4, m + 0.5))}
+                    disabled={servingMultiplier >= 4}
+                    className="w-8 h-8 bg-paprika text-white rounded-full flex items-center justify-center text-base font-bold hover:bg-paprika-dark disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  >
+                    +
+                  </button>
+                </div>
+                {servingMultiplier !== 1 && (
+                  <span className="text-xs text-paprika font-medium">×{servingMultiplier}</span>
+                )}
               </div>
             </div>
 

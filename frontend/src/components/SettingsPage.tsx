@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Info, ScrollText } from 'lucide-react'
 import { validateApiKey, saveApiKey, clearApiKey } from '../api/services.js'
 import { useToast } from './ToastManager'
