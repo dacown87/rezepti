@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.19] – 2026-03-26
+
+- Phase 3b — photo import (camera/gallery → AI extraction)
+- show star rating in recipe detail header and list/grid views
+- Phase 3a — recipe rating (1–5 stars) + personal notes
+- cook mode responsive layout — sidebar on desktop, improved drawer on mobile
+- Phase 2 — PWA setup + Fullscreen Cook Mode
+- Phase 1 — polished core fixes
+
 ## [1.0.18] – 2026-03-25
 
 - remove performance-test references and add missing newline

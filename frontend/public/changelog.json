@@ -1,10 +1,22 @@
 {
-  "version": "1.0.18",
+  "version": "1.0.19",
   "lastUpdated": {
-    "date": "2026-03-25",
-    "time": "21:54"
+    "date": "2026-03-26",
+    "time": "12:49"
   },
   "entries": [
+    {
+      "version": "1.0.19",
+      "date": "2026-03-26",
+      "changes": [
+        "Phase 3b — photo import (camera/gallery → AI extraction)",
+        "show star rating in recipe detail header and list/grid views",
+        "Phase 3a — recipe rating (1–5 stars) + personal notes",
+        "cook mode responsive layout — sidebar on desktop, improved drawer on mobile",
+        "Phase 2 — PWA setup + Fullscreen Cook Mode",
+        "Phase 1 — polished core fixes"
+      ]
+    },
     {
       "version": "1.0.18",
       "date": "2026-03-25",
