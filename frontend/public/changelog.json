@@ -1,10 +1,17 @@
 {
-  "version": "1.0.20",
+  "version": "1.0.21",
   "lastUpdated": {
     "date": "2026-03-26",
-    "time": "12:56"
+    "time": "12:59"
   },
   "entries": [
+    {
+      "version": "1.0.21",
+      "date": "2026-03-26",
+      "changes": [
+        "copy .npmrc into all Dockerfile stages before npm ci"
+      ]
+    },
     {
       "version": "1.0.20",
       "date": "2026-03-26",
