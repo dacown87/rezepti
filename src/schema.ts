@@ -15,6 +15,8 @@ export const recipes = sqliteTable("recipes", {
   steps:       text("steps").notNull(),       // JSON-Array
   transcript:  text("transcript"),
   tried:       integer("tried", { mode: "boolean" }).default(false),
+  rating:      integer("rating"),   // 1–5 stars, null = unrated
+  notes:       text("notes"),       // personal notes
   created_at:  integer("created_at", { mode: "timestamp" })
                  .default(sql`(strftime('%s', 'now'))`),
 });

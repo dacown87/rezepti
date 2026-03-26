@@ -16,6 +16,8 @@ export interface Recipe {
   source_url: string
   created_at: string
   updated_at: string
+  rating?: number | null
+  notes?: string | null
 }
 
 export interface JobStatus {

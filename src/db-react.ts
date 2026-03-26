@@ -58,6 +58,9 @@ export function ensureReactSchema() {
   `);
   // Migration: add created_at column to older DBs that lack it
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN created_at INTEGER DEFAULT (strftime('%s', 'now'))`); } catch {}
+  // Migration: rating + notes (Phase 3a)
+  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN rating INTEGER`); } catch {}
+  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN notes TEXT`); } catch {}
   // Migration: fix rows where created_at is NULL or stored as text (e.g. "2026-03-25 13:54:00")
   db.$client.exec(`UPDATE recipes SET created_at = strftime('%s', 'now') WHERE created_at IS NULL OR typeof(created_at) = 'text'`);
 }
@@ -120,6 +123,8 @@ export function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): 
   if (fields.tags        !== undefined) values.tags        = JSON.stringify(fields.tags);
   if (fields.ingredients !== undefined) values.ingredients = JSON.stringify(fields.ingredients);
   if (fields.steps       !== undefined) values.steps       = JSON.stringify(fields.steps);
+  if ((fields as any).rating !== undefined) values.rating = (fields as any).rating;
+  if ((fields as any).notes  !== undefined) values.notes  = (fields as any).notes;
   if (Object.keys(values).length === 0) return false;
   const result = db.update(recipes).set(values).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();
   return !!result;
