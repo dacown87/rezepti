@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed } from 'lucide-react'
 import { getRecipe, deleteRecipe, updateRecipe } from '../api/services.js'
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber, splitIngredient } from '../utils/scaling.js'
 import type { Recipe } from '../api/types.js'
@@ -333,13 +333,22 @@ const RecipeDetail: React.FC = () => {
                 </button>
               </>
             ) : (
-              <button
-                onClick={handleEdit}
-                className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
-              >
-                <Edit size={20} />
-                <span>Rezept bearbeiten</span>
-              </button>
+              <>
+                <Link
+                  to={`/recipe/${id}/cook`}
+                  className="flex-1 bg-espresso text-cream py-3 px-6 rounded-lg font-medium hover:bg-espresso/80 transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
+                >
+                  <UtensilsCrossed size={20} />
+                  <span>Kochen</span>
+                </Link>
+                <button
+                  onClick={handleEdit}
+                  className="flex-1 bg-paprika text-white py-3 px-6 rounded-lg font-medium hover:bg-paprika-dark transition-colors flex items-center justify-center space-x-2 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-200 shadow-md hover:shadow-lg"
+                >
+                  <Edit size={20} />
+                  <span>Bearbeiten</span>
+                </button>
+              </>
             )}
           </div>
 
