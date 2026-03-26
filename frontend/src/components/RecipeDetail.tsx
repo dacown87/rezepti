@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed, Star, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed, Star, ShoppingCart, Download } from 'lucide-react'
 import { getRecipe, deleteRecipe, updateRecipe } from '../api/services.js'
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber, splitIngredient } from '../utils/scaling.js'
+import { generateRecipePDF, downloadPDF } from '../utils/pdf-export.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeDetailSkeleton } from './SkeletonLoader'
@@ -27,6 +28,7 @@ const RecipeDetail: React.FC = () => {
   const [rating, setRating] = useState<number | null>(null)
   const [notes, setNotes] = useState('')
   const [hoverRating, setHoverRating] = useState<number | null>(null)
+  const [isExportingPDF, setIsExportingPDF] = useState(false)
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { addToast } = useToast()
 
@@ -97,6 +99,22 @@ const RecipeDetail: React.FC = () => {
       steps: [...recipe.steps],
     })
     setIsEditing(true)
+  }
+
+  const handleExportPDF = async () => {
+    if (!recipe) return
+    setIsExportingPDF(true)
+    try {
+      const blob = await generateRecipePDF(recipe)
+      const filename = `${recipe.name.replace(/[^a-z0-9]/gi, '_')}.pdf`
+      downloadPDF(blob, filename)
+      addToast('PDF heruntergeladen', 'success')
+    } catch (error) {
+      console.error('PDF export failed:', error)
+      addToast('PDF konnte nicht erstellt werden', 'error')
+    } finally {
+      setIsExportingPDF(false)
+    }
   }
 
   const handleCancel = () => {
@@ -404,6 +422,14 @@ const RecipeDetail: React.FC = () => {
                 >
                   <Edit size={20} />
                   <span>Bearbeiten</span>
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  disabled={isExportingPDF}
+                  className="flex-1 bg-warmgray/10 text-warmgray py-3 px-6 rounded-lg font-medium hover:bg-warmgray/20 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                >
+                  {isExportingPDF ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
+                  <span>PDF</span>
                 </button>
               </>
             )}

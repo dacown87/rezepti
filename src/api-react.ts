@@ -12,6 +12,7 @@ import {
   updateRecipeInReactDb,
   deleteRecipeFromReactDb,
   getRecipeCount,
+  searchRecipesByIngredients,
   getShoppingList,
   addToShoppingList,
   toggleShoppingItem,
@@ -40,10 +41,18 @@ ensureReactSchema();
  * React API endpoints use /api/v1/ prefix
  */
 
-// List all recipes from React database
+// List all recipes from React database (with optional ingredient filter)
 app.get("/api/v1/recipes", (c) => {
   try {
-    const recipes = getAllRecipesFromReactDb();
+    const ingredientsParam = c.req.query("ingredients");
+    
+    let recipes;
+    if (ingredientsParam) {
+      const ingredients = ingredientsParam.split(",").map(i => i.trim()).filter(i => i);
+      recipes = searchRecipesByIngredients(ingredients);
+    } else {
+      recipes = getAllRecipesFromReactDb();
+    }
     return c.json(recipes);
   } catch (error) {
     console.error("Error fetching recipes from React DB:", error);

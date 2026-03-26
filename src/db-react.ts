@@ -117,6 +117,30 @@ export function getAllRecipesFromReactDb() {
 }
 
 /**
+ * Search recipes by ingredients (OR logic - matches any ingredient)
+ */
+export function searchRecipesByIngredients(ingredients: string[]): ReturnType<typeof getAllRecipesFromReactDb> {
+  const db = getReactDb();
+  const allRecipes = db.select().from(recipes).all().map(deserialize);
+  
+  if (ingredients.length === 0) return allRecipes;
+  
+  const searchTerms = ingredients.map(i => i.toLowerCase().trim());
+  
+  return allRecipes.filter(recipe => {
+    for (const ingredient of recipe.ingredients) {
+      const ingredientLower = ingredient.toLowerCase();
+      for (const term of searchTerms) {
+        if (ingredientLower.includes(term)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  });
+}
+
+/**
  * Get single recipe by ID from React database
  */
 export function getRecipeByIdFromReactDb(id: number) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star } from 'lucide-react'
+import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star, Search, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getRecipes } from '../api/services.js'
 import { parseServingsNumber } from '../utils/scaling.js'
@@ -17,6 +17,8 @@ const RecipeList: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(
     () => (localStorage.getItem('rezepti_view_mode') as ViewMode) ?? 'list'
   )
+  const [ingredientSearch, setIngredientSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const { addToast } = useToast()
 
   const switchView = (mode: ViewMode) => {
@@ -28,7 +30,7 @@ const RecipeList: React.FC = () => {
     fetchRecipes()
   }, [])
 
-  const fetchRecipes = async (showToast = false): Promise<void> => {
+  const fetchRecipes = async (showToast = false, ingredients?: string[]): Promise<void> => {
     if (!showToast) {
       setIsLoading(true)
     } else {
@@ -37,8 +39,9 @@ const RecipeList: React.FC = () => {
     setError(null)
     
     try {
-      const data = await getRecipes()
+      const data = await getRecipes(ingredients)
       setRecipes(data)
+      setIngredientSearch(ingredients ? ingredients.join(', ') : '')
       if (showToast && data.length > 0) {
         addToast(`${data.length} Rezepte geladen`, 'success')
       }
@@ -51,6 +54,16 @@ const RecipeList: React.FC = () => {
       setIsLoading(false)
       setIsRefreshing(false)
     }
+  }
+
+  const handleSearch = () => {
+    const terms = searchInput.split(',').map(t => t.trim()).filter(t => t)
+    fetchRecipes(false, terms.length > 0 ? terms : undefined)
+  }
+
+  const clearSearch = () => {
+    setSearchInput('')
+    fetchRecipes(false, undefined)
   }
 
   const emptyState = (colSpan: string) => (
@@ -74,6 +87,43 @@ const RecipeList: React.FC = () => {
   return (
     <div>
       <div className="mb-8">
+        {/* Ingredient search */}
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-warmgray/50" size={18} />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Ich habe: Eier, Butter, Mehl..."
+                className="w-full pl-10 pr-4 py-2 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika focus:border-transparent"
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              className="px-4 py-2 bg-paprika text-white rounded-lg hover:bg-paprika-dark transition-colors"
+            >
+              Suchen
+            </button>
+            {ingredientSearch && (
+              <button
+                onClick={clearSearch}
+                className="px-3 py-2 text-warmgray hover:text-paprika transition-colors"
+                title="Suche löschen"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          {ingredientSearch && (
+            <p className="text-sm text-warmgray mt-2">
+              Suche nach: <span className="font-medium text-paprika">{ingredientSearch}</span>
+            </p>
+          )}
+        </div>
+        
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-display font-bold mb-2">Deine Rezepte</h1>

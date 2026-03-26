@@ -6,9 +6,13 @@ import { apiGet, apiPost, apiPatch, apiDelete } from './client.js'
 import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse, ShoppingItem, DictionaryEntry } from './types.js'
 
 // Recipes
-export async function getRecipes(): Promise<Recipe[]> {
+export async function getRecipes(ingredients?: string[]): Promise<Recipe[]> {
   try {
-    return await apiGet<Recipe[]>('/api/v1/recipes')
+    let url = '/api/v1/recipes'
+    if (ingredients && ingredients.length > 0) {
+      url += `?ingredients=${encodeURIComponent(ingredients.join(','))}`
+    }
+    return await apiGet<Recipe[]>(url)
   } catch (error) {
     console.error('Failed to fetch recipes:', error)
     throw error
