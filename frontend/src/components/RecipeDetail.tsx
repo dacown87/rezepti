@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed, Star } from 'lucide-react'
 import { getRecipe, deleteRecipe, updateRecipe } from '../api/services.js'
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber, splitIngredient } from '../utils/scaling.js'
 import type { Recipe } from '../api/types.js'
@@ -24,6 +24,10 @@ const RecipeDetail: React.FC = () => {
   const [editingIngredientIndex, setEditingIngredientIndex] = useState<number | null>(null)
   const [editingValue, setEditingValue] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [rating, setRating] = useState<number | null>(null)
+  const [notes, setNotes] = useState('')
+  const [hoverRating, setHoverRating] = useState<number | null>(null)
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -35,15 +39,17 @@ const RecipeDetail: React.FC = () => {
   const fetchRecipe = async () => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const recipeId = parseInt(id || '0')
       if (isNaN(recipeId)) {
         throw new Error('Ungültige Rezept-ID')
       }
-      
+
       const data = await getRecipe(recipeId)
       setRecipe(data)
+      setRating(data.rating ?? null)
+      setNotes(data.notes ?? '')
     } catch (err: any) {
       console.error('Failed to load recipe:', err)
       const errorMsg = err.message || 'Rezept konnte nicht geladen werden'
@@ -122,6 +128,28 @@ const RecipeDetail: React.FC = () => {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleRating = async (stars: number) => {
+    const newRating = rating === stars ? null : stars
+    setRating(newRating)
+    try {
+      await updateRecipe(parseInt(id || '0'), { rating: newRating } as any)
+    } catch {
+      addToast('Bewertung konnte nicht gespeichert werden.', 'error')
+    }
+  }
+
+  const handleNotesChange = (value: string) => {
+    setNotes(value)
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
+    notesTimerRef.current = setTimeout(async () => {
+      try {
+        await updateRecipe(parseInt(id || '0'), { notes: value } as any)
+      } catch {
+        addToast('Notiz konnte nicht gespeichert werden.', 'error')
+      }
+    }, 800)
   }
 
   const handleIngredientConfirm = (index: number) => {
@@ -226,12 +254,24 @@ const RecipeDetail: React.FC = () => {
                   <span className="text-4xl">{recipe.emoji}</span>
                   <h1 className="text-3xl md:text-4xl font-display font-bold">{recipe.name}</h1>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {recipe.tags.map((tag) => (
                     <span key={tag} className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
                       {tag}
                     </span>
                   ))}
+                  {rating && (
+                    <div className="flex items-center space-x-0.5 ml-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          size={14}
+                          className={s <= rating ? 'text-saffron' : 'text-white/20'}
+                          fill={s <= rating ? 'currentColor' : 'none'}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -517,6 +557,56 @@ const RecipeDetail: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Rating + Notes */}
+      <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-6 mb-8">
+        {/* Stars */}
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-display font-bold text-lg">Meine Bewertung</h3>
+          <div className="flex items-center space-x-1">
+            {[1, 2, 3, 4, 5].map((star) => {
+              const filled = (hoverRating ?? rating ?? 0) >= star
+              return (
+                <button
+                  key={star}
+                  onClick={() => handleRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(null)}
+                  className="p-0.5 transition-transform hover:scale-110 active:scale-95"
+                  aria-label={`${star} Stern${star > 1 ? 'e' : ''}`}
+                >
+                  <Star
+                    size={28}
+                    className={filled ? 'text-saffron' : 'text-warmgray/25'}
+                    fill={filled ? 'currentColor' : 'none'}
+                  />
+                </button>
+              )
+            })}
+            {rating && (
+              <button
+                onClick={() => handleRating(rating)}
+                className="ml-2 text-xs text-warmgray/50 hover:text-warmgray transition-colors"
+                title="Bewertung entfernen"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Notes textarea */}
+        <div>
+          <label className="block text-sm font-medium text-warmgray mb-2">Notizen</label>
+          <textarea
+            value={notes}
+            onChange={(e) => handleNotesChange(e.target.value)}
+            placeholder="Eigene Anmerkungen, Anpassungen, Tipps…"
+            rows={3}
+            className="w-full text-sm text-espresso bg-cream/60 border border-warmgray/20 rounded-xl px-4 py-3 resize-none focus:outline-none focus:border-paprika/40 focus:ring-1 focus:ring-paprika/20 placeholder-warmgray/40 transition-colors"
+          />
         </div>
       </div>
 
