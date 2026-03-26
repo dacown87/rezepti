@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ─── builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
 
-COPY package*.json ./
+COPY .npmrc package*.json ./
 RUN npm ci
 
 COPY tsconfig.json ./
@@ -40,7 +40,7 @@ FROM base AS production
 
 ENV NODE_ENV=production
 
-COPY package*.json ./
+COPY .npmrc package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
@@ -60,7 +60,7 @@ FROM base AS dev
 
 ENV NODE_ENV=development
 
-COPY package*.json ./
+COPY .npmrc package*.json ./
 RUN npm ci
 
 EXPOSE 3000
