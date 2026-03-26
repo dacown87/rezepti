@@ -1,10 +1,17 @@
 {
-  "version": "1.0.19",
+  "version": "1.0.20",
   "lastUpdated": {
     "date": "2026-03-26",
-    "time": "12:49"
+    "time": "12:56"
   },
   "entries": [
+    {
+      "version": "1.0.20",
+      "date": "2026-03-26",
+      "changes": [
+        "add .npmrc with legacy-peer-deps for vite-plugin-pwa peer dep conflict"
+      ]
+    },
     {
       "version": "1.0.19",
       "date": "2026-03-26",

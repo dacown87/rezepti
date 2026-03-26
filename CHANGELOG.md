@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.20] – 2026-03-26
+
+- add .npmrc with legacy-peer-deps for vite-plugin-pwa peer dep conflict
+
 ## [1.0.19] – 2026-03-26
 
 - Phase 3b — photo import (camera/gallery → AI extraction)
