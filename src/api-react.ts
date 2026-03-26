@@ -16,7 +16,11 @@ import {
 import { jobManager } from "./job-manager.js";
 import { BYOKValidator } from "./byok-validator.js";
 import { processURL } from "./pipeline.js";
+import { extractRecipeFromImage } from "./processors/llm.js";
 import type { RecipeData, PipelineEvent } from "./types.js";
+
+// In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
+const photoDataStore = new Map<string, string>();
 
 const app = new Hono();
 
@@ -365,6 +369,84 @@ app.delete("/api/v1/keys/:keyHash", (c) => {
 /**
  * Background job processor
  */
+// Photo extraction endpoint
+app.post("/api/v1/extract/photo", async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) return c.json({ error: "Keine Datei angegeben" }, 400);
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      return c.json({ error: "Ungültiges Format. Erlaubt: JPEG, PNG, WebP" }, 400);
+    }
+
+    const maxBytes = 10 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      return c.json({ error: "Datei zu groß. Maximum: 10 MB" }, 400);
+    }
+
+    const buffer = await file.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:${file.type};base64,${base64}`;
+
+    const userAgent = c.req.header("User-Agent");
+    const job = jobManager.createJob(`photo://${file.name || "upload"}`, userAgent);
+    photoDataStore.set(job.id, dataUrl);
+
+    setTimeout(() => {
+      processPhotoJobInBackground(job.id).catch(console.error);
+    }, 0);
+
+    return c.json({
+      jobId: job.id,
+      status: "pending",
+      message: "Photo extraction job created",
+      pollUrl: `/api/v1/extract/react/${job.id}`,
+    }, 202);
+
+  } catch (error) {
+    console.error("Error creating photo extraction job:", error);
+    return c.json({ error: "Failed to create photo extraction job" }, 500);
+  }
+});
+
+async function processPhotoJobInBackground(jobId: string) {
+  const dataUrl = photoDataStore.get(jobId);
+  if (!dataUrl) {
+    jobManager.failJob(jobId, "Foto-Daten nicht gefunden");
+    return;
+  }
+  try {
+    jobManager.startJob(jobId);
+    jobManager.updateJob(jobId, {
+      progress: 30,
+      currentStage: "analyzing_image",
+      message: "Bild wird analysiert",
+      status: "running",
+    });
+
+    const recipeData = await extractRecipeFromImage(dataUrl);
+
+    jobManager.updateJob(jobId, {
+      progress: 85,
+      currentStage: "exporting",
+      message: "Wird gespeichert",
+      status: "running",
+    });
+
+    const recipeId = saveRecipeToReactDb(recipeData, "photo://upload");
+    jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData });
+
+  } catch (error) {
+    console.error(`Photo job ${jobId} failed:`, error);
+    jobManager.failJob(jobId, error instanceof Error ? error.message : "Unbekannter Fehler");
+  } finally {
+    photoDataStore.delete(jobId);
+  }
+}
+
 async function processJobInBackground(jobId: string, userApiKey?: string) {
   try {
     const job = jobManager.getJob(jobId);

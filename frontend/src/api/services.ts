@@ -43,6 +43,18 @@ export async function deleteRecipe(id: number): Promise<{ success: boolean }> {
 }
 
 // Extraction Jobs
+export async function startPhotoExtraction(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch('/api/v1/extract/photo', { method: 'POST', body: formData })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || 'Fehler beim Hochladen des Fotos')
+  }
+  const data = await response.json()
+  return data.jobId
+}
+
 export async function startExtraction(url: string, userKey?: string): Promise<string> {
   try {
     const data = await apiPost<{ jobId: string }>('/api/v1/extract/react', {

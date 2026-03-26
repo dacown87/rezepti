@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Play, Camera, Globe, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react'
-import { startExtraction, pollJobStatus } from '../api/services.js'
+import { Play, Camera, Globe, ChevronDown, ChevronUp, Copy, Check, ImagePlus, X } from 'lucide-react'
+import { startExtraction, startPhotoExtraction, pollJobStatus } from '../api/services.js'
 import { useToast } from './ToastManager'
+
+type Mode = 'url' | 'photo'
 
 const STAGES: Record<string, number> = {
   classifying: 20,
@@ -25,7 +27,10 @@ const STAGE_LABELS: Record<string, string> = {
 }
 
 const ExtractionPage: React.FC = () => {
+  const [mode, setMode] = useState<Mode>('url')
   const [url, setUrl] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<{ url: string; jobId: string | null; time: string } | null>(null)
@@ -38,6 +43,7 @@ const ExtractionPage: React.FC = () => {
   const { addToast } = useToast()
   const handledRef = useRef(false)
   const urlRef = useRef(url)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { urlRef.current = url }, [url])
 
@@ -105,8 +111,45 @@ const ExtractionPage: React.FC = () => {
     }
   }
 
+  const handlePhotoChange = (file: File | null) => {
+    setPhotoFile(file)
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => setPhotoPreview(e.target?.result as string)
+      reader.readAsDataURL(file)
+    } else {
+      setPhotoPreview(null)
+    }
+  }
+
+  const handlePhotoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!photoFile) return
+
+    setIsLoading(true)
+    setError(null)
+    setSuccess(false)
+    setProgress(10)
+    setStage('analyzing_image')
+
+    try {
+      const newJobId = await startPhotoExtraction(photoFile)
+      setJobId(newJobId)
+    } catch (err: any) {
+      const msg = err.message || 'Fehler beim Hochladen des Fotos'
+      setError(msg)
+      setErrorDetails({ url: photoFile.name, jobId: null, time: new Date().toLocaleString('de-DE') })
+      addToast(msg, 'error')
+      setIsLoading(false)
+      setProgress(0)
+      setStage(null)
+    }
+  }
+
   const reset = () => {
     setUrl('')
+    setPhotoFile(null)
+    setPhotoPreview(null)
     setError(null)
     setErrorDetails(null)
     setShowDetails(false)
@@ -159,40 +202,134 @@ const ExtractionPage: React.FC = () => {
 
         {/* Headline */}
         <h1 className="animate-hero-rise delay-200 font-display text-[clamp(2.4rem,6vw,4rem)] font-semibold leading-[1.08] tracking-tight text-espresso mb-5">
-          Rezepte,{' '}
-          <span className="italic text-paprika">ein Link entfernt.</span>
+          {mode === 'url' ? (
+            <>Rezepte,{' '}<span className="italic text-paprika">ein Link entfernt.</span></>
+          ) : (
+            <>Rezept{' '}<span className="italic text-paprika">fotografieren.</span></>
+          )}
         </h1>
 
         {/* Subtitle */}
-        <p className="animate-hero-rise delay-300 font-body text-warmgray text-lg max-w-md mx-auto mb-10 leading-relaxed">
-          Füge eine URL ein — RecipeDeck extrahiert das Rezept automatisch und übersetzt es ins Deutsche.
+        <p className="animate-hero-rise delay-300 font-body text-warmgray text-lg max-w-md mx-auto mb-8 leading-relaxed">
+          {mode === 'url'
+            ? 'Füge eine URL ein — RecipeDeck extrahiert das Rezept automatisch und übersetzt es ins Deutsche.'
+            : 'Foto eines Rezepts hochladen — die KI erkennt Zutaten und Schritte automatisch.'}
         </p>
+
+        {/* Mode toggle */}
+        <div className="animate-hero-rise delay-350 flex items-center justify-center mb-8">
+          <div className="flex bg-white/70 backdrop-blur-sm border border-espresso/[0.08] rounded-2xl p-1 gap-1">
+            <button
+              onClick={() => { setMode('url'); reset() }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                mode === 'url' ? 'bg-paprika text-white shadow-sm' : 'text-warmgray hover:text-espresso'
+              }`}
+            >
+              <Globe size={15} />
+              URL
+            </button>
+            <button
+              onClick={() => { setMode('photo'); reset() }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                mode === 'photo' ? 'bg-paprika text-white shadow-sm' : 'text-warmgray hover:text-espresso'
+              }`}
+            >
+              <Camera size={15} />
+              Foto
+            </button>
+          </div>
+        </div>
 
         {/* Form */}
         {!success ? (
-          <form onSubmit={handleSubmit} className="animate-hero-rise delay-400 mb-8">
-            <div className="flex items-center gap-3 max-w-lg mx-auto">
-              <div className="relative flex-1">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-warmgray/40 pointer-events-none">
-                  <Globe size={18} />
-                </span>
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://youtube.com/watch?v=…"
-                  disabled={isLoading}
-                  className="w-full pl-11 pr-4 py-4 rounded-2xl border-2 border-espresso/[0.08] bg-white/80 backdrop-blur-sm text-espresso placeholder-warmgray/40 focus:outline-none focus:border-paprika/40 focus:bg-white text-base font-body transition-all duration-300 disabled:opacity-60"
-                />
+          <form
+            onSubmit={mode === 'url' ? handleSubmit : handlePhotoSubmit}
+            className="animate-hero-rise delay-400 mb-8"
+          >
+            {/* URL input */}
+            {mode === 'url' && (
+              <div className="flex items-center gap-3 max-w-lg mx-auto">
+                <div className="relative flex-1">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-warmgray/40 pointer-events-none">
+                    <Globe size={18} />
+                  </span>
+                  <input
+                    type="url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=…"
+                    disabled={isLoading}
+                    className="w-full pl-11 pr-4 py-4 rounded-2xl border-2 border-espresso/[0.08] bg-white/80 backdrop-blur-sm text-espresso placeholder-warmgray/40 focus:outline-none focus:border-paprika/40 focus:bg-white text-base font-body transition-all duration-300 disabled:opacity-60"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isLoading || !url.trim()}
+                  className="whitespace-nowrap px-6 py-4 rounded-2xl bg-paprika text-white font-semibold hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-[0.97] transition-transform duration-150"
+                >
+                  {isLoading ? 'Läuft…' : 'Extrahieren'}
+                </button>
               </div>
-              <button
-                type="submit"
-                disabled={isLoading || !url.trim()}
-                className="whitespace-nowrap px-6 py-4 rounded-2xl bg-paprika text-white font-semibold hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-[0.97] transition-transform duration-150"
-              >
-                {isLoading ? 'Läuft…' : 'Extrahieren'}
-              </button>
-            </div>
+            )}
+
+            {/* Photo input */}
+            {mode === 'photo' && (
+              <div className="max-w-lg mx-auto">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
+                />
+                {!photoFile ? (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading}
+                    className="w-full py-12 rounded-2xl border-2 border-dashed border-espresso/15 bg-white/60 backdrop-blur-sm hover:bg-white/80 hover:border-paprika/30 transition-all duration-300 flex flex-col items-center gap-3 text-warmgray disabled:opacity-50"
+                  >
+                    <ImagePlus size={36} className="text-warmgray/40" />
+                    <div>
+                      <p className="font-medium text-espresso/70">Foto auswählen oder aufnehmen</p>
+                      <p className="text-xs mt-1 text-warmgray/60">JPEG, PNG oder WebP · max. 10 MB</p>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="relative rounded-2xl overflow-hidden border border-espresso/10 bg-white/60">
+                      <img src={photoPreview!} alt="Vorschau" className="w-full max-h-64 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handlePhotoChange(null)}
+                        className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isLoading}
+                        className="flex-1 py-3 rounded-2xl border border-espresso/15 bg-white/60 text-warmgray text-sm font-medium hover:bg-white/80 transition-colors disabled:opacity-50"
+                      >
+                        Anderes Foto
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="flex-1 py-3 rounded-2xl bg-paprika text-white font-semibold hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md active:scale-[0.97]"
+                      >
+                        {isLoading ? 'Läuft…' : 'Extrahieren'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
 
             {/* Error */}
             {error && (
@@ -274,12 +411,16 @@ const ExtractionPage: React.FC = () => {
         {/* Platform badges */}
         <div className="animate-hero-rise delay-500 flex items-center justify-center gap-2 flex-wrap">
           <span className="text-warmgray/50 text-xs mr-1">Unterstützt</span>
-          {[
+          {(mode === 'url' ? [
             { label: 'YouTube', icon: <Play size={14} /> },
             { label: 'Instagram', icon: <Camera size={14} /> },
             { label: 'TikTok', icon: <span className="text-xs font-bold">T</span> },
             { label: 'Webseiten', icon: <Globe size={14} /> },
-          ].map(({ label, icon }) => (
+          ] : [
+            { label: 'Kamera', icon: <Camera size={14} /> },
+            { label: 'Galerie', icon: <ImagePlus size={14} /> },
+            { label: 'JPEG / PNG / WebP', icon: <Globe size={14} /> },
+          ]).map(({ label, icon }) => (
             <span
               key={label}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/60 backdrop-blur-sm border border-espresso/[0.07] text-xs font-medium text-espresso/70"
