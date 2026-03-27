@@ -16,7 +16,8 @@
         "fix checked shopping items now visible with strikethrough",
         "fix QR decode array validation",
         "fix PDF export page overflow in notes section",
-        "Phase 5 — meal planner + offline QR code sharing"
+        "Phase 5 — meal planner + offline QR code sharing",
+        "copy .npmrc into all Dockerfile stages before npm ci"
       ]
     },
     {
