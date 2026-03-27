@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.25] – 2026-03-27
+
+- update in-app roadmap after Phase 1-5 delivery
+
 ## [1.0.24] – 2026-03-27
 
 
