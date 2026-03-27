@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.22] – 2026-03-27
+
+- Phase 3c — ingredient dictionary + shopping list with multi-recipe aggregation
+- Phase 4 — PDF export with QR code, ingredient-based recipe search
+- Phase 5 — meal planner (7-day view), offline QR code sharing with recipe JSON
+- fix route ordering for shopping list delete endpoints
+- fix Drizzle camelCase→snake_case serializer
+- fix race condition in shopping list useEffect
+- fix checked shopping items now visible with strikethrough
+- fix QR decode array validation
+- fix PDF export page overflow in notes section
+
 ## [1.0.21] – 2026-03-26
 
 - copy .npmrc into all Dockerfile stages before npm ci
