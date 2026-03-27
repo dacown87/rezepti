@@ -1,10 +1,19 @@
 {
-  "version": "1.0.22",
+  "version": "1.0.23",
   "lastUpdated": {
     "date": "2026-03-27",
-    "time": "14:55"
+    "time": "20:59"
   },
   "entries": [
+    {
+      "version": "1.0.23",
+      "date": "2026-03-27",
+      "changes": [
+        "Phase 5 — meal planner + offline QR code sharing",
+        "Phase 4 — ingredient search + PDF export",
+        "Phase 3c — ingredient dictionary + shopping list"
+      ]
+    },
     {
       "version": "1.0.22",
       "date": "2026-03-27",
