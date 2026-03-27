@@ -62,6 +62,19 @@ app.get("/changelog.json", (c) => {
 // Mount React API routes
 app.route("/", reactApi);
 
+// SPA fallback: serve index.html for all non-API, non-asset routes
+app.get("*", (c) => {
+  const path = c.req.path;
+  if (path.startsWith("/api/") || path.startsWith("/assets/") || path.startsWith("/public/")) {
+    return c.text("Not found", 404);
+  }
+  const html = readFileSync(
+    join(import.meta.dirname, "..", "public", "index.html"),
+    "utf-8"
+  );
+  return c.html(html);
+});
+
 // Start server
 const port = config.port;
 ensureReactSchema();

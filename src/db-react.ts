@@ -209,11 +209,42 @@ function deserialize(row: typeof recipes.$inferSelect) {
   };
 }
 
+// Serializers: map Drizzle camelCase → snake_case for API/frontend compatibility
+function serializeDictionaryEntry(row: typeof ingredientDictionary.$inferSelect) {
+  return {
+    id: row.id,
+    canonical_name: row.canonicalName,
+    aliases: JSON.parse(row.aliases ?? "[]") as string[],
+  };
+}
+
+function serializeShoppingItem(row: typeof shoppingList.$inferSelect) {
+  return {
+    id: row.id,
+    recipe_id: row.recipeId,
+    canonical_name: row.canonicalName,
+    quantity: row.quantity ?? undefined,
+    unit: row.unit ?? undefined,
+    checked: row.checked ?? false,
+    created_at: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+  };
+}
+
+function serializeMealPlanEntry(row: typeof mealPlan.$inferSelect) {
+  return {
+    id: row.id,
+    recipe_id: row.recipeId,
+    day_of_week: row.dayOfWeek,
+    week_start: row.weekStart,
+    created_at: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+  };
+}
+
 // ============ Ingredient Dictionary CRUD ============
 
 export function getAllDictionaryEntries() {
   const db = getReactDb();
-  return db.select().from(ingredientDictionary).all();
+  return db.select().from(ingredientDictionary).all().map(serializeDictionaryEntry);
 }
 
 export function addToDictionary(canonicalName: string, aliases: string[] = []) {
@@ -224,17 +255,17 @@ export function addToDictionary(canonicalName: string, aliases: string[] = []) {
   }).returning({ id: ingredientDictionary.id }).get();
 }
 
-export function findCanonicalBySimilarity(name: string): typeof ingredientDictionary.$inferSelect | null {
+export function findCanonicalBySimilarity(name: string) {
   const db = getReactDb();
   const entries = db.select().from(ingredientDictionary).all();
-  
+
   for (const entry of entries) {
     const aliases = JSON.parse(entry.aliases ?? "[]") as string[];
     const allNames = [entry.canonicalName, ...aliases];
-    
+
     for (const knownName of allNames) {
       if (isSimilar(name, knownName)) {
-        return entry;
+        return serializeDictionaryEntry(entry);
       }
     }
   }
@@ -245,7 +276,7 @@ export function findCanonicalBySimilarity(name: string): typeof ingredientDictio
 
 export function getShoppingList() {
   const db = getReactDb();
-  return db.select().from(shoppingList).orderBy(shoppingList.createdAt).all();
+  return db.select().from(shoppingList).orderBy(shoppingList.createdAt).all().map(serializeShoppingItem);
 }
 
 export function addToShoppingList(recipeId: number | null, canonicalName: string, quantity?: string, unit?: string) {
@@ -287,7 +318,7 @@ export function clearAllShoppingItems() {
 
 export function getMealPlanForWeek(weekStart: number) {
   const db = getReactDb();
-  return db.select().from(mealPlan).where(eq(mealPlan.weekStart, weekStart)).all();
+  return db.select().from(mealPlan).where(eq(mealPlan.weekStart, weekStart)).all().map(serializeMealPlanEntry);
 }
 
 export function addRecipeToMealPlan(recipeId: number, dayOfWeek: number, weekStart: number) {
