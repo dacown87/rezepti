@@ -52,7 +52,10 @@ app.get("/api/v1/recipes", (c) => {
     
     let recipes;
     if (ingredientsParam) {
-      const ingredients = ingredientsParam.split(",").map(i => i.trim()).filter(i => i);
+      if (ingredientsParam.length > 500) {
+        return c.json({ error: "ingredients param too long" }, 400);
+      }
+      const ingredients = ingredientsParam.split(",").map(i => i.trim()).filter(i => i).slice(0, 20);
       recipes = searchRecipesByIngredients(ingredients);
     } else {
       recipes = getAllRecipesFromReactDb();
@@ -433,21 +436,7 @@ app.patch("/api/v1/shopping/:id", (c) => {
   }
 });
 
-app.delete("/api/v1/shopping/:id", (c) => {
-  try {
-    const id = parseInt(c.req.param("id"), 10);
-    if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
-    
-    const deleted = deleteShoppingItem(id);
-    if (!deleted) return c.json({ error: "Not found" }, 404);
-    
-    return c.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting shopping item:", error);
-    return c.json({ error: "Failed to delete item" }, 500);
-  }
-});
-
+// Specific routes before wildcard to avoid shadowing
 app.delete("/api/v1/shopping/checked", (c) => {
   try {
     clearCheckedItems();
@@ -465,6 +454,21 @@ app.delete("/api/v1/shopping/all", (c) => {
   } catch (error) {
     console.error("Error clearing shopping list:", error);
     return c.json({ error: "Failed to clear list" }, 500);
+  }
+});
+
+app.delete("/api/v1/shopping/:id", (c) => {
+  try {
+    const id = parseInt(c.req.param("id"), 10);
+    if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+
+    const deleted = deleteShoppingItem(id);
+    if (!deleted) return c.json({ error: "Not found" }, 404);
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting shopping item:", error);
+    return c.json({ error: "Failed to delete item" }, 500);
   }
 });
 

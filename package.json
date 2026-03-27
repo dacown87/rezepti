@@ -1,6 +1,6 @@
 {
   "name": "rezepti",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "Rezept-Extraktor mit SQLite-Export",
   "type": "module",
   "scripts": {
@@ -36,7 +36,6 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
-    "@types/qrcode": "^1.5.6",
     "better-sqlite3": "^12.8.0",
     "cheerio": "^1.0.0",
     "dotenv": "^17.3.1",
@@ -59,6 +58,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^25.5.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

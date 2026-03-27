@@ -3,7 +3,7 @@
  */
 
 import { apiGet, apiPost, apiPatch, apiDelete } from './client.js'
-import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse, ShoppingItem, DictionaryEntry } from './types.js'
+import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse, ShoppingItem, DictionaryEntry, MealPlanEntry } from './types.js'
 
 // Recipes
 export async function getRecipes(ingredients?: string[]): Promise<Recipe[]> {
@@ -224,14 +224,6 @@ export async function matchDictionary(name: string): Promise<{ match: Dictionary
 }
 
 // Meal Plan (Phase 5)
-export interface MealPlanEntry {
-  id: number
-  recipe_id: number
-  day_of_week: number
-  week_start: number
-  created_at: string
-}
-
 export async function getMealPlan(weekStart?: number): Promise<{ entries: MealPlanEntry[]; weekStart: number }> {
   try {
     const url = weekStart ? `/api/v1/planner?week=${weekStart}` : '/api/v1/planner'

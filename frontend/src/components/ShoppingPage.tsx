@@ -14,39 +14,38 @@ const ShoppingPage: React.FC = () => {
   const { addToast } = useToast()
 
   useEffect(() => {
-    loadData()
-    
-    const pendingData = localStorage.getItem('pendingShoppingItems')
-    if (pendingData) {
+    const init = async () => {
+      await loadData()
+
+      const pendingData = localStorage.getItem('pendingShoppingItems')
+      if (!pendingData) return
       try {
         const { recipeId, ingredients } = JSON.parse(pendingData)
         localStorage.removeItem('pendingShoppingItems')
-        
-        const addPendingItems = async () => {
-          const newItems: ShoppingItem[] = []
-          for (const ingredient of ingredients) {
-            const canonicalName = extractIngredientName(ingredient)
-            try {
-              const result = await addShoppingItem(recipeId, canonicalName)
-              newItems.push({
-                id: result.id,
-                recipe_id: recipeId,
-                canonical_name: canonicalName,
-                quantity: undefined,
-                unit: undefined,
-                checked: false,
-                created_at: new Date().toISOString()
-              })
-            } catch {}
-          }
-          if (newItems.length > 0) {
-            setItems(prev => [...newItems, ...prev])
-            addToast(`${newItems.length} Zutaten aus Rezept hinzugefügt`, 'success')
-          }
+
+        const newItems: ShoppingItem[] = []
+        for (const ingredient of ingredients) {
+          const canonicalName = extractIngredientName(ingredient)
+          try {
+            const result = await addShoppingItem(recipeId, canonicalName)
+            newItems.push({
+              id: result.id,
+              recipe_id: recipeId,
+              canonical_name: canonicalName,
+              quantity: undefined,
+              unit: undefined,
+              checked: false,
+              created_at: new Date().toISOString()
+            })
+          } catch {}
         }
-        addPendingItems()
+        if (newItems.length > 0) {
+          setItems(prev => [...newItems, ...prev])
+          addToast(`${newItems.length} Zutaten aus Rezept hinzugefügt`, 'success')
+        }
       } catch {}
     }
+    init()
   }, [])
 
   const loadData = async () => {
@@ -165,6 +164,7 @@ const ShoppingPage: React.FC = () => {
 
   const checkedCount = items.filter(i => i.checked).length
   const uncheckedItems = items.filter(i => !i.checked)
+  const checkedItems = items.filter(i => i.checked)
 
   if (loading) {
     return (
@@ -284,23 +284,13 @@ const ShoppingPage: React.FC = () => {
           {uncheckedItems.map(item => (
             <div
               key={item.id}
-              className={`flex items-center gap-3 p-4 bg-white rounded-xl border border-warmgray/10 hover:border-warmgray/20 transition-colors ${
-                item.checked ? 'opacity-50' : ''
-              }`}
+              className="flex items-center gap-3 p-4 bg-white rounded-xl border border-warmgray/10 hover:border-warmgray/20 transition-colors"
             >
               <button
                 onClick={() => handleToggle(item.id)}
-                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                  item.checked 
-                    ? 'bg-green-500 border-green-500 text-white' 
-                    : 'border-warmgray/30 hover:border-green-500'
-                }`}
-              >
-                {item.checked && <Check size={14} />}
-              </button>
-              <span className={`flex-1 ${item.checked ? 'line-through text-warmgray' : ''}`}>
-                {formatItem(item)}
-              </span>
+                className="w-6 h-6 rounded-full border-2 border-warmgray/30 hover:border-green-500 flex items-center justify-center transition-colors"
+              />
+              <span className="flex-1">{formatItem(item)}</span>
               <button
                 onClick={() => handleDelete(item.id)}
                 className="text-warmgray hover:text-red-600 transition-colors p-1"
@@ -309,6 +299,32 @@ const ShoppingPage: React.FC = () => {
               </button>
             </div>
           ))}
+
+          {checkedItems.length > 0 && (
+            <>
+              <p className="text-xs text-warmgray uppercase tracking-wide pt-4 pb-1">Erledigt</p>
+              {checkedItems.map(item => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 p-4 bg-white rounded-xl border border-warmgray/10 opacity-50 transition-colors"
+                >
+                  <button
+                    onClick={() => handleToggle(item.id)}
+                    className="w-6 h-6 rounded-full border-2 bg-green-500 border-green-500 text-white flex items-center justify-center transition-colors"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <span className="flex-1 line-through text-warmgray">{formatItem(item)}</span>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="text-warmgray hover:text-red-600 transition-colors p-1"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

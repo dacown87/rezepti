@@ -79,3 +79,11 @@ export interface DictionaryEntry {
   canonical_name: string
   aliases: string[]
 }
+
+export interface MealPlanEntry {
+  id: number
+  recipe_id: number
+  day_of_week: number
+  week_start: number
+  created_at: string
+}

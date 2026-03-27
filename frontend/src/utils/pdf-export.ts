@@ -123,6 +123,10 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
     doc.setFont('helvetica', 'normal')
     const noteLines = doc.splitTextToSize(recipe.notes, contentWidth)
     for (const line of noteLines) {
+      if (y > 270) {
+        doc.addPage()
+        y = margin
+      }
       doc.text(line, margin, y)
       y += 4
     }

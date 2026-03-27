@@ -43,8 +43,8 @@ export function decodeRecipeFromCompactJSON(encoded: string): CompactRecipe | nu
     const json = decodeURIComponent(escape(atob(encoded)))
     const parsed = JSON.parse(json)
     
-    // Validate basic structure
-    if (!parsed.n || !parsed.i || !parsed.s) {
+    // Validate basic structure and types
+    if (!parsed.n || !Array.isArray(parsed.i) || !Array.isArray(parsed.s)) {
       return null
     }
     
