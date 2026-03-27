@@ -166,40 +166,42 @@ Planned features and current implementation status (as of March 2026):
 - Cookidoo: 70% — OAuth2 ROPC flow implemented in `src/fetchers/cookidoo.ts`
 - Pinterest: 0%
 - Facebook: 0%
-- Photo import (camera/gallery): 0% — vision model available, no upload flow
+- Photo import (camera/gallery): 100% ✅ — Phase 3b delivered
 
 ### Recipe Display & Navigation
-- Recipe list & detail view: 50% — list/grid toggle implemented
-- Ingredients & steps displayed separately (à la Dr. Oetker): 90% ✅ — 2-column layout on desktop, single-column on mobile
-- Adjustable serving size + scaling: 80% ✅ — ×0.5–×4 stepper with ingredient quantity scaling
-- Fix one ingredient as quantity → scale the rest: 0%
-- Fullscreen cook mode: 0%
+- Recipe list & detail view: 100% ✅ — list/grid toggle, /recipe/:id route
+- Ingredients & steps displayed separately (à la Dr. Oetker): 100% ✅ — 2-column layout on desktop, single-column on mobile
+- Adjustable serving size + scaling: 100% ✅ — ×0.5–×4 stepper with ingredient quantity scaling
+- Fullscreen cook mode: 100% ✅ — Phase 2 delivered with wakeLock
 - Original recipe link: 100% ✅ — prominent button in action area + source box at bottom
-- Recipe as separate page (not modal): 100% ✅ — implemented via /recipe/:id route
 - Recipe inline editing: 100% ✅ — name, emoji, tags, duration, calories, ingredients, steps editable in-place; saves via PATCH /api/v1/recipes/:id
 
 ### Shopping & Planning
-- Shopping list: 0%
+- Shopping list: 100% ✅ — Phase 3c delivered with multi-recipe aggregation, check-off, clipboard export
+- Meal planner: 100% ✅ — Phase 5 delivered (7-day view, recipe assignment)
+- Ingredient-based recipe search: 100% ✅ — Phase 4 delivered
 - Enter available ingredients → get recipe suggestions: 0%
 
 ### Community & Social
 - User login (incl. "stay logged in"): 0%
-- Rating system (stars): 0%
+- Rating system (stars): 100% ✅ — Phase 3a delivered
+- Personal notes: 100% ✅ — Phase 3a delivered
 - Comment function: 0%
-- Share recipe via QR code: 0%
+- Share recipe via QR code: 100% ✅ — Phase 4/5 delivered (offline JSON in QR)
 
 ### Export & Print
-- Recipe card as PDF (image + short description + QR code): 0%
+- Recipe card as PDF: 100% ✅ — Phase 4 delivered with QR code
 
 ### Mobile & Responsive Design
 - Mobile first approach: 100% ✅ — React frontend with mobile-ready interfaces
-- Media queries for typical screen sizes: 80% ✅ — React app responsive with Tailwind CSS
+- PWA (Homescreen install): 100% ✅ — Phase 2 delivered
+- Media queries for typical screen sizes: 100% ✅ — React app responsive with Tailwind CSS
 - Android app (Flutter): 0%
 
 ## Testing
 
 **Unit tests (no server needed):**
-- `npm test -- --run --exclude="test/e2e/**"` — run only unit tests (130+)
+- `npm test -- --run --exclude="test/e2e/**"` — run only unit tests (135+)
 - `npm test` — all tests (E2E tests will fail without a running server)
 
 **Test Coverage:**
