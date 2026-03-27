@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.24] – 2026-03-27
+
+
+
 ## [1.0.23] – 2026-03-27
 
 - Phase 5 — meal planner + offline QR code sharing
