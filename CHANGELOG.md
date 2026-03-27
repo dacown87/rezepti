@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.21] – 2026-03-26
+
+- copy .npmrc into all Dockerfile stages before npm ci
+
 ## [1.0.20] – 2026-03-26
 
 - add .npmrc with legacy-peer-deps for vite-plugin-pwa peer dep conflict
