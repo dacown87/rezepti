@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.23] – 2026-03-27
+
+- Phase 5 — meal planner + offline QR code sharing
+- Phase 4 — ingredient search + PDF export
+- Phase 3c — ingredient dictionary + shopping list
+
 ## [1.0.22] – 2026-03-27
 
 - Phase 3c — ingredient dictionary + shopping list with multi-recipe aggregation
