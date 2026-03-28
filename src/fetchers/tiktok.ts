@@ -14,7 +14,14 @@ export function extractHashtags(text: string): string[] {
   return matches ? [...new Set(matches)] : [];
 }
 
-export function prioritizeComments(comments: any[]): string[] {
+interface TikTokComment {
+  text?: string;
+  body?: string;
+  like_count?: number;
+  likes?: number;
+}
+
+export function prioritizeComments(comments: TikTokComment[]): string[] {
   const recipeKeywords = ["zutat", "rezept", "zutaten", "schritt", "tipp", "tipps", "ingredient", "recipe", "step", "tip"];
   const prioritized: { text: string; score: number }[] = [];
 
@@ -231,8 +238,8 @@ export async function extractTextFromVideoFrames(
             texts.push(...result.steps);
           }
         }
-      } catch {
-        // Vision OCR failed for this frame
+      } catch (error) {
+        console.warn(`OCR failed for frame ${frameFile}:`, error instanceof Error ? error.message : 'unknown');
       }
     }
 
