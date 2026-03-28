@@ -1,12 +1,114 @@
 import React, { useState, useEffect } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, Camera, ScanLine } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, ScanLine, GripVertical } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, DragStartEvent } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import { getMealPlan, addToMealPlan, removeFromMealPlan, clearMealPlan, getRecipes, addShoppingItem } from '../api/services.js'
 import type { MealPlanEntry, Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
+
+interface DraggableRecipeProps {
+  entry: MealPlanEntry
+  recipe?: Recipe
+  onRemove: (id: number) => void
+}
+
+const DraggableRecipe: React.FC<DraggableRecipeProps> = ({ entry, recipe, onRemove }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: entry.id,
+    data: { entry }
+  })
+
+  const style = transform ? {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    cursor: 'grab'
+  } : { cursor: 'grab' }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group bg-warmgray/5 rounded-lg p-2 text-sm flex items-center justify-between ${isDragging ? 'z-50' : ''}`}
+      {...listeners}
+      {...attributes}
+    >
+      <span className="truncate flex-1">
+        {recipe ? `${recipe.emoji} ${recipe.name}` : `Rezept #${entry.recipe_id}`}
+      </span>
+      <div className="flex items-center gap-1">
+        <GripVertical size={14} className="text-warmgray/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove(entry.id)
+          }}
+          className="opacity-0 group-hover:opacity-100 text-warmgray hover:text-red-500 transition-all"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface DayColumnProps {
+  dayIndex: number
+  day: string
+  dayName: string
+  dayRecipes: MealPlanEntry[]
+  recipes: Recipe[]
+  onRemoveRecipe: (id: number) => void
+  onAddRecipe: () => void
+  isWeekend: boolean
+}
+
+const DayColumn: React.FC<DayColumnProps> = ({
+  dayIndex, day, dayName, dayRecipes, recipes, onRemoveRecipe, onAddRecipe, isWeekend
+}) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `day-${dayIndex}`
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`bg-white rounded-xl border min-h-[180px] flex flex-col transition-colors ${
+        isWeekend ? 'md:border-saffron/30 md:bg-saffron/5' : 'border-warmgray/10'
+      } ${isOver ? 'ring-2 ring-paprika ring-offset-2 bg-paprika/5' : ''}`}
+    >
+      <div className={`p-3 text-center border-b ${isWeekend ? 'bg-saffron/10' : ''}`}>
+        <div className="font-medium">{day}</div>
+        <div className="text-xs text-warmgray">{dayName}</div>
+      </div>
+      
+      <div className="flex-1 p-2 space-y-2">
+        {dayRecipes.map(entry => {
+          const recipe = recipes.find(r => r.id === entry.recipe_id)
+          return (
+            <DraggableRecipe
+              key={entry.id}
+              entry={entry}
+              recipe={recipe}
+              onRemove={onRemoveRecipe}
+            />
+          )
+        })}
+      </div>
+
+      <button
+        onClick={onAddRecipe}
+        className="m-2 p-2 text-warmgray/50 hover:text-paprika hover:bg-paprika/5 rounded-lg transition-colors text-xs flex items-center justify-center gap-1"
+      >
+        <Plus size={14} />
+        <span className="hidden sm:inline">Rezept</span>
+      </button>
+    </div>
+  )
+}
 
 function getWeekStart(date: Date): number {
   const d = new Date(date)
@@ -33,6 +135,7 @@ const PlannerPage: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState<number | null>(null)
   const [isGeneratingShopping, setIsGeneratingShopping] = useState(false)
   const [activeTab, setActiveTab] = useState<'planner' | 'scan'>('planner')
+  const [activeRecipe, setActiveRecipe] = useState<MealPlanEntry | null>(null)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -129,7 +232,49 @@ const PlannerPage: React.FC = () => {
     return entries.filter(e => e.day_of_week === dayIndex)
   }
 
-  const getRecipeById = (id: number) => recipes.find(r => r.id === id)
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = event.active.id as number
+    const entry = entries.find(e => e.id === id)
+    setActiveRecipe(entry || null)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveRecipe(null)
+
+    if (!over) return
+
+    const entryId = active.id as number
+    const overId = over.id as string
+    const targetDay = parseInt(overId.replace('day-', ''))
+
+    if (isNaN(targetDay)) return
+
+    const entry = entries.find(e => e.id === entryId)
+    if (!entry) return
+
+    if (entry.day_of_week === targetDay) return
+
+    try {
+      await removeFromMealPlan(entryId)
+      const result = await addToMealPlan(entry.recipe_id, targetDay, weekStart)
+      setEntries([
+        ...entries.filter(e => e.id !== entryId),
+        {
+          id: result.id,
+          recipe_id: entry.recipe_id,
+          day_of_week: targetDay,
+          week_start: weekStart,
+          created_at: new Date().toISOString()
+        }
+      ])
+      addToast('Rezept verschoben', 'success')
+    } catch (error) {
+      console.error('Failed to move recipe:', error)
+      addToast('Fehler beim Verschieben', 'error')
+      loadData()
+    }
+  }
 
   if (loading) {
     return (
@@ -188,56 +333,39 @@ const PlannerPage: React.FC = () => {
       </div>
 
       {/* 7-day grid */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-        {DAYS.map((day, index) => {
-          const dayRecipes = getRecipesForDay(index)
-          return (
-            <div
-              key={index}
-              className={`bg-white rounded-xl border border-warmgray/10 min-h-[180px] flex flex-col ${
-                index === 5 || index === 6 ? 'md:border-saffron/30 md:bg-saffron/5' : ''
-              }`}
-            >
-              <div className={`p-3 text-center border-b border-warmgray/10 ${
-                index === 5 || index === 6 ? 'bg-saffron/10' : ''
-              }`}>
-                <div className="font-medium">{day}</div>
-                <div className="text-xs text-warmgray">{DAY_NAMES[index]}</div>
-              </div>
-              
-              <div className="flex-1 p-2 space-y-2">
-                {dayRecipes.map(entry => {
-                  const recipe = getRecipeById(entry.recipe_id)
-                  return (
-                    <div
-                      key={entry.id}
-                      className="group bg-warmgray/5 rounded-lg p-2 text-sm flex items-center justify-between"
-                    >
-                      <span className="truncate flex-1">
-                        {recipe ? `${recipe.emoji} ${recipe.name}` : `Rezept #${entry.recipe_id}`}
-                      </span>
-                      <button
-                        onClick={() => handleRemoveRecipe(entry.id)}
-                        className="opacity-0 group-hover:opacity-100 text-warmgray hover:text-red-500 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <button
-                onClick={() => setShowAddModal(index)}
-                className="m-2 p-2 text-warmgray/50 hover:text-paprika hover:bg-paprika/5 rounded-lg transition-colors text-xs flex items-center justify-center gap-1"
-              >
-                <Plus size={14} />
-                <span className="hidden sm:inline">Rezept</span>
-              </button>
+      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+          {DAYS.map((day, index) => {
+            const dayRecipes = getRecipesForDay(index)
+            return (
+              <DayColumn
+                key={index}
+                dayIndex={index}
+                day={day}
+                dayName={DAY_NAMES[index]}
+                dayRecipes={dayRecipes}
+                recipes={recipes}
+                onRemoveRecipe={handleRemoveRecipe}
+                onAddRecipe={() => setShowAddModal(index)}
+                isWeekend={index === 5 || index === 6}
+              />
+            )
+          })}
+        </div>
+        <DragOverlay>
+          {activeRecipe && (
+            <div className="bg-white rounded-lg p-2 text-sm flex items-center gap-2 shadow-xl border border-paprika/30 opacity-90">
+              <GripVertical size={14} className="text-paprika" />
+              <span className="truncate">
+                {activeRecipe && (() => {
+                  const r = recipes.find(rec => rec.id === activeRecipe.recipe_id)
+                  return r ? `${r.emoji} ${r.name}` : `Rezept #${activeRecipe.recipe_id}`
+                })()}
+              </span>
             </div>
-          )
-        })}
-      </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {entries.length > 0 && (
         <div className="mt-6 text-center">
