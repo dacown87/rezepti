@@ -157,7 +157,7 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 ## Roadmap
 
-> Stand: März 2026 — **Dependencies aktualisiert** ✅ | React 19, Vite 8, TypeScript 6
+> Stand: März 2026 — **Phasen 1-14 implementiert** ✅ | React 19, Vite 8, TypeScript 6
 
 ---
 
@@ -167,13 +167,13 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 |---------|-------------|--------|
 | Webseiten (allgemein) | ████████░░ 80% | Funktioniert, kleinere Lücken |
 | YouTube | ████████░░ 80% | Audio + Untertitel + Vision |
-| TikTok | ███████░░░ 70% | Via yt-dlp |
-| Instagram | ███████░░░ 70% | Via yt-dlp |
-| Chefkoch | ████░░░░░░ 40% | Schema.org greift teilweise |
-| Cookidoo | █░░░░░░░░░ 10% | Zugangsdaten vorbereitet, kein Scraper |
-| Pinterest | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Facebook | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Foto-Import (Kamera/Galerie) | ░░░░░░░░░░ 0% | Vision-Modell vorhanden, kein Upload-Flow |
+| TikTok | ███████░░░ 80% | Via yt-dlp + Video OCR |
+| Instagram | ██████████ 100% | Vollständig implementiert (Phase 11) |
+| Chefkoch | ██████████ 100% | Schema.org + Fallback (Phase 9) |
+| Cookidoo | ██████████ 100% | OAuth2 ROPC Flow (Phase 8) |
+| Pinterest | ███████░░░ 70% | API + Proxy (Phase 13) |
+| Facebook | ███████░░░ 70% | Cookies + Rate Limiting (Phase 14) |
+| Foto-Import (Kamera/Galerie) | ██████████ 100% | ✅ Implementiert (Phase 3b) |
 
 ---
 
@@ -181,11 +181,12 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
-| Webseite neu gestalten mit Menüleiste | ███░░░░░░░ 30% | In Entwicklung |
-| Rezeptliste & Detailansicht | ███████░░░ 70% | Verbessert |
-| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ███████░░░ 70% | UI vorhanden |
-| Personenzahl einstellbar + Hochskalierung | ███░░░░░░░ 30% | In Entwicklung |
-| Zutat als Fixgröße → Rest hochskalieren | ██░░░░░░░░ 20% | In Entwicklung |
+| Rezeptliste & Detailansicht | ██████████ 100% | ✅ Implementiert |
+| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ██████████ 100% | ✅ Implementiert |
+| Personenzahl einstellbar + Hochskalierung | ██████████ 100% | ✅ Implementiert (Phase 3b) |
+| Vollbild-Kochmodus | ██████████ 100% | ✅ Implementiert (Phase 2) |
+| Original-Rezept-Link | ██████████ 100% | ✅ Implementiert |
+| Rezept inline bearbeiten | ██████████ 100% | ✅ Implementiert |
 
 ---
 
@@ -193,7 +194,9 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
-| Einkaufsliste | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Einkaufsliste | ██████████ 100% | ✅ Implementiert (Phase 3c) |
+| 7-Tage Meal Planner | ██████████ 100% | ✅ Implementiert (Phase 5 + 8) |
+| Zutaten-basierte Rezeptsuche | ██████████ 100% | ✅ Implementiert (Phase 4) |
 | Zutaten eingeben → Rezeptvorschläge | ░░░░░░░░░░ 0% | Nicht implementiert |
 
 ---
@@ -203,9 +206,10 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
 | Benutzer-Login (inkl. „Angemeldet bleiben") | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Bewertungsfunktion (Sterne) | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Bewertungsfunktion (Sterne) | ██████████ 100% | ✅ Implementiert (Phase 3a) |
+| Persönliche Notizen | ██████████ 100% | ✅ Implementiert (Phase 3a) |
 | Kommentarfunktion | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Rezepte teilen via QR-Code | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Rezepte teilen via QR-Code | ██████████ 100% | ✅ Implementiert (Phase 4/5) |
 
 ---
 
@@ -213,7 +217,7 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
-| Rezeptkarte als PDF (Bild + Kurzbeschreibung + QR-Code) | ░░░░░░░░░░ 0% | Nicht implementiert |
+| Rezeptkarte als PDF (Bild + Kurzbeschreibung + QR-Code) | ██████████ 100% | ✅ Implementiert (Phase 4) |
 
 ---
 
@@ -221,17 +225,18 @@ Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-
 
 | Feature | Fortschritt | Status |
 |---------|-------------|--------|
-| Mobile-First / Responsive | ███████░░░ 80% | ✅ Implementiert |
+| Mobile-First / Responsive | ██████████ 100% | ✅ Implementiert |
+| PWA (Homescreen install) | ██████████ 100% | ✅ Implementiert (Phase 2) |
 | Android App | ░░░░░░░░░░ 0% | Nicht implementiert |
 
 ---
 
-### Gesamtfortschritt: ~35%
+### Gesamtfortschritt: ~70%
 
 ```
-Import/Extraktion     ████████░░░░░░░░░░░░ 55%
-Rezeptanzeige         ███████░░░░░░░░░░░░░ 45%
-Einkauf & Planung     ░░░░░░░░░░░░░░░░░░░░  0%
-Community & Sozial    ░░░░░░░░░░░░░░░░░░░░  0%
-Export & Druck        ░░░░░░░░░░░░░░░░░░░░  0%
+Import/Extraktion     █████████░░░░░░░░░░░░ 75%
+Rezeptanzeige         ████████████████████ 100%
+Einkauf & Planung     ████████████████████ 100%
+Community & Sozial    ████████████░░░░░░░░░ 70%
+Export & Druck        ████████████████████ 100%
 ```

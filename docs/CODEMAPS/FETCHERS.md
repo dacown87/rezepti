@@ -97,7 +97,7 @@ article, main, .post-content, .entry-content
 - Rate limits (429): Automatic retry with backoff
 - yt-dlp failures: Falls back to web scraping
 
-**Status:** 95% - Full implementation complete (Phase 11)
+**Status:** 100% - Full implementation complete (Phase 11)
 
 ## TikTok Fetcher
 
@@ -109,7 +109,7 @@ article, main, .post-content, .entry-content
 - Uses `yt-dlp` for video download
 - Extracts caption as text content
 
-**Status:** 70% - Works via yt-dlp
+**Status:** 80% - Works via yt-dlp with Video OCR integration (Phase 12)
 
 ## Cookidoo Fetcher
 
@@ -140,17 +140,33 @@ article, main, .post-content, .entry-content
 
 **Location:** `src/fetchers/pinterest.ts`
 
-**Purpose:** Pinterest pin extraction
+**Purpose:** Pinterest pin extraction via Pinterest API
 
-**Status:** 0% - Not implemented
+**Strategy:**
+- OAuth2 authentication with Pinterest API
+- Proxy support for API calls
+- Extracts pin metadata, images, and description
+
+**Status:** 70% - Implemented via Pinterest API + Proxy (Phase 13)
 
 ## Facebook Fetcher
 
 **Location:** `src/fetchers/facebook.ts`
 
-**Purpose:** Facebook post/reel extraction
+**Purpose:** Facebook post/reel extraction with cookie management
 
-**Status:** 0% - Not implemented
+**Strategy:**
+- Cookie-based authentication (Netscape format)
+- Rate limiting with exponential backoff
+- Video-only extraction (ToS compliance)
+- ToS warning display before import
+
+**Rate Limit Management:**
+- Exponential backoff: 1s, 2s, 4s, 8s delays between retries
+- Max 5 retries for rate-limited requests
+- Domain-specific cookie validation
+
+**Status:** 70% - Implemented with cookie management + rate limiting (Phase 14)
 
 ## Dependencies
 
