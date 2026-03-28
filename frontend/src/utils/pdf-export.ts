@@ -198,3 +198,93 @@ export function downloadPDF(blob: Blob, filename: string) {
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
 }
+export async function generateRecipeCardsPDF(recipes: Recipe[]): Promise<Blob> {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  })
+
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 10
+  const cardWidth = (pageWidth - margin * 3) / 2 // 2 columns
+  const cardHeight = (pageHeight - margin * 3) / 4 // 4 rows
+  const cardsPerPage = 8
+
+  let cardIndex = 0
+
+  for (let i = 0; i < recipes.length; i++) {
+    const recipe = recipes[i]
+
+    // New page if needed
+    if (cardIndex > 0 && cardIndex % cardsPerPage === 0) {
+      doc.addPage()
+    }
+
+    // Calculate position
+    const row = Math.floor((cardIndex % cardsPerPage) / 2)
+    const col = (cardIndex % cardsPerPage) % 2
+    const x = margin + col * (cardWidth + margin)
+    const y = margin + row * (cardHeight + margin)
+
+    // Card background
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(230, 230, 230)
+    doc.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'FD')
+
+    // Emoji + Name
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(40, 40, 40)
+    const title = `${recipe.emoji || ''} ${recipe.name}`.trim()
+    const truncatedTitle = title.length > 25 ? title.substring(0, 22) + '...' : title
+    doc.text(truncatedTitle, x + 5, y + 10)
+
+    // Info (ingredients, duration)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(120, 120, 120)
+    const info = `${recipe.ingredients?.length || 0} Zutaten${recipe.duration ? ' • ' + recipe.duration : ''}`
+    doc.text(info, x + 5, y + 18)
+
+    // Rating
+    if (recipe.rating) {
+      doc.setFontSize(10)
+      doc.setTextColor(218, 165, 32) // Gold
+      doc.text('★'.repeat(recipe.rating), x + 5, y + 26)
+    }
+
+    // QR Code
+    try {
+      const qrData = encodeRecipeToCompactJSON(recipe)
+      if (qrData) {
+        const qrDataUrl = await QRCode.toDataURL(qrData, {
+          width: 60,
+          margin: 1,
+        })
+        doc.addImage(qrDataUrl, 'PNG', x + cardWidth - 25, y + cardHeight - 25, 20, 20)
+      }
+    } catch (err) {
+      console.error('QR generation failed for card:', err)
+    }
+
+    cardIndex++
+  }
+
+  // Footer
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(150)
+    doc.text(
+      `Rezeptkarten von RecipeDeck | Seite ${i} von ${totalPages}`,
+      pageWidth / 2,
+      pageHeight - 5,
+      { align: 'center' }
+    )
+  }
+
+  return doc.output('blob')
+}

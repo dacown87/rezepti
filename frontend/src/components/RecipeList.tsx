@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star, Search, X } from 'lucide-react'
+import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star, Search, X, Download } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getRecipes } from '../api/services.js'
 import { parseServingsNumber } from '../utils/scaling.js'
+import { generateRecipeCardsPDF, downloadPDF } from '../utils/pdf-export.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeListSkeleton } from './SkeletonLoader'
@@ -20,6 +21,7 @@ const RecipeList: React.FC = () => {
   const [ingredientSearch, setIngredientSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const { addToast } = useToast()
+  const [isExportingCards, setIsExportingCards] = useState(false)
 
   const switchView = (mode: ViewMode) => {
     setViewMode(mode)
@@ -64,6 +66,25 @@ const RecipeList: React.FC = () => {
   const clearSearch = () => {
     setSearchInput('')
     fetchRecipes(false, undefined)
+  }
+
+  const handleExportCards = async () => {
+    if (recipes.length === 0) {
+      addToast('Keine Rezepte zum Exportieren', 'error')
+      return
+    }
+    setIsExportingCards(true)
+    try {
+      const blob = await generateRecipeCardsPDF(recipes)
+      const filename = `rezeptkarten_${new Date().toISOString().split('T')[0]}.pdf`
+      downloadPDF(blob, filename)
+      addToast('PDF-Karteikarten heruntergeladen', 'success')
+    } catch (error) {
+      console.error('PDF export failed:', error)
+      addToast('PDF konnte nicht erstellt werden', 'error')
+    } finally {
+      setIsExportingCards(false)
+    }
   }
 
   const emptyState = (colSpan: string) => (
@@ -155,6 +176,15 @@ const RecipeList: React.FC = () => {
             >
               <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">Aktualisieren</span>
+            </button>
+            <button
+              onClick={handleExportCards}
+              disabled={isExportingCards || recipes.length === 0}
+              className="flex items-center space-x-2 px-4 py-2 bg-saffron text-espresso rounded-lg hover:bg-saffron-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="PDF-Karteikarten exportieren"
+            >
+              <Download size={18} />
+              <span className="hidden sm:inline">Karten</span>
             </button>
           </div>
         </div>

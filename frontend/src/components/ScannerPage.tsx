@@ -114,28 +114,53 @@ const ScannerPage: React.FC = () => {
     }
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = async () => {
-      try {
-        // For now, just try to parse as-is
-        const text = reader.result as string
-        if (isRecipeJSONQR(text)) {
-          const decoded = decodeRecipeFromCompactJSON(text)
-          if (decoded) {
-            setScannedRecipe(parseCompactRecipeToFull(decoded))
-            return
+    setError(null)
+
+    try {
+      const img = new Image()
+      img.src = URL.createObjectURL(file)
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('Bild konnte nicht geladen werden'))
+      })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas not supported')
+      ctx.drawImage(img, 0, 0)
+
+      if (window.BarcodeDetector) {
+        const detector = new window.BarcodeDetector!({ formats: ['qr_code'] })
+        const barcodes = await detector.detect(canvas)
+        
+        if (barcodes.length > 0) {
+          const value = barcodes[0].rawValue
+          if (isRecipeJSONQR(value)) {
+            const decoded = decodeRecipeFromCompactJSON(value)
+            if (decoded) {
+              setScannedRecipe(parseCompactRecipeToFull(decoded))
+              URL.revokeObjectURL(img.src)
+              return
+            }
           }
         }
         setError('Kein gültiger Rezept-QR-Code gefunden')
-      } catch (err) {
-        setError('Fehler beim Lesen der Datei')
+      } else {
+        setError('QR-Scanner für Bilder nicht verfügbar. Bitte nutze die Kamera oder einen Chromium-Browser (Chrome, Edge).')
       }
+    } catch (err) {
+      console.error('File upload error:', err)
+      setError('Fehler beim Lesen der Datei')
+    } finally {
+      e.target.value = ''
     }
-    reader.readAsText(file)
   }
 
   useEffect(() => {
@@ -254,6 +279,11 @@ const ScannerPage: React.FC = () => {
                   Bildschirmfoto eines QR-Codes hochladen
                 </span>
               </label>
+              {!window.BarcodeDetector && (
+                <p className="text-xs text-saffron-dark mt-2 text-center">
+                  Für Bild-Upload wird Chrome, Edge oder Chromium-Browser empfohlen
+                </p>
+              )}
             </div>
           )}
         </>

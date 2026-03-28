@@ -17,8 +17,9 @@ export const recipes = sqliteTable("recipes", {
   tried:       integer("tried", { mode: "boolean" }).default(false),
   rating:      integer("rating"),   // 1–5 stars, null = unrated
   notes:       text("notes"),       // personal notes
+  pdf_created: integer("pdf_created", { mode: "boolean" }).default(false),
   created_at:  integer("created_at", { mode: "timestamp" })
-                 .default(sql`(strftime('%s', 'now'))`),
+                  .default(sql`(strftime('%s', 'now'))`),
 });
 
 export const ingredientDictionary = sqliteTable("ingredient_dictionary", {
