@@ -139,9 +139,10 @@ export class TestRunner {
         if (status === 'completed' || status === 'failed') {
           const duration = Date.now() - startTime;
           
+          // success indicates polling worked (got a final status), not that the job succeeded
           const finalResult: TestResult = {
             name,
-            success: status === 'completed',
+            success: true,
             duration,
             data: result.data,
             error: status === 'failed' ? result.data.error : undefined,

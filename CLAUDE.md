@@ -80,6 +80,8 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/keys` | POST | Store API key |
 | `/api/v1/keys/:keyHash` | DELETE | Remove API key |
 | `/api/v1/health` | GET | Server + DB status |
+| `/api/v1/cookidoo/status` | GET | Cookidoo connection status |
+| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials |
 
 **Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
 - `ExtractionPage` — URL input, job polling, progress display
@@ -131,6 +133,10 @@ Host github.com
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
 - **After frontend changes:** Always run `npm run build:react` to update `public/`
+
+## Planning Documents
+
+- **Master Plan:** `docs/superpowers/plans/2026-03-26-master-phasenplan.md` — Strategischer Phasenplan (Phase 1–8), CEO-Review, Scope-Entscheidungen
 
 ## Cleanup (March 2026) ✅
 
@@ -203,8 +209,13 @@ Planned features and current implementation status (as of March 2026):
 ## Testing
 
 **Unit tests (no server needed):**
-- `npm test -- --run --exclude="test/e2e/**"` — run only unit tests (135+)
-- `npm test` — all tests (E2E tests will fail without a running server)
+- `npm test -- --run --exclude="test/e2e/**"` — run only unit tests
+- `npm test` — all tests (E2E tests fail if server not running)
+
+**Test Status (2026-03-28):**
+- Unit Tests: 225+ bestanden
+- E2E Tests: 18 bestanden, 1 fehlgeschlagen (Docker läuft nicht lokal)
+- Cookidoo Credentials: 21 Unit-Tests bestanden
 
 **Test Coverage:**
 | Area | Tests | Files |
@@ -214,6 +225,7 @@ Planned features and current implementation status (as of March 2026):
 | Main Components (Extraction, RecipeList, RecipeDetail) | 41 | `frontend/src/components/` |
 | Scaling utilities | 10 | `frontend/src/utils/` |
 | Backend Services (job-manager, byok-validator, db) | ~43 | `src/*.test.ts` |
+| Cookidoo Credentials | 21 | `test/unit/cookidoo-credentials.test.ts` |
 
 **E2E Tests (require running server):**
 - `test/e2e/react-api.test.ts` — React API endpoints
