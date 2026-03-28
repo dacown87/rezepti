@@ -7,5 +7,9 @@ data/*.db-shm
 data/*.db-wal
 LoginData
 data/cookidoo-session.json
-screenshots/
+screensshots/
 .gstack/
+.opencode/
+.playwright-mcp/
+FilesWorking/
+test/RecipePicture/

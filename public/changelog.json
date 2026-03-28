@@ -1,10 +1,22 @@
 {
-  "version": "1.0.23",
+  "version": "1.0.25",
   "lastUpdated": {
     "date": "2026-03-27",
-    "time": "20:59"
+    "time": "21:04"
   },
   "entries": [
+    {
+      "version": "1.0.25",
+      "date": "2026-03-27",
+      "changes": [
+        "update in-app roadmap after Phase 1-5 delivery"
+      ]
+    },
+    {
+      "version": "1.0.24",
+      "date": "2026-03-27",
+      "changes": []
+    },
     {
       "version": "1.0.23",
       "date": "2026-03-27",

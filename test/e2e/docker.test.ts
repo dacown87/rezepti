@@ -81,7 +81,7 @@ describe('Docker Environment Tests', () => {
       );
       
       expect(result.success).toBe(true);
-      expect(result.data?.status).toBe('ok');
+      expect(result.data?.status).toBe('healthy');
     });
 
     it('should serve React frontend from container', async () => {

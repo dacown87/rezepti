@@ -264,3 +264,37 @@ export async function clearMealPlan(weekStart: number): Promise<{ success: boole
     throw error
   }
 }
+
+// Cookidoo (Phase 7)
+export interface CookidooStatus {
+  connected: boolean
+  hasFileCredentials: boolean
+  email: string | null
+}
+
+export async function getCookidooStatus(): Promise<CookidooStatus> {
+  try {
+    return await apiGet<CookidooStatus>('/api/v1/cookidoo/status')
+  } catch (error) {
+    console.error('Failed to get Cookidoo status:', error)
+    throw error
+  }
+}
+
+export async function saveCookidooCredentials(email: string, password: string): Promise<{ success: boolean; message: string }> {
+  try {
+    return await apiPost<{ success: boolean; message: string }>('/api/v1/cookidoo/credentials', { email, password })
+  } catch (error) {
+    console.error('Failed to save Cookidoo credentials:', error)
+    throw error
+  }
+}
+
+export async function clearCookidooCredentials(): Promise<{ success: boolean; message: string }> {
+  try {
+    return await apiDelete<{ success: boolean; message: string }>('/api/v1/cookidoo/credentials')
+  } catch (error) {
+    console.error('Failed to clear Cookidoo credentials:', error)
+    throw error
+  }
+}
