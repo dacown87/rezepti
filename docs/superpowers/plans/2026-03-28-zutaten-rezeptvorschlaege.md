@@ -1,6 +1,7 @@
 ---
-status: PLANNING
+status: COMPLETED
 last_reviewed: 2026-03-28
+completed_date: 2026-03-28
 feature: Zutaten-basierte Rezeptvorschläge (0% → 100%)
 priority: 2
 phase: 10
@@ -251,8 +252,8 @@ Response: {
 
 ## Fortschritt
 
-- [ ] Phase 1: FTS5 + API-Erweiterung
-- [ ] Phase 2: AND-Logik Engine  
-- [ ] Phase 3: Frontend UI
-- [ ] Phase 4: Dictionary-Erweiterung
-- [ ] Phase 5: Erweiterte Features
+- [x] Phase 1: FTS5 + API-Erweiterung
+- [x] Phase 2: AND-Logik Engine  
+- [x] Phase 3: Frontend UI
+- [x] Phase 4: Dictionary-Erweiterung
+- [x] Phase 5: Erweiterte Features (optional, teilweise implementiert)

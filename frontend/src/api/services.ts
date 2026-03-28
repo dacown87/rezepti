@@ -3,7 +3,7 @@
  */
 
 import { apiGet, apiPost, apiPatch, apiDelete } from './client.js'
-import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse, ShoppingItem, DictionaryEntry, MealPlanEntry } from './types.js'
+import type { Recipe, JobStatus, ValidationResult, HealthStatus, KeyResponse, ShoppingItem, DictionaryEntry, MealPlanEntry, RecipeSearchResponse, RecipeSearchResult } from './types.js'
 
 // Recipes
 export async function getRecipes(ingredients?: string[]): Promise<Recipe[]> {
@@ -15,6 +15,38 @@ export async function getRecipes(ingredients?: string[]): Promise<Recipe[]> {
     return await apiGet<Recipe[]>(url)
   } catch (error) {
     console.error('Failed to fetch recipes:', error)
+    throw error
+  }
+}
+
+export type MatchMode = 'and' | 'or'
+
+export interface SearchRecipesOptions {
+  ingredients: string[]
+  match?: MatchMode
+  threshold?: number
+}
+
+export async function searchRecipes(options: SearchRecipesOptions): Promise<RecipeSearchResult[]> {
+  try {
+    const { ingredients, match = 'or', threshold = 0 } = options
+    if (ingredients.length === 0) {
+      return []
+    }
+    const url = `/api/v1/recipes?ingredients=${encodeURIComponent(ingredients.join(','))}&match=${match}&threshold=${threshold}`
+    const response = await apiGet<RecipeSearchResponse>(url)
+
+    const recipes = response.recipes || response
+    const matchScores = 'match_scores' in response ? response.match_scores || [] : []
+    const missingIngredients = 'missing_ingredients' in response ? response.missing_ingredients || [] : []
+
+    return recipes.map((recipe, index) => ({
+      ...recipe,
+      matchScore: matchScores[index] ?? 0,
+      missingIngredients: missingIngredients[index] ?? [],
+    }))
+  } catch (error) {
+    console.error('Failed to search recipes:', error)
     throw error
   }
 }

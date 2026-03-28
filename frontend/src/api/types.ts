@@ -21,6 +21,19 @@ export interface Recipe {
   pdf_created?: boolean
 }
 
+export interface RecipeSearchResult extends Recipe {
+  matchScore?: number
+  missingIngredients?: string[]
+}
+
+export interface RecipeSearchResponse {
+  recipes: Recipe[]
+  match_scores?: number[]
+  missing_ingredients?: string[][]
+  match_mode?: string
+  threshold?: number
+}
+
 export interface JobStatus {
   jobId: string
   status: 'pending' | 'running' | 'completed' | 'failed'

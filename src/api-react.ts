@@ -13,6 +13,7 @@ import {
   deleteRecipeFromReactDb,
   getRecipeCount,
   searchRecipesByIngredients,
+  searchRecipesByIngredientsAdvanced,
   getShoppingList,
   addToShoppingList,
   toggleShoppingItem,
@@ -50,18 +51,34 @@ ensureReactSchema();
 app.get("/api/v1/recipes", (c) => {
   try {
     const ingredientsParam = c.req.query("ingredients");
-    
-    let recipes;
-    if (ingredientsParam) {
-      if (ingredientsParam.length > 500) {
-        return c.json({ error: "ingredients param too long" }, 400);
-      }
-      const ingredients = ingredientsParam.split(",").map(i => i.trim()).filter(i => i).slice(0, 20);
-      recipes = searchRecipesByIngredients(ingredients);
-    } else {
-      recipes = getAllRecipesFromReactDb();
+    const matchParam = c.req.query("match") as "and" | "or" | undefined;
+    const thresholdParam = c.req.query("threshold");
+
+    if (ingredientsParam && ingredientsParam.length > 500) {
+      return c.json({ error: "ingredients param too long" }, 400);
     }
-    return c.json(recipes);
+
+    const ingredients = ingredientsParam
+      ? ingredientsParam.split(",").map(i => i.trim()).filter(i => i).slice(0, 20)
+      : [];
+
+    if (ingredients.length > 0) {
+      const match = matchParam === "and" ? "and" : "or";
+      const threshold = thresholdParam ? Math.max(0, Math.min(100, parseInt(thresholdParam, 10))) : 0;
+
+      const results = searchRecipesByIngredientsAdvanced({ ingredients, match, threshold });
+
+      return c.json({
+        recipes: results.map(r => r.recipe),
+        match_scores: results.map(r => r.matchScore),
+        missing_ingredients: results.map(r => r.missingIngredients),
+        match_mode: match,
+        threshold,
+      });
+    }
+
+    const recipes = getAllRecipesFromReactDb();
+    return c.json({ recipes, match_mode: "or", threshold: 0 });
   } catch (error) {
     console.error("Error fetching recipes from React DB:", error);
     return c.json({ error: "Failed to fetch recipes" }, 500);

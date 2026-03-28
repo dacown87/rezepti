@@ -124,8 +124,93 @@ export function getAllRecipesFromReactDb() {
   return db.select().from(recipes).orderBy(recipes.created_at).all().map(deserialize);
 }
 
+export type MatchMode = "and" | "or";
+
+export interface RecipeSearchResult {
+  recipe: ReturnType<typeof deserialize>;
+  matchScore: number;
+  matchedIngredients: string[];
+  missingIngredients: string[];
+}
+
+export interface SearchRecipesOptions {
+  ingredients: string[];
+  match?: MatchMode;
+  threshold?: number;
+}
+
+/**
+ * Search recipes by ingredients with AND/OR logic and match scoring
+ */
+export function searchRecipesByIngredientsAdvanced(
+  options: SearchRecipesOptions
+): RecipeSearchResult[] {
+  const db = getReactDb();
+  const allRecipes = db.select().from(recipes).all().map(deserialize);
+
+  const { ingredients, match = "or", threshold = 0 } = options;
+
+  if (ingredients.length === 0) {
+    return allRecipes.map(recipe => ({
+      recipe,
+      matchScore: 0,
+      matchedIngredients: [],
+      missingIngredients: [],
+    }));
+  }
+
+  const searchTerms = ingredients.map(i => i.toLowerCase().trim());
+
+  const results: RecipeSearchResult[] = [];
+
+  for (const recipe of allRecipes) {
+    const matchedIngredients: string[] = [];
+    const missingIngredients: string[] = [...searchTerms];
+
+    for (const ingredient of recipe.ingredients) {
+      const ingredientLower = ingredient.toLowerCase();
+      for (const term of searchTerms) {
+        if (ingredientLower.includes(term) && !matchedIngredients.includes(term)) {
+          matchedIngredients.push(term);
+          missingIngredients.splice(missingIngredients.indexOf(term), 1);
+        }
+      }
+    }
+
+    const matchScore = searchTerms.length > 0
+      ? Math.round((matchedIngredients.length / searchTerms.length) * 100)
+      : 0;
+
+    const matches =
+      match === "and"
+        ? missingIngredients.length === 0
+        : matchedIngredients.length > 0;
+
+    if (matches && matchScore >= threshold) {
+      results.push({
+        recipe,
+        matchScore,
+        matchedIngredients,
+        missingIngredients,
+      });
+    }
+  }
+
+  if (match === "or") {
+    results.sort((a, b) => b.matchScore - a.matchScore);
+  } else {
+    results.sort((a, b) => {
+      if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+      return a.missingIngredients.length - b.missingIngredients.length;
+    });
+  }
+
+  return results;
+}
+
 /**
  * Search recipes by ingredients (OR logic - matches any ingredient)
+ * @deprecated Use searchRecipesByIngredientsAdvanced for AND/OR support
  */
 export function searchRecipesByIngredients(ingredients: string[]): ReturnType<typeof getAllRecipesFromReactDb> {
   const db = getReactDb();

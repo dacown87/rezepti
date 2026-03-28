@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star, Search, X, Download } from 'lucide-react'
+import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star, Search, X, Download, Zap, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { getRecipes } from '../api/services.js'
+import { getRecipes, searchRecipes, type MatchMode, type SearchRecipesOptions } from '../api/services.js'
 import { parseServingsNumber } from '../utils/scaling.js'
 import { generateRecipeCardsPDF, downloadPDF } from '../utils/pdf-export.js'
-import type { Recipe } from '../api/types.js'
+import type { Recipe, RecipeSearchResult } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeListSkeleton } from './SkeletonLoader'
 
 type ViewMode = 'list' | 'grid'
 
+const PANTRY_STORAGE_KEY = 'rezepti_pantry'
+const MATCH_MODE_STORAGE_KEY = 'rezepti_match_mode'
+
 const RecipeList: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [searchResults, setSearchResults] = useState<RecipeSearchResult[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -20,8 +24,13 @@ const RecipeList: React.FC = () => {
   )
   const [ingredientSearch, setIngredientSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [matchMode, setMatchMode] = useState<MatchMode>(
+    () => (localStorage.getItem(MATCH_MODE_STORAGE_KEY) as MatchMode) ?? 'and'
+  )
   const { addToast } = useToast()
   const [isExportingCards, setIsExportingCards] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [isSearchActive, setIsSearchActive] = useState(false)
 
   const switchView = (mode: ViewMode) => {
     setViewMode(mode)
@@ -29,6 +38,10 @@ const RecipeList: React.FC = () => {
   }
 
   useEffect(() => {
+    const savedPantry = localStorage.getItem(PANTRY_STORAGE_KEY)
+    if (savedPantry) {
+      setSearchInput(savedPantry)
+    }
     fetchRecipes()
   }, [])
 
@@ -44,6 +57,7 @@ const RecipeList: React.FC = () => {
       const data = await getRecipes(ingredients)
       setRecipes(data)
       setIngredientSearch(ingredients ? ingredients.join(', ') : '')
+      setIsSearchActive(false)
       if (showToast && data.length > 0) {
         addToast(`${data.length} Rezepte geladen`, 'success')
       }
@@ -58,14 +72,69 @@ const RecipeList: React.FC = () => {
     }
   }
 
+  const performSearch = async (ingredients: string[], mode: MatchMode): Promise<void> => {
+    if (ingredients.length === 0) {
+      fetchRecipes()
+      return
+    }
+
+    setIsSearching(true)
+    setError(null)
+
+    try {
+      const options: SearchRecipesOptions = {
+        ingredients,
+        match: mode,
+        threshold: 0,
+      }
+      const results = await searchRecipes(options)
+      setSearchResults(results)
+      setRecipes(results.map(r => r))
+      setIngredientSearch(ingredients.join(', '))
+      setIsSearchActive(true)
+    } catch (err: any) {
+      console.error('Search failed:', err)
+      const errorMessage = 'Suche fehlgeschlagen. Bitte versuche es später erneut.'
+      setError(errorMessage)
+      addToast(errorMessage, 'error')
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
   const handleSearch = () => {
     const terms = searchInput.split(',').map(t => t.trim()).filter(t => t)
-    fetchRecipes(false, terms.length > 0 ? terms : undefined)
+    localStorage.setItem(PANTRY_STORAGE_KEY, searchInput)
+    performSearch(terms.length > 0 ? terms : [], matchMode)
+  }
+
+  const handleMatchModeChange = (mode: MatchMode) => {
+    setMatchMode(mode)
+    localStorage.setItem(MATCH_MODE_STORAGE_KEY, mode)
+    const terms = searchInput.split(',').map(t => t.trim()).filter(t => t)
+    if (terms.length > 0) {
+      performSearch(terms, mode)
+    }
   }
 
   const clearSearch = () => {
     setSearchInput('')
+    setIsSearchActive(false)
+    setSearchResults([])
+    localStorage.removeItem(PANTRY_STORAGE_KEY)
     fetchRecipes(false, undefined)
+  }
+
+  const getMatchScore = (recipe: Recipe): number => {
+    if (!isSearchActive) return 0
+    const found = searchResults.find(r => r.id === recipe.id)
+    return found?.matchScore ?? 0
+  }
+
+  const getMissingIngredients = (recipe: Recipe): string[] => {
+    if (!isSearchActive) return []
+    const found = searchResults.find(r => r.id === recipe.id)
+    return found?.missingIngredients ?? []
   }
 
   const handleExportCards = async () => {
@@ -75,7 +144,7 @@ const RecipeList: React.FC = () => {
     }
     setIsExportingCards(true)
     try {
-      const blob = await generateRecipeCardsPDF(recipes)
+      const blob = await generateRecipePDF(recipes)
       const filename = `rezeptkarten_${new Date().toISOString().split('T')[0]}.pdf`
       downloadPDF(blob, filename)
       addToast('PDF-Karteikarten heruntergeladen', 'success')
@@ -124,9 +193,10 @@ const RecipeList: React.FC = () => {
             </div>
             <button
               onClick={handleSearch}
-              className="px-4 py-2 bg-paprika text-white rounded-lg hover:bg-paprika-dark transition-colors"
+              disabled={isSearching}
+              className="px-4 py-2 bg-paprika text-white rounded-lg hover:bg-paprika-dark transition-colors disabled:opacity-50"
             >
-              Suchen
+              {isSearching ? '...' : 'Suchen'}
             </button>
             {ingredientSearch && (
               <button
@@ -139,9 +209,27 @@ const RecipeList: React.FC = () => {
             )}
           </div>
           {ingredientSearch && (
-            <p className="text-sm text-warmgray mt-2">
-              Suche nach: <span className="font-medium text-paprika">{ingredientSearch}</span>
-            </p>
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              <p className="text-sm text-warmgray">
+                Suche nach: <span className="font-medium text-paprika">{ingredientSearch}</span>
+              </p>
+              <div className="flex bg-warmgray/10 rounded-lg p-1">
+                <button
+                  onClick={() => handleMatchModeChange('and')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${matchMode === 'and' ? 'bg-white shadow text-paprika font-medium' : 'text-warmgray hover:text-gray-600'}`}
+                  title="Alle Zutaten müssen vorhanden sein"
+                >
+                  UND
+                </button>
+                <button
+                  onClick={() => handleMatchModeChange('or')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${matchMode === 'or' ? 'bg-white shadow text-paprika font-medium' : 'text-warmgray hover:text-gray-600'}`}
+                  title="Mindestens eine Zutat muss vorhanden sein"
+                >
+                  ODER
+                </button>
+              </div>
+            </div>
           )}
         </div>
         
@@ -225,7 +313,17 @@ const RecipeList: React.FC = () => {
                         ))}
                       </div>
                     )}
+                    {isSearchActive && getMatchScore(recipe) > 0 && (
+                      <span className="px-2 py-0.5 bg-saffron/20 text-saffron text-xs rounded-full font-medium">
+                        ⚡ {getMatchScore(recipe)}%
+                      </span>
+                    )}
                   </div>
+                  {isSearchActive && getMissingIngredients(recipe).length > 0 && (
+                    <p className="text-xs text-warmgray mt-1">
+                      Fehlt: {getMissingIngredients(recipe).join(', ')}
+                    </p>
+                  )}
                 </div>
                 <div className="hidden sm:flex items-center space-x-5 ml-4 flex-shrink-0 text-warmgray text-sm">
                   {recipe.duration && (
@@ -292,7 +390,17 @@ const RecipeList: React.FC = () => {
                               {tag}
                             </span>
                           ))}
+                          {isSearchActive && getMatchScore(recipe) > 0 && (
+                            <span className="px-2 py-1 bg-saffron/20 text-saffron text-xs rounded-full font-medium">
+                              ⚡ {getMatchScore(recipe)}%
+                            </span>
+                          )}
                         </div>
+                        {isSearchActive && getMissingIngredients(recipe).length > 0 && (
+                          <p className="text-xs text-warmgray mt-2">
+                            Fehlt: {getMissingIngredients(recipe).join(', ')}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -261,13 +261,16 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - `parseGermanPortions()` für "für 4 Personen", "ca. 6 Stück" etc.
 - Chefkoch-spezifische CSS-Selektoren für Zutaten/Schritte
 
-##### Phase 10: Zutaten-basierte Rezeptvorschläge (0% → 100%)
+##### Phase 10: Zutaten-basierte Rezeptvorschläge (0% → 100%) ✅ DONE
 **Schätzung:** 5-7 Tage (reduziert von 10-12) | **Risiko:** MEDIUM | **Branch:** `phase/10-zutaten-rezeptvorschlaege`
+**Abgeschlossen:** 2026-03-28
 
-- "Was habe ich zu Hause?" Feature
-- AND-Logik statt OR für Zutaten-Suche
-- API + einfaches Frontend (keine vollständige FTS5-Migration nötig)
-- Matching-Score: (gefundene / eingegebene) × 100%
+- "Was habe ich zu Hause?" Feature ✅
+- AND/OR-Logik für Zutaten-Suche ✅
+- API + Frontend mit Match-Score ✅
+- Matching-Score: (gefundene / eingegebene) × 100% ✅
+- Meine Vorräte in localStorage persistiert ✅
+- Fehlende Zutaten werden angezeigt ✅
 
 ##### Phase 11: Instagram Verbesserung (70% → 95%)
 **Schätzung:** 5-7 Tage | **Risiko:** MEDIUM | **Branch:** `phase/11-instagram-verbesserung`
@@ -388,10 +391,11 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 | /qa Pass | `/qa` | Browser QA Phase 1–5 | 1 | passed | Alle Features verifiziert. 1 bekanntes offenes Problem: QR-Bild-Upload broken → Phase 8 Backlog |
 | Phase 7 QA | Orchestrated | Phase 7 implementation | 1 | passed | Cookidoo-Credentials-UI, Pinterest/Facebook-Platzhalter, 166 Unit-Tests bestanden ✅ |
 | Planner Review | /plan + web research | Phase 9-14 revision | 1 | passed | Dauer reduziert: 46d → 25-35d; Phase 10: 10-12d → 5-7d; bessere Fallbacks (Apify, Vision-OCR) |
+| Phase 10 | Orchestrated | Phase 10 implementation | 1 | COMPLETED | "Was habe ich zu Hause?" Feature: AND/OR-Toggle, Match-Score, fehlende Zutaten, localStorage-Persistenz ✅ |
 
 **UNRESOLVED:** 2
 - QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
 - Facebook Import: ToS-Risiko, niedrige Priorität
 
-**STATUS (2026-03-28):** Phase 1–9 vollständig implementiert. Phase 10-14 Import-Verbesserungen.
-**CURRENT:** Phase 10 – Zutaten-Rezeptvorschläge (PENDING)
+**STATUS (2026-03-28):** Phase 1–10 vollständig implementiert. Phase 11-14 Import-Verbesserungen.
+**CURRENT:** Phase 11 – Instagram Verbesserung (branch: `phase/11-instagram-verbesserung`)
