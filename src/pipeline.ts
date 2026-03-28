@@ -72,7 +72,7 @@ export async function processURL(
         bundle = await fetchPinterest(classified.url, tempDir);
         break;
       case "facebook":
-        bundle = await fetchFacebook(classified.url);
+        bundle = await fetchFacebook(classified.url, tempDir);
         break;
       case "web":
       default:

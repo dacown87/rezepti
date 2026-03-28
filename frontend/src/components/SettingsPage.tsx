@@ -15,7 +15,7 @@ const ROADMAP = [
       { label: 'Chefkoch', percent: 40 },
       { label: 'Cookidoo', percent: 100 },
       { label: 'Pinterest', percent: 0 },
-      { label: 'Facebook', percent: 0 },
+      { label: 'Facebook', percent: 60 },
       { label: 'Foto-Import (Kamera/Galerie)', percent: 100 },
     ],
   },
@@ -147,6 +147,7 @@ const SettingsPage: React.FC = () => {
   const [cookidooPassword, setCookidooPassword] = useState('')
   const [cookidooStatus, setCookidooStatus] = useState<{connected: boolean; hasFileCredentials: boolean; email: string | null} | null>(null)
   const [isSavingCookidoo, setIsSavingCookidoo] = useState(false)
+  const [facebookAccepted, setFacebookAccepted] = useState(() => localStorage.getItem('facebook_tos_accepted') === 'true')
   const { addToast } = useToast()
 
   // Load saved key on mount
@@ -285,6 +286,14 @@ const SettingsPage: React.FC = () => {
     } catch (err) {
       console.error("Error clearing Cookidoo credentials:", err)
       addToast("Fehler beim Löschen der Zugangsdaten", "error")
+    }
+  }
+
+  const handleFacebookTosToggle = (accepted: boolean) => {
+    setFacebookAccepted(accepted)
+    localStorage.setItem('facebook_tos_accepted', accepted ? 'true' : 'false')
+    if (accepted) {
+      addToast('Facebook-Import aktiviert. Bitte nutze max. 1 Anfrage pro Minute.', 'info')
     }
   }
 
@@ -503,6 +512,65 @@ const SettingsPage: React.FC = () => {
             <div className="mt-4 pt-4 border-t border-warmgray/10 text-sm text-warmgray">
               <p>Deine Zugangsdaten werden lokal gespeichert und verschlüsselt an Cookidoo übertragen.</p>
             </div>
+          </div>
+
+          {/* Facebook Import Settings (Phase 14) */}
+          <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-display font-bold flex items-center space-x-2">
+                  <span className="text-2xl">📘</span>
+                  <span>Facebook Import</span>
+                </h2>
+                <p className="text-warmgray mt-1">
+                  Öffentliche Videos und Reels importieren
+                </p>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                facebookAccepted
+                  ? "bg-green-100 text-green-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}>
+                {facebookAccepted ? "Aktiv" : "Deaktiviert"}
+              </div>
+            </div>
+
+            {/* ToS Warning */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-yellow-800 text-sm">⚠️ Facebook ToS Warnung</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Facebooks Nutzungsbedingungen verbieten automatisiertes Scraping. 
+                    Risiken: IP-Blockierung, Account-Suspension.
+                  </p>
+                </div>
+              </div>
+              <ul className="mt-3 space-y-1 text-xs text-yellow-700 ml-8">
+                <li>✅ Nur öffentliche Videos/Reels</li>
+                <li>✅ Max. 1 Anfrage pro Minute</li>
+                <li>❌ Keine Text-Posts</li>
+                <li>❌ Keine Gruppen/Private Inhalte</li>
+              </ul>
+            </div>
+
+            <label className="flex items-start space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={facebookAccepted}
+                onChange={(e) => handleFacebookTosToggle(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-warmgray/30 text-paprika focus:ring-paprika/50"
+              />
+              <div>
+                <p className="text-sm font-medium text-warmgray">
+                  Ich akzeptiere die ToS-Risiken und möchte den Facebook-Import nutzen
+                </p>
+                <p className="text-xs text-warmgray/70 mt-0.5">
+                  Der Import erfolgt über yt-dlp für Videos und Open-Graph-Metadaten als Fallback.
+                </p>
+              </div>
+            </label>
           </div>
 
         {/* Sidebar */}
