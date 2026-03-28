@@ -3,7 +3,7 @@ import type { ClassifiedURL, SourceType } from "./types.js";
 const patterns: [SourceType, RegExp][] = [
   ["youtube", /(?:youtube\.com|youtu\.be)\//i],
   ["instagram", /instagram\.com\//i],
-  ["tiktok", /tiktok\.com\//i],
+  ["tiktok", /(?:tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)\//i],
   ["cookidoo", /cookidoo\.de\//i],
   ["chefkoch", /(?:www\.)?chefkoch\.de\/rezepte\//i],
   ["pinterest", /pinterest\.(com|de)\//i],
