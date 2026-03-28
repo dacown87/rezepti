@@ -224,6 +224,106 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - [ ] **Drag & Drop im Wochenplan** — `dnd-kit` für mobile-freundliches Umsortieren
 - [ ] **Multi-User / Login** — JWT oder Session-Cookies, `user_id` in allen Tabellen, Auth-Middleware
 
+---
+
+### Feature-Plan: Import-Verbesserungen (Reihenfolge nach Priorität)
+
+| # | Feature | Status | Dauer | Risiko | Plan-Dokument |
+|---|---------|--------|-------|--------|---------------|
+| 1 | Chefkoch Verbesserung | IN PROGRESS | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
+| 2 | Zutaten-Rezeptvorschläge | PENDING | 10-12d | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
+| 3 | Instagram Verbesserung | PENDING | 9d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
+| 4 | TikTok Verbesserung | PENDING | 8d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
+| 5 | Pinterest Import | PENDING | 11d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
+| 6 | Facebook Import | PENDING | 6d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
+
+**Gesamtdauer:** ~6-7 Wochen (bei Vollzeit-Entwicklung)
+
+**Gesamtrisiko:** MEDIUM (Facebook ausgenommen)
+
+---
+
+#### Detail-Übersicht:
+
+##### 1. Chefkoch Verbesserung (40% → 100%)
+**Schätzung:** 2-4 Stunden | **Risiko:** LOW
+
+- Chefkoch als eigene Kategorie in `classifier.ts`
+- Spezieller Fetcher mit deutschem Portions-Parsing
+- HTML-Fallback für fehlende Schema.org-Daten
+- **Quick Win:** Höchster ROI, schnellste Implementierung
+
+##### 2. Zutaten-basierte Rezeptvorschläge (0% → 100%)
+**Schätzung:** 10-12 Tage | **Risiko:** MEDIUM
+
+- "Was habe ich zu Hause?" Feature
+- AND-Logik statt OR für Zutaten-Suche
+- Matching-Engine mit Fuzzy-Suche + Scoring
+- FTS5-Index für Performance
+- Frontend: Multi-Select Zutaten-Eingabe mit Auto-Vervollständigung
+
+##### 3. Instagram Verbesserung (70% → 100%)
+**Schätzung:** 9 Tage | **Risiko:** MEDIUM
+
+- Video OCR für Text-Overlays
+- Carousel-Unterstützung (Multi-Image Posts)
+- Kommentar-Extraktion
+- Rate-Limit Management mit Exponential Backoff
+- Fallback: Headless Browser wenn yt-dlp blockiert
+
+##### 4. TikTok Verbesserung (70% → 100%)
+**Schätzung:** 8 Tage | **Risiko:** MEDIUM
+
+- Video OCR für Text-Overlays (kritisch für TikTok-Rezepte)
+- Kommentar-Extraktion (oft Rezept-Details in Kommentaren)
+- Regionale Fallbacks (Geoblocking in EU/DE)
+- Mobile URL Support (`vm.tiktok.com`)
+- Feature-Parität mit Instagram-Fetcher
+
+##### 5. Pinterest Import (0% → 100%)
+**Schätzung:** 11 Tage | **Risiko:** MEDIUM/HIGH
+
+- Proxy-Fetcher: Original-URL Detection + `fetchWeb()` Delegation
+- Pin-Bild/-Beschreibung Extraktion
+- Pinterest API Integration (optional, OAuth 2.0)
+- Multi-Bild Support für Carousel-Pins
+- BYOK für Pinterest API Keys
+
+##### 6. Facebook Import (0% → 100%)
+**Schätzung:** 6 Tage | **Risiko:** **HIGH**
+
+⚠️ **Warnung:** Facebook ToS verbietet automatisiertes Scraping
+
+- **Video-only Ansatz** (Reels, Videos)
+- yt-dlp für Video-Download (wie Instagram)
+- Open Graph Fallback für nicht-Video URLs
+- Cookie-Management optional (User müssen eigene Cookies bereitstellen)
+- **NICHT geplant:** Text-Post Scraping, Gruppen-Inhalte, Login-Automation
+- **Empfehlung:** Optional, nur wenn wirklich benötigt
+
+---
+
+#### Risiko-Zusammenfassung:
+
+| Feature | Legal | Technical | Maintenance |
+|---------|-------|-----------|-------------|
+| Chefkoch | ✅ Kein Risiko | ✅ Stabil | ✅ Gering |
+| Zutaten-Vorschläge | ✅ Kein Risiko | 🟡 Performance | 🟡 Mittel |
+| Instagram | ✅ Geduldet | 🟡 Rate Limits | 🟡 Mittel |
+| TikTok | ✅ Geduldet | 🟡 Geoblocking | 🟡 Mittel |
+| Pinterest | 🟡 ToS unklar | ⚠️ Anti-Scraping | ⚠️ Hoch |
+| Facebook | ❌ ToS-Verletzung | ❌ Anti-Bot | ❌ Sehr Hoch |
+
+---
+
+#### Nächste Schritte:
+
+1. **Chefkoffer** → Starten (IN PROGRESS)
+2. **Zutaten-Vorschläge** → Nächste Priorität
+3. **Instagram/TikTok** → Parallelisierbar
+4. **Pinterest** → Nach Zutaten-Vorschläge
+5. **Facebook** → Optional, niedrig priorisiert
+
 ### Phase 7+: Multi-User (sehr späte Zukunft)
 **Ziel:** Login, Cloud-Sync, Social-Features — nur wenn wirklich mehrere Nutzer die App verwenden sollen.
 **CC-Aufwand:** ~3-5 Sessions
@@ -246,7 +346,6 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 
 - Kommentare / Social Feed — ohne Multi-User kein Mehrwert
 - KI-Rezeptgenerierung (nur Suche in Sammlung, Phase 4)
-- Pinterest / Facebook Import — niedrige Priorität, Extraktion-Pipeline generisch
 - Rating-System mit Community — Personal-Tool, nur lokal
 
 ## What already exists (Leverage)
@@ -283,6 +382,9 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 | /qa Pass | `/qa` | Browser QA Phase 1–5 | 1 | passed | Alle Features verifiziert. 1 bekanntes offenes Problem: QR-Bild-Upload broken → Phase 8 Backlog |
 | Phase 7 QA | Orchestrated | Phase 7 implementation | 1 | passed | Cookidoo-Credentials-UI, Pinterest/Facebook-Platzhalter, 166 Unit-Tests bestanden ✅ |
 
-**UNRESOLVED:** 1 — QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
-**STATUS (2026-03-28):** Phase 1–7 vollständig implementiert. Branch `phase/7-cookidoo-integration` bereit für Review.
-**NEXT:** Phase 8 — QR-Bild-Scan (BarcodeDetector API), Drag & Drop im Wochenplan, Multi-User/Login
+**UNRESOLVED:** 2
+- QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
+- Facebook Import: ToS-Risiko, niedrige Priorität
+
+**STATUS (2026-03-28):** Phase 1–7 vollständig implementiert. Import-Verbesserungen in Planung.
+**NEXT:** Chefkoch Verbesserung starten (Feature 1), dann Zutaten-Rezeptvorschläge (Feature 2)
