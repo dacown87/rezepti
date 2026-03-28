@@ -230,7 +230,7 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 
 | Phase | Feature | Status | Dauer | Risiko | Plan-Dokument |
 |-------|---------|--------|-------|--------|---------------|
-| 9 | Chefkoch Verbesserung | IN PROGRESS | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
+| 9 | Chefkoch Verbesserung | ✅ DONE | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
 | 10 | Zutaten-Rezeptvorschläge | PENDING | **5-7d** | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
 | 11 | Instagram Verbesserung | PENDING | 5-7d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
 | 12 | TikTok Verbesserung | PENDING | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
@@ -243,6 +243,7 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - Phase 10: 10-12d → 5-7d (simplerer API-Ansatz)
 - Phase 11-14: Leicht reduziert durch bessere Fallback-Strategien (Apify, Vision-OCR)
 - Facebook: Video-only (70% statt 100%)
+- Phase 9: COMPLETED ✅
 
 **Gesamtrisiko:** MEDIUM (Facebook ausgenommen)
 
@@ -250,13 +251,15 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 
 #### Detail-Übersicht:
 
-##### Phase 9: Chefkoch Verbesserung (40% → 100%)
+##### Phase 9: Chefkoch Verbesserung (40% → 100%) ✅ DONE
 **Schätzung:** 2-4 Stunden | **Risiko:** LOW | **Branch:** `phase/9-chefkoch-verbesserung`
 
+**Implementiert:**
 - Chefkoch als eigene Kategorie in `classifier.ts`
 - Spezieller Fetcher mit deutschem Portions-Parsing
 - HTML-Fallback für fehlende Schema.org-Daten
-- **Quick Win:** Höchster ROI, schnellste Implementierung
+- `parseGermanPortions()` für "für 4 Personen", "ca. 6 Stück" etc.
+- Chefkoch-spezifische CSS-Selektoren für Zutaten/Schritte
 
 ##### Phase 10: Zutaten-basierte Rezeptvorschläge (0% → 100%)
 **Schätzung:** 5-7 Tage (reduziert von 10-12) | **Risiko:** MEDIUM | **Branch:** `phase/10-zutaten-rezeptvorschlaege`
@@ -390,5 +393,5 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 - QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
 - Facebook Import: ToS-Risiko, niedrige Priorität
 
-**STATUS (2026-03-28):** Phase 1–8 vollständig implementiert. Phase 9-14 überarbeitet (kürzere Schätzungen, bessere Fallbacks).
-**CURRENT:** Phase 9 – Chefkoch Verbesserung (IN PROGRESS)
+**STATUS (2026-03-28):** Phase 1–9 vollständig implementiert. Phase 10-14 Import-Verbesserungen.
+**CURRENT:** Phase 10 – Zutaten-Rezeptvorschläge (PENDING)

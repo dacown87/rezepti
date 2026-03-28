@@ -1,10 +1,11 @@
 ---
-status: PLANNING
+status: COMPLETED
 last_reviewed: 2026-03-28
 feature: Chefkoch Verbesserung (40% → 100%)
 priority: 1
 phase: 9
 branch: phase/9-chefkoch-verbesserung
+completed: 2026-03-28
 ---
 
 # Plan: Chefkoch Verbesserung
@@ -133,10 +134,10 @@ Chefkoch.de Rezepte zuverlässig importieren (40% → 100% Extraktionsrate).
 
 ## Fortschritt
 
-- [ ] Phase 1: Analyse
-- [ ] Phase 2: Kategorie einführen
-- [ ] Phase 3: Fetcher erstellen
-- [ ] Phase 4: Testing
+- [x] Phase 1: Analyse
+- [x] Phase 2: Kategorie einführen
+- [x] Phase 3: Fetcher erstellen
+- [x] Phase 4: Testing
 
 ---
 

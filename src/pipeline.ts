@@ -6,6 +6,7 @@ import { fetchTikTok } from "./fetchers/tiktok.js";
 import { fetchCookidoo } from "./fetchers/cookidoo.js";
 import { fetchPinterest } from "./fetchers/pinterest.js";
 import { fetchFacebook } from "./fetchers/facebook.js";
+import { fetchChefkoch } from "./fetchers/chefkoch.js";
 import { schemaToRecipeData } from "./processors/schema-org.js";
 import {
   extractRecipeFromText,
@@ -62,6 +63,9 @@ export async function processURL(
         break;
       case "cookidoo":
         bundle = await fetchCookidoo(classified.url);
+        break;
+      case "chefkoch":
+        bundle = await fetchChefkoch(classified.url);
         break;
       case "pinterest":
         bundle = await fetchPinterest(classified.url);

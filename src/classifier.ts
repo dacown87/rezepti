@@ -5,6 +5,7 @@ const patterns: [SourceType, RegExp][] = [
   ["instagram", /instagram\.com\//i],
   ["tiktok", /tiktok\.com\//i],
   ["cookidoo", /cookidoo\.de\//i],
+  ["chefkoch", /(?:www\.)?chefkoch\.de\/rezepte\//i],
   ["pinterest", /pinterest\.(com|de)\//i],
   ["facebook", /facebook\.com\//i],
 ];
