@@ -3,6 +3,8 @@ status: PLANNING
 last_reviewed: 2026-03-28
 feature: Instagram Verbesserung (70% → 100%)
 priority: 3
+phase: 11
+branch: phase/11-instagram-verbesserung
 ---
 
 # Plan: Instagram-Integration vollständig

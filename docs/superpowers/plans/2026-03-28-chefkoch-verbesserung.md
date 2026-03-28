@@ -1,8 +1,10 @@
 ---
-status: IN_PROGRESS
+status: PLANNING
 last_reviewed: 2026-03-28
 feature: Chefkoch Verbesserung (40% → 100%)
 priority: 1
+phase: 9
+branch: phase/9-chefkoch-verbesserung
 ---
 
 # Plan: Chefkoch Verbesserung

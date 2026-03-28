@@ -2,7 +2,9 @@
 status: PLANNING
 last_reviewed: 2026-03-28
 feature: Facebook Import (0% → 100%)
-priority: 6 (HIGH RISK)
+priority: 6
+phase: 14
+branch: phase/14-facebook-import
 ---
 
 # Plan: Facebook-Import mit Risiko-Bewertung

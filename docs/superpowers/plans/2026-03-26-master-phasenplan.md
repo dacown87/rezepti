@@ -226,16 +226,16 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 
 ---
 
-### Feature-Plan: Import-Verbesserungen (Reihenfolge nach Priorität)
+### Phase 9-14: Import-Verbesserungen (Reihenfolge nach Priorität)
 
-| # | Feature | Status | Dauer | Risiko | Plan-Dokument |
-|---|---------|--------|-------|--------|---------------|
-| 1 | Chefkoch Verbesserung | IN PROGRESS | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
-| 2 | Zutaten-Rezeptvorschläge | PENDING | 10-12d | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
-| 3 | Instagram Verbesserung | PENDING | 9d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
-| 4 | TikTok Verbesserung | PENDING | 8d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
-| 5 | Pinterest Import | PENDING | 11d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
-| 6 | Facebook Import | PENDING | 6d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
+| Phase | Feature | Status | Dauer | Risiko | Plan-Dokument |
+|-------|---------|--------|-------|--------|---------------|
+| 9 | Chefkoch Verbesserung | IN PROGRESS | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
+| 10 | Zutaten-Rezeptvorschläge | PENDING | 10-12d | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
+| 11 | Instagram Verbesserung | PENDING | 9d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
+| 12 | TikTok Verbesserung | PENDING | 8d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
+| 13 | Pinterest Import | PENDING | 11d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
+| 14 | Facebook Import | PENDING | 6d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
 
 **Gesamtdauer:** ~6-7 Wochen (bei Vollzeit-Entwicklung)
 
@@ -245,16 +245,16 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 
 #### Detail-Übersicht:
 
-##### 1. Chefkoch Verbesserung (40% → 100%)
-**Schätzung:** 2-4 Stunden | **Risiko:** LOW
+##### Phase 9: Chefkoch Verbesserung (40% → 100%)
+**Schätzung:** 2-4 Stunden | **Risiko:** LOW | **Branch:** `phase/9-chefkoch-verbesserung`
 
 - Chefkoch als eigene Kategorie in `classifier.ts`
 - Spezieller Fetcher mit deutschem Portions-Parsing
 - HTML-Fallback für fehlende Schema.org-Daten
 - **Quick Win:** Höchster ROI, schnellste Implementierung
 
-##### 2. Zutaten-basierte Rezeptvorschläge (0% → 100%)
-**Schätzung:** 10-12 Tage | **Risiko:** MEDIUM
+##### Phase 10: Zutaten-basierte Rezeptvorschläge (0% → 100%)
+**Schätzung:** 10-12 Tage | **Risiko:** MEDIUM | **Branch:** `phase/10-zutaten-rezeptvorschlaege`
 
 - "Was habe ich zu Hause?" Feature
 - AND-Logik statt OR für Zutaten-Suche
@@ -262,8 +262,8 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - FTS5-Index für Performance
 - Frontend: Multi-Select Zutaten-Eingabe mit Auto-Vervollständigung
 
-##### 3. Instagram Verbesserung (70% → 100%)
-**Schätzung:** 9 Tage | **Risiko:** MEDIUM
+##### Phase 11: Instagram Verbesserung (70% → 100%)
+**Schätzung:** 9 Tage | **Risiko:** MEDIUM | **Branch:** `phase/11-instagram-verbesserung`
 
 - Video OCR für Text-Overlays
 - Carousel-Unterstützung (Multi-Image Posts)
@@ -271,8 +271,8 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - Rate-Limit Management mit Exponential Backoff
 - Fallback: Headless Browser wenn yt-dlp blockiert
 
-##### 4. TikTok Verbesserung (70% → 100%)
-**Schätzung:** 8 Tage | **Risiko:** MEDIUM
+##### Phase 12: TikTok Verbesserung (70% → 100%)
+**Schätzung:** 8 Tage | **Risiko:** MEDIUM | **Branch:** `phase/12-tiktok-verbesserung`
 
 - Video OCR für Text-Overlays (kritisch für TikTok-Rezepte)
 - Kommentar-Extraktion (oft Rezept-Details in Kommentaren)
@@ -280,8 +280,8 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - Mobile URL Support (`vm.tiktok.com`)
 - Feature-Parität mit Instagram-Fetcher
 
-##### 5. Pinterest Import (0% → 100%)
-**Schätzung:** 11 Tage | **Risiko:** MEDIUM/HIGH
+##### Phase 13: Pinterest Import (0% → 100%)
+**Schätzung:** 11 Tage | **Risiko:** MEDIUM/HIGH | **Branch:** `phase/13-pinterest-import`
 
 - Proxy-Fetcher: Original-URL Detection + `fetchWeb()` Delegation
 - Pin-Bild/-Beschreibung Extraktion
@@ -289,8 +289,8 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - Multi-Bild Support für Carousel-Pins
 - BYOK für Pinterest API Keys
 
-##### 6. Facebook Import (0% → 100%)
-**Schätzung:** 6 Tage | **Risiko:** **HIGH**
+##### Phase 14: Facebook Import (0% → 100%)
+**Schätzung:** 6 Tage | **Risiko:** **HIGH** | **Branch:** `phase/14-facebook-import`
 
 ⚠️ **Warnung:** Facebook ToS verbietet automatisiertes Scraping
 
@@ -318,11 +318,12 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 
 #### Nächste Schritte:
 
-1. **Chefkoffer** → Starten (IN PROGRESS)
-2. **Zutaten-Vorschläge** → Nächste Priorität
-3. **Instagram/TikTok** → Parallelisierbar
-4. **Pinterest** → Nach Zutaten-Vorschläge
-5. **Facebook** → Optional, niedrig priorisiert
+1. **Phase 9** → Chefkoch: `phase/9-chefkoch-verbesserung` (IN PROGRESS)
+2. **Phase 10** → Zutaten-Vorschläge: `phase/10-zutaten-rezeptvorschlaege`
+3. **Phase 11** → Instagram: `phase/11-instagram-verbesserung`
+4. **Phase 12** → TikTok: `phase/12-tiktok-verbesserung`
+5. **Phase 13** → Pinterest: `phase/13-pinterest-import`
+6. **Phase 14** → Facebook: `phase/14-facebook-import` (optional)
 
 ### Phase 7+: Multi-User (sehr späte Zukunft)
 **Ziel:** Login, Cloud-Sync, Social-Features — nur wenn wirklich mehrere Nutzer die App verwenden sollen.
@@ -386,5 +387,5 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 - QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
 - Facebook Import: ToS-Risiko, niedrige Priorität
 
-**STATUS (2026-03-28):** Phase 1–7 vollständig implementiert. Import-Verbesserungen in Planung.
-**NEXT:** Chefkoch Verbesserung starten (Feature 1), dann Zutaten-Rezeptvorschläge (Feature 2)
+**STATUS (2026-03-28):** Phase 1–8 vollständig implementiert. Import-Verbesserungen in Phase 9-14.
+**CURRENT:** Phase 9 – Chefkoch Verbesserung (IN PROGRESS)

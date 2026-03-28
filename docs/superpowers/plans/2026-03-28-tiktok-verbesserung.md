@@ -3,6 +3,8 @@ status: PLANNING
 last_reviewed: 2026-03-28
 feature: TikTok Verbesserung (70% → 100%)
 priority: 4
+phase: 12
+branch: phase/12-tiktok-verbesserung
 ---
 
 # Plan: TikTok-Integration vollständig

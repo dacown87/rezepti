@@ -3,6 +3,8 @@ status: PLANNING
 last_reviewed: 2026-03-28
 feature: Pinterest Import (0% → 100%)
 priority: 5
+phase: 13
+branch: phase/13-pinterest-import
 ---
 
 # Plan: Pinterest-Integration

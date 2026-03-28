@@ -3,6 +3,8 @@ status: PLANNING
 last_reviewed: 2026-03-28
 feature: Zutaten-basierte Rezeptvorschläge (0% → 100%)
 priority: 2
+phase: 10
+branch: phase/10-zutaten-rezeptvorschlaege
 ---
 
 # Plan: "Was habe ich zu Hause?" Rezeptvorschläge
