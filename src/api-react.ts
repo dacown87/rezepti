@@ -34,6 +34,7 @@ import { processURL } from "./pipeline.js";
 import { extractRecipeFromImage } from "./processors/llm.js";
 import type { RecipeData, PipelineEvent } from "./types.js";
 import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, getCredentials, hasCredentials, clearSession } from "./fetchers/cookidoo.js";
+import { savePinterestCredentialsToDisk, clearPinterestCredentialsFromDisk, getPinterestStatus, getPinterestCredentials } from "./fetchers/pinterest.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
 const photoDataStore = new Map<string, string>();
@@ -792,6 +793,62 @@ app.delete("/api/v1/cookidoo/credentials", (c) => {
   } catch (error) {
     console.error("Error removing Cookidoo credentials:", error);
     return c.json({ error: "Failed to remove Cookidoo credentials" }, 500);
+  }
+});
+
+app.get("/api/v1/pinterest/status", (c) => {
+  try {
+    const status = getPinterestStatus();
+    const creds = getPinterestCredentials();
+    return c.json({
+      connected: status.connected,
+      hasFileCredentials: status.hasFileCredentials,
+      hasAccessToken: !!(creds && creds.accessToken),
+    });
+  } catch (error) {
+    console.error("Error getting Pinterest status:", error);
+    return c.json({ error: "Failed to get Pinterest status" }, 500);
+  }
+});
+
+app.post("/api/v1/pinterest/credentials", async (c) => {
+  try {
+    const { clientId, clientSecret, accessToken, refreshToken } = await c.req.json();
+
+    if (!clientId || !clientSecret || !accessToken || !refreshToken) {
+      return c.json(
+        { error: "clientId, clientSecret, accessToken, and refreshToken are required" },
+        400
+      );
+    }
+
+    savePinterestCredentialsToDisk({
+      clientId,
+      clientSecret,
+      accessToken,
+      refreshToken,
+    });
+
+    return c.json({
+      success: true,
+      message: "Pinterest credentials saved successfully",
+    });
+  } catch (error) {
+    console.error("Error saving Pinterest credentials:", error);
+    return c.json({ error: "Failed to save Pinterest credentials" }, 500);
+  }
+});
+
+app.delete("/api/v1/pinterest/credentials", (c) => {
+  try {
+    clearPinterestCredentialsFromDisk();
+    return c.json({
+      success: true,
+      message: "Pinterest credentials removed",
+    });
+  } catch (error) {
+    console.error("Error removing Pinterest credentials:", error);
+    return c.json({ error: "Failed to remove Pinterest credentials" }, 500);
   }
 });
 

@@ -69,7 +69,7 @@ export async function processURL(
         bundle = await fetchChefkoch(classified.url);
         break;
       case "pinterest":
-        bundle = await fetchPinterest(classified.url);
+        bundle = await fetchPinterest(classified.url, tempDir);
         break;
       case "facebook":
         bundle = await fetchFacebook(classified.url);
