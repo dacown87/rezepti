@@ -208,13 +208,14 @@ Response: {
 
 ## Geschätzter Aufwand
 
-**10-12 Tage** (2-3 Wochen, 1 Entwickler)
+**5-7 Tage** (reduziert von 10-12 Tagen)
+*Änderung durch Planner-Review (2026-03-28): Simplerer Ansatz – API + Frontend statt vollständige FTS5-Migration*
 
-- Phase 1: 2 Tage
-- Phase 2: 3 Tage  
-- Phase 3: 2 Tage
-- Phase 4: 3 Tage
-- Phase 5: 2 Tage (optional)
+- Phase 1: 1 Tag
+- Phase 2: 2 Tage
+- Phase 3: 1 Tag
+- Phase 4: 1-2 Tage
+- Phase 5: Optional
 
 ---
 
