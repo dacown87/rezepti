@@ -1,4 +1,20 @@
 
+## Phase 8: QR-Scan + Drag & Drop (28.03.2026)
+
+### ✅ ABGESCHLOSSEN
+- **Drag & Drop im Wochenplan**: `dnd-kit` installiert, `DayColumn` + `DraggableRecipe` Components, Rezepte zwischen Tagen verschiebbar
+
+### ❌ OFFEN - QR-Bild-Scan testen
+- ScannerPage "Bild hochladen"-Tab: Code nutzt bereits `BarcodeDetector` API korrekt - **Testen ob es funktioniert!**
+- Hinweis: BarcodeDetector ist Chromium-only (Chrome/Edge), Safari/Firefox zeigen Fehlermeldung
+- BarcodeDetector declarations in `ScannerPage.tsx:8-14`
+
+### Geänderte Dateien
+- `frontend/src/components/PlannerPage.tsx` - DnD implementiert
+- `package.json` - `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` hinzugefügt
+
+---
+
 ## Test-Fixes (28.03.2026) - ABGESCHLOSSEN ✅
 
 ### Alle Fixes

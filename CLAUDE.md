@@ -87,6 +87,8 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 - `ExtractionPage` — URL input, job polling, progress display
 - `RecipeList` — List/grid view toggle (default: list), persisted in localStorage
 - `RecipeDetail` — Single recipe view with inline edit mode, serving size scaler, source link
+- `PlannerPage` — 7-day meal planner with Drag & Drop (dnd-kit) for recipe assignment
+- `ScannerPage` — QR code scanner/generator (BarcodeDetector API)
 - `SettingsPage` — BYOK key management, App Status with Roadmap modal
 - `frontend/src/utils/scaling.ts` — `parseServingsNumber`, `scaleIngredient` for portion scaling
 
@@ -137,6 +139,8 @@ Host github.com
 ## Planning Documents
 
 - **Master Plan:** `docs/superpowers/plans/2026-03-26-master-phasenplan.md` — Strategischer Phasenplan (Phase 1–8), CEO-Review, Scope-Entscheidungen
+- **Codemaps:** `docs/CODEMAPS/` — Architecture, Backend, Fetchers, Database, Frontend
+- **TODO:** `TODO.md` — Aktuelle Aufgaben und offene Bugs
 
 ## Cleanup (March 2026) ✅
 
@@ -186,7 +190,7 @@ Planned features and current implementation status (as of March 2026):
 
 ### Shopping & Planning
 - Shopping list: 100% ✅ — Phase 3c delivered with multi-recipe aggregation, check-off, clipboard export
-- Meal planner: 100% ✅ — Phase 5 delivered (7-day view, recipe assignment)
+- Meal planner: 100% ✅ — Phase 5 + Phase 8 delivered (7-day view, recipe assignment, Drag & Drop between days)
 - Ingredient-based recipe search: 100% ✅ — Phase 4 delivered
 - Enter available ingredients → get recipe suggestions: 0%
 
@@ -213,31 +217,16 @@ Planned features and current implementation status (as of March 2026):
 - `npm test` — all tests (E2E tests fail if server not running)
 
 **Test Status (2026-03-28):**
-- Unit Tests: 225+ bestanden
-- E2E Tests: 18 bestanden, 1 fehlgeschlagen (Docker läuft nicht lokal)
+- Unit Tests: 226 bestanden
+- E2E Tests: 40 bestanden
 - Cookidoo Credentials: 21 Unit-Tests bestanden
 
 **Test Coverage:**
 | Area | Tests | Files |
 |------|-------|-------|
-| API Layer (client, services, types) | 91 | `test/api/` |
-| UI Components (Toast, SkeletonLoader) | 70 | `frontend/src/components/` |
-| Main Components (Extraction, RecipeList, RecipeDetail) | 41 | `frontend/src/components/` |
-| Scaling utilities | 10 | `frontend/src/utils/` |
-| Backend Services (job-manager, byok-validator, db) | ~43 | `src/*.test.ts` |
-| Cookidoo Credentials | 21 | `test/unit/cookidoo-credentials.test.ts` |
-
-**E2E Tests (require running server):**
-- `test/e2e/react-api.test.ts` — React API endpoints
-- `test/e2e/docker.test.ts` — Docker environment validation
-- `test/e2e/basic-api.test.ts` — Simple API verification
-
----
-
-## Language
-
-Communicate with the user in **German**.
-All code comments, inline documentation, and commit messages in **English**.
+| scaling.ts | 100% | parseServingsNumber, scaleIngredient, splitIngredient |
+| ingredient-dictionary.ts | 100% | all 7 matching paths |
+| Shopping API | CRUD roundtrip | GET/POST/DELETE |
 
 ## Conventions
 

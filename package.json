@@ -35,6 +35,9 @@
     "docker:backup": "mkdir -p backups && tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hono/node-server": "^1.14.0",
     "better-sqlite3": "^12.8.0",
     "cheerio": "^1.0.0",
