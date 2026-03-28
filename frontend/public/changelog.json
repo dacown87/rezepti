@@ -1,10 +1,23 @@
 {
-  "version": "1.0.26",
+  "version": "1.0.27",
   "lastUpdated": {
     "date": "2026-03-28",
-    "time": "14:13"
+    "time": "22:58"
   },
   "entries": [
+    {
+      "version": "1.0.27",
+      "date": "2026-03-28",
+      "changes": [
+        "Phase 13 Pinterest Import - Proxy-Fetcher, API Integration, Vision-OCR",
+        "Phase 12 code review fixes + classifier tests",
+        "Phase 12 TikTok - Video OCR integration + unit tests",
+        "Phase 11 Instagram - Complete (Carousel, OCR, Fallback)",
+        "Phase 11 Instagram Verbesserungen (Kern)",
+        "Phase 10 - Zutaten-basierte Rezeptvorschläge",
+        "Phase 9 - Chefkoch Import-Verbesserung (40% → 100%)"
+      ]
+    },
     {
       "version": "1.0.26",
       "date": "2026-03-28",

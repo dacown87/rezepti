@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.27] – 2026-03-28
+
+- Phase 13 Pinterest Import - Proxy-Fetcher, API Integration, Vision-OCR
+- Phase 12 code review fixes + classifier tests
+- Phase 12 TikTok - Video OCR integration + unit tests
+- Phase 11 Instagram - Complete (Carousel, OCR, Fallback)
+- Phase 11 Instagram Verbesserungen (Kern)
+- Phase 10 - Zutaten-basierte Rezeptvorschläge
+- Phase 9 - Chefkoch Import-Verbesserung (40% → 100%)
+
 ## [1.0.26] – 2026-03-28
 
 
