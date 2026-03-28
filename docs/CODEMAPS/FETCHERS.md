@@ -17,6 +17,8 @@ interface ContentBundle {
   imageUrls: string[];
   audioPath?: string;
   schemaRecipe?: SchemaOrgRecipe | null;
+  isCarousel?: boolean;     // Instagram: carousel detection
+  carouselCount?: number;  // Instagram: number of carousel items
 }
 ```
 
@@ -64,13 +66,38 @@ article, main, .post-content, .entry-content
 
 **Location:** `src/fetchers/instagram.ts`
 
-**Purpose:** Instagram post/reel extraction
+**Purpose:** Instagram post/reel extraction with full carousel and fallback support
 
 **Strategy:**
-- Uses `yt-dlp` for video download
-- Extracts description as text content
+1. Uses `yt-dlp` for video/image download
+2. Detects carousel posts via `media_count` / `children` metadata
+3. Re-downloads with `--yes-playlist` for carousel posts
+4. Extracts description, hashtags, thumbnails as text content
+5. Falls back to web scraping (Cheerio) if yt-dlp fails
 
-**Status:** 70% - Works via yt-dlp
+**Rate Limit Management:**
+- Exponential backoff: 1s, 2s, 4s delays between retries
+- Max 3 retries for rate-limited requests
+- Graceful handling of 429 errors
+
+**Exported Utilities:**
+- `extractHashtags(text)` - Extract hashtags from caption text
+- `detectCarousel(info)` - Detect carousel from yt-dlp metadata
+- `tempDirFromFilename(filename)` - Extract directory from filename
+- `fetchInstagramWebScraping(url)` - Fallback web scraper
+- `detectCarouselAndDownload(url, tempDir, outTemplate)` - Core download with carousel detection
+
+**ContentBundle Extensions:**
+- `isCarousel` - Whether post is a carousel (multiple items)
+- `carouselCount` - Number of items in carousel
+- `audioPath` - Path to downloaded video/audio
+
+**Error Handling:**
+- Private/deleted content: Specific error messages
+- Rate limits (429): Automatic retry with backoff
+- yt-dlp failures: Falls back to web scraping
+
+**Status:** 95% - Full implementation complete (Phase 11)
 
 ## TikTok Fetcher
 

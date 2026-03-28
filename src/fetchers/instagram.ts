@@ -19,12 +19,12 @@ async function waitWithExponentialBackoff(
   await new Promise((resolve) => setTimeout(resolve, delay));
 }
 
-function extractHashtags(text: string): string[] {
+export function extractHashtags(text: string): string[] {
   const matches = text.match(/#[\w\u00C0-\u024F]+/g);
   return matches ? [...new Set(matches)] : [];
 }
 
-function detectCarousel(info: any): boolean {
+export function detectCarousel(info: any): boolean {
   return (
     (info.media_count && info.media_count > 1) ||
     info.media_type === "CAROUSEL_ALBUM" ||
@@ -32,7 +32,7 @@ function detectCarousel(info: any): boolean {
   );
 }
 
-function tempDirFromFilename(filename: string): string {
+export function tempDirFromFilename(filename: string): string {
   const match = filename.match(/^(.+?)(?:\.[^.]+)?$/);
   return match ? match[1] : ".";
 }

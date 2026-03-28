@@ -233,7 +233,7 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 | 9 | Chefkoch Verbesserung | ✅ DONE | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
 | 10 | Zutaten-Rezeptvorschläge | ✅ DONE | 5-7d | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
 | 11 | Instagram Verbesserung | ✅ DONE | 2-3d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
-| 12 | TikTok Verbesserung | PENDING | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
+| 12 | TikTok Verbesserung | IN PROGRESS | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
 | 13 | Pinterest Import | PENDING | 6-8d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
 | 14 | Facebook Import | PENDING | 4-5d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
 
@@ -272,13 +272,16 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 - Meine Vorräte in localStorage persistiert ✅
 - Fehlende Zutaten werden angezeigt ✅
 
-##### Phase 11: Instagram Verbesserung (70% → 95%)
+##### Phase 11: Instagram Verbesserung (70% → 95%) ✅ DONE
 **Schätzung:** 5-7 Tage | **Risiko:** MEDIUM | **Branch:** `phase/11-instagram-verbesserung`
+**Abgeschlossen:** 2026-03-28
 
-- Video OCR für Text-Overlays (Vision Model)
-- Carousel-Support (Multi-Image Posts via yt-dlp `--yes-playlist`)
-- Rate-Limit Management mit Exponential Backoff (1s, 2s, 4s, 8s)
-- Fallback: Video-OCR primär wenn Audio fehlt (yt-dlp Bug #16327)
+Implementiert:
+- Carousel-Support (Multi-Image Posts via yt-dlp `--yes-playlist`) ✅
+- Rate-Limit Management mit Exponential Backoff (1s, 2s, 4s) ✅
+- Web-Scraping Fallback (Cheerio) wenn yt-dlp fehlschlägt ✅
+- Child-Image Extraktion aus Carousel-Metadaten ✅
+- 17 Unit-Tests für Instagram-Fetcher ✅
 
 ##### Phase 12: TikTok Verbesserung (70% → 95%)
 **Schätzung:** 4-6 Tage | **Risiko:** MEDIUM | **Branch:** `phase/12-tiktok-verbesserung`
@@ -398,4 +401,5 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 - Facebook Import: ToS-Risiko, niedrige Priorität
 
 **STATUS (2026-03-28):** Phase 1–11 vollständig implementiert. Phase 12-14 Import-Verbesserungen.
-**CURRENT:** Phase 12 – TikTok Verbesserung (branch: `phase/12-tiktok-verbesserung`)
+**CURRENT:** Phase 11 – Instagram Verbesserung **COMPLETE** (auf Branch `phase/11-instagram-verbesserung`, bereit für Merge zu main)
+**NEXT:** Phase 12 – TikTok Verbesserung
