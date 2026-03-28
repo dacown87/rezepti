@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Info, ScrollText } from 'lucide-react'
-import { validateApiKey, saveApiKey, clearApiKey } from '../api/services.js'
+import { validateApiKey, saveApiKey, clearApiKey, getCookidooStatus, saveCookidooCredentials, clearCookidooCredentials } from '../api/services.js'
 import { useToast } from './ToastManager'
 import ChangelogModal from './ChangelogModal.js'
 
@@ -13,7 +13,7 @@ const ROADMAP = [
       { label: 'TikTok', percent: 70 },
       { label: 'Instagram', percent: 70 },
       { label: 'Chefkoch', percent: 40 },
-      { label: 'Cookidoo', percent: 70 },
+      { label: 'Cookidoo', percent: 100 },
       { label: 'Pinterest', percent: 0 },
       { label: 'Facebook', percent: 0 },
       { label: 'Foto-Import (Kamera/Galerie)', percent: 100 },
@@ -143,6 +143,10 @@ const SettingsPage: React.FC = () => {
     }
   } | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
+  const [cookidooEmail, setCookidooEmail] = useState('')
+  const [cookidooPassword, setCookidooPassword] = useState('')
+  const [cookidooStatus, setCookidooStatus] = useState<{connected: boolean; hasFileCredentials: boolean; email: string | null} | null>(null)
+  const [isSavingCookidoo, setIsSavingCookidoo] = useState(false)
   const { addToast } = useToast()
 
   // Load saved key on mount
@@ -152,6 +156,18 @@ const SettingsPage: React.FC = () => {
       setSavedKey(saved)
       setUserKey(saved)
     }
+  }, [])
+
+  // Load Cookidoo status on mount
+  useEffect(() => {
+    getCookidooStatus()
+      .then(status => {
+        setCookidooStatus(status)
+        if (status.email) {
+          setCookidooEmail(status.email)
+        }
+      })
+      .catch(console.error)
   }, [])
 
   const handleSaveKey = async () => {
@@ -234,6 +250,42 @@ const SettingsPage: React.FC = () => {
     setUserKey('')
     setValidationResult(null)
     addToast('API Key erfolgreich gelöscht', 'success')
+  }
+
+  // Cookidoo handlers
+  const handleSaveCookidoo = async () => {
+    if (!cookidooEmail.trim() || !cookidooPassword.trim()) {
+      addToast("Bitte E-Mail und Passwort eingeben", "error")
+      return
+    }
+    setIsSavingCookidoo(true)
+    try {
+      await saveCookidooCredentials(cookidooEmail, cookidooPassword)
+      const status = await getCookidooStatus()
+      setCookidooStatus(status)
+      addToast("Cookidoo Zugangsdaten gespeichert", "success")
+    } catch (err) {
+      console.error("Error saving Cookidoo credentials:", err)
+      addToast("Fehler beim Speichern der Zugangsdaten", "error")
+    } finally {
+      setIsSavingCookidoo(false)
+    }
+  }
+
+  const handleClearCookidoo = async () => {
+    if (!confirm("Möchtest du die Cookidoo Zugangsdaten wirklich löschen?")) {
+      return
+    }
+    try {
+      await clearCookidooCredentials()
+      setCookidooStatus({ connected: false, hasFileCredentials: false, email: null })
+      setCookidooEmail("")
+      setCookidooPassword("")
+      addToast("Cookidoo Zugangsdaten gelöscht", "success")
+    } catch (err) {
+      console.error("Error clearing Cookidoo credentials:", err)
+      addToast("Fehler beim Löschen der Zugangsdaten", "error")
+    }
   }
 
   const getKeyDisplay = (key: string) => {
@@ -378,6 +430,80 @@ const SettingsPage: React.FC = () => {
           </div>
 
         </div>
+
+          {/* Cookidoo Settings (Phase 7) */}
+          <div className="bg-white rounded-2xl shadow-lg border border-warmgray/10 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-display font-bold flex items-center space-x-2">
+                  <span className="text-2xl">🍳</span>
+                  <span>Cookidoo</span>
+                </h2>
+                <p className="text-warmgray mt-1">
+                  Zugangsdaten für Cookidoo (Thermomix)
+                </p>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                cookidooStatus?.connected 
+                  ? "bg-green-100 text-green-700" 
+                  : "bg-yellow-100 text-yellow-700"
+              }}`}>
+                {cookidooStatus?.connected ? "Verbunden" : "Nicht verbunden"}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="cookidoo-email" className="block text-sm font-medium text-warmgray mb-2">
+                  E-Mail
+                </label>
+                <input
+                  type="email"
+                  id="cookidoo-email"
+                  value={cookidooEmail}
+                  onChange={(e) => setCookidooEmail(e.target.value)}
+                  placeholder="deine@email.de"
+                  className="w-full px-4 py-2 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika/50"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="cookidoo-password" className="block text-sm font-medium text-warmgray mb-2">
+                  Passwort
+                </label>
+                <input
+                  type="password"
+                  id="cookidoo-password"
+                  value={cookidooPassword}
+                  onChange={(e) => setCookidooPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2 border border-warmgray/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-paprika/50"
+                />
+              </div>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleSaveCookidoo}
+                  disabled={isSavingCookidoo || !cookidooEmail.trim() || !cookidooPassword.trim()}
+                  className="flex-1 bg-paprika text-white px-4 py-2 rounded-lg font-medium hover:bg-paprika-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingCookidoo ? "Speichern..." : "Zugangsdaten speichern"}
+                </button>
+                {cookidooStatus?.connected && (
+                  <button
+                    onClick={handleClearCookidoo}
+                    className="px-4 py-2 border border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors"
+                  >
+                    Löschen
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-warmgray/10 text-sm text-warmgray">
+              <p>Deine Zugangsdaten werden lokal gespeichert und verschlüsselt an Cookidoo übertragen.</p>
+            </div>
+          </div>
 
         {/* Sidebar */}
         <div className="space-y-6">

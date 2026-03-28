@@ -1,7 +1,128 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "openrouter:deepseek/deepseek-v3.2-20251201",
-  "small_model": "openrouter:stepfun/step-3.5-flash:free",
+  "model": "openrouter/deepseek-coder",
+  "small_model": "openrouter/deepseek-chat",
+  "provider": {
+    "openrouter": {
+      "npm": "@ai-sdk/openai",
+      "name": "OpenRouter",
+      "options": {
+        "baseURL": "https://openrouter.ai/api/v1"
+      },
+      "models": {
+        "deepseek-coder": {
+          "name": "deepseek/deepseek-coder",
+          "description": "Für Programmieraufgaben, Code-Generierung, Debugging"
+        },
+        "deepseek-chat": {
+          "name": "deepseek/deepseek-chat",
+          "description": "Für allgemeine Konversationen, Erklärungen, Brainstorming, Planung & Architektur, Web-Entwicklung (Frontend, UI, React, Tailwind)"
+        },
+        "deepseek-reasoner": {
+          "name": "deepseek/deepseek-reasoner",
+          "description": "Für komplexe logische Probleme, mathematische Aufgaben"
+        },
+        "gemini-flash-1.5": {
+          "name": "google/gemini-flash-1.5-8b",
+          "description": "Für große Log-Analysen & Datei-Scans mit großem Kontextfenster (1M+ Token)"
+        },
+        "gpt-4o-mini": {
+          "name": "openai/gpt-4o-mini",
+          "description": "Für Sicherheits-Audits & Secrets-Check"
+        }
+      }
+    }
+  },
+  "agent": {
+    "build": {
+      "description": "Primary coding agent for development work",
+      "mode": "primary",
+      "model": "openrouter/deepseek-coder",
+      "tools": {
+        "write": true,
+        "edit": true,
+        "bash": true,
+        "read": true
+      }
+    },
+    "planner": {
+      "description": "Expert planning specialist for complex features and refactoring. Nutze deepseek/deepseek-chat für Planung & Architektur.",
+      "mode": "subagent",
+      "model": "openrouter/deepseek-chat",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "write": false,
+        "edit": false
+      }
+    },
+    "webdev": {
+      "description": "Frontend development specialist for React, UI, Tailwind CSS. Nutze deepseek/deepseek-chat.",
+      "mode": "subagent",
+      "model": "openrouter/deepseek-chat",
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    },
+    "analyze-logs": {
+      "description": "Large log analysis and file scanning specialist. Nutze google/gemini-flash-1.5-8b wegen 1M+ Kontextfenster.",
+      "mode": "subagent",
+      "model": "openrouter/gemini-flash-1.5",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "grep": true,
+        "glob": true
+      }
+    },
+    "expert-security": {
+      "description": "Security audit and secrets detection specialist. Nutze openai/gpt-4o-mini.",
+      "mode": "subagent",
+      "model": "openrouter/gpt-4o-mini",
+      "tools": {
+        "read": true,
+        "grep": true,
+        "bash": true
+      }
+    },
+    "code-reviewer": {
+      "description": "Expert code review specialist",
+      "mode": "subagent",
+      "model": "openrouter/deepseek-coder",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "write": false,
+        "edit": false
+      }
+    },
+    "security-reviewer": {
+      "description": "Security vulnerability detection and remediation specialist. Nutze openai/gpt-4o-mini.",
+      "mode": "subagent",
+      "model": "openrouter/gpt-4o-mini",
+      "tools": {
+        "read": true,
+        "bash": true,
+        "write": true,
+        "edit": true,
+        "grep": true
+      }
+    },
+    "tdd-guide": {
+      "description": "Test-Driven Development specialist",
+      "mode": "subagent",
+      "model": "openrouter/deepseek-coder",
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    }
+  },
   "instructions": ["CLAUDE.md"],
   "autoupdate": true,
   "formatter": {

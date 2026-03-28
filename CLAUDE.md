@@ -103,6 +103,8 @@ Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.gro
 Remote is configured via SSH (`git@github.com:dacown87/rezepti.git`).
 SSH key is at `~/.ssh/id_rezepti`, GitHub host is registered in `~/.ssh/known_hosts`.
 
+**⚠️ Merge-Regel: NIEMALS eigenständig mergen.** Branches erstellen, committen und pushen ist erlaubt. Aber nur mergen wenn der User es explizit sagt.
+
 If push fails:
 ```bash
 ssh-keyscan github.com >> ~/.ssh/known_hosts   # register host key
@@ -163,7 +165,7 @@ Planned features and current implementation status (as of March 2026):
 - TikTok: 70% — via yt-dlp
 - Instagram: 70% — via yt-dlp
 - Chefkoch: 40% — Schema.org partially works
-- Cookidoo: 70% — OAuth2 ROPC flow implemented in `src/fetchers/cookidoo.ts`
+- Cookidoo: 100% — OAuth2 ROPC flow implemented in `src/fetchers/cookidoo.ts`
 - Pinterest: 0%
 - Facebook: 0%
 - Photo import (camera/gallery): 100% ✅ — Phase 3b delivered

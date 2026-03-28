@@ -32,6 +32,7 @@ import { BYOKValidator } from "./byok-validator.js";
 import { processURL } from "./pipeline.js";
 import { extractRecipeFromImage } from "./processors/llm.js";
 import type { RecipeData, PipelineEvent } from "./types.js";
+import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, getCredentials, hasCredentials, clearSession } from "./fetchers/cookidoo.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
 const photoDataStore = new Map<string, string>();
@@ -722,5 +723,60 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
     );
   }
 }
+// Cookidoo credentials management (Phase 7)
+app.get("/api/v1/cookidoo/status", (c) => {
+  try {
+    const status = getSessionStatus();
+    const creds = getCredentials();
+    return c.json({
+      connected: status.connected,
+      hasFileCredentials: status.hasFileCredentials,
+      email: creds ? creds.email : null,
+    });
+  } catch (error) {
+    console.error("Error getting Cookidoo status:", error);
+    return c.json({ error: "Failed to get Cookidoo status" }, 500);
+  }
+});
+
+app.post("/api/v1/cookidoo/credentials", async (c) => {
+  try {
+    const { email, password } = await c.req.json();
+    
+    if (!email || !password) {
+      return c.json({ error: "Email and password are required" }, 400);
+    }
+    
+    // Save credentials to disk
+    saveCredentialsToDisk(email, password);
+    
+    // Clear existing session to force re-auth
+    clearSession();
+    
+    return c.json({
+      success: true,
+      message: "Cookidoo credentials saved successfully"
+    });
+  } catch (error) {
+    console.error("Error saving Cookidoo credentials:", error);
+    return c.json({ error: "Failed to save Cookidoo credentials" }, 500);
+  }
+});
+
+app.delete("/api/v1/cookidoo/credentials", (c) => {
+  try {
+    clearCredentialsFromDisk();
+    clearSession();
+    
+    return c.json({
+      success: true,
+      message: "Cookidoo credentials removed"
+    });
+  } catch (error) {
+    console.error("Error removing Cookidoo credentials:", error);
+    return c.json({ error: "Failed to remove Cookidoo credentials" }, 500);
+  }
+});
+
 
 export default app;

@@ -54,7 +54,7 @@ function saveSessionToDisk(data: SessionData): void {
   writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
-function clearSession(): void {
+export function clearSession(): void {
   cachedSession = null;
   if (existsSync(SESSION_FILE)) {
     try {
@@ -323,5 +323,90 @@ export async function fetchCookidoo(url: string): Promise<ContentBundle> {
     textContent: extractMainText($),
     imageUrls: extractImages($, url),
     schemaRecipe,
+  };
+}
+
+// --- Credentials file management (for UI-based credential storage) ---
+
+const CREDENTIALS_FILE = join(process.cwd(), "data", "cookidoo-credentials.json");
+
+interface CookidooCredentials {
+  email: string;
+  password: string;
+}
+
+// In-memory cache for file-based credentials
+let cachedCredentials: CookidooCredentials | null = null;
+
+function loadCredentialsFromDisk(): CookidooCredentials | null {
+  if (!existsSync(CREDENTIALS_FILE)) return null;
+  try {
+    const raw = readFileSync(CREDENTIALS_FILE, "utf-8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "email" in parsed &&
+      "password" in parsed &&
+      typeof (parsed as CookidooCredentials).email === "string" &&
+      typeof (parsed as CookidooCredentials).password === "string"
+    ) {
+      return parsed as CookidooCredentials;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCredentialsToDisk(email: string, password: string): void {
+  mkdirSync(dirname(CREDENTIALS_FILE), { recursive: true });
+  const data: CookidooCredentials = { email, password };
+  writeFileSync(CREDENTIALS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  cachedCredentials = data;
+}
+
+export function clearCredentialsFromDisk(): void {
+  cachedCredentials = null;
+  if (existsSync(CREDENTIALS_FILE)) {
+    try {
+      unlinkSync(CREDENTIALS_FILE);
+    } catch {
+      // best effort
+    }
+  }
+}
+
+export function getCredentials(): CookidooCredentials | null {
+  // 1. Use cached credentials
+  if (cachedCredentials) return cachedCredentials;
+
+  // 2. Try loading from disk
+  cachedCredentials = loadCredentialsFromDisk();
+  if (cachedCredentials) return cachedCredentials;
+
+  // 3. Fall back to .env config
+  if (config.cookidoo.email && config.cookidoo.password) {
+    cachedCredentials = {
+      email: config.cookidoo.email,
+      password: config.cookidoo.password,
+    };
+    return cachedCredentials;
+  }
+
+  return null;
+}
+
+export function hasCredentials(): boolean {
+  return getCredentials() !== null;
+}
+
+export function getSessionStatus(): { connected: boolean; hasFileCredentials: boolean } {
+  const creds = getCredentials();
+  const hasFileCreds = existsSync(CREDENTIALS_FILE);
+  
+  return {
+    connected: creds !== null,
+    hasFileCredentials: hasFileCreds,
   };
 }
