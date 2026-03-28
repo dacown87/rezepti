@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.28] – 2026-03-28
+
+
+
 ## [1.0.27] – 2026-03-28
 
 - Phase 13 Pinterest Import - Proxy-Fetcher, API Integration, Vision-OCR
