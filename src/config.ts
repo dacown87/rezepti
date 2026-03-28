@@ -16,6 +16,11 @@ export const config = {
     email:    process.env.COOKIDOO_EMAIL    || "",
     password: process.env.COOKIDOO_PASSWORD || "",
   },
+  tiktok: {
+    ocrEnabled: process.env.TIKTOK_OCR_ENABLED !== "false",
+    maxOcrFrames: parseInt(process.env.TIKTOK_MAX_OCR_FRAMES || "10", 10),
+    proxyUrl: process.env.TIKTOK_PROXY_URL || "",
+  },
   port: parseInt(process.env.PORT || "3000", 10),
   jobs: {
     cleanupDays: parseInt(process.env.JOB_CLEANUP_DAYS || "7", 10),
