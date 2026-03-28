@@ -78,7 +78,7 @@ app.get("/api/v1/recipes", (c) => {
     }
 
     const recipes = getAllRecipesFromReactDb();
-    return c.json({ recipes, match_mode: "or", threshold: 0 });
+    return c.json(recipes);
   } catch (error) {
     console.error("Error fetching recipes from React DB:", error);
     return c.json({ error: "Failed to fetch recipes" }, 500);

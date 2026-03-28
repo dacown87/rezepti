@@ -12,7 +12,11 @@ export async function getRecipes(ingredients?: string[]): Promise<Recipe[]> {
     if (ingredients && ingredients.length > 0) {
       url += `?ingredients=${encodeURIComponent(ingredients.join(','))}`
     }
-    return await apiGet<Recipe[]>(url)
+    const response = await apiGet<Recipe[] | { recipes: Recipe[] }>(url)
+    if (Array.isArray(response)) {
+      return response
+    }
+    return response.recipes || []
   } catch (error) {
     console.error('Failed to fetch recipes:', error)
     throw error
