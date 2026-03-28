@@ -21,6 +21,8 @@ export interface ContentBundle {
   imageUrls: string[];
   audioPath?: string;
   schemaRecipe?: SchemaOrgRecipe | null;
+  isCarousel?: boolean;
+  carouselCount?: number;
 }
 
 // --- schema.org/Recipe (from JSON-LD) ---

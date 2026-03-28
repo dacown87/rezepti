@@ -11,6 +11,7 @@ import { schemaToRecipeData } from "./processors/schema-org.js";
 import {
   extractRecipeFromText,
   extractRecipeFromImage,
+  extractRecipeFromImages,
   refineRecipe,
 } from "./processors/llm.js";
 import { transcribeAudio } from "./processors/whisper.js";
@@ -189,6 +190,15 @@ async function extractFromBundle(
   }
 
   if (bundle.imageUrls.length > 0) {
+    if (bundle.isCarousel && bundle.imageUrls.length > 1) {
+      await emit(onEvent, {
+        stage: "analyzing_image",
+        message: `${bundle.imageUrls.length} Carousel-Bilder werden mit Vision-Modell analysiert...`,
+      });
+      const recipe = await extractRecipeFromImages(bundle.imageUrls, bundle.description);
+      return { recipe };
+    }
+
     const imageUrl = bundle.imageUrls[0];
     await emit(onEvent, {
       stage: "analyzing_image",

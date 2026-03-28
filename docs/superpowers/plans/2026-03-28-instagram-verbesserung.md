@@ -1,5 +1,5 @@
 ---
-status: IN_PROGRESS
+status: COMPLETED
 last_reviewed: 2026-03-28
 feature: Instagram Verbesserung (70% → 95%)
 priority: 3
@@ -275,5 +275,5 @@ async function extractTextFromImages(imagePaths: string[]): Promise<string[]> {
 - [x] Phase 1: Robustheits-Verbesserungen (Error Handling + Rate-Limit)
 - [x] Phase 2: Carousel Support (Multi-Image Erkennung + Download)
 - [x] Phase 2: Enhanced Metadata (hashtags, likes, comments, location)
-- [ ] Phase 3: OCR Integration (Vision Model) - optional, kostspielig
-- [ ] Phase 4: Fallback-Strategien (Headless Browser) - optional
+- [x] Phase 3: OCR Integration (Vision Model) - extractRecipeFromImages für Carousels
+- [x] Phase 4: Fallback-Strategien (Web-Scraping Fallback via Cheerio)

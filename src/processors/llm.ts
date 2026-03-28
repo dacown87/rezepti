@@ -98,6 +98,36 @@ export async function extractRecipeFromImage(
   return RecipeDataSchema.parse(raw);
 }
 
+export async function extractRecipeFromImages(
+  imageUrls: string[],
+  additionalText?: string
+): Promise<RecipeData> {
+  const imageParts: OpenAI.Chat.ChatCompletionContentPart[] = imageUrls.map((url) => ({
+    type: "image_url" as const,
+    image_url: { url },
+  }));
+
+  const textPart: OpenAI.Chat.ChatCompletionContentPart = {
+    type: "text",
+    text: additionalText
+      ? `Extrahiere das Rezept aus diesen ${imageUrls.length} Bildern. Zusätzlicher Kontext:\n${additionalText}`
+      : `Extrahiere das Rezept aus diesen ${imageUrls.length} Bildern eines Instagram-Carousels.`,
+  };
+
+  const userContent = [...imageParts, textPart];
+
+  const raw = await chatJSON([
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: userContent },
+  ], config.groq.visionModel) as Record<string, unknown>;
+
+  if (!raw.imageUrl && imageUrls.length > 0) {
+    raw.imageUrl = imageUrls[0];
+  }
+
+  return RecipeDataSchema.parse(raw);
+}
+
 export async function refineRecipe(
   partial: Partial<RecipeData>
 ): Promise<RecipeData> {
