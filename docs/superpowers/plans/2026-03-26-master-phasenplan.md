@@ -168,8 +168,45 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 
 ---
 
-### Phase 6: Scanner Fix + Nächste Features — Backlog
-**Status:** 🔜 Nächste Phase (nach QA-Pass Phase 5)
+### Phase 6: Share + QR-Scan — "Teilen zwischen Geräten"
+**Status:** ✅ DONE
+**CC-Aufwand:** ~2-3 Sessions (~90-120 Min)
+**Abhängigkeiten:** Phase 5
+
+#### Aufgaben:
+- [x] **Share-Button auf Rezeptseite** — QR-Code generieren zum Teilen ✅ (ShareModal.tsx)
+- [x] **QR-Scan-Tab mit Hinweis** — `/scan` Route mit BarcodeDetector ✅ (ScannerPage.tsx)
+- [x] **Wochenplan QR-Scan-Tab** — Toggle-Button im Planner zu /scan ✅ (PlannerPage.tsx)
+- [x] **PDF-Karteikarten-Export** — Von allen Rezepten PDF-Karten (2x4 Grid) ✅ (RecipeList.tsx + pdf-export.ts)
+- [x] **PDF-Tag** — `pdf_created` Feld in DB ✅ (schema.ts bereits vorhanden)
+- [x] **Mobile Bug-Fix** — Stift auf sm+ Bildschirmen sichtbar ✅ (RecipeDetail.tsx)
+
+**QA-Status:** ✅ Verifiziert 2026-03-28
+
+#### Technische Details:
+- QR-Code Generierung: bestehende `encodeRecipeToCompactJSON` wiederverwenden
+- PDF-Layout: `jspdf`, 2x4 oder 3x3 Karten auf A4
+- DB-Migration: `ALTER TABLE recipes ADD COLUMN pdf_created INTEGER DEFAULT 0`
+
+---
+
+### Phase 7: Cookidoo-Integration — "Mehr Plattformen"
+**Status:** 📋 Backlog
+**CC-Aufwand:** ~3-4 Sessions (~120-180 Min)
+**Abhängigkeiten:** Phase 6
+
+#### Aufgaben:
+- [ ] **Cookidoo OAuth2 Flow verbessern** — Rezept-Download optimieren, LLM-Extraktion für nicht-Schema.org-Rezepte
+- [ ] **Plattform-Erweiterungen vorbereiten** — Pinterest, Facebook (Platzhalter in `classifier.ts`)
+
+#### Notizen:
+- Cookidoo ist die wichtigste Plattform — höchste Priorität
+- Andere Plattformen erst vorbereiten, nicht vollständig implementieren
+- OAuth2 kann sich jederzeit ändern — regelmäßige Tests erforderlich
+
+---
+
+### Phase 8: Scanner Fix + Nächste Features — Backlog
 
 #### Priorisiertes Backlog:
 - [ ] **QR-Bild-Scan (BarcodeDetector API)** — ScannerPage "Bild hochladen"-Tab currently broken (liest PNG als Text). Fix: `BarcodeDetector` API (Chromium) oder Canvas-basiertes Decoding. Höchste Priorität.
@@ -235,6 +272,6 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 | /qa Pass | `/qa` | Browser QA Phase 1–5 | 1 | passed | Alle Features verifiziert. 1 bekanntes offenes Problem: QR-Bild-Upload broken → Phase 6 Backlog |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
-**UNRESOLVED:** 1 — QR-Bild-Scan (BarcodeDetector) in Phase 6 Backlog
-**STATUS (2026-03-27):** Phase 1–5 vollständig implementiert, QA-verifiziert und in `main` gemergt (v1.0.22).
-**NEXT:** Phase 6 starten mit QR-Bild-Scan (BarcodeDetector API)
+**UNRESOLVED:** 1 — QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
+**STATUS (2026-03-28):** Phase 1–5 vollständig implementiert, QA-verifiziert und in `main` gemergt (v1.0.22). Phase 6 (Share + QR-Scan) 🚧 In Progress.
+**NEXT:** Phase 6 — Share-Button, PDF-Karteikarten, Wochenplan QR-Tab, Mobile Bug-Fix

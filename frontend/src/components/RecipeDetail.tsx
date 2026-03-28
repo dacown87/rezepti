@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed, Star, ShoppingCart, Download } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Flame, Edit, Trash2, ChefHat, Loader2, AlertCircle, ExternalLink, Save, X, Pencil, RotateCcw, UtensilsCrossed, Star, ShoppingCart, Download, Share2 } from 'lucide-react'
 import { getRecipe, deleteRecipe, updateRecipe } from '../api/services.js'
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber, splitIngredient } from '../utils/scaling.js'
 import { generateRecipePDF, downloadPDF } from '../utils/pdf-export.js'
 import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeDetailSkeleton } from './SkeletonLoader'
+import ShareModal from './ShareModal'
 
 const RecipeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -29,6 +30,7 @@ const RecipeDetail: React.FC = () => {
   const [notes, setNotes] = useState('')
   const [hoverRating, setHoverRating] = useState<number | null>(null)
   const [isExportingPDF, setIsExportingPDF] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { addToast } = useToast()
 
@@ -431,6 +433,13 @@ const RecipeDetail: React.FC = () => {
                   {isExportingPDF ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
                   <span>PDF</span>
                 </button>
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="flex-1 bg-warmgray/10 text-warmgray py-3 px-6 rounded-lg font-medium hover:bg-warmgray/20 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Share2 size={20} />
+                  <span>Teilen</span>
+                </button>
               </>
             )}
           </div>
@@ -531,7 +540,7 @@ const RecipeDetail: React.FC = () => {
                                   setEditingIngredientIndex(index)
                                   setEditingValue(String(scaledValue))
                                 }}
-                                className="opacity-0 group-hover:opacity-100 md:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 text-warmgray/40 hover:text-paprika transition-opacity ml-auto"
+                                className="opacity-0 group-hover:opacity-100 sm:opacity-100 text-warmgray/40 hover:text-paprika transition-opacity ml-auto"
                                 title="Menge anpassen"
                               >
                                 <Pencil size={14} />
@@ -732,6 +741,11 @@ const RecipeDetail: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && recipe && (
+        <ShareModal recipe={recipe} onClose={() => setShowShareModal(false)} />
       )}
     </div>
   )

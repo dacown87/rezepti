@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, Camera, ScanLine } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getMealPlan, addToMealPlan, removeFromMealPlan, clearMealPlan, getRecipes, addShoppingItem } from '../api/services.js'
 import type { MealPlanEntry, Recipe } from '../api/types.js'
@@ -32,6 +32,7 @@ const PlannerPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState<number | null>(null)
   const [isGeneratingShopping, setIsGeneratingShopping] = useState(false)
+  const [activeTab, setActiveTab] = useState<'planner' | 'scan'>('planner')
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -150,6 +151,13 @@ const PlannerPage: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => setActiveTab(activeTab === 'planner' ? 'scan' : 'planner')}
+            className="flex items-center gap-2 bg-paprika text-white px-4 py-2 rounded-lg hover:bg-paprika-dark transition-colors"
+          >
+            <ScanLine size={18} />
+            <span className="hidden sm:inline">QR</span>
+          </button>
+          <button
             onClick={handleGenerateShoppingList}
             disabled={entries.length === 0 || isGeneratingShopping}
             className="flex items-center gap-2 bg-saffron text-espresso px-4 py-2 rounded-lg hover:bg-saffron-light transition-colors disabled:opacity-50"
@@ -160,8 +168,10 @@ const PlannerPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Week navigation */}
-      <div className="flex items-center justify-between mb-6 bg-white rounded-xl p-4 border border-warmgray/10">
+      {activeTab === 'planner' && (
+      <>
+        {/* Week navigation */}
+        <div className="flex items-center justify-between mb-6 bg-white rounded-xl p-4 border border-warmgray/10">
         <button
           onClick={prevWeek}
           className="p-2 hover:bg-warmgray/10 rounded-lg transition-colors"
@@ -238,6 +248,9 @@ const PlannerPage: React.FC = () => {
             Woche leeren
           </button>
         </div>
+      )}
+
+      </>
       )}
 
       {/* Add Recipe Modal */}

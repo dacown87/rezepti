@@ -174,6 +174,7 @@ export function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): 
   if (fields.steps       !== undefined) values.steps       = JSON.stringify(fields.steps);
   if ((fields as any).rating !== undefined) values.rating = (fields as any).rating;
   if ((fields as any).notes  !== undefined) values.notes  = (fields as any).notes;
+  if ((fields as any).pdf_created !== undefined) values.pdf_created = (fields as any).pdf_created ? 1 : 0;
   if (Object.keys(values).length === 0) return false;
   const result = db.update(recipes).set(values).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();
   return !!result;

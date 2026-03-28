@@ -18,6 +18,7 @@ export interface Recipe {
   updated_at: string
   rating?: number | null
   notes?: string | null
+  pdf_created?: boolean
 }
 
 export interface JobStatus {
