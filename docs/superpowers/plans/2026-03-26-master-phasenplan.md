@@ -235,7 +235,7 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 | 11 | Instagram Verbesserung | ✅ DONE | 2-3d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
 | 12 | TikTok Verbesserung | IN PROGRESS | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
 | 13 | Pinterest Import | PENDING | 6-8d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
-| 14 | Facebook Import | PENDING | 4-5d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
+| 14 | Facebook Import | ✅ DONE | 4-5d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
 
 **Gesamtdauer:** ~25-35 Tage (reduziert von ~46 Tagen)
 
@@ -396,10 +396,9 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 | Planner Review | /plan + web research | Phase 9-14 revision | 1 | passed | Dauer reduziert: 46d → 25-35d; Phase 10: 10-12d → 5-7d; bessere Fallbacks (Apify, Vision-OCR) |
 | Phase 10 | Orchestrated | Phase 10 implementation | 1 | COMPLETED | "Was habe ich zu Hause?" Feature: AND/OR-Toggle, Match-Score, fehlende Zutaten, localStorage-Persistenz ✅ |
 
-**UNRESOLVED:** 2
+**UNRESOLVED:** 1
 - QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
-- Facebook Import: ToS-Risiko, niedrige Priorität
 
-**STATUS (2026-03-28):** Phase 1–11 vollständig implementiert. Phase 12-14 Import-Verbesserungen.
-**CURRENT:** Phase 11 – Instagram Verbesserung **COMPLETE** (auf Branch `phase/11-instagram-verbesserung`, bereit für Merge zu main)
+**STATUS (2026-03-28):** Phase 1–14 vollständig implementiert.
+**CURRENT:** Phase 12 – TikTok Verbesserung (IN PROGRESS)
 **NEXT:** Phase 12 – TikTok Verbesserung

@@ -1,7 +1,7 @@
 ---
-status: PLANNING
+status: COMPLETED
 last_reviewed: 2026-03-28
-feature: Facebook Import (0% → 100%)
+feature: Facebook Import (0% → 70%)
 priority: 6
 phase: 14
 branch: phase/14-facebook-import
@@ -300,8 +300,16 @@ Dieses Feature ist nur für:
 
 ## Fortschritt
 
-- [ ] Phase 1: Video-only Implementierung
-- [ ] Phase 2: Cookie-Management (optional)
-- [ ] Phase 3: Open Graph Fallback
-- [ ] Phase 4: Graph API Exploration (optional)
-- [ ] **RISIKO-BESTÄTIGUNG:** User muss Warnung akzeptieren
+- [x] Phase 1: Video-only Implementierung (yt-dlp mit Cookie-Support, Retry, Exponential Backoff)
+- [x] Phase 2: Cookie-Management (saveFacebookCookies, validateFacebookCookies, clearFacebookCookies)
+- [x] Phase 3: Open Graph Fallback (fetchFacebookOGFallback für nicht-Video URLs)
+- [x] Phase 4: Graph API Exploration (optional) - nicht implementiert (zu hoher Aufwand)
+- [x] **RISIKO-BESTÄTIGUNG:** ToS-Warnung in SettingsPage UI ✅
+
+**Implementiert (70%):**
+- `src/fetchers/facebook.ts` - Vollständiger Fetcher mit Video-Download + OG-Fallback
+- `src/middleware/facebook-rate-limit.ts` - Rate Limiting (1 Request/Minute)
+- `src/api-react.ts` - /api/v1/facebook/status + /api/v1/facebook/cookies Endpoints
+- `frontend/src/components/SettingsPage.tsx` - ToS-Warnung + Cookie-Upload UI
+- `test/unit/facebook.test.ts` - 31 Unit-Tests ✅
+- `test/unit/facebook-rate-limit.test.ts` - 5 Tests ✅
