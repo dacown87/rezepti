@@ -32,9 +32,12 @@ import { jobManager } from "./job-manager.js";
 import { BYOKValidator } from "./byok-validator.js";
 import { processURL } from "./pipeline.js";
 import { extractRecipeFromImage } from "./processors/llm.js";
+import { checkFacebookRateLimit } from "./middleware/facebook-rate-limit.js";
+import { classifyURL } from "./classifier.js";
 import type { RecipeData, PipelineEvent } from "./types.js";
 import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, getCredentials, hasCredentials, clearSession } from "./fetchers/cookidoo.js";
 import { savePinterestCredentialsToDisk, clearPinterestCredentialsFromDisk, getPinterestStatus, getPinterestCredentials } from "./fetchers/pinterest.js";
+import { hasFacebookCookies, getFacebookCookieDomains, validateFacebookCookies, saveFacebookCookies, clearFacebookCookies } from "./fetchers/facebook.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
 const photoDataStore = new Map<string, string>();
@@ -192,6 +195,21 @@ app.post("/api/v1/extract/react", async (c) => {
       new URL(url);
     } catch {
       return c.json({ error: "Invalid URL format" }, 400);
+    }
+    
+    // Check if URL is a Facebook URL and apply rate limit
+    const classified = classifyURL(url);
+    if (classified.type === "facebook") {
+      const clientIp = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || 
+                        c.req.header("x-real-ip") || 
+                        "unknown";
+      const { allowed, retryAfterMs } = checkFacebookRateLimit(clientIp);
+      if (!allowed) {
+        return c.json({ 
+          error: "Rate limit exceeded. Max 1 request per minute for Facebook.",
+          retryAfterSeconds: Math.ceil(retryAfterMs / 1000)
+        }, 429);
+      }
     }
     
     // Check if URL is already being processed
@@ -849,6 +867,74 @@ app.delete("/api/v1/pinterest/credentials", (c) => {
   } catch (error) {
     console.error("Error removing Pinterest credentials:", error);
     return c.json({ error: "Failed to remove Pinterest credentials" }, 500);
+  }
+});
+
+// Facebook cookie management (Phase 14)
+app.get("/api/v1/facebook/status", (c) => {
+  try {
+    const hasCookies = hasFacebookCookies();
+    const domains = getFacebookCookieDomains();
+    return c.json({
+      hasCookies,
+      domains: hasCookies ? domains : [],
+    });
+  } catch (error) {
+    console.error("Error getting Facebook cookie status:", error);
+    return c.json({ error: "Failed to get Facebook cookie status" }, 500);
+  }
+});
+
+app.post("/api/v1/facebook/cookies", async (c) => {
+  try {
+    const contentType = c.req.header("content-type") || "";
+
+    if (!contentType.includes("multipart/form-data")) {
+      const body = await c.req.text();
+      const validation = validateFacebookCookies(body);
+      if (!validation.valid) {
+        return c.json({ error: validation.error }, 400);
+      }
+      saveFacebookCookies(body);
+      return c.json({
+        success: true,
+        message: "Facebook cookies saved successfully",
+      });
+    }
+
+    const formData = await c.req.formData();
+    const file = formData.get("cookies");
+    if (!file || typeof file === "string") {
+      return c.json({ error: "No cookie file provided" }, 400);
+    }
+
+    const content = await file.text();
+    const validation = validateFacebookCookies(content);
+    if (!validation.valid) {
+      return c.json({ error: validation.error }, 400);
+    }
+
+    saveFacebookCookies(content);
+    return c.json({
+      success: true,
+      message: "Facebook cookies saved successfully",
+    });
+  } catch (error) {
+    console.error("Error saving Facebook cookies:", error);
+    return c.json({ error: "Failed to save Facebook cookies" }, 500);
+  }
+});
+
+app.delete("/api/v1/facebook/cookies", (c) => {
+  try {
+    clearFacebookCookies();
+    return c.json({
+      success: true,
+      message: "Facebook cookies removed",
+    });
+  } catch (error) {
+    console.error("Error removing Facebook cookies:", error);
+    return c.json({ error: "Failed to remove Facebook cookies" }, 500);
   }
 });
 

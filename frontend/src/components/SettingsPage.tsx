@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Key, Check, X, AlertTriangle, HelpCircle, ExternalLink, Info, ScrollText } from 'lucide-react'
-import { validateApiKey, saveApiKey, clearApiKey, getCookidooStatus, saveCookidooCredentials, clearCookidooCredentials } from '../api/services.js'
+import { validateApiKey, saveApiKey, clearApiKey, getCookidooStatus, saveCookidooCredentials, clearCookidooCredentials, getFacebookCookiesStatus, uploadFacebookCookies, deleteFacebookCookies } from '../api/services.js'
 import { useToast } from './ToastManager'
 import ChangelogModal from './ChangelogModal.js'
 
@@ -148,6 +148,8 @@ const SettingsPage: React.FC = () => {
   const [cookidooStatus, setCookidooStatus] = useState<{connected: boolean; hasFileCredentials: boolean; email: string | null} | null>(null)
   const [isSavingCookidoo, setIsSavingCookidoo] = useState(false)
   const [facebookAccepted, setFacebookAccepted] = useState(() => localStorage.getItem('facebook_tos_accepted') === 'true')
+  const [facebookCookiesStatus, setFacebookCookiesStatus] = useState<{ hasCookies: boolean; lastUpdated?: string; domains?: string[] } | null>(null)
+  const [isUploadingCookies, setIsUploadingCookies] = useState(false)
   const { addToast } = useToast()
 
   // Load saved key on mount
@@ -289,11 +291,44 @@ const SettingsPage: React.FC = () => {
     }
   }
 
+  // Load Facebook cookies status on mount
+  useEffect(() => {
+    getFacebookCookiesStatus()
+      .then(setFacebookCookiesStatus)
+      .catch(() => setFacebookCookiesStatus({ hasCookies: false }))
+  }, [])
+
   const handleFacebookTosToggle = (accepted: boolean) => {
     setFacebookAccepted(accepted)
     localStorage.setItem('facebook_tos_accepted', accepted ? 'true' : 'false')
     if (accepted) {
       addToast('Facebook-Import aktiviert. Bitte nutze max. 1 Anfrage pro Minute.', 'info')
+    }
+  }
+
+  const handleCookiesUpload = async (file: File) => {
+    setIsUploadingCookies(true)
+    try {
+      const formData = new FormData()
+      formData.append('cookies', file)
+      await uploadFacebookCookies(formData)
+      const status = await getFacebookCookiesStatus()
+      setFacebookCookiesStatus(status)
+      addToast('Facebook Cookies hochgeladen', 'success')
+    } catch (err: any) {
+      addToast(err.message || 'Fehler beim Upload', 'error')
+    } finally {
+      setIsUploadingCookies(false)
+    }
+  }
+
+  const handleCookiesDelete = async () => {
+    try {
+      await deleteFacebookCookies()
+      setFacebookCookiesStatus({ hasCookies: false })
+      addToast('Facebook Cookies gelöscht', 'success')
+    } catch (err: any) {
+      addToast(err.message || 'Fehler beim Löschen', 'error')
     }
   }
 
@@ -571,6 +606,56 @@ const SettingsPage: React.FC = () => {
                 </p>
               </div>
             </label>
+
+            {/* Cookie Management */}
+            <div className="mt-4 pt-4 border-t border-warmgray/10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-warmgray">Cookies für private Videos</p>
+                {facebookCookiesStatus?.hasCookies && (
+                  <button
+                    onClick={handleCookiesDelete}
+                    className="text-red-600 hover:text-red-700 text-xs font-medium"
+                  >
+                    Löschen
+                  </button>
+                )}
+              </div>
+              
+              {facebookCookiesStatus?.hasCookies ? (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-700">
+                    ✅ {facebookCookiesStatus.domains?.length || 0} Cookie-Domains geladen
+                  </p>
+                  {facebookCookiesStatus.lastUpdated && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Aktualisiert: {new Date(facebookCookiesStatus.lastUpdated).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 bg-warmgray/5 border border-warmgray/10 rounded-lg">
+                  <p className="text-xs text-warmgray/70">
+                    Keine Cookies geladen. Private Videos erfordern Cookies.
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-warmgray mb-1">
+                  Cookies-Datei hochladen
+                </label>
+                <input
+                  type="file"
+                  accept=".txt"
+                  onChange={(e) => e.target.files?.[0] && handleCookiesUpload(e.target.files[0])}
+                  className="w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-paprika/10 file:text-paprika hover:file:bg-paprika/20"
+                  disabled={isUploadingCookies || !facebookAccepted}
+                />
+                <p className="text-xs text-warmgray/60 mt-1">
+                  Exportiere Cookies mit Browser-Extension (EditThisCookie, Cookiebro)
+                </p>
+              </div>
+            </div>
           </div>
 
         {/* Sidebar */}

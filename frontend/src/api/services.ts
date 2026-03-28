@@ -334,3 +334,45 @@ export async function clearCookidooCredentials(): Promise<{ success: boolean; me
     throw error
   }
 }
+
+// Facebook Cookie Management (Phase 14)
+export interface FacebookCookiesStatus {
+  hasCookies: boolean;
+  lastUpdated?: string;
+  domains?: string[];
+}
+
+export async function getFacebookCookiesStatus(): Promise<FacebookCookiesStatus> {
+  try {
+    return await apiGet<FacebookCookiesStatus>('/api/v1/facebook/status')
+  } catch (error) {
+    console.error('Failed to get Facebook cookies status:', error)
+    throw error
+  }
+}
+
+export async function uploadFacebookCookies(formData: FormData): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch('/api/v1/facebook/cookies', {
+      method: 'POST',
+      body: formData,
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to upload cookies')
+    }
+    return response.json()
+  } catch (error) {
+    console.error('Failed to upload Facebook cookies:', error)
+    throw error
+  }
+}
+
+export async function deleteFacebookCookies(): Promise<{ success: boolean; message: string }> {
+  try {
+    return await apiDelete<{ success: boolean; message: string }>('/api/v1/facebook/cookies')
+  } catch (error) {
+    console.error('Failed to delete Facebook cookies:', error)
+    throw error
+  }
+}
