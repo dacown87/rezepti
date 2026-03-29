@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.37] – 2026-03-29
+
+- use npm install instead of npm ci in frontend-builder (no lock file)
+
 ## [1.0.36] – 2026-03-29
 
 - build frontend in Docker to fix missing JS bundles

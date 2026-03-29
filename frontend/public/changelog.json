@@ -1,10 +1,17 @@
 {
-  "version": "1.0.36",
+  "version": "1.0.37",
   "lastUpdated": {
     "date": "2026-03-29",
-    "time": "21:04"
+    "time": "21:08"
   },
   "entries": [
+    {
+      "version": "1.0.37",
+      "date": "2026-03-29",
+      "changes": [
+        "use npm install instead of npm ci in frontend-builder (no lock file)"
+      ]
+    },
     {
       "version": "1.0.36",
       "date": "2026-03-29",
