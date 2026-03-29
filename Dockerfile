@@ -45,6 +45,7 @@ COPY frontend/package*.json ./
 RUN npm install
 
 COPY frontend/ ./frontend/
+WORKDIR /app/frontend
 RUN npm run build
 
 # ─── production ────────────────────────────────────────────────────────────────
