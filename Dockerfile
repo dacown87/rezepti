@@ -35,6 +35,21 @@ COPY src/ ./src/
 # Falls tsc hier scheitert, zuerst 'npx tsc --noEmit' lokal prüfen.
 RUN npx tsc
 
+# ─── frontend-builder ─────────────────────────────────────────────────────────
+FROM base AS frontend-builder
+
+WORKDIR /app
+
+COPY .npmrc package*.json ./
+RUN npm ci
+
+COPY package*.json ./
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./frontend/
+RUN npm run build:react
+
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production
 
@@ -44,8 +59,7 @@ COPY .npmrc package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
-# Nur public/index.html wird kopiert — public/v*.html ist via .dockerignore ausgeschlossen
-COPY public/ ./public/
+COPY --from=frontend-builder /app/public/ ./public/
 COPY frontend/public/changelog.json ./frontend/public/changelog.json
 
 EXPOSE 3000

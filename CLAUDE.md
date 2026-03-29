@@ -25,7 +25,7 @@ Test suite: Vitest for unit/e2e tests.
 
 **Image:** `dacown/rezepti:latest` auf Docker Hub — wird automatisch via GitHub Actions gebaut und gepusht bei jedem Merge auf `main`.
 
-**Stages:** `base` (Node 20 + yt-dlp + Build-Tools) → `builder` (tsc) → `production` (node dist/index.js) + `dev` (tsx watch)
+**Stages:** `base` (Node 20 + yt-dlp + Build-Tools) → `builder` (tsc) → `frontend-builder` (Vite build) → `production` (node dist/index.js) + `dev` (tsx watch)
 
 **Volumes:**
 - `./data:/app/data` — SQLite-Persistenz
@@ -37,6 +37,12 @@ Test suite: Vitest for unit/e2e tests.
 **GitHub Secrets (einmalig im Repo setzen):**
 - `DOCKERHUB_USERNAME` = `dacown`
 - `DOCKERHUB_TOKEN` = Access Token von hub.docker.com → Account Settings → Personal access tokens
+
+## Production
+
+**URL:** https://p01--rezepti-app--2s7hvlwm5zc5.code.run
+
+**Deployment:** GitHub Actions → Docker Hub (`dacown/rezepti:latest`) → Northflank (automatic redeploy)
 
 ## Architecture
 
