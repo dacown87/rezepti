@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.39] – 2026-03-29
+
+- run frontend build from frontend directory
+
 ## [1.0.38] – 2026-03-29
 
 - use correct npm script 'build' instead of 'build:react'
