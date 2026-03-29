@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.31] – 2026-03-29
+
+- QR-scanner, PDF-export modal, changelog entfernt
+
 ## [1.0.30] – 2026-03-29
 
 
