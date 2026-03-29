@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.42] – 2026-03-29
+
+- remove paths-ignore from docker workflow
+- simplify vite config, remove test section to fix Docker build
+
 ## [1.0.40] – 2026-03-29
 
 - build frontend from root with npm run build:react
