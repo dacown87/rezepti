@@ -44,6 +44,7 @@ COPY .npmrc package*.json ./
 RUN npm install
 
 COPY frontend/ ./frontend/
+COPY vite.config.ts ./
 RUN npm run build:react
 
 # ─── production ────────────────────────────────────────────────────────────────
