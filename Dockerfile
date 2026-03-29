@@ -45,7 +45,7 @@ COPY frontend/package*.json ./
 RUN npm install
 
 COPY frontend/ ./frontend/
-RUN npm run build:react
+RUN npm run build
 
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production
