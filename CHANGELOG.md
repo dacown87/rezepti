@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.40] – 2026-03-29
+
+- build frontend from root with npm run build:react
+
 ## [1.0.39] – 2026-03-29
 
 - run frontend build from frontend directory

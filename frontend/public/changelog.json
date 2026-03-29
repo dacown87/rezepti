@@ -1,10 +1,17 @@
 {
-  "version": "1.0.39",
+  "version": "1.0.40",
   "lastUpdated": {
     "date": "2026-03-29",
-    "time": "21:23"
+    "time": "21:29"
   },
   "entries": [
+    {
+      "version": "1.0.40",
+      "date": "2026-03-29",
+      "changes": [
+        "build frontend from root with npm run build:react"
+      ]
+    },
     {
       "version": "1.0.39",
       "date": "2026-03-29",
@@ -218,13 +225,6 @@
       "changes": [
         "Mobile UI verbessert",
         "Auto-Changelog bei jedem Release"
-      ]
-    },
-    {
-      "version": "1.0.0",
-      "date": "2026-03-25",
-      "changes": [
-        "Erstes Release – React-Frontend, Rezeptextraktion, BYOK, Docker-Deployment"
       ]
     }
   ]
