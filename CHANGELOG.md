@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.36] – 2026-03-29
+
+- build frontend in Docker to fix missing JS bundles
+
 ## [1.0.35] – 2026-03-29
 
 

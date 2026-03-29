@@ -1,10 +1,17 @@
 {
-  "version": "1.0.35",
+  "version": "1.0.36",
   "lastUpdated": {
     "date": "2026-03-29",
-    "time": "20:55"
+    "time": "21:04"
   },
   "entries": [
+    {
+      "version": "1.0.36",
+      "date": "2026-03-29",
+      "changes": [
+        "build frontend in Docker to fix missing JS bundles"
+      ]
+    },
     {
       "version": "1.0.35",
       "date": "2026-03-29",
