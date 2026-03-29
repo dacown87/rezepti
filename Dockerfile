@@ -41,12 +41,10 @@ FROM base AS frontend-builder
 WORKDIR /app
 
 COPY .npmrc package*.json ./
-COPY frontend/package*.json ./
 RUN npm install
 
 COPY frontend/ ./frontend/
-WORKDIR /app/frontend
-RUN npm run build
+RUN npm run build:react
 
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production
