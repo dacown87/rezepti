@@ -299,21 +299,42 @@ const PlannerPage: React.FC = () => {
 
   const startQRScanning = async () => {
     setQrError(null)
+    
     if (!window.BarcodeDetector) {
-      setQrError('QR-Scanner nicht verfügbar. Bitte nutze einen Chromium-Browser.')
+      setQrError('QR-Scanner nicht verfügbar. Bitte nutze einen Chromium-Browser (Chrome, Edge).')
       return
     }
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setQrError('Kamera wird in diesem Browser nicht unterstützt.')
+      return
+    }
+    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      })
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
         requestAnimationFrame(scanQRFrame)
+      } else {
+        stream.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+        setQrError('Video-Element nicht gefunden. Bitte Seite neu laden.')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera error:', err)
-      setQrError('Kamera konnte nicht geöffnet werden.')
+      if (err.name === 'NotAllowedError') {
+        setQrError('Kamera-Zugriff verweigert. Bitte Berechtigung erteilen.')
+      } else if (err.name === 'NotFoundError') {
+        setQrError('Keine Kamera gefunden.')
+      } else if (err.name === 'NotReadableError') {
+        setQrError('Kamera wird bereits von einer anderen App verwendet.')
+      } else {
+        setQrError('Kamera konnte nicht geöffnet werden.')
+      }
     }
   }
 

@@ -7,6 +7,12 @@ on:
       - completed
     branches:
       - main
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
 
 jobs:
   build-and-push:

@@ -37,9 +37,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [])
 
   return (
-    <div className="min-h-screen bg-cream text-espresso">
+    <div className="min-h-screen flex flex-col bg-cream text-espresso">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-warmgray/20 bg-cream/95 backdrop-blur-sm">
+      <nav className="sticky top-0 z-50 border-b border-warmgray/20 bg-cream/95 backdrop-blur-sm flex-shrink-0">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -70,12 +70,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </nav>
 
       {/* Main content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-warmgray/10 py-6 mt-12">
+      <footer className="border-t border-warmgray/10 py-6 flex-shrink-0">
         <div className="container mx-auto px-4 text-center text-warmgray/50 text-xs tracking-wide space-y-1">
           <div>RecipeDeck — Rezepte aus dem Netz</div>
           {currentVersion && lastUpdated && (
