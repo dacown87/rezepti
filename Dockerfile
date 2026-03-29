@@ -44,7 +44,8 @@ COPY .npmrc package*.json ./
 RUN npm install
 
 COPY frontend/ ./frontend/
-RUN npm run build:react
+WORKDIR /app/frontend
+RUN cd ../ && npm run build:react
 
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production
