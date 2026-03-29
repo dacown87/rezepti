@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star, Search, X, Download, Zap, AlertCircle } from 'lucide-react'
+import { ChefHat, Clock, Users, Flame, RefreshCw, LayoutGrid, List, Star, Search, X, Download } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getRecipes, searchRecipes, type MatchMode, type SearchRecipesOptions } from '../api/services.js'
 import { parseServingsNumber } from '../utils/scaling.js'
-import { generateRecipeCardsPDF, downloadPDF } from '../utils/pdf-export.js'
 import type { Recipe, RecipeSearchResult } from '../api/types.js'
 import { useToast } from './ToastManager'
 import { RecipeListSkeleton } from './SkeletonLoader'
+import PDFSelectionModal from './PDFSelectionModal'
 
 type ViewMode = 'list' | 'grid'
 
@@ -28,9 +28,9 @@ const RecipeList: React.FC = () => {
     () => (localStorage.getItem(MATCH_MODE_STORAGE_KEY) as MatchMode) ?? 'and'
   )
   const { addToast } = useToast()
-  const [isExportingCards, setIsExportingCards] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [isSearchActive, setIsSearchActive] = useState(false)
+  const [showPDFModal, setShowPDFModal] = useState(false)
 
   const switchView = (mode: ViewMode) => {
     setViewMode(mode)
@@ -137,23 +137,12 @@ const RecipeList: React.FC = () => {
     return found?.missingIngredients ?? []
   }
 
-  const handleExportCards = async () => {
+  const handleExportCards = () => {
     if (recipes.length === 0) {
       addToast('Keine Rezepte zum Exportieren', 'error')
       return
     }
-    setIsExportingCards(true)
-    try {
-      const blob = await generateRecipePDF(recipes)
-      const filename = `rezeptkarten_${new Date().toISOString().split('T')[0]}.pdf`
-      downloadPDF(blob, filename)
-      addToast('PDF-Karteikarten heruntergeladen', 'success')
-    } catch (error) {
-      console.error('PDF export failed:', error)
-      addToast('PDF konnte nicht erstellt werden', 'error')
-    } finally {
-      setIsExportingCards(false)
-    }
+    setShowPDFModal(true)
   }
 
   const emptyState = (colSpan: string) => (
@@ -267,7 +256,7 @@ const RecipeList: React.FC = () => {
             </button>
             <button
               onClick={handleExportCards}
-              disabled={isExportingCards || recipes.length === 0}
+              disabled={recipes.length === 0}
               className="flex items-center space-x-2 px-4 py-2 bg-saffron text-espresso rounded-lg hover:bg-saffron-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="PDF-Karteikarten exportieren"
             >
@@ -442,6 +431,13 @@ const RecipeList: React.FC = () => {
             emptyState('lg:col-span-3')
           )}
         </div>
+      )}
+
+      {showPDFModal && (
+        <PDFSelectionModal
+          recipes={recipes}
+          onClose={() => setShowPDFModal(false)}
+        />
       )}
     </div>
   )

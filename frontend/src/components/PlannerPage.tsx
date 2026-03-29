@@ -155,6 +155,14 @@ const PlannerPage: React.FC = () => {
     loadData()
   }, [weekStart])
 
+  useEffect(() => {
+    if (showQRScanner) {
+      startQRScanning()
+    } else {
+      stopQRScanning()
+    }
+  }, [showQRScanner])
+
   const loadData = async () => {
     try {
       const [planData, recipesData] = await Promise.all([
@@ -485,10 +493,11 @@ const PlannerPage: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <button
-                onClick={() => { setShowQRScanner(true); startQRScanning(); }}
-                className="text-paprika hover:text-paprika-dark p-2 hover:bg-paprika/10 rounded-lg transition-colors"
+                onClick={() => setShowQRScanner(true)}
+                className="flex items-center gap-2 text-paprika hover:text-paprika-dark px-4 py-3 hover:bg-paprika/10 rounded-lg transition-colors bg-paprika/5 border border-paprika/20"
               >
-                <Camera size={20} />
+                <Camera size={24} />
+                <span className="font-medium text-sm">QR-Scanner</span>
               </button>
               <h2 className="text-xl font-display font-bold">Rezept hinzufügen</h2>
               <button onClick={() => { setShowAddModal(null); stopQRScanning(); }} className="text-warmgray hover:text-gray-700">

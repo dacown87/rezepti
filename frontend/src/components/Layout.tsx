@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Settings, Home, PlusCircle, BookOpen, ShoppingCart, Calendar } from 'lucide-react'
+import { Settings, Home, PlusCircle, ShoppingCart, Calendar } from 'lucide-react'
 import ChangelogModal from './ChangelogModal.js'
 
 interface LayoutProps {
@@ -63,14 +63,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               ))}
-              <button
-                onClick={() => setShowChangelog(true)}
-                className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-warmgray/5 text-warmgray hover:text-espresso transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-                aria-label="Changelog anzeigen"
-              >
-                <BookOpen size={20} />
-                <span className="hidden sm:inline">Changelog</span>
-              </button>
+
             </div>
           </div>
         </div>
