@@ -13,3 +13,6 @@ screensshots/
 .playwright-mcp/
 FilesWorking/
 test/RecipePicture/
+public/assets/
+frontend/dist/
+frontend/node_modules/
