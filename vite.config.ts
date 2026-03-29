@@ -51,6 +51,11 @@ export default defineConfig({
     outDir: '../public',
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+      },
+    },
   },
   
 })
