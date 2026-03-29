@@ -41,11 +41,8 @@ FROM base AS frontend-builder
 WORKDIR /app
 
 COPY .npmrc package*.json ./
-RUN npm ci
-
-COPY package*.json ./
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY frontend/ ./frontend/
 RUN npm run build:react
