@@ -1,10 +1,17 @@
 {
-  "version": "1.0.37",
+  "version": "1.0.38",
   "lastUpdated": {
     "date": "2026-03-29",
-    "time": "21:08"
+    "time": "21:11"
   },
   "entries": [
+    {
+      "version": "1.0.38",
+      "date": "2026-03-29",
+      "changes": [
+        "use correct npm script 'build' instead of 'build:react'"
+      ]
+    },
     {
       "version": "1.0.37",
       "date": "2026-03-29",
