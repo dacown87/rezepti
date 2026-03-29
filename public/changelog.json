@@ -12,6 +12,7 @@
         "QR-Scanner in Extraktionsseite integriert (Phase 4)",
         "QR-Import im Meal Planner direkt nutzbar",
         "Entferne separate /scan Route - Funktionalität in ExtractionPage zusammengeführt",
+        "PDF-Export mit Auswahl-Modal (einzelne Rezepte oder alle)",
         "PDF-Export Status in Datenbank (pdf_created Feld)"
       ]
     },

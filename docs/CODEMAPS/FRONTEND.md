@@ -127,6 +127,7 @@
 | `SkeletonLoader.tsx` | Loading placeholder |
 | `ChangelogModal.tsx` | Version changelog display |
 | `ShareModal.tsx` | Share recipe dialog |
+| `PDFSelectionModal.tsx` | PDF export selection (single recipe or all) |
 
 ## Utility Functions
 
