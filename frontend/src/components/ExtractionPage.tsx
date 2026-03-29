@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Play, Camera, Globe, ChevronDown, ChevronUp, Copy, Check, ImagePlus, X } from 'lucide-react'
-import { startExtraction, startPhotoExtraction, pollJobStatus } from '../api/services.js'
+import { Play, Camera, Globe, ChevronDown, ChevronUp, Copy, Check, ImagePlus, X, ScanLine } from 'lucide-react'
+import { startExtraction, startPhotoExtraction, pollJobStatus, saveRecipe } from '../api/services.js'
+import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '../utils/recipe-qr.js'
+import type { Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
 
-type Mode = 'url' | 'photo'
+type Mode = 'url' | 'camera' | 'file' | 'qr'
 
 const STAGES: Record<string, number> = {
   classifying: 20,
@@ -26,6 +28,14 @@ const STAGE_LABELS: Record<string, string> = {
   done: 'Fertig!',
 }
 
+declare global {
+  interface Window {
+    BarcodeDetector?: new (options?: { formats: string[] }) => {
+      detect: (image: ImageBitmapSource) => Promise<{ rawValue: string }[]>
+    }
+  }
+}
+
 const ExtractionPage: React.FC = () => {
   const [mode, setMode] = useState<Mode>('url')
   const [url, setUrl] = useState('')
@@ -44,6 +54,13 @@ const ExtractionPage: React.FC = () => {
   const handledRef = useRef(false)
   const urlRef = useRef(url)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const qrVideoRef = useRef<HTMLVideoElement>(null)
+  const qrStreamRef = useRef<MediaStream | null>(null)
+  const [qrScanning, setQrScanning] = useState(false)
+  const [qrError, setQrError] = useState<string | null>(null)
+  const [qrScannedRecipe, setQrScannedRecipe] = useState<Partial<Recipe> | null>(null)
+  const [qrImporting, setQrImporting] = useState(false)
 
   useEffect(() => { urlRef.current = url }, [url])
 
@@ -85,6 +102,14 @@ const ExtractionPage: React.FC = () => {
 
     return () => clearInterval(interval)
   }, [jobId])
+
+  useEffect(() => {
+    return () => {
+      if (qrStreamRef.current) {
+        qrStreamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -146,6 +171,98 @@ const ExtractionPage: React.FC = () => {
     }
   }
 
+  const stopQrScanning = () => {
+    setQrScanning(false)
+    if (qrStreamRef.current) {
+      qrStreamRef.current.getTracks().forEach(track => track.stop())
+      qrStreamRef.current = null
+    }
+  }
+
+  const startQrScanning = async () => {
+    setQrError(null)
+
+    if (!window.BarcodeDetector) {
+      setQrError('QR-Scanner nicht verfügbar. Bitte nutze einen Chromium-Browser (Chrome, Edge).')
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      })
+      qrStreamRef.current = stream
+
+      if (qrVideoRef.current) {
+        qrVideoRef.current.srcObject = stream
+        await qrVideoRef.current.play()
+        setQrScanning(true)
+        requestAnimationFrame(scanQrFrame)
+      }
+    } catch (err) {
+      console.error('Camera error:', err)
+      setQrError('Kamera konnte nicht geöffnet werden.')
+    }
+  }
+
+  const scanQrFrame = async () => {
+    if (!qrVideoRef.current || !qrScanning) return
+
+    try {
+      const detector = new window.BarcodeDetector!({ formats: ['qr_code'] })
+      const barcodes = await detector.detect(qrVideoRef.current)
+
+      if (barcodes.length > 0) {
+        const value = barcodes[0].rawValue
+
+        if (isRecipeJSONQR(value)) {
+          const decoded = decodeRecipeFromCompactJSON(value)
+          if (decoded) {
+            setQrScannedRecipe(parseCompactRecipeToFull(decoded))
+            stopQrScanning()
+            return
+          }
+        }
+      }
+    } catch (err) {
+      // Ignore scan errors
+    }
+
+    if (qrScanning) {
+      requestAnimationFrame(scanQrFrame)
+    }
+  }
+
+  const handleQrImport = async () => {
+    if (!qrScannedRecipe?.name || !qrScannedRecipe?.ingredients || !qrScannedRecipe?.steps) {
+      addToast('Ungültige Rezeptdaten', 'error')
+      return
+    }
+
+    setQrImporting(true)
+    try {
+      await saveRecipe({
+        name: qrScannedRecipe.name,
+        emoji: qrScannedRecipe.emoji || '🍽️',
+        ingredients: qrScannedRecipe.ingredients,
+        steps: qrScannedRecipe.steps,
+        servings: qrScannedRecipe.servings || '',
+        duration: qrScannedRecipe.duration || '',
+        tags: qrScannedRecipe.tags || [],
+        imageUrl: qrScannedRecipe.imageUrl,
+      }, 'qr://import')
+
+      addToast('Rezept importiert!', 'success')
+      setQrScannedRecipe(null)
+      setSuccess(true)
+    } catch (err) {
+      console.error('Import failed:', err)
+      addToast('Import fehlgeschlagen', 'error')
+    } finally {
+      setQrImporting(false)
+    }
+  }
+
   const reset = () => {
     setUrl('')
     setPhotoFile(null)
@@ -159,6 +276,9 @@ const ExtractionPage: React.FC = () => {
     setStage(null)
     setJobId(null)
     setIsLoading(false)
+    setQrScannedRecipe(null)
+    setQrError(null)
+    stopQrScanning()
   }
 
   const copyError = () => {
@@ -172,6 +292,37 @@ const ExtractionPage: React.FC = () => {
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const headline = () => {
+    if (mode === 'url') return <>Rezepte,{' '}<span className="italic text-paprika">ein Link entfernt.</span></>
+    if (mode === 'qr') return <>Rezept{' '}<span className="italic text-paprika">per QR scannen.</span></>
+    return <>Rezept{' '}<span className="italic text-paprika">fotografieren.</span></>
+  }
+
+  const subtitle = () => {
+    if (mode === 'url') return 'Füge eine URL ein — RecipeDeck extrahiert das Rezept automatisch und übersetzt es ins Deutsche.'
+    if (mode === 'qr') return 'QR-Code eines gespeicherten Rezepts scannen — die KI-extrahierten Daten werden direkt importiert.'
+    return 'Foto eines Rezepts hochladen — die KI erkennt Zutaten und Schritte automatisch.'
+  }
+
+  const platformBadges = () => {
+    if (mode === 'url') return [
+      { label: 'YouTube', icon: <Play size={14} /> },
+      { label: 'Instagram', icon: <Camera size={14} /> },
+      { label: 'TikTok', icon: <span className="text-xs font-bold">T</span> },
+      { label: 'Webseiten', icon: <Globe size={14} /> },
+    ]
+    if (mode === 'qr') return [
+      { label: 'QR-Code', icon: <ScanLine size={14} /> },
+      { label: 'Offline', icon: <Globe size={14} /> },
+      { label: 'Import', icon: <ImagePlus size={14} /> },
+    ]
+    return [
+      { label: 'Kamera', icon: <Camera size={14} /> },
+      { label: 'Galerie', icon: <ImagePlus size={14} /> },
+      { label: 'JPEG / PNG / WebP', icon: <Globe size={14} /> },
+    ]
   }
 
   return (
@@ -202,18 +353,12 @@ const ExtractionPage: React.FC = () => {
 
         {/* Headline */}
         <h1 className="animate-hero-rise delay-200 font-display text-[clamp(2.4rem,6vw,4rem)] font-semibold leading-[1.08] tracking-tight text-espresso mb-5">
-          {mode === 'url' ? (
-            <>Rezepte,{' '}<span className="italic text-paprika">ein Link entfernt.</span></>
-          ) : (
-            <>Rezept{' '}<span className="italic text-paprika">fotografieren.</span></>
-          )}
+          {headline()}
         </h1>
 
         {/* Subtitle */}
         <p className="animate-hero-rise delay-300 font-body text-warmgray text-lg max-w-md mx-auto mb-8 leading-relaxed">
-          {mode === 'url'
-            ? 'Füge eine URL ein — RecipeDeck extrahiert das Rezept automatisch und übersetzt es ins Deutsche.'
-            : 'Foto eines Rezepts hochladen — die KI erkennt Zutaten und Schritte automatisch.'}
+          {subtitle()}
         </p>
 
         {/* Mode toggle */}
@@ -229,13 +374,22 @@ const ExtractionPage: React.FC = () => {
               URL
             </button>
             <button
-              onClick={() => { setMode('photo'); reset() }}
+              onClick={() => { setMode('camera'); reset() }}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                mode === 'photo' ? 'bg-paprika text-white shadow-sm' : 'text-warmgray hover:text-espresso'
+                mode === 'camera' || mode === 'file' ? 'bg-paprika text-white shadow-sm' : 'text-warmgray hover:text-espresso'
               }`}
             >
               <Camera size={15} />
               Foto
+            </button>
+            <button
+              onClick={() => { setMode('qr'); reset() }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                mode === 'qr' ? 'bg-paprika text-white shadow-sm' : 'text-warmgray hover:text-espresso'
+              }`}
+            >
+              <ScanLine size={15} />
+              QR
             </button>
           </div>
         </div>
@@ -272,30 +426,51 @@ const ExtractionPage: React.FC = () => {
               </div>
             )}
 
-            {/* Photo input */}
-            {mode === 'photo' && (
+            {/* Photo input (camera or file) */}
+            {(mode === 'camera' || mode === 'file') && (
               <div className="max-w-lg mx-auto">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
-                />
+                <div className="hidden">
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
+                  />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
+                  />
+                </div>
                 {!photoFile ? (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading}
-                    className="w-full py-12 rounded-2xl border-2 border-dashed border-espresso/15 bg-white/60 backdrop-blur-sm hover:bg-white/80 hover:border-paprika/30 transition-all duration-300 flex flex-col items-center gap-3 text-warmgray disabled:opacity-50"
-                  >
-                    <ImagePlus size={36} className="text-warmgray/40" />
-                    <div>
-                      <p className="font-medium text-espresso/70">Foto auswählen oder aufnehmen</p>
-                      <p className="text-xs mt-1 text-warmgray/60">JPEG, PNG oder WebP · max. 10 MB</p>
-                    </div>
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={isLoading}
+                      className="flex-1 py-12 rounded-2xl border-2 border-dashed border-espresso/15 bg-white/60 backdrop-blur-sm hover:bg-white/80 hover:border-paprika/30 transition-all duration-300 flex flex-col items-center gap-3 text-warmgray disabled:opacity-50"
+                    >
+                      <Camera size={36} className="text-warmgray/40" />
+                      <div>
+                        <p className="font-medium text-espresso/70">Kamera</p>
+                        <p className="text-xs mt-1 text-warmgray/60">Rezept fotografieren</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isLoading}
+                      className="flex-1 py-12 rounded-2xl border-2 border-dashed border-espresso/15 bg-white/60 backdrop-blur-sm hover:bg-white/80 hover:border-paprika/30 transition-all duration-300 flex flex-col items-center gap-3 text-warmgray disabled:opacity-50"
+                    >
+                      <ImagePlus size={36} className="text-warmgray/40" />
+                      <div>
+                        <p className="font-medium text-espresso/70">Datei</p>
+                        <p className="text-xs mt-1 text-warmgray/60">Bild auswählen</p>
+                      </div>
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <div className="relative rounded-2xl overflow-hidden border border-espresso/10 bg-white/60">
@@ -311,7 +486,7 @@ const ExtractionPage: React.FC = () => {
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => (mode === 'camera' ? cameraInputRef.current?.click() : fileInputRef.current?.click())}
                         disabled={isLoading}
                         className="flex-1 py-3 rounded-2xl border border-espresso/15 bg-white/60 text-warmgray text-sm font-medium hover:bg-white/80 transition-colors disabled:opacity-50"
                       >
@@ -330,6 +505,83 @@ const ExtractionPage: React.FC = () => {
               </div>
             )}
 
+            {/* QR scan mode */}
+            {mode === 'qr' && (
+              <div className="max-w-lg mx-auto">
+                {qrError && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                    <span className="text-red-700 flex-1">{qrError}</span>
+                    <button onClick={() => setQrError(null)} className="text-red-500 hover:text-red-700">
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {qrScannedRecipe ? (
+                  <div className="bg-white rounded-2xl shadow-lg border border-saffron/30 p-6">
+                    <p className="text-2xl mb-2">🎉</p>
+                    <h3 className="font-display font-bold text-xl mb-1">{qrScannedRecipe.emoji} {qrScannedRecipe.name}</h3>
+                    <p className="text-warmgray text-sm mb-4">
+                      {qrScannedRecipe.ingredients?.length} Zutaten • {qrScannedRecipe.steps?.length} Schritte
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleQrImport}
+                        disabled={qrImporting}
+                        className="flex-1 py-3 rounded-2xl bg-paprika text-white font-semibold hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md active:scale-[0.97]"
+                      >
+                        {qrImporting ? 'Wird importiert…' : 'Importieren'}
+                      </button>
+                      <button
+                        onClick={() => setQrScannedRecipe(null)}
+                        className="py-3 px-6 border border-warmgray/20 rounded-2xl text-warmgray hover:bg-warmgray/5 transition-colors"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ) : qrScanning ? (
+                  <div className="relative rounded-2xl overflow-hidden bg-black">
+                    <video
+                      ref={qrVideoRef}
+                      className="w-full aspect-square object-cover"
+                      playsInline
+                      muted
+                    />
+                    <button
+                      onClick={stopQrScanning}
+                      className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white"
+                    >
+                      <X size={20} />
+                    </button>
+                    <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-2">
+                      QR-Code in den Rahmen halten…
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 rounded-2xl border-2 border-dashed border-espresso/15 bg-white/60 backdrop-blur-sm flex flex-col items-center gap-3 text-warmgray">
+                    <ScanLine size={48} className="text-warmgray/40" />
+                    <div>
+                      <p className="font-medium text-espresso/70">QR-Code scannen</p>
+                      <p className="text-xs mt-1 text-warmgray/60">Rezept-QR-Code mit der Kamera erfassen</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startQrScanning}
+                      disabled={!window.BarcodeDetector}
+                      className="mt-2 px-6 py-2.5 rounded-xl bg-paprika text-white font-medium hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                    >
+                      Kamera starten
+                    </button>
+                    {!window.BarcodeDetector && (
+                      <p className="text-xs text-saffron-dark mt-2">
+                        QR-Scanner benötigt Chrome, Edge oder Chromium
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Error */}
             {error && (
@@ -411,16 +663,7 @@ const ExtractionPage: React.FC = () => {
         {/* Platform badges */}
         <div className="animate-hero-rise delay-500 flex items-center justify-center gap-2 flex-wrap">
           <span className="text-warmgray/50 text-xs mr-1">Unterstützt</span>
-          {(mode === 'url' ? [
-            { label: 'YouTube', icon: <Play size={14} /> },
-            { label: 'Instagram', icon: <Camera size={14} /> },
-            { label: 'TikTok', icon: <span className="text-xs font-bold">T</span> },
-            { label: 'Webseiten', icon: <Globe size={14} /> },
-          ] : [
-            { label: 'Kamera', icon: <Camera size={14} /> },
-            { label: 'Galerie', icon: <ImagePlus size={14} /> },
-            { label: 'JPEG / PNG / WebP', icon: <Globe size={14} /> },
-          ]).map(({ label, icon }) => (
+          {platformBadges().map(({ label, icon }) => (
             <span
               key={label}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/60 backdrop-blur-sm border border-espresso/[0.07] text-xs font-medium text-espresso/70"

@@ -1,11 +1,20 @@
-import React, { useState, useEffect } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, ScanLine, GripVertical } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, ScanLine, GripVertical, Camera, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, DragStartEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { getMealPlan, addToMealPlan, removeFromMealPlan, clearMealPlan, getRecipes, addShoppingItem } from '../api/services.js'
+import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '../utils/recipe-qr.js'
+import { getMealPlan, addToMealPlan, removeFromMealPlan, clearMealPlan, getRecipes, addShoppingItem, saveRecipe } from '../api/services.js'
 import type { MealPlanEntry, Recipe } from '../api/types.js'
 import { useToast } from './ToastManager'
+
+declare global {
+  interface Window {
+    BarcodeDetector?: new (options?: { formats: string[] }) => {
+      detect: (image: ImageBitmapSource) => Promise<{ rawValue: string }[]>
+    }
+  }
+}
 
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
@@ -136,6 +145,10 @@ const PlannerPage: React.FC = () => {
   const [isGeneratingShopping, setIsGeneratingShopping] = useState(false)
   const [activeTab, setActiveTab] = useState<'planner' | 'scan'>('planner')
   const [activeRecipe, setActiveRecipe] = useState<MealPlanEntry | null>(null)
+  const [showQRScanner, setShowQRScanner] = useState(false)
+  const [qrError, setQrError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -276,6 +289,91 @@ const PlannerPage: React.FC = () => {
     }
   }
 
+  const startQRScanning = async () => {
+    setQrError(null)
+    if (!window.BarcodeDetector) {
+      setQrError('QR-Scanner nicht verfügbar. Bitte nutze einen Chromium-Browser.')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+        requestAnimationFrame(scanQRFrame)
+      }
+    } catch (err) {
+      console.error('Camera error:', err)
+      setQrError('Kamera konnte nicht geöffnet werden.')
+    }
+  }
+
+  const scanQRFrame = async () => {
+    if (!videoRef.current || !showQRScanner) return
+    try {
+      const detector = new window.BarcodeDetector!({ formats: ['qr_code'] })
+      const barcodes = await detector.detect(videoRef.current)
+      if (barcodes.length > 0) {
+        const value = barcodes[0].rawValue
+        if (isRecipeJSONQR(value)) {
+          const decoded = decodeRecipeFromCompactJSON(value)
+          if (decoded) {
+            stopQRScanning()
+            const partial = parseCompactRecipeToFull(decoded)
+            handleAddRecipeFromQR(partial)
+            return
+          }
+        }
+      }
+    } catch (err) { /* ignore */ }
+    if (showQRScanner) requestAnimationFrame(scanQRFrame)
+  }
+
+  const stopQRScanning = () => {
+    setShowQRScanner(false)
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+  }
+
+  const handleAddRecipeFromQR = async (partial: Partial<Recipe>) => {
+    if (!partial.name || !partial.ingredients || !partial.steps) {
+      addToast('Ungültige Rezeptdaten', 'error')
+      return
+    }
+    try {
+      const existing = recipes.find(r => r.name === partial.name)
+      if (existing) {
+        await handleAddRecipe(existing.id)
+        return
+      }
+      const saved = await saveRecipe({
+        name: partial.name,
+        emoji: partial.emoji || '🍽️',
+        ingredients: partial.ingredients,
+        steps: partial.steps,
+        servings: partial.servings || '',
+        duration: partial.duration || '',
+        tags: partial.tags || [],
+        imageUrl: partial.imageUrl,
+      }, 'qr://planner')
+      await handleAddRecipe(saved.id)
+    } catch (err) {
+      console.error('QR add failed:', err)
+      addToast('Fehler beim Hinzufügen', 'error')
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -386,34 +484,62 @@ const PlannerPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => { setShowQRScanner(true); startQRScanning(); }}
+                className="text-paprika hover:text-paprika-dark p-2 hover:bg-paprika/10 rounded-lg transition-colors"
+              >
+                <Camera size={20} />
+              </button>
               <h2 className="text-xl font-display font-bold">Rezept hinzufügen</h2>
-              <button onClick={() => setShowAddModal(null)} className="text-warmgray hover:text-gray-700">
-                ×
+              <button onClick={() => { setShowAddModal(null); stopQRScanning(); }} className="text-warmgray hover:text-gray-700">
+                <X size={22} />
               </button>
             </div>
-            <p className="text-warmgray mb-4">Wähle ein Rezept für {DAY_NAMES[showAddModal]}:</p>
-            <div className="overflow-y-auto flex-1 space-y-2">
-              {recipes.length === 0 ? (
-                <div className="text-center py-8 text-warmgray">
-                  <ChefHat className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                  <p>Keine Rezepte vorhanden</p>
-                  <Link to="/extract" className="text-paprika hover:text-paprika-dark text-sm">
-                    Rezept extrahieren
-                  </Link>
-                </div>
-              ) : (
-                recipes.map(recipe => (
+            {showQRScanner ? (
+              <div className="flex-1 flex flex-col">
+                {qrError && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    {qrError}
+                  </div>
+                )}
+                <div className="relative rounded-xl overflow-hidden bg-black aspect-square mb-3">
+                  <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
                   <button
-                    key={recipe.id}
-                    onClick={() => handleAddRecipe(recipe.id)}
-                    className="w-full text-left px-4 py-3 rounded-lg border border-warmgray/20 hover:border-paprika hover:bg-paprika/5 transition-colors flex items-center gap-2"
+                    onClick={stopQRScanning}
+                    className="absolute top-3 right-3 p-2 bg-white/90 rounded-full"
                   >
-                    <span className="text-xl">{recipe.emoji}</span>
-                    <span className="truncate">{recipe.name}</span>
+                    <X size={18} />
                   </button>
-                ))
-              )}
-            </div>
+                </div>
+                <p className="text-sm text-warmgray text-center">QR-Code in den Rahmen halten...</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-warmgray mb-4">Wähle ein Rezept für {DAY_NAMES[showAddModal]}:</p>
+                <div className="overflow-y-auto flex-1 space-y-2">
+                  {recipes.length === 0 ? (
+                    <div className="text-center py-8 text-warmgray">
+                      <ChefHat className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Keine Rezepte vorhanden</p>
+                      <Link to="/extract" className="text-paprika hover:text-paprika-dark text-sm">
+                        Rezept extrahieren
+                      </Link>
+                    </div>
+                  ) : (
+                    recipes.map(recipe => (
+                      <button
+                        key={recipe.id}
+                        onClick={() => handleAddRecipe(recipe.id)}
+                        className="w-full text-left px-4 py-3 rounded-lg border border-warmgray/20 hover:border-paprika hover:bg-paprika/5 transition-colors flex items-center gap-2"
+                      >
+                        <span className="text-xl">{recipe.emoji}</span>
+                        <span className="truncate">{recipe.name}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

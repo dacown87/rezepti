@@ -62,6 +62,8 @@ export function ensureReactSchema() {
   // Migration: rating + notes (Phase 3a)
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN rating INTEGER`); } catch {}
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN notes TEXT`); } catch {}
+  // Migration: pdf_created (Phase 4)
+  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN pdf_created INTEGER DEFAULT 0`); } catch {}
   // Migration: ingredient_dictionary (Phase 3c)
   try { db.$client.exec(`CREATE TABLE IF NOT EXISTS ingredient_dictionary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -7,7 +7,6 @@ import RecipeDetail from './components/RecipeDetail'
 import CookMode from './components/CookMode'
 import ShoppingPage from './components/ShoppingPage'
 import PlannerPage from './components/PlannerPage'
-import ScannerPage from './components/ScannerPage'
 
 function App() {
   return (
@@ -24,7 +23,6 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/shopping" element={<ShoppingPage />} />
             <Route path="/planner" element={<PlannerPage />} />
-            <Route path="/scan" element={<ScannerPage />} />
             <Route path="/recipe/:id" element={<RecipeDetail />} />
           </Routes>
         </Layout>

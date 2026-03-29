@@ -1,6 +1,6 @@
 # Frontend Codemap
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-03-29
 
 ## Technology Stack
 
@@ -27,11 +27,10 @@
 | Path | Component | Description |
 |------|-----------|-------------|
 | `/` | `RecipeList` | Main recipe list |
-| `/extract` | `ExtractionPage` | URL input, extraction |
+| `/extract` | `ExtractionPage` | URL input, photo import, QR scanner |
 | `/settings` | `SettingsPage` | BYOK, app status |
 | `/shopping` | `ShoppingPage` | Shopping list |
-| `/planner` | `PlannerPage` | 7-day meal planner |
-| `/scan` | `ScannerPage` | QR code scanner |
+| `/planner` | `PlannerPage` | 7-day meal planner with QR import |
 | `/recipe/:id` | `RecipeDetail` | Recipe detail view |
 | `/recipe/:id/cook` | `CookMode` | Fullscreen cook mode |
 
@@ -42,7 +41,7 @@
 **Location:** `frontend/src/components/Layout.tsx`
 
 - Navigation sidebar with icons
-- Routes: Home, Extract, Planner, Shopping, Settings
+- Routes: Home, Extract, Shopping, Planner, Settings
 - Toast notification system
 - Responsive design (mobile-first)
 
@@ -72,7 +71,9 @@
 
 **Location:** `frontend/src/components/ExtractionPage.tsx`
 
-- URL input field
+- URL input field (YouTube, Instagram, TikTok, websites)
+- Photo import (camera capture or file upload)
+- QR code scanner (BarcodeDetector API)
 - Job creation → polling for status
 - Progress display (stage, percentage)
 - Result preview
@@ -107,14 +108,7 @@
 - Drag & drop recipes (dnd-kit)
 - Assign recipes to days
 - Clear week button
-
-### ScannerPage
-
-**Location:** `frontend/src/components/ScannerPage.tsx`
-
-- QR code scanner (BarcodeDetector API)
-- QR code generator (offline JSON)
-- Scan recipe URLs to import
+- QR code scanner to add recipes directly to plan
 
 ### SettingsPage
 
