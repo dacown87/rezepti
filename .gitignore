@@ -16,3 +16,4 @@ test/RecipePicture/
 public/assets/
 frontend/dist/
 frontend/node_modules/
+public/sw.js.map
