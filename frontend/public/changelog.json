@@ -1,10 +1,17 @@
 {
-  "version": "1.0.28",
+  "version": "1.0.29",
   "lastUpdated": {
-    "date": "2026-03-28",
-    "time": "23:04"
+    "date": "2026-03-29",
+    "time": "09:20"
   },
   "entries": [
+    {
+      "version": "1.0.29",
+      "date": "2026-03-29",
+      "changes": [
+        "integrate QR scanner into ExtractionPage and PlannerPage"
+      ]
+    },
     {
       "version": "1.0.28",
       "date": "2026-03-28",

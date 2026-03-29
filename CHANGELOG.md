@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.29] – 2026-03-29
+
+- integrate QR scanner into ExtractionPage and PlannerPage
+
 ## [1.0.28] – 2026-03-28
 
 
