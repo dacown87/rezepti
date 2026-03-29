@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.45] – 2026-03-29
+
+- copy vite.config.ts for Docker build
+
 ## [1.0.44] – 2026-03-29
 
 - add rollupOptions input to vite config for Docker
