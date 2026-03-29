@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.43] – 2026-03-29
+
+- resolve conflict
+- run vite build from frontend directory
+
 ## [1.0.42] – 2026-03-29
 
 - remove paths-ignore from docker workflow
