@@ -191,7 +191,7 @@ const ExtractionPage: React.FC = () => {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { facingMode: { ideal: 'environment' } }
       })
       qrStreamRef.current = stream
 
@@ -202,9 +202,17 @@ const ExtractionPage: React.FC = () => {
         setQrScanning(true)
         requestAnimationFrame(scanQrFrame)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera error:', err)
-      setQrError('Kamera konnte nicht geöffnet werden.')
+      if (err.name === 'NotAllowedError') {
+        setQrError('Kamera-Zugriff verweigert. Bitte Berechtigung erteilen.')
+      } else if (err.name === 'NotFoundError') {
+        setQrError('Keine Kamera gefunden.')
+      } else if (err.name === 'NotReadableError') {
+        setQrError('Kamera wird bereits von einer anderen App verwendet.')
+      } else {
+        setQrError('Kamera konnte nicht geöffnet werden.')
+      }
     }
   }
 

@@ -33,7 +33,7 @@ const ScannerPage: React.FC = () => {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { facingMode: { ideal: 'environment' } }
       })
       streamRef.current = stream
 
@@ -44,9 +44,17 @@ const ScannerPage: React.FC = () => {
         setScanning(true)
         requestAnimationFrame(scanFrame)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera error:', err)
-      setError('Kamera konnte nicht geöffnet werden.')
+      if (err.name === 'NotAllowedError') {
+        setError('Kamera-Zugriff verweigert. Bitte Berechtigung erteilen.')
+      } else if (err.name === 'NotFoundError') {
+        setError('Keine Kamera gefunden.')
+      } else if (err.name === 'NotReadableError') {
+        setError('Kamera wird bereits von einer anderen App verwendet.')
+      } else {
+        setError('Kamera konnte nicht geöffnet werden.')
+      }
     }
   }
 

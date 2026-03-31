@@ -156,9 +156,7 @@ const PlannerPage: React.FC = () => {
   }, [weekStart])
 
   useEffect(() => {
-    if (showAddModal !== null && modalTab === 'camera') {
-      startQRScanning()
-    } else {
+    if (showAddModal === null || modalTab !== 'camera') {
       stopQRScanning()
     }
     return () => stopQRScanning()
@@ -314,7 +312,7 @@ const PlannerPage: React.FC = () => {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { facingMode: { ideal: 'environment' } }
       })
       streamRef.current = stream
       if (videoRef.current) {
@@ -530,7 +528,7 @@ const PlannerPage: React.FC = () => {
                 Rezept
               </button>
               <button
-                onClick={() => setModalTab('camera')}
+                onClick={() => { setModalTab('camera'); startQRScanning() }}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
                   modalTab === 'camera'
                     ? 'bg-white shadow-sm text-espresso'
