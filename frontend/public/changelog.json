@@ -1,6 +1,13 @@
 {
-  "version": "1.0.46",
+  "version": "1.0.47",
   "entries": [
+    {
+      "version": "1.0.47",
+      "date": "2026-03-31",
+      "changes": [
+        "revert logo from SVG back to Logo.png"
+      ]
+    },
     {
       "version": "1.0.46",
       "date": "2026-03-31",
@@ -33,6 +40,6 @@
   ],
   "lastUpdated": {
     "date": "2026-03-31",
-    "time": "13:13"
+    "time": "16:21"
   }
 }

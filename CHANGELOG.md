@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.47] – 2026-03-31
+
+- revert logo from SVG back to Logo.png
+
 ## [1.0.46] – 2026-03-31
 
 - Logo, Chefkoch image fixes, PDF redesign, QR scanner fixes
