@@ -328,7 +328,7 @@ const PlannerPage: React.FC = () => {
     } catch (err: any) {
       console.error('Camera error:', err)
       if (err.name === 'NotAllowedError') {
-        setQrError('Kamera-Zugriff verweigert. Bitte Berechtigung erteilen.')
+        setQrError('Kamera-Zugriff verweigert. Tippe auf das Schloss-Symbol in der Adressleiste → Kamera → Erlauben, dann Seite neu laden.')
       } else if (err.name === 'NotFoundError') {
         setQrError('Keine Kamera gefunden.')
       } else if (err.name === 'NotReadableError') {
@@ -540,21 +540,20 @@ const PlannerPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Camera tab */}
-            {modalTab === 'camera' ? (
-              <div className="flex-1 flex flex-col">
-                {qrError && (
-                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                    {qrError}
-                  </div>
-                )}
-                <div className="relative rounded-xl overflow-hidden bg-black aspect-square mb-3">
-                  <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+            {/* Camera tab - video always in DOM to avoid race condition with getUserMedia */}
+            <div className={`flex-1 flex flex-col ${modalTab === 'camera' ? '' : 'hidden'}`}>
+              {qrError && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {qrError}
                 </div>
-                <p className="text-sm text-warmgray text-center">QR-Code eines Rezepts in den Rahmen halten...</p>
+              )}
+              <div className="relative rounded-xl overflow-hidden bg-black aspect-square mb-3">
+                <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
               </div>
-            ) : (
-              /* Recipe tab */
+              <p className="text-sm text-warmgray text-center">QR-Code eines Rezepts in den Rahmen halten...</p>
+            </div>
+            {/* Recipe tab */}
+            {modalTab !== 'camera' && (
               <>
                 <p className="text-warmgray mb-4">Wähle ein Rezept für {DAY_NAMES[showAddModal]}:</p>
                 <div className="overflow-y-auto flex-1 space-y-2">

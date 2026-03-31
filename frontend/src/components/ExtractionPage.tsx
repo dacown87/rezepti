@@ -189,6 +189,11 @@ const ExtractionPage: React.FC = () => {
       return
     }
 
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setQrError('Kamera nicht verfügbar. Bitte HTTPS nutzen und Kamera-Berechtigung erteilen.')
+      return
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } }
@@ -551,45 +556,48 @@ const ExtractionPage: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                ) : qrScanning ? (
-                  <div className="relative rounded-2xl overflow-hidden bg-black">
-                    <video
-                      ref={qrVideoRef}
-                      className="w-full aspect-square object-cover"
-                      playsInline
-                      muted
-                    />
-                    <button
-                      onClick={stopQrScanning}
-                      className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white"
-                    >
-                      <X size={20} />
-                    </button>
-                    <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-2">
-                      QR-Code in den Rahmen halten…
-                    </div>
-                  </div>
                 ) : (
-                  <div className="py-12 rounded-2xl border-2 border-dashed border-espresso/15 bg-white/60 backdrop-blur-sm flex flex-col items-center gap-3 text-warmgray">
-                    <ScanLine size={48} className="text-warmgray/40" />
-                    <div>
-                      <p className="font-medium text-espresso/70">QR-Code scannen</p>
-                      <p className="text-xs mt-1 text-warmgray/60">Rezept-QR-Code mit der Kamera erfassen</p>
+                  <>
+                    <div className={`relative rounded-2xl overflow-hidden bg-black ${qrScanning ? '' : 'hidden'}`}>
+                      <video
+                        ref={qrVideoRef}
+                        className="w-full aspect-square object-cover"
+                        playsInline
+                        muted
+                      />
+                      <button
+                        onClick={stopQrScanning}
+                        className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white"
+                      >
+                        <X size={20} />
+                      </button>
+                      <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-2">
+                        QR-Code in den Rahmen halten…
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={startQrScanning}
-                      disabled={!window.BarcodeDetector}
-                      className="mt-2 px-6 py-2.5 rounded-xl bg-paprika text-white font-medium hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
-                    >
-                      Kamera starten
-                    </button>
-                    {!window.BarcodeDetector && (
-                      <p className="text-xs text-saffron-dark mt-2">
-                        QR-Scanner benötigt Chrome, Edge oder Chromium
-                      </p>
+                    {!qrScanning && (
+                      <div className="py-12 rounded-2xl border-2 border-dashed border-espresso/15 bg-white/60 backdrop-blur-sm flex flex-col items-center gap-3 text-warmgray">
+                        <ScanLine size={48} className="text-warmgray/40" />
+                        <div>
+                          <p className="font-medium text-espresso/70">QR-Code scannen</p>
+                          <p className="text-xs mt-1 text-warmgray/60">Rezept-QR-Code mit der Kamera erfassen</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={startQrScanning}
+                          disabled={!window.BarcodeDetector}
+                          className="mt-2 px-6 py-2.5 rounded-xl bg-paprika text-white font-medium hover:bg-paprika-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                        >
+                          Kamera starten
+                        </button>
+                        {!window.BarcodeDetector && (
+                          <p className="text-xs text-saffron-dark mt-2">
+                            QR-Scanner benötigt Chrome, Edge oder Chromium
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
