@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.49] – 2026-03-31
+
+- camera getUserMedia facingMode als ideal-Constraint, PlannerPage User-Gesture fix
+
 ## [1.0.48] – 2026-03-31
 
 - add Logo.png to public/ and frontend/public/

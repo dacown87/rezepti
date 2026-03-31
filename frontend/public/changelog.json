@@ -1,6 +1,13 @@
 {
-  "version": "1.0.48",
+  "version": "1.0.49",
   "entries": [
+    {
+      "version": "1.0.49",
+      "date": "2026-03-31",
+      "changes": [
+        "camera getUserMedia facingMode als ideal-Constraint, PlannerPage User-Gesture fix"
+      ]
+    },
     {
       "version": "1.0.48",
       "date": "2026-03-31",
@@ -47,6 +54,6 @@
   ],
   "lastUpdated": {
     "date": "2026-03-31",
-    "time": "16:25"
+    "time": "16:42"
   }
 }
