@@ -1,6 +1,13 @@
 {
-  "version": "1.0.49",
+  "version": "1.0.50",
   "entries": [
+    {
+      "version": "1.0.50",
+      "date": "2026-03-31",
+      "changes": [
+        "camera video-Element immer im DOM halten, mediaDevices Null-Check"
+      ]
+    },
     {
       "version": "1.0.49",
       "date": "2026-03-31",
@@ -54,6 +61,6 @@
   ],
   "lastUpdated": {
     "date": "2026-03-31",
-    "time": "16:42"
+    "time": "16:55"
   }
 }

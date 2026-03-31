@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.50] – 2026-03-31
+
+- camera video-Element immer im DOM halten, mediaDevices Null-Check
+
 ## [1.0.49] – 2026-03-31
 
 - camera getUserMedia facingMode als ideal-Constraint, PlannerPage User-Gesture fix
