@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.46] – 2026-03-31
+
+- Logo, Chefkoch image fixes, PDF redesign, QR scanner fixes
+
 ## [1.0.45] – 2026-03-29
 
 - copy vite.config.ts for Docker build
