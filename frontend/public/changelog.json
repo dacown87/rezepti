@@ -1,6 +1,13 @@
 {
-  "version": "1.0.47",
+  "version": "1.0.48",
   "entries": [
+    {
+      "version": "1.0.48",
+      "date": "2026-03-31",
+      "changes": [
+        "add Logo.png to public/ and frontend/public/"
+      ]
+    },
     {
       "version": "1.0.47",
       "date": "2026-03-31",
@@ -40,6 +47,6 @@
   ],
   "lastUpdated": {
     "date": "2026-03-31",
-    "time": "16:21"
+    "time": "16:25"
   }
 }
