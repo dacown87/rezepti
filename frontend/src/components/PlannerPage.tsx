@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, ScanLine, GripVertical, Camera, X } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, GripVertical, Camera, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, DragStartEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -142,13 +142,13 @@ const PlannerPage: React.FC = () => {
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()))
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState<number | null>(null)
+  const [modalTab, setModalTab] = useState<'recipe' | 'camera'>('recipe')
   const [isGeneratingShopping, setIsGeneratingShopping] = useState(false)
-  const [activeTab, setActiveTab] = useState<'planner' | 'scan'>('planner')
   const [activeRecipe, setActiveRecipe] = useState<MealPlanEntry | null>(null)
-  const [showQRScanner, setShowQRScanner] = useState(false)
   const [qrError, setQrError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const scanningRef = useRef(false)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -156,12 +156,13 @@ const PlannerPage: React.FC = () => {
   }, [weekStart])
 
   useEffect(() => {
-    if (showQRScanner) {
+    if (showAddModal !== null && modalTab === 'camera') {
       startQRScanning()
     } else {
       stopQRScanning()
     }
-  }, [showQRScanner])
+    return () => stopQRScanning()
+  }, [showAddModal, modalTab])
 
   const loadData = async () => {
     try {
@@ -194,6 +195,7 @@ const PlannerPage: React.FC = () => {
         created_at: new Date().toISOString()
       }])
       setShowAddModal(null)
+      setModalTab('recipe')
       addToast('Rezept zum Plan hinzugefügt', 'success')
     } catch (error) {
       console.error('Failed to add recipe:', error)
@@ -299,25 +301,26 @@ const PlannerPage: React.FC = () => {
 
   const startQRScanning = async () => {
     setQrError(null)
-    
+
     if (!window.BarcodeDetector) {
       setQrError('QR-Scanner nicht verfügbar. Bitte nutze einen Chromium-Browser (Chrome, Edge).')
       return
     }
-    
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setQrError('Kamera wird in diesem Browser nicht unterstützt.')
       return
     }
-    
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
       })
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
+        scanningRef.current = true
         requestAnimationFrame(scanQRFrame)
       } else {
         stream.getTracks().forEach(track => track.stop())
@@ -339,7 +342,7 @@ const PlannerPage: React.FC = () => {
   }
 
   const scanQRFrame = async () => {
-    if (!videoRef.current || !showQRScanner) return
+    if (!videoRef.current || !scanningRef.current) return
     try {
       const detector = new window.BarcodeDetector!({ formats: ['qr_code'] })
       const barcodes = await detector.detect(videoRef.current)
@@ -349,18 +352,17 @@ const PlannerPage: React.FC = () => {
           const decoded = decodeRecipeFromCompactJSON(value)
           if (decoded) {
             stopQRScanning()
-            const partial = parseCompactRecipeToFull(decoded)
-            handleAddRecipeFromQR(partial)
+            handleAddRecipeFromQR(parseCompactRecipeToFull(decoded))
             return
           }
         }
       }
-    } catch (err) { /* ignore */ }
-    if (showQRScanner) requestAnimationFrame(scanQRFrame)
+    } catch { /* ignore */ }
+    if (scanningRef.current) requestAnimationFrame(scanQRFrame)
   }
 
   const stopQRScanning = () => {
-    setShowQRScanner(false)
+    scanningRef.current = false
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
@@ -423,13 +425,6 @@ const PlannerPage: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setActiveTab(activeTab === 'planner' ? 'scan' : 'planner')}
-            className="flex items-center gap-2 bg-paprika text-white px-4 py-2 rounded-lg hover:bg-paprika-dark transition-colors"
-          >
-            <ScanLine size={18} />
-            <span className="hidden sm:inline">QR</span>
-          </button>
-          <button
             onClick={handleGenerateShoppingList}
             disabled={entries.length === 0 || isGeneratingShopping}
             className="flex items-center gap-2 bg-saffron text-espresso px-4 py-2 rounded-lg hover:bg-saffron-light transition-colors disabled:opacity-50"
@@ -440,7 +435,6 @@ const PlannerPage: React.FC = () => {
         </div>
       </div>
 
-      {activeTab === 'planner' && (
       <>
         {/* Week navigation */}
         <div className="flex items-center justify-between mb-6 bg-white rounded-xl p-4 border border-warmgray/10">
@@ -506,26 +500,50 @@ const PlannerPage: React.FC = () => {
       )}
 
       </>
-      )}
 
       {/* Add Recipe Modal */}
       {showAddModal !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[80vh] flex flex-col">
+            {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => setShowQRScanner(true)}
-                className="flex items-center gap-2 text-paprika hover:text-paprika-dark px-4 py-3 hover:bg-paprika/10 rounded-lg transition-colors bg-paprika/5 border border-paprika/20"
-              >
-                <Camera size={24} />
-                <span className="font-medium text-sm">QR-Scanner</span>
-              </button>
               <h2 className="text-xl font-display font-bold">Rezept hinzufügen</h2>
-              <button onClick={() => { setShowAddModal(null); stopQRScanning(); }} className="text-warmgray hover:text-gray-700">
+              <button
+                onClick={() => { setShowAddModal(null); setModalTab('recipe') }}
+                className="text-warmgray hover:text-gray-700"
+              >
                 <X size={22} />
               </button>
             </div>
-            {showQRScanner ? (
+
+            {/* Tab controller */}
+            <div className="flex rounded-lg border border-warmgray/20 p-1 mb-4 bg-warmgray/5">
+              <button
+                onClick={() => setModalTab('recipe')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                  modalTab === 'recipe'
+                    ? 'bg-white shadow-sm text-espresso'
+                    : 'text-warmgray hover:text-espresso'
+                }`}
+              >
+                <ChefHat size={16} />
+                Rezept
+              </button>
+              <button
+                onClick={() => setModalTab('camera')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                  modalTab === 'camera'
+                    ? 'bg-white shadow-sm text-espresso'
+                    : 'text-warmgray hover:text-espresso'
+                }`}
+              >
+                <Camera size={16} />
+                Kamera
+              </button>
+            </div>
+
+            {/* Camera tab */}
+            {modalTab === 'camera' ? (
               <div className="flex-1 flex flex-col">
                 {qrError && (
                   <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -534,16 +552,11 @@ const PlannerPage: React.FC = () => {
                 )}
                 <div className="relative rounded-xl overflow-hidden bg-black aspect-square mb-3">
                   <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-                  <button
-                    onClick={stopQRScanning}
-                    className="absolute top-3 right-3 p-2 bg-white/90 rounded-full"
-                  >
-                    <X size={18} />
-                  </button>
                 </div>
-                <p className="text-sm text-warmgray text-center">QR-Code in den Rahmen halten...</p>
+                <p className="text-sm text-warmgray text-center">QR-Code eines Rezepts in den Rahmen halten...</p>
               </div>
             ) : (
+              /* Recipe tab */
               <>
                 <p className="text-warmgray mb-4">Wähle ein Rezept für {DAY_NAMES[showAddModal]}:</p>
                 <div className="overflow-y-auto flex-1 space-y-2">

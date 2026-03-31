@@ -939,4 +939,31 @@ app.delete("/api/v1/facebook/cookies", (c) => {
 });
 
 
+// Image proxy for PDF export (bypasses browser CORS restrictions)
+app.get("/api/v1/proxy/image", async (c) => {
+  const url = c.req.query("url");
+  if (!url || !url.startsWith("https://")) {
+    return c.json({ error: "Invalid URL" }, 400);
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      return c.json({ error: "Upstream error" }, 502);
+    }
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > 5 * 1024 * 1024) {
+      return c.json({ error: "Image too large" }, 413);
+    }
+    return new Response(buffer, {
+      headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=3600" },
+    });
+  } catch {
+    return c.json({ error: "Failed to fetch image" }, 502);
+  }
+});
+
 export default app;

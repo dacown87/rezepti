@@ -291,6 +291,7 @@ export function getRecipeCount(): number {
 function deserialize(row: typeof recipes.$inferSelect) {
   return {
     ...row,
+    imageUrl:    row.image_url ?? undefined,
     tags:        JSON.parse(row.tags ?? "[]") as string[],
     ingredients: JSON.parse(row.ingredients) as string[],
     steps:       JSON.parse(row.steps) as string[],

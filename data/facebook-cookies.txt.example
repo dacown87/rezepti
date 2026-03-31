@@ -1,0 +1,20 @@
+# Netscape HTTP Cookie File
+# Dieses Format wird von yt-dlp erwartet.
+#
+# So exportieren:
+#   1. Chrome/Firefox-Extension "Get cookies.txt LOCALLY" installieren
+#   2. Auf facebook.com einloggen
+#   3. Extension öffnen → "Export" → Datei als "facebook-cookies.txt" speichern
+#   4. Diese Datei nach data/facebook-cookies.txt kopieren
+#
+# Format: domain  includeSubdomains  path  secure  expires  name  value
+# Jede Spalte mit TAB getrennt.
+#
+# Beispielzeile (nicht funktional):
+# .facebook.com	TRUE	/	TRUE	1893456000	c_user	123456789
+# .facebook.com	TRUE	/	TRUE	1893456000	xs	abc123def456
+#
+# Wichtig:
+# - Die Datei muss mindestens einen Cookie für "facebook.com" enthalten
+# - Cookies laufen ab — bei Fehler neue Cookies exportieren
+# - Diese Datei NIEMALS in git committen (ist in .gitignore)

@@ -70,19 +70,33 @@ function extractMainText($: cheerio.CheerioAPI): string {
   return $("body").text().trim().slice(0, 10000);
 }
 
-function extractImages($: cheerio.CheerioAPI, baseUrl: string): string[] {
+function resolveSchemaImage(image: string | string[] | { url?: string } | { url?: string }[] | undefined): string | undefined {
+  if (!image) return undefined;
+  if (typeof image === "string") return image;
+  if (Array.isArray(image)) {
+    const first = image[0];
+    if (!first) return undefined;
+    return typeof first === "string" ? first : (first as { url?: string }).url;
+  }
+  return (image as { url?: string }).url;
+}
+
+function extractImages($: cheerio.CheerioAPI, baseUrl: string, schemaImage?: string): string[] {
   const images: string[] = [];
-  $("img[src]").each((_, el) => {
-    const src = $(el).attr("src");
-    if (!src) return;
-    try {
-      const absoluteUrl = new URL(src, baseUrl).href;
-      images.push(absoluteUrl);
-    } catch {
-      // skip invalid URLs
-    }
+
+  if (schemaImage) images.push(schemaImage);
+
+  const ogImage = $('meta[property="og:image"]').attr("content");
+  if (ogImage) {
+    try { images.push(new URL(ogImage, baseUrl).href); } catch { /* skip */ }
+  }
+
+  $("img[src], img[data-src]").each((_, el) => {
+    const src = $(el).attr("src") || $(el).attr("data-src");
+    if (!src || src.startsWith("data:")) return;
+    try { images.push(new URL(src, baseUrl).href); } catch { /* skip */ }
   });
-  // Dedupe and limit
+
   return [...new Set(images)].slice(0, 5);
 }
 
@@ -116,7 +130,7 @@ export async function fetchWeb(url: string): Promise<ContentBundle> {
     title,
     description,
     textContent: extractMainText($),
-    imageUrls: extractImages($, url),
+    imageUrls: extractImages($, url, resolveSchemaImage(schemaRecipe?.image)),
     schemaRecipe,
   };
 }

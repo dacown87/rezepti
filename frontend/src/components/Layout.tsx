@@ -43,7 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <img src="/Logo.png" alt="RecipeDeck" className="h-8 w-8" />
+              <img src="/Logo.svg" alt="RecipeDeck" className="h-8 w-8" />
               <h1 className="hidden sm:block text-2xl font-display font-bold">RecipeDeck</h1>
             </div>
 

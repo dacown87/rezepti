@@ -30,7 +30,7 @@ export interface ContentBundle {
 export interface SchemaOrgRecipe {
   name: string;
   description?: string;
-  image?: string | string[];
+  image?: string | string[] | { url?: string } | { url?: string }[];
   recipeIngredient?: string[];
   recipeInstructions?: (string | { text?: string } | { "@type": "HowToSection"; itemListElement?: { text?: string }[] })[];
   totalTime?: string;

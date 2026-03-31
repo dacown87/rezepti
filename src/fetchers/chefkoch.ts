@@ -140,18 +140,34 @@ function extractChefkochSteps($: cheerio.CheerioAPI): string[] {
   return steps;
 }
 
-function extractImages($: cheerio.CheerioAPI, baseUrl: string): string[] {
+function resolveSchemaImage(image: string | string[] | { url?: string } | { url?: string }[] | undefined): string | undefined {
+  if (!image) return undefined;
+  if (typeof image === "string") return image;
+  if (Array.isArray(image)) {
+    const first = image[0];
+    if (!first) return undefined;
+    return typeof first === "string" ? first : (first as { url?: string }).url;
+  }
+  return (image as { url?: string }).url;
+}
+
+function extractImages($: cheerio.CheerioAPI, baseUrl: string, schemaImage?: string): string[] {
   const images: string[] = [];
 
-  $("img[src]").each((_, el) => {
-    const src = $(el).attr("src");
-    if (!src) return;
-    try {
-      const absoluteUrl = new URL(src, baseUrl).href;
-      images.push(absoluteUrl);
-    } catch {
-      // skip invalid URLs
-    }
+  // Schema.org image is most reliable — prepend it
+  if (schemaImage) images.push(schemaImage);
+
+  // og:image fallback
+  const ogImage = $('meta[property="og:image"]').attr("content");
+  if (ogImage) {
+    try { images.push(new URL(ogImage, baseUrl).href); } catch { /* skip */ }
+  }
+
+  // img[src] and img[data-src] (lazy-loaded images)
+  $("img[src], img[data-src]").each((_, el) => {
+    const src = $(el).attr("src") || $(el).attr("data-src");
+    if (!src || src.startsWith("data:")) return;
+    try { images.push(new URL(src, baseUrl).href); } catch { /* skip */ }
   });
 
   return [...new Set(images)].slice(0, 5);
@@ -234,7 +250,7 @@ export async function fetchChefkoch(url: string): Promise<ContentBundle> {
     title,
     description,
     textContent,
-    imageUrls: extractImages($, url),
+    imageUrls: extractImages($, url, resolveSchemaImage(schemaRecipe?.image)),
     schemaRecipe: finalSchema,
   };
 }

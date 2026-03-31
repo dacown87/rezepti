@@ -57,6 +57,7 @@ const ExtractionPage: React.FC = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const qrVideoRef = useRef<HTMLVideoElement>(null)
   const qrStreamRef = useRef<MediaStream | null>(null)
+  const qrScanningRef = useRef(false)
   const [qrScanning, setQrScanning] = useState(false)
   const [qrError, setQrError] = useState<string | null>(null)
   const [qrScannedRecipe, setQrScannedRecipe] = useState<Partial<Recipe> | null>(null)
@@ -172,6 +173,7 @@ const ExtractionPage: React.FC = () => {
   }
 
   const stopQrScanning = () => {
+    qrScanningRef.current = false
     setQrScanning(false)
     if (qrStreamRef.current) {
       qrStreamRef.current.getTracks().forEach(track => track.stop())
@@ -196,6 +198,7 @@ const ExtractionPage: React.FC = () => {
       if (qrVideoRef.current) {
         qrVideoRef.current.srcObject = stream
         await qrVideoRef.current.play()
+        qrScanningRef.current = true
         setQrScanning(true)
         requestAnimationFrame(scanQrFrame)
       }
@@ -206,7 +209,7 @@ const ExtractionPage: React.FC = () => {
   }
 
   const scanQrFrame = async () => {
-    if (!qrVideoRef.current || !qrScanning) return
+    if (!qrVideoRef.current || !qrScanningRef.current) return
 
     try {
       const detector = new window.BarcodeDetector!({ formats: ['qr_code'] })
@@ -228,7 +231,7 @@ const ExtractionPage: React.FC = () => {
       // Ignore scan errors
     }
 
-    if (qrScanning) {
+    if (qrScanningRef.current) {
       requestAnimationFrame(scanQrFrame)
     }
   }

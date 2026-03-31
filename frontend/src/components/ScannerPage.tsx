@@ -20,11 +20,12 @@ const ScannerPage: React.FC = () => {
   const [importing, setImporting] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const scanningRef = useRef(false)
   const { addToast } = useToast()
 
   const startScanning = async () => {
     setError(null)
-    
+
     if (!window.BarcodeDetector) {
       setError('QR-Scanner nicht verfügbar. Bitte nutze einen Chromium-Browser (Chrome, Edge).')
       return
@@ -35,12 +36,12 @@ const ScannerPage: React.FC = () => {
         video: { facingMode: 'environment' }
       })
       streamRef.current = stream
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
+        scanningRef.current = true
         setScanning(true)
-        
         requestAnimationFrame(scanFrame)
       }
     } catch (err) {
@@ -50,15 +51,15 @@ const ScannerPage: React.FC = () => {
   }
 
   const scanFrame = async () => {
-    if (!videoRef.current || !scanning) return
-    
+    if (!videoRef.current || !scanningRef.current) return
+
     try {
       const detector = new window.BarcodeDetector!({ formats: ['qr_code'] })
       const barcodes = await detector.detect(videoRef.current)
-      
+
       if (barcodes.length > 0) {
         const value = barcodes[0].rawValue
-        
+
         if (isRecipeJSONQR(value)) {
           const decoded = decodeRecipeFromCompactJSON(value)
           if (decoded) {
@@ -71,13 +72,14 @@ const ScannerPage: React.FC = () => {
     } catch (err) {
       // Ignore scan errors
     }
-    
-    if (scanning) {
+
+    if (scanningRef.current) {
       requestAnimationFrame(scanFrame)
     }
   }
 
   const stopScanning = () => {
+    scanningRef.current = false
     setScanning(false)
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())

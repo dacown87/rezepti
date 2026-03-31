@@ -17,6 +17,10 @@ const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".svg": "image/svg+xml",
+  ".webmanifest": "application/manifest+json",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ico": "image/x-icon",
 };
 
 app.get("/", (c) => {
@@ -43,7 +47,7 @@ function servePublicFile(c: any, filePath: string) {
 app.get("/public/*", (c) => servePublicFile(c, c.req.path.replace("/public/", "")));
 app.get("/assets/*", (c) => servePublicFile(c, c.req.path.slice(1)));
 app.get("/vite.svg", (c) => servePublicFile(c, "vite.svg"));
-app.get("/Logo.png", (c) => servePublicFile(c, "Logo.png"));
+app.get("/Logo.svg", (c) => servePublicFile(c, "Logo.svg"));
 app.get("/changelog.json", (c) => {
   const fullPath = join(import.meta.dirname, "..", "frontend", "public", "changelog.json");
   try {
@@ -62,12 +66,28 @@ app.get("/changelog.json", (c) => {
 // Mount React API routes
 app.route("/", reactApi);
 
-// SPA fallback: serve index.html for all non-API, non-asset routes
+// SPA fallback: try public/ first, then serve index.html
 app.get("*", (c) => {
   const path = c.req.path;
-  if (path.startsWith("/api/") || path.startsWith("/assets/") || path.startsWith("/public/")) {
+  if (path.startsWith("/api/")) {
     return c.text("Not found", 404);
   }
+  // Try to serve as static file from public/
+  const filePath = path.startsWith("/") ? path.slice(1) : path;
+  if (filePath) {
+    const fullPath = join(import.meta.dirname, "..", "public", filePath);
+    const ext = extname(fullPath);
+    const contentType = MIME_TYPES[ext];
+    if (contentType) {
+      try {
+        const content = readFileSync(fullPath);
+        return c.body(content, 200, { "Content-Type": contentType });
+      } catch {
+        // file not found, fall through to SPA
+      }
+    }
+  }
+  // SPA fallback
   const html = readFileSync(
     join(import.meta.dirname, "..", "public", "index.html"),
     "utf-8"

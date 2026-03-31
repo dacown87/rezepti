@@ -29,7 +29,13 @@ function getDurationCategory(
 function getImage(schema: SchemaOrgRecipe): string | undefined {
   if (!schema.image) return undefined;
   if (typeof schema.image === "string") return schema.image;
-  if (Array.isArray(schema.image)) return schema.image[0];
+  if (Array.isArray(schema.image)) {
+    const first = schema.image[0];
+    if (!first) return undefined;
+    if (typeof first === "string") return first;
+    return (first as { url?: string }).url;
+  }
+  if (typeof schema.image === "object") return (schema.image as { url?: string }).url;
   return undefined;
 }
 
