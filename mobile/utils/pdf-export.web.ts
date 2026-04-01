@@ -1,5 +1,8 @@
-// PDF Export für Web — Browser-Print-Dialog (kein jsPDF nötig, kein SSR-Problem)
+// PDF Export für Web — jsPDF
+import { jsPDF } from 'jspdf'
+import QRCode from 'qrcode'
 import type { Recipe } from '@/db/schema'
+import { encodeRecipeToCompactJSON } from './recipe-qr'
 
 function parseJSON<T>(json: string | null, fallback: T): T {
   if (!json) return fallback
@@ -7,51 +10,147 @@ function parseJSON<T>(json: string | null, fallback: T): T {
 }
 
 export async function shareRecipePDF(recipe: Recipe): Promise<void> {
-  if (typeof window === 'undefined') return
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 20
+  const contentWidth = pageWidth - margin * 2
+  let y = margin
 
   const ingredients = parseJSON<string[]>(recipe.ingredients, [])
   const steps = parseJSON<string[]>(recipe.steps, [])
   const tags = parseJSON<string[]>(recipe.tags, [])
 
-  const html = `<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<title>${recipe.name}</title>
-<style>
-  body { font-family: Georgia, serif; max-width: 700px; margin: 40px auto; color: #1a1a1a; line-height: 1.6; }
-  h1 { font-size: 28px; margin-bottom: 4px; }
-  .meta { color: #666; font-size: 13px; margin-bottom: 20px; }
-  .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-  .tag { background: #f3f0ff; color: #7c3aed; padding: 2px 10px; border-radius: 99px; font-size: 12px; }
-  h2 { font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-top: 28px; }
-  ul { padding-left: 20px; }
-  li { margin-bottom: 6px; font-size: 14px; }
-  ol { padding-left: 24px; }
-  ol li { margin-bottom: 10px; font-size: 14px; }
-  .source { font-size: 12px; color: #888; margin-top: 32px; border-top: 1px solid #eee; padding-top: 8px; }
-  @media print { body { margin: 20px; } }
-</style>
-</head>
-<body>
-<h1>${recipe.emoji ?? '🍽️'} ${recipe.name}</h1>
-<div class="meta">
-  ${[recipe.servings ? `${recipe.servings} Portionen` : '', recipe.duration ?? '', recipe.calories ? `${recipe.calories} kcal` : ''].filter(Boolean).join(' · ')}
-</div>
-${tags.length > 0 ? `<div class="tags">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
-<h2>Zutaten</h2>
-<ul>${ingredients.map(i => `<li>${i}</li>`).join('')}</ul>
-<h2>Zubereitung</h2>
-<ol>${steps.map(s => `<li>${s}</li>`).join('')}</ol>
-${recipe.notes ? `<h2>Notizen</h2><p>${recipe.notes}</p>` : ''}
-${recipe.source_url ? `<div class="source">Quelle: ${recipe.source_url}</div>` : ''}
-</body>
-</html>`
+  // Titel
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(30, 30, 30)
+  doc.text(`${recipe.emoji ?? ''} ${recipe.name}`.trim(), margin, y)
+  y += 9
 
-  const win = window.open('', '_blank')
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
+  // Meta
+  const meta: string[] = []
+  if (recipe.servings) meta.push(`${recipe.servings} Portionen`)
+  if (recipe.duration) meta.push(recipe.duration)
+  if (recipe.calories) meta.push(`${recipe.calories} kcal`)
+  if (meta.length > 0) {
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    doc.text(meta.join(' · '), margin, y)
+    y += 6
+  }
+
+  if (recipe.source_url) {
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(120, 120, 120)
+    const urlText = `Quelle: ${recipe.source_url}`
+    const urlLines = doc.splitTextToSize(urlText, contentWidth)
+    doc.text(urlLines, margin, y)
+    y += urlLines.length * 4 + 2
+  }
+
+  if (tags.length > 0) {
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 80, 180)
+    doc.text(tags.join(' · '), margin, y)
+    y += 7
+  }
+
+  // Trennlinie
+  doc.setDrawColor(200)
+  doc.line(margin, y, pageWidth - margin, y)
+  y += 7
+
+  // Zutaten
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(30, 30, 30)
+  doc.text('Zutaten', margin, y)
+  y += 7
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'normal')
+  for (const ing of ingredients) {
+    const lines = doc.splitTextToSize(`• ${ing}`, contentWidth)
+    for (const line of lines) {
+      if (y > pageHeight - 25) { doc.addPage(); y = margin }
+      doc.text(line, margin, y)
+      y += 5
+    }
+  }
+  y += 6
+
+  // Zubereitung
+  if (y > pageHeight - 40) { doc.addPage(); y = margin }
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(30, 30, 30)
+  doc.text('Zubereitung', margin, y)
+  y += 7
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'normal')
+  for (let i = 0; i < steps.length; i++) {
+    const lines = doc.splitTextToSize(`${i + 1}. ${steps[i]}`, contentWidth)
+    for (const line of lines) {
+      if (y > pageHeight - 25) { doc.addPage(); y = margin }
+      doc.text(line, margin, y)
+      y += 5
+    }
+    y += 2
+  }
+
+  // Notizen
+  if (recipe.notes) {
+    y += 6
+    if (y > pageHeight - 30) { doc.addPage(); y = margin }
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Notizen', margin, y)
+    y += 6
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    const noteLines = doc.splitTextToSize(recipe.notes, contentWidth)
+    for (const line of noteLines) {
+      if (y > pageHeight - 25) { doc.addPage(); y = margin }
+      doc.text(line, margin, y)
+      y += 4
+    }
+  }
+
+  // QR Code
+  const qrData = encodeRecipeToCompactJSON({
+    name: recipe.name,
+    emoji: recipe.emoji ?? '',
+    ingredients,
+    steps,
+    rating: recipe.rating ?? undefined,
+    servings: recipe.servings ?? undefined,
+    duration: recipe.duration ?? undefined,
+    tags,
+    source_url: recipe.source_url ?? undefined,
+  })
+  if (qrData) {
+    try {
+      y += 8
+      if (y > pageHeight - 45) { doc.addPage(); y = margin }
+      const qrDataUrl = await QRCode.toDataURL(qrData, { width: 80, margin: 1 })
+      doc.addImage(qrDataUrl, 'PNG', margin, y, 28, 28)
+      doc.setFontSize(8)
+      doc.setTextColor(120, 120, 120)
+      doc.text('QR-Code scannen → Rezept in RecipeDeck importieren', margin + 31, y + 14)
+    } catch { /* ignore */ }
+  }
+
+  // Footer
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`RecipeDeck | Seite ${i} von ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+  }
+
+  doc.save(`${recipe.name.replace(/[^a-z0-9äöüÄÖÜ]/gi, '_')}.pdf`)
 }
