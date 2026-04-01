@@ -59,7 +59,6 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=frontend-builder /app/public/ ./public/
-COPY frontend/public/changelog.json ./frontend/public/changelog.json
 
 EXPOSE 3000
 
