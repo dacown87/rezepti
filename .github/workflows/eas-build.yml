@@ -20,13 +20,10 @@ on:
         options:
           - preview
           - production
-  push:
-    tags:
-      - 'v*'
 
 jobs:
   build:
-    name: EAS Build (${{ github.event.inputs.platform || 'all' }} / ${{ github.event.inputs.profile || 'production' }})
+    name: EAS Build (${{ github.event.inputs.platform }} / ${{ github.event.inputs.profile }})
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -52,10 +49,5 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build (tag push → production)
-        if: startsWith(github.ref, 'refs/tags/')
-        run: eas build --platform all --profile production --non-interactive
-
-      - name: Build (manual trigger)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Build
         run: eas build --platform ${{ github.event.inputs.platform }} --profile ${{ github.event.inputs.profile }} --non-interactive
