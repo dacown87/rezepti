@@ -43,7 +43,7 @@ interface ApiRecipe {
   calories?: number;
   rating?: number;
   notes?: string;
-  created_at?: string;
+  created_at?: number;
 }
 
 function apiToRecipe(r: ApiRecipe): Recipe {
@@ -52,6 +52,7 @@ function apiToRecipe(r: ApiRecipe): Recipe {
     name: r.name,
     emoji: r.emoji ?? null,
     source_url: r.source_url ?? null,
+    image_url: null,
     ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients),
     steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps),
     tags: r.tags ?? null,
@@ -61,8 +62,9 @@ function apiToRecipe(r: ApiRecipe): Recipe {
     rating: r.rating ?? null,
     notes: r.notes ?? null,
     transcript: null,
-    created_at: r.created_at ?? new Date().toISOString(),
-    updated_at: r.created_at ?? new Date().toISOString(),
+    tried: 0,
+    pdf_created: 0,
+    created_at: null,
   };
 }
 
