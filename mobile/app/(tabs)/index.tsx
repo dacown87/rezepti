@@ -7,13 +7,64 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Search, X, ChefHat, Clock, Star, Plus } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getDB } from '@/db/migrate';
 import type { Recipe } from '@/db/schema';
+
+const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
+const SERVER_URL_KEY = 'recipedeck_server_url';
+
+async function getServerUrl(): Promise<string> {
+  try {
+    const stored = await AsyncStorage.getItem(SERVER_URL_KEY);
+    return stored?.trim() || PRODUCTION_URL;
+  } catch {
+    return PRODUCTION_URL;
+  }
+}
+
+// API recipe shape (snake_case from backend)
+interface ApiRecipe {
+  id: number;
+  name: string;
+  emoji?: string;
+  source_url?: string;
+  ingredients: string;
+  steps: string;
+  tags?: string;
+  servings?: string;
+  duration?: string;
+  calories?: number;
+  rating?: number;
+  notes?: string;
+  created_at?: string;
+}
+
+function apiToRecipe(r: ApiRecipe): Recipe {
+  return {
+    id: r.id,
+    name: r.name,
+    emoji: r.emoji ?? null,
+    source_url: r.source_url ?? null,
+    ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients),
+    steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps),
+    tags: r.tags ?? null,
+    servings: r.servings ?? null,
+    duration: r.duration ?? null,
+    calories: r.calories ?? null,
+    rating: r.rating ?? null,
+    notes: r.notes ?? null,
+    transcript: null,
+    created_at: r.created_at ?? new Date().toISOString(),
+    updated_at: r.created_at ?? new Date().toISOString(),
+  };
+}
 
 function parseJSON<T>(json: string | null, fallback: T): T {
   if (!json) return fallback;
@@ -76,10 +127,20 @@ export default function RecipeListScreen() {
 
   const loadRecipes = useCallback(async () => {
     try {
-      const db = getDB();
-      const rows = await db.getAllAsync<Recipe>(
-        'SELECT * FROM recipes ORDER BY created_at DESC'
-      );
+      let rows: Recipe[];
+      if (Platform.OS === 'web') {
+        const serverUrl = await getServerUrl();
+        const res = await fetch(`${serverUrl}/api/v1/recipes`);
+        if (!res.ok) throw new Error(`Server-Fehler ${res.status}`);
+        const data = await res.json();
+        const list: ApiRecipe[] = Array.isArray(data) ? data : (data.recipes ?? []);
+        rows = list.map(apiToRecipe);
+      } else {
+        const db = getDB();
+        rows = await db.getAllAsync<Recipe>(
+          'SELECT * FROM recipes ORDER BY created_at DESC'
+        );
+      }
       setRecipes(rows);
       setFiltered(rows);
       setError(null);
