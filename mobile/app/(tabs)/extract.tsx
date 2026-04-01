@@ -50,16 +50,21 @@ const STAGE_LABELS: Record<string, string> = {
 
 interface JobStatus {
   status: 'pending' | 'running' | 'completed' | 'failed';
-  stage?: string;
+  currentStage?: string;
   progress?: number;
-  error?: string;
-  recipe?: RecipePayload;
+  message?: string;
+  result?: {
+    success?: boolean;
+    recipe?: RecipePayload;
+    recipeId?: number;
+    error?: string;
+  };
 }
 
 interface RecipePayload {
   name: string;
   emoji?: string;
-  sourceUrl?: string;
+  imageUrl?: string;
   ingredients: string[];
   steps: string[];
   tags?: string[];
@@ -88,14 +93,14 @@ async function getGroqKey(): Promise<string | null> {
   }
 }
 
-async function saveRecipeToLocalDB(recipe: RecipePayload): Promise<void> {
+async function saveRecipeToLocalDB(recipe: RecipePayload, sourceUrl?: string): Promise<void> {
   const db = getDB();
   await db.runAsync(
     `INSERT INTO recipes (name, emoji, source_url, ingredients, steps, tags, servings, duration, calories, transcript)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     recipe.name,
     recipe.emoji ?? '🍽️',
-    recipe.sourceUrl ?? null,
+    sourceUrl ?? null,
     JSON.stringify(recipe.ingredients),
     JSON.stringify(recipe.steps),
     JSON.stringify(recipe.tags ?? []),
@@ -121,6 +126,7 @@ export default function ExtractScreen() {
 
   const handledRef = useRef(false);
   const urlRef = useRef(url);
+  const submittedUrlRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     urlRef.current = url;
@@ -139,17 +145,18 @@ export default function ExtractScreen() {
         if (!res.ok) return; // transient error, keep polling
 
         const status: JobStatus = await res.json();
-        const p = status.progress ?? STAGES[status.stage ?? ''] ?? 0;
+        const p = status.progress ?? STAGES[status.currentStage ?? ''] ?? 0;
         setProgress(p);
-        if (status.stage) setStage(status.stage);
+        if (status.currentStage) setStage(status.currentStage);
 
         if (status.status === 'completed') {
           handledRef.current = true;
           clearInterval(interval);
 
-          if (status.recipe) {
+          const recipe = status.result?.recipe;
+          if (recipe) {
             try {
-              await saveRecipeToLocalDB(status.recipe);
+              await saveRecipeToLocalDB(recipe, submittedUrlRef.current);
             } catch (dbErr) {
               console.error('SQLite save failed:', dbErr);
               setError('Rezept extrahiert, aber Speichern fehlgeschlagen.');
@@ -167,7 +174,7 @@ export default function ExtractScreen() {
         } else if (status.status === 'failed') {
           handledRef.current = true;
           clearInterval(interval);
-          setError(status.error || 'Extraktion fehlgeschlagen');
+          setError(status.result?.error || status.message || 'Extraktion fehlgeschlagen');
           setIsLoading(false);
           setJobId(null);
         }
@@ -189,6 +196,7 @@ export default function ExtractScreen() {
     setStage(null);
     setSuccess(false);
     setError(null);
+    submittedUrlRef.current = undefined;
   }, []);
 
   // ── URL submit ─────────────────────────────────────────────────────────────
@@ -196,6 +204,7 @@ export default function ExtractScreen() {
     const trimmed = url.trim();
     if (!trimmed) return;
 
+    submittedUrlRef.current = trimmed;
     setIsLoading(true);
     setError(null);
     setSuccess(false);
