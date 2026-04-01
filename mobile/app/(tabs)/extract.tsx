@@ -360,7 +360,7 @@ export default function ExtractScreen() {
             </Text>
             <View className="flex-row gap-3">
               <Pressable
-                onPress={() => router.push('/(tabs)/')}
+                onPress={() => router.push('/(tabs)' as never)}
                 className="bg-purple-600 px-6 py-3 rounded-xl"
               >
                 <Text className="text-white font-semibold">Zur Sammlung</Text>
