@@ -47,7 +47,11 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
     transcript: null,
     tried: 0,
     pdf_created: 0,
-    created_at: typeof r.created_at === 'number' ? r.created_at : null,
+    created_at: typeof r.created_at === 'number'
+      ? r.created_at
+      : (typeof r.created_at === 'string' && r.created_at
+          ? Math.floor(new Date(r.created_at).getTime() / 1000)
+          : null),
   };
 }
 
