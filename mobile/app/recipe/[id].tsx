@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator, Platform,
-  TextInput, Alert, Modal,
+  TextInput, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
   ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
-  Download, Plus, Minus, Pencil, RotateCcw,
+  Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square,
 } from 'lucide-react-native';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,13 +30,12 @@ function parseJSON<T>(json: string | null, fallback: T): T {
 }
 
 function normalizeRecipe(r: Record<string, unknown>): Recipe {
-  const createdAt = r.created_at;
   return {
     id: Number(r.id),
     name: String(r.name),
     emoji: (r.emoji as string | null) ?? null,
     source_url: (r.source_url as string | null) ?? null,
-    image_url: (r.image_url as string | null) ?? null,
+    image_url: (r.image_url as string | null) ?? (r.imageUrl as string | null) ?? null,
     ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients ?? []),
     steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps ?? []),
     tags: typeof r.tags === 'string' ? r.tags : (r.tags ? JSON.stringify(r.tags) : null),
@@ -48,7 +47,7 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
     transcript: null,
     tried: 0,
     pdf_created: 0,
-    created_at: typeof createdAt === 'number' ? createdAt : null,
+    created_at: typeof r.created_at === 'number' ? r.created_at : null,
   };
 }
 
@@ -66,7 +65,7 @@ async function apiPatch(id: number, data: Record<string, unknown>): Promise<void
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(`PATCH fehlgeschlagen: ${res.status}`);
+  if (!res.ok) throw new Error(`PATCH ${res.status}`);
 }
 
 async function sqlitePatch(id: number, data: Record<string, unknown>): Promise<void> {
@@ -95,6 +94,29 @@ async function deleteRecipeById(id: number): Promise<void> {
   }
 }
 
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+
+function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <Modal transparent animationType="fade">
+      <View className="flex-1 bg-black/50 items-center justify-center px-8">
+        <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+          <Text className="text-lg font-bold text-gray-900 mb-2">Rezept löschen</Text>
+          <Text className="text-gray-500 mb-6">Diese Aktion kann nicht rückgängig gemacht werden.</Text>
+          <View className="flex-row gap-3">
+            <Pressable onPress={onCancel} className="flex-1 py-3 rounded-xl border border-gray-200 items-center">
+              <Text className="text-gray-700 font-medium">Abbrechen</Text>
+            </Pressable>
+            <Pressable onPress={onConfirm} className="flex-1 py-3 rounded-xl bg-red-500 items-center">
+              <Text className="text-white font-semibold">Löschen</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Cook Mode Modal ──────────────────────────────────────────────────────────
 
 function CookModal({ steps, ingredients, onClose }: {
@@ -102,91 +124,118 @@ function CookModal({ steps, ingredients, onClose }: {
   ingredients: string[];
   onClose: () => void;
 }) {
-  const [screen, setScreen] = useState<'ingredients' | 'steps'>('ingredients');
   const [current, setCurrent] = useState(0);
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+
+  const toggleCheck = (i: number) =>
+    setChecked(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
 
   return (
     <Modal animationType="slide" statusBarTranslucent>
       <SafeAreaView className="flex-1 bg-gray-900">
         {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3">
-          {screen === 'steps' ? (
-            <Text className="text-gray-400 text-sm">Schritt {current + 1} / {steps.length}</Text>
-          ) : (
-            <Text className="text-gray-400 text-sm">Zutaten</Text>
-          )}
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-700">
+          <Text className="text-white font-semibold text-base">Koch-Modus</Text>
           <Pressable onPress={onClose} className="bg-gray-700 rounded-full p-2">
-            <X size={20} color="#fff" />
+            <X size={18} color="#fff" />
           </Pressable>
         </View>
 
-        {screen === 'ingredients' ? (
-          <>
-            <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 20 }}>
-              <Text className="text-white text-2xl font-bold mb-6">Zutaten</Text>
+        {/* Split screen */}
+        <View className="flex-1 flex-row">
+          {/* Left: Zutaten */}
+          <View className="w-2/5 border-r border-gray-700">
+            <Text className="text-gray-400 text-xs font-semibold uppercase tracking-wider px-3 py-2">
+              Zutaten
+            </Text>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}>
               {ingredients.map((ing, i) => (
-                <View key={i} className="flex-row items-start mb-3">
-                  <Text className="text-purple-400 mr-3 text-lg">•</Text>
-                  <Text className="text-white text-base leading-7 flex-1">{ing}</Text>
-                </View>
+                <Pressable
+                  key={i}
+                  onPress={() => toggleCheck(i)}
+                  className="flex-row items-start gap-2 py-2 border-b border-gray-800"
+                >
+                  {checked.has(i)
+                    ? <CheckSquare size={16} color="#9333ea" />
+                    : <Square size={16} color="#6b7280" />}
+                  <Text className={`text-sm flex-1 leading-5 ${checked.has(i) ? 'line-through text-gray-600' : 'text-gray-200'}`}>
+                    {ing}
+                  </Text>
+                </Pressable>
               ))}
             </ScrollView>
-            <View className="px-4 pb-4">
-              <Pressable
-                onPress={() => setScreen('steps')}
-                className="flex-row items-center justify-center gap-2 py-4 rounded-2xl bg-purple-600"
-              >
-                <Text className="text-white font-semibold text-base">Zubereitung starten</Text>
-                <ChevronRight size={20} color="#fff" />
-              </Pressable>
-            </View>
-          </>
-        ) : (
-          <>
-            {/* Progress bar */}
-            <View className="h-1 bg-gray-700 mx-4 rounded-full mb-6">
+          </View>
+
+          {/* Right: Schritte */}
+          <View className="flex-1 flex-col">
+            {/* Progress */}
+            <View className="h-1 bg-gray-700 mx-4 mt-3 rounded-full">
               <View
                 className="h-full bg-purple-500 rounded-full"
                 style={{ width: `${((current + 1) / steps.length) * 100}%` }}
               />
             </View>
+            <Text className="text-gray-500 text-xs text-center mt-2">
+              Schritt {current + 1} / {steps.length}
+            </Text>
 
-            <ScrollView className="flex-1 px-6" contentContainerStyle={{ paddingBottom: 20 }}>
-              <View className="bg-purple-600 rounded-full w-14 h-14 items-center justify-center mb-6">
-                <Text className="text-white text-2xl font-bold">{current + 1}</Text>
+            <ScrollView className="flex-1 px-4 mt-4" contentContainerStyle={{ paddingBottom: 20 }}>
+              <View className="bg-purple-600 rounded-full w-12 h-12 items-center justify-center mb-4 self-start">
+                <Text className="text-white text-xl font-bold">{current + 1}</Text>
               </View>
-              <Text className="text-white text-xl leading-9">{steps[current]}</Text>
+              <Text className="text-white text-base leading-7">{steps[current]}</Text>
             </ScrollView>
 
-            <View className="flex-row gap-3 px-4 pb-4">
+            {/* Navigation */}
+            <View className="flex-row gap-2 px-4 pb-4">
               <Pressable
-                onPress={() => {
-                  if (current === 0) setScreen('ingredients');
-                  else setCurrent(c => c - 1);
-                }}
-                className="flex-1 flex-row items-center justify-center gap-2 py-4 rounded-2xl bg-gray-600"
+                onPress={() => setCurrent(c => Math.max(0, c - 1))}
+                disabled={current === 0}
+                className={`flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl ${current === 0 ? 'bg-gray-800' : 'bg-gray-700'}`}
               >
-                <ChevronLeft size={20} color="#fff" />
-                <Text className="text-white">Zurück</Text>
+                <ChevronLeft size={18} color={current === 0 ? '#4b5563' : '#fff'} />
+                <Text className={current === 0 ? 'text-gray-600' : 'text-white'}>Zurück</Text>
               </Pressable>
               {current < steps.length - 1 ? (
                 <Pressable
                   onPress={() => setCurrent(c => c + 1)}
-                  className="flex-1 flex-row items-center justify-center gap-2 py-4 rounded-2xl bg-purple-600"
+                  className="flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl bg-purple-600"
                 >
                   <Text className="text-white font-semibold">Weiter</Text>
-                  <ChevronRight size={20} color="#fff" />
+                  <ChevronRight size={18} color="#fff" />
                 </Pressable>
               ) : (
-                <Pressable onPress={onClose} className="flex-1 items-center justify-center py-4 rounded-2xl bg-green-600">
-                  <Text className="text-white font-bold text-base">Fertig!</Text>
+                <Pressable onPress={onClose} className="flex-1 items-center justify-center py-3 rounded-xl bg-green-600">
+                  <Text className="text-white font-bold">Fertig!</Text>
                 </Pressable>
               )}
             </View>
-          </>
-        )}
+          </View>
+        </View>
       </SafeAreaView>
     </Modal>
+  );
+}
+
+// ─── Star Display ─────────────────────────────────────────────────────────────
+
+function StarRow({ value, onPress }: { value: number | null; onPress?: (s: number) => void }) {
+  return (
+    <View className="flex-row gap-2 items-center">
+      {[1, 2, 3, 4, 5].map(star => {
+        const filled = (value ?? 0) >= star;
+        return (
+          <Pressable key={star} onPress={() => onPress?.(star)} disabled={!onPress}>
+            <Star size={30} color="#f59e0b" fill={filled ? '#f59e0b' : 'transparent'} strokeWidth={1.5} />
+          </Pressable>
+        );
+      })}
+      {onPress && value != null && (
+        <Pressable onPress={() => onPress(value)} className="ml-1">
+          <X size={14} color="#9ca3af" />
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -202,7 +251,7 @@ export default function RecipeDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [cookMode, setCookMode] = useState(false);
-  // Zutat inline-edit
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingIngredientIdx, setEditingIngredientIdx] = useState<number | null>(null);
   const [editingIngredientValue, setEditingIngredientValue] = useState('');
   const [editDraft, setEditDraft] = useState<{
@@ -244,7 +293,7 @@ export default function RecipeDetailScreen() {
     try { await patchRecipe(recipeId, { rating: newRating }); } catch { /* silent */ }
   };
 
-  // ── Notes auto-save ────────────────────────────────────────────────────────
+  // ── Notes ──────────────────────────────────────────────────────────────────
   const handleNotesChange = (value: string) => {
     setNotes(value);
     if (notesTimer.current) clearTimeout(notesTimer.current);
@@ -254,19 +303,19 @@ export default function RecipeDetailScreen() {
   };
 
   // ── Ingredient inline edit ─────────────────────────────────────────────────
-  const startIngredientEdit = (index: number, ingredients: string[]) => {
-    const num = parseIngredientNumber(ingredients[index]);
-    const scaledNum = num != null ? Math.round(num * multiplier * 10) / 10 : null;
+  const startIngredientEdit = (index: number, ings: string[]) => {
+    const num = parseIngredientNumber(ings[index]);
+    const scaled = num != null ? Math.round(num * multiplier * 10) / 10 : null;
     setEditingIngredientIdx(index);
-    setEditingIngredientValue(scaledNum != null ? String(scaledNum) : '');
+    setEditingIngredientValue(scaled != null ? String(scaled) : '');
   };
 
-  const confirmIngredientEdit = (index: number, ingredients: string[]) => {
+  const confirmIngredientEdit = (index: number, ings: string[]) => {
     const entered = parseFloat(editingIngredientValue.replace(',', '.'));
     if (!isNaN(entered) && entered > 0) {
-      const originalNum = parseIngredientNumber(ingredients[index]);
-      if (originalNum != null && originalNum > 0) {
-        setMultiplier(Math.max(0.1, Math.round((entered / originalNum) * 100) / 100));
+      const orig = parseIngredientNumber(ings[index]);
+      if (orig != null && orig > 0) {
+        setMultiplier(Math.max(0.1, Math.round((entered / orig) * 100) / 100));
       }
     }
     setEditingIngredientIdx(null);
@@ -308,38 +357,24 @@ export default function RecipeDetailScreen() {
       setIsEditing(false);
       setEditDraft(null);
     } catch {
-      Alert.alert('Fehler', 'Speichern fehlgeschlagen.');
+      // ignore
     } finally {
       setIsSaving(false);
     }
   };
 
   // ── Delete ─────────────────────────────────────────────────────────────────
-  const handleDelete = () => {
-    Alert.alert(
-      'Rezept löschen',
-      'Diese Aktion kann nicht rückgängig gemacht werden.',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Löschen',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteRecipeById(recipeId);
-            } catch { /* ignore error, navigate anyway */ }
-            router.back();
-          },
-        },
-      ]
-    );
+  const confirmDelete = async () => {
+    setShowDeleteModal(false);
+    try { await deleteRecipeById(recipeId); } catch { /* ignore */ }
+    router.navigate('/(tabs)' as never);
   };
 
   // ── PDF ────────────────────────────────────────────────────────────────────
   const handlePDF = async () => {
     if (!recipe) return;
     try { await shareRecipePDF(recipe as Parameters<typeof shareRecipePDF>[0]); }
-    catch { Alert.alert('Fehler', 'PDF konnte nicht erstellt werden.'); }
+    catch { /* ignore */ }
   };
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -365,17 +400,18 @@ export default function RecipeDetailScreen() {
   const ingredients = parseJSON<string[]>(recipe.ingredients, []);
   const steps = parseJSON<string[]>(recipe.steps, []);
   const tags = parseJSON<string[]>(recipe.tags, []);
-  const baseServings = parseServingsNumber(recipe.servings);
-  const scaledServings = Math.round(baseServings * multiplier);
+  const scaledIngredients = multiplier !== 1
+    ? ingredients.map(i => scaleIngredient(i, multiplier))
+    : ingredients;
+  const scaledServings = Math.round(parseServingsNumber(recipe.servings) * multiplier);
 
   return (
     <>
       {cookMode && (
-        <CookModal
-          steps={steps}
-          ingredients={multiplier !== 1 ? ingredients.map(i => scaleIngredient(i, multiplier)) : ingredients}
-          onClose={() => setCookMode(false)}
-        />
+        <CookModal steps={steps} ingredients={scaledIngredients} onClose={() => setCookMode(false)} />
+      )}
+      {showDeleteModal && (
+        <DeleteModal onConfirm={confirmDelete} onCancel={() => setShowDeleteModal(false)} />
       )}
 
       <SafeAreaView className="flex-1 bg-gray-50">
@@ -396,8 +432,17 @@ export default function RecipeDetailScreen() {
 
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
 
+          {/* ── Hero-Bild ── */}
+          {recipe.image_url ? (
+            <Image
+              source={{ uri: recipe.image_url }}
+              className="w-full h-52"
+              resizeMode="cover"
+            />
+          ) : null}
+
           {/* ── Hero ── */}
-          <View className="bg-white px-4 pt-6 pb-4 items-center">
+          <View className="bg-white px-4 pt-5 pb-4 items-center">
             {isEditing && editDraft ? (
               <View className="w-full gap-3">
                 <View className="flex-row gap-2">
@@ -423,8 +468,18 @@ export default function RecipeDetailScreen() {
               </View>
             ) : (
               <>
-                <Text className="text-6xl mb-3">{recipe.emoji ?? '🍽️'}</Text>
+                {!recipe.image_url && (
+                  <Text className="text-6xl mb-3">{recipe.emoji ?? '🍽️'}</Text>
+                )}
                 <Text className="text-2xl font-bold text-gray-900 text-center">{recipe.name}</Text>
+
+                {/* Rating Display */}
+                {rating != null && (
+                  <View className="mt-2">
+                    <StarRow value={rating} />
+                  </View>
+                )}
+
                 {tags.length > 0 && (
                   <View className="flex-row flex-wrap gap-2 justify-center mt-3">
                     {tags.map(tag => (
@@ -440,7 +495,6 @@ export default function RecipeDetailScreen() {
 
           {/* ── Meta ── */}
           <View className="flex-row gap-3 px-4 py-4">
-            {/* Dauer */}
             <View className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 items-center">
               <Clock size={16} color="#9ca3af" />
               <Text className="text-xs text-gray-400 mt-1">Dauer</Text>
@@ -456,7 +510,6 @@ export default function RecipeDetailScreen() {
               )}
             </View>
 
-            {/* Portionen + Skaler */}
             <View className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 items-center">
               <Users size={16} color="#9ca3af" />
               <Text className="text-xs text-gray-400 mt-1">Portionen</Text>
@@ -496,7 +549,6 @@ export default function RecipeDetailScreen() {
               )}
             </View>
 
-            {/* Kalorien */}
             <View className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 items-center">
               <Flame size={16} color="#9ca3af" />
               <Text className="text-xs text-gray-400 mt-1">kcal</Text>
@@ -505,18 +557,15 @@ export default function RecipeDetailScreen() {
                   value={editDraft.calories}
                   onChangeText={v => setEditDraft(d => d && { ...d, calories: v })}
                   className="text-sm font-bold text-gray-900 text-center mt-1 border-b border-gray-200 w-full"
-                  placeholder="kcal"
                   keyboardType="numeric"
                 />
               ) : (
-                <Text className="text-sm font-bold text-gray-900 mt-1">
-                  {recipe.calories ? `${recipe.calories}` : '—'}
-                </Text>
+                <Text className="text-sm font-bold text-gray-900 mt-1">{recipe.calories ?? '—'}</Text>
               )}
             </View>
           </View>
 
-          {/* ── Action Buttons ── */}
+          {/* ── Actions ── */}
           {isEditing ? (
             <View className="flex-row gap-3 px-4 mb-4">
               <Pressable
@@ -545,7 +594,7 @@ export default function RecipeDetailScreen() {
                 <Download size={18} color="#6b7280" />
                 <Text className="text-gray-600 text-xs font-medium mt-1">PDF</Text>
               </Pressable>
-              <Pressable onPress={handleDelete} className="flex-1 items-center py-3 rounded-xl bg-white border border-gray-200">
+              <Pressable onPress={() => setShowDeleteModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white border border-gray-200">
                 <Trash2 size={18} color="#ef4444" />
                 <Text className="text-red-500 text-xs font-medium mt-1">Löschen</Text>
               </Pressable>
@@ -553,7 +602,7 @@ export default function RecipeDetailScreen() {
           )}
 
           {/* ── Zutaten ── */}
-          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100">
             <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
               <Text className="text-base font-bold text-gray-900">Zutaten</Text>
               {!isEditing && multiplier !== 1 && (
@@ -563,6 +612,7 @@ export default function RecipeDetailScreen() {
                 </Pressable>
               )}
             </View>
+
             {isEditing && editDraft ? (
               <View className="px-4 pb-4">
                 {editDraft.ingredients.map((ing, i) => (
@@ -571,8 +621,8 @@ export default function RecipeDetailScreen() {
                       value={ing}
                       onChangeText={v => setEditDraft(d => {
                         if (!d) return d;
-                        const arr = [...d.ingredients]; arr[i] = v;
-                        return { ...d, ingredients: arr };
+                        const a = [...d.ingredients]; a[i] = v;
+                        return { ...d, ingredients: a };
                       })}
                       className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
                     />
@@ -589,13 +639,11 @@ export default function RecipeDetailScreen() {
             ) : (
               <View className="px-4 pb-4">
                 {ingredients.map((ing, i) => {
-                  const hasNumber = parseIngredientNumber(ing) != null;
+                  const hasNum = parseIngredientNumber(ing) != null;
                   const isEditingThis = editingIngredientIdx === i;
-                  const scaledIng = multiplier !== 1 ? scaleIngredient(ing, multiplier) : ing;
-
                   return (
                     <View key={i} className="flex-row items-center py-2 border-b border-gray-50">
-                      <Text className="text-purple-400 mr-2">•</Text>
+                      <Text className="text-purple-400 mr-2 text-base">•</Text>
                       {isEditingThis ? (
                         <>
                           <TextInput
@@ -616,13 +664,10 @@ export default function RecipeDetailScreen() {
                         </>
                       ) : (
                         <>
-                          <Text className="text-gray-700 flex-1 text-sm">{scaledIng}</Text>
-                          {hasNumber && (
-                            <Pressable
-                              onPress={() => startIngredientEdit(i, ingredients)}
-                              className="ml-2 p-1"
-                            >
-                              <Pencil size={14} color="#9ca3af" />
+                          <Text className="text-gray-700 flex-1 text-sm">{scaledIngredients[i]}</Text>
+                          {hasNum && (
+                            <Pressable onPress={() => startIngredientEdit(i, ingredients)} className="p-1">
+                              <Pencil size={14} color="#d1d5db" />
                             </Pressable>
                           )}
                         </>
@@ -635,7 +680,7 @@ export default function RecipeDetailScreen() {
           </View>
 
           {/* ── Zubereitung ── */}
-          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100">
             <Text className="text-base font-bold text-gray-900 px-4 pt-4 pb-2">Zubereitung</Text>
             {isEditing && editDraft ? (
               <View className="px-4 pb-4">
@@ -648,8 +693,8 @@ export default function RecipeDetailScreen() {
                       value={step}
                       onChangeText={v => setEditDraft(d => {
                         if (!d) return d;
-                        const arr = [...d.steps]; arr[i] = v;
-                        return { ...d, steps: arr };
+                        const a = [...d.steps]; a[i] = v;
+                        return { ...d, steps: a };
                       })}
                       multiline
                       className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
@@ -681,26 +726,7 @@ export default function RecipeDetailScreen() {
           {/* ── Bewertung ── */}
           <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
             <Text className="text-base font-bold text-gray-900 mb-3">Meine Bewertung</Text>
-            <View className="flex-row gap-3 items-center">
-              {[1, 2, 3, 4, 5].map(star => {
-                const filled = (rating ?? 0) >= star;
-                return (
-                  <Pressable key={star} onPress={() => handleRating(star)}>
-                    <Star
-                      size={34}
-                      color="#f59e0b"
-                      fill={filled ? '#f59e0b' : 'none'}
-                      strokeWidth={filled ? 0 : 1.5}
-                    />
-                  </Pressable>
-                );
-              })}
-              {rating != null && (
-                <Pressable onPress={() => handleRating(rating)} className="ml-1">
-                  <X size={16} color="#9ca3af" />
-                </Pressable>
-              )}
-            </View>
+            <StarRow value={rating} onPress={handleRating} />
           </View>
 
           {/* ── Notizen ── */}
@@ -727,9 +753,7 @@ export default function RecipeDetailScreen() {
                 className="flex-row items-center gap-2 bg-gray-50 rounded-xl p-3"
               >
                 <ExternalLink size={16} color="#9333ea" />
-                <Text className="text-purple-600 text-sm flex-1" numberOfLines={1}>
-                  {recipe.source_url}
-                </Text>
+                <Text className="text-purple-600 text-sm flex-1" numberOfLines={1}>{recipe.source_url}</Text>
               </Pressable>
             </View>
           ) : null}
