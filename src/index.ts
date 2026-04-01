@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { readFileSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
@@ -7,6 +8,15 @@ import { ensureReactSchema } from "./db-react.js";
 import reactApi from "./api-react.js";
 
 const app = new Hono();
+
+// CORS for mobile/dev clients (Expo web, local frontends)
+app.use("/api/*", cors({
+  origin: (origin) => origin ?? "*",
+  allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "x-groq-key"],
+  exposeHeaders: [],
+  maxAge: 86400,
+}));
 
 // Static file serving for public/
 const MIME_TYPES: Record<string, string> = {
