@@ -22,12 +22,42 @@ import { getDB } from '@/db/migrate';
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 
 const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
+const MEAL_PLAN_KEY = 'recipedeck_meal_plan';
 
 async function getServerUrl(): Promise<string> {
   try {
     const stored = await AsyncStorage.getItem('recipedeck_server_url');
     return stored?.trim() || PRODUCTION_URL;
   } catch { return PRODUCTION_URL; }
+}
+
+// ─── Web Meal Plan (AsyncStorage / localStorage) ──────────────────────────────
+
+async function webLoadEntries(weekStart: number): Promise<MealPlanEntry[]> {
+  try {
+    const raw = await AsyncStorage.getItem(MEAL_PLAN_KEY);
+    const all: MealPlanEntry[] = raw ? JSON.parse(raw) : [];
+    return all.filter(e => e.week_start === weekStart);
+  } catch { return []; }
+}
+
+async function webAddEntry(recipeId: number, dayOfWeek: number, weekStart: number): Promise<void> {
+  const raw = await AsyncStorage.getItem(MEAL_PLAN_KEY);
+  const all: MealPlanEntry[] = raw ? JSON.parse(raw) : [];
+  const newEntry: MealPlanEntry = {
+    id: Date.now(),
+    recipe_id: recipeId,
+    day_of_week: dayOfWeek,
+    week_start: weekStart,
+    created_at: Math.floor(Date.now() / 1000),
+  };
+  await AsyncStorage.setItem(MEAL_PLAN_KEY, JSON.stringify([...all, newEntry]));
+}
+
+async function webRemoveEntry(entryId: number): Promise<void> {
+  const raw = await AsyncStorage.getItem(MEAL_PLAN_KEY);
+  const all: MealPlanEntry[] = raw ? JSON.parse(raw) : [];
+  await AsyncStorage.setItem(MEAL_PLAN_KEY, JSON.stringify(all.filter(e => e.id !== entryId)));
 }
 
 async function loadAllRecipes(): Promise<Recipe[]> {
@@ -335,24 +365,36 @@ export default function PlannerScreen() {
   const weekStart = Math.floor(monday.getTime() / 1000);
 
   const loadData = useCallback(async () => {
-    const db = getDB();
-    const entries = await db.getAllAsync<MealPlanEntry>(
-      'SELECT * FROM meal_plan WHERE week_start = ?',
-      weekStart
-    );
+    let entries: MealPlanEntry[];
+    if (Platform.OS === 'web') {
+      entries = await webLoadEntries(weekStart);
+    } else {
+      entries = await getDB().getAllAsync<MealPlanEntry>(
+        'SELECT * FROM meal_plan WHERE week_start = ?', weekStart
+      );
+    }
     setMealPlan(entries);
 
-    // Alle verwendeten Rezepte laden
     const usedIds = [...new Set(entries.map(e => e.recipe_id))];
-    if (usedIds.length > 0) {
+    if (usedIds.length === 0) { setRecipes(new Map()); return; }
+
+    if (Platform.OS === 'web') {
+      const serverUrl = await getServerUrl();
+      const all = await loadAllRecipes();
+      const map = new Map(all.map(r => [r.id, r]));
+      const filtered = usedIds.reduce((acc, id) => {
+        const r = map.get(id);
+        if (r) acc.set(id, r);
+        return acc;
+      }, new Map<number, Recipe>());
+      setRecipes(filtered);
+    } else {
+      const db = getDB();
       const placeholders = usedIds.map(() => '?').join(',');
       const rows = await db.getAllAsync<Recipe>(
-        `SELECT * FROM recipes WHERE id IN (${placeholders})`,
-        ...usedIds
+        `SELECT * FROM recipes WHERE id IN (${placeholders})`, ...usedIds
       );
       setRecipes(new Map(rows.map(r => [r.id, r])));
-    } else {
-      setRecipes(new Map());
     }
   }, [weekStart]);
 
@@ -415,36 +457,34 @@ export default function PlannerScreen() {
 
   const handleAddRecipe = async (recipeId: number) => {
     if (pickerDay === null) return;
-    const db = getDB();
-    await db.runAsync(
-      'INSERT INTO meal_plan (recipe_id, day_of_week, week_start) VALUES (?, ?, ?)',
-      recipeId,
-      pickerDay,
-      weekStart
-    );
-    // Rezept-Cache aktualisieren
-    if (!recipes.has(recipeId)) {
-      const recipe = await db.getFirstAsync<Recipe>('SELECT * FROM recipes WHERE id = ?', recipeId);
-      if (recipe) {
-        setRecipes(prev => new Map(prev).set(recipeId, recipe));
-      }
+    if (Platform.OS === 'web') {
+      await webAddEntry(recipeId, pickerDay, weekStart);
+    } else {
+      await getDB().runAsync(
+        'INSERT INTO meal_plan (recipe_id, day_of_week, week_start) VALUES (?, ?, ?)',
+        recipeId, pickerDay, weekStart
+      );
     }
     await loadData();
   };
 
   const handleRemoveEntry = async (entryId: number) => {
-    Alert.alert('Entfernen', 'Rezept aus dem Planer entfernen?', [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Entfernen',
-        style: 'destructive',
-        onPress: async () => {
-          const db = getDB();
-          await db.runAsync('DELETE FROM meal_plan WHERE id = ?', entryId);
-          await loadData();
+    if (Platform.OS === 'web') {
+      await webRemoveEntry(entryId);
+      await loadData();
+    } else {
+      Alert.alert('Entfernen', 'Rezept aus dem Planer entfernen?', [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Entfernen',
+          style: 'destructive',
+          onPress: async () => {
+            await getDB().runAsync('DELETE FROM meal_plan WHERE id = ?', entryId);
+            await loadData();
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const weekLabel = (() => {
