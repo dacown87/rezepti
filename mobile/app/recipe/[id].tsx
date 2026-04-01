@@ -752,6 +752,11 @@ export default function RecipeDetailScreen() {
           {recipe.source_url ? (
             <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
               <Text className="text-base font-bold text-gray-900 mb-2">Quelle</Text>
+              {recipe.created_at ? (
+                <Text className="text-xs text-gray-400 mb-2">
+                  Extrahiert am {new Date(recipe.created_at * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </Text>
+              ) : null}
               <Pressable
                 onPress={() => recipe.source_url && Linking.openURL(recipe.source_url)}
                 className="flex-row items-center gap-2 bg-gray-50 rounded-xl p-3"
