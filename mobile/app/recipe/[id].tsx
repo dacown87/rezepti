@@ -1,16 +1,48 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ArrowLeft, Star, Clock, Users, Flame, ExternalLink } from 'lucide-react-native';
 import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getDB } from '@/db/migrate';
 import type { Recipe } from '@/db/schema';
 
+const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
+
+async function getServerUrl(): Promise<string> {
+  try {
+    const stored = await AsyncStorage.getItem('recipedeck_server_url');
+    return stored?.trim() || PRODUCTION_URL;
+  } catch {
+    return PRODUCTION_URL;
+  }
+}
+
 function parseJSON<T>(json: string | null, fallback: T): T {
   if (!json) return fallback;
   try { return JSON.parse(json) as T; } catch { return fallback; }
+}
+
+function normalizeRecipe(r: Record<string, unknown>): Recipe {
+  return {
+    id: r.id as number,
+    name: r.name as string,
+    emoji: (r.emoji as string | null) ?? null,
+    source_url: (r.source_url as string | null) ?? null,
+    ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients ?? []),
+    steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps ?? []),
+    tags: typeof r.tags === 'string' ? r.tags : (r.tags ? JSON.stringify(r.tags) : null),
+    servings: (r.servings as string | null) ?? null,
+    duration: (r.duration as string | null) ?? null,
+    calories: (r.calories as number | null) ?? null,
+    rating: (r.rating as number | null) ?? null,
+    notes: (r.notes as string | null) ?? null,
+    transcript: null,
+    created_at: (r.created_at as string) ?? new Date().toISOString(),
+    updated_at: (r.updated_at as string) ?? new Date().toISOString(),
+  };
 }
 
 export default function RecipeDetailScreen() {
@@ -20,10 +52,23 @@ export default function RecipeDetailScreen() {
 
   useEffect(() => {
     if (!id) return;
-    const db = getDB();
-    db.getFirstAsync<Recipe>('SELECT * FROM recipes WHERE id = ?', Number(id))
-      .then((row) => setRecipe(row ?? null))
-      .finally(() => setLoading(false));
+    (async () => {
+      try {
+        if (Platform.OS === 'web') {
+          const serverUrl = await getServerUrl();
+          const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`);
+          if (!res.ok) { setRecipe(null); return; }
+          const data = await res.json();
+          setRecipe(normalizeRecipe(data));
+        } else {
+          const db = getDB();
+          const row = await db.getFirstAsync<Recipe>('SELECT * FROM recipes WHERE id = ?', Number(id));
+          setRecipe(row ?? null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [id]);
 
   if (loading) {
