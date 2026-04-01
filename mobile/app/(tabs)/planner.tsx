@@ -8,10 +8,13 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  TextInput,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search } from 'lucide-react-native';
-import { TextInput } from 'react-native';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode } from 'lucide-react-native';
+import ScannerCamera from '@/components/ScannerCamera';
+import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr';
 
 import { getDB } from '@/db/migrate';
 import type { Recipe, MealPlanEntry } from '@/db/schema';
@@ -136,6 +139,86 @@ function RecipePickerModal({
   );
 }
 
+// ─── Add Method Modal (Rezept auswählen | QR scannen) ────────────────────────
+
+function AddMethodModal({
+  visible,
+  dayName,
+  onClose,
+  onPickRecipe,
+  onScanQR,
+}: {
+  visible: boolean;
+  dayName: string;
+  onClose: () => void;
+  onPickRecipe: () => void;
+  onScanQR: () => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView className="flex-1 bg-white">
+        <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
+          <View className="flex-1">
+            <Text className="text-lg font-bold text-gray-900">Rezept hinzufügen</Text>
+            <Text className="text-sm text-gray-400">{dayName}</Text>
+          </View>
+          <Pressable onPress={onClose} className="p-2">
+            <X size={22} color="#6b7280" />
+          </Pressable>
+        </View>
+
+        <View className="p-6 gap-4">
+          <Pressable
+            onPress={onPickRecipe}
+            className="flex-row items-center gap-4 p-5 bg-purple-50 rounded-2xl border border-purple-100"
+          >
+            <View className="w-12 h-12 bg-purple-600 rounded-xl items-center justify-center">
+              <BookOpen size={24} color="white" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-gray-900">Rezept auswählen</Text>
+              <Text className="text-sm text-gray-500 mt-0.5">Aus deiner Sammlung wählen</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={onScanQR}
+            className="flex-row items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100"
+          >
+            <View className="w-12 h-12 bg-gray-700 rounded-xl items-center justify-center">
+              <QrCode size={24} color="white" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-gray-900">QR-Code scannen</Text>
+              <Text className="text-sm text-gray-500 mt-0.5">Rezept von einer Rezeptkarte importieren</Text>
+            </View>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// ─── QR Scanner Modal ─────────────────────────────────────────────────────────
+
+function QRScannerModal({
+  visible,
+  onClose,
+  onScanned,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onScanned: (value: string) => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <View style={StyleSheet.absoluteFillObject}>
+        <ScannerCamera onScan={onScanned} onClose={onClose} />
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Day Column ──────────────────────────────────────────────────────────────
 
 function DayColumn({
@@ -205,7 +288,9 @@ export default function PlannerScreen() {
   const [mealPlan, setMealPlan] = useState<MealPlanEntry[]>([]);
   const [recipes, setRecipes] = useState<Map<number, Recipe>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [pickerDay, setPickerDay] = useState<number | null>(null);
+  const [methodDay, setMethodDay] = useState<number | null>(null);   // Auswahl-Modal
+  const [pickerDay, setPickerDay] = useState<number | null>(null);   // Rezept-Picker
+  const [qrDay, setQrDay] = useState<number | null>(null);           // QR-Scanner
 
   const weekStart = Math.floor(monday.getTime() / 1000);
 
@@ -249,6 +334,44 @@ export default function PlannerScreen() {
   };
 
   const goToCurrentWeek = () => setMonday(getMondayOf(new Date()));
+
+  const handleQRScanned = async (value: string) => {
+    const targetDay = qrDay;
+    setQrDay(null);
+
+    if (!isRecipeJSONQR(value)) {
+      Alert.alert('Kein Rezept-QR', 'Dieser QR-Code enthält kein RecipeDeck-Rezept.');
+      return;
+    }
+    const decoded = decodeRecipeFromCompactJSON(value);
+    if (!decoded) {
+      Alert.alert('Fehler', 'QR-Code konnte nicht gelesen werden.');
+      return;
+    }
+    const data = parseCompactRecipeToFull(decoded);
+
+    // Rezept in SQLite speichern und zum Planer hinzufügen
+    const db = getDB();
+    const result = await db.runAsync(
+      `INSERT INTO recipes (name, emoji, ingredients, steps, tags, servings, duration) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      data.name,
+      data.emoji ?? '🍽️',
+      JSON.stringify(data.ingredients),
+      JSON.stringify(data.steps),
+      JSON.stringify(data.tags ?? []),
+      data.servings ?? null,
+      data.duration ?? null,
+    );
+    const newId = result.lastInsertRowId;
+    if (targetDay !== null) {
+      await db.runAsync(
+        'INSERT INTO meal_plan (recipe_id, day_of_week, week_start) VALUES (?, ?, ?)',
+        newId, targetDay, weekStart,
+      );
+    }
+    await loadData();
+    Alert.alert('Importiert', `"${data.name}" wurde importiert und zum Planer hinzugefügt.`);
+  };
 
   const handleAddRecipe = async (recipeId: number) => {
     if (pickerDay === null) return;
@@ -339,7 +462,7 @@ export default function PlannerScreen() {
                 monday={monday}
                 entries={dayEntries}
                 recipes={recipes}
-                onAdd={setPickerDay}
+                onAdd={setMethodDay}
                 onRemove={handleRemoveEntry}
               />
             );
@@ -347,13 +470,29 @@ export default function PlannerScreen() {
         </ScrollView>
       )}
 
-      {/* Recipe picker modal */}
+      {/* Auswahl-Modal: Rezept oder QR */}
+      <AddMethodModal
+        visible={methodDay !== null}
+        dayName={methodDay !== null ? DAYS_FULL[methodDay] : ''}
+        onClose={() => setMethodDay(null)}
+        onPickRecipe={() => { setPickerDay(methodDay); setMethodDay(null); }}
+        onScanQR={() => { setQrDay(methodDay); setMethodDay(null); }}
+      />
+
+      {/* Rezept-Picker */}
       <RecipePickerModal
         visible={pickerDay !== null}
         dayIndex={pickerDay ?? 0}
         dayName={pickerDay !== null ? DAYS_FULL[pickerDay] : ''}
         onClose={() => setPickerDay(null)}
         onSelect={handleAddRecipe}
+      />
+
+      {/* QR-Scanner */}
+      <QRScannerModal
+        visible={qrDay !== null}
+        onClose={() => setQrDay(null)}
+        onScanned={handleQRScanned}
       />
     </SafeAreaView>
   );

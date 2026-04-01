@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { BookOpen, Plus, Calendar, QrCode, Settings } from 'lucide-react-native';
+import { BookOpen, Plus, Calendar, Settings } from 'lucide-react-native';
 
 import Colors from '@/constants/Colors';
 
@@ -38,10 +38,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="scanner"
-        options={{
-          title: 'Scanner',
-          tabBarIcon: ({ color }) => <QrCode size={24} color={color} />,
-        }}
+        options={{ href: null }} // nicht in Tab-Bar anzeigen, aber Route bleibt
       />
       <Tabs.Screen
         name="settings"
