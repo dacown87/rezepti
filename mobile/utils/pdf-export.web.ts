@@ -9,7 +9,42 @@ function parseJSON<T>(json: string | null, fallback: T): T {
   try { return JSON.parse(json) as T } catch { return fallback }
 }
 
+// jsPDF (Helvetica) kann keine Unicode-Emojis rendern → entfernen
+function stripEmoji(str: string): string {
+  return str.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1FAFF}]/gu, '').trim()
+}
+
+async function fetchImageAsBase64(url: string, serverUrl: string): Promise<string | null> {
+  try {
+    // Bild über Backend-Proxy laden, um CORS zu umgehen
+    const proxyUrl = `${serverUrl}/api/v1/proxy/image?url=${encodeURIComponent(url)}`
+    const res = await fetch(proxyUrl)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+async function getServerUrl(): Promise<string> {
+  try {
+    // Dynamischer Import damit kein SSR-Problem entsteht
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
+    const stored = await AsyncStorage.getItem('recipedeck_server_url')
+    return stored?.trim() || 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run'
+  } catch {
+    return 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run'
+  }
+}
+
 export async function shareRecipePDF(recipe: Recipe): Promise<void> {
+  const serverUrl = await getServerUrl()
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -21,29 +56,21 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   const steps = parseJSON<string[]>(recipe.steps, [])
   const tags = parseJSON<string[]>(recipe.tags, [])
 
-  // Bild (wenn vorhanden, als base64 laden)
-  const imageUrl = recipe.image_url ?? null
-  if (imageUrl) {
-    try {
-      const res = await fetch(imageUrl)
-      const blob = await res.blob()
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-      })
-      const imgHeight = 60
+  // Bild via Proxy (CORS-frei)
+  if (recipe.image_url) {
+    const dataUrl = await fetchImageAsBase64(recipe.image_url, serverUrl)
+    if (dataUrl) {
+      const imgHeight = 65
       doc.addImage(dataUrl, 'JPEG', margin, y, contentWidth, imgHeight)
       y += imgHeight + 6
-    } catch { /* Bild nicht verfügbar */ }
+    }
   }
 
-  // Titel
+  // Titel (ohne Emoji — jsPDF Helvetica kann keine Unicode-Emojis)
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 30, 30)
-  doc.text(`${recipe.emoji ?? ''} ${recipe.name}`.trim(), margin, y)
+  doc.text(stripEmoji(recipe.name), margin, y)
   y += 9
 
   // Meta
@@ -51,6 +78,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   if (recipe.servings) meta.push(`${recipe.servings} Portionen`)
   if (recipe.duration) meta.push(recipe.duration)
   if (recipe.calories) meta.push(`${recipe.calories} kcal`)
+  if (recipe.rating) meta.push(`Bewertung: ${recipe.rating}/5`)
   if (meta.length > 0) {
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
@@ -59,16 +87,21 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     y += 6
   }
 
+  // Quelle + Datum
   if (recipe.source_url) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'italic')
     doc.setTextColor(120, 120, 120)
-    const urlText = `Quelle: ${recipe.source_url}`
+    const datum = recipe.created_at
+      ? new Date(recipe.created_at * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : null
+    const urlText = `Quelle: ${recipe.source_url}${datum ? `  (${datum})` : ''}`
     const urlLines = doc.splitTextToSize(urlText, contentWidth)
     doc.text(urlLines, margin, y)
     y += urlLines.length * 4 + 2
   }
 
+  // Tags
   if (tags.length > 0) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
@@ -91,7 +124,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   for (const ing of ingredients) {
-    const lines = doc.splitTextToSize(`• ${ing}`, contentWidth)
+    const lines = doc.splitTextToSize(`- ${stripEmoji(ing)}`, contentWidth)
     for (const line of lines) {
       if (y > pageHeight - 25) { doc.addPage(); y = margin }
       doc.text(line, margin, y)
@@ -110,7 +143,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   for (let i = 0; i < steps.length; i++) {
-    const lines = doc.splitTextToSize(`${i + 1}. ${steps[i]}`, contentWidth)
+    const lines = doc.splitTextToSize(`${i + 1}. ${stripEmoji(steps[i])}`, contentWidth)
     for (const line of lines) {
       if (y > pageHeight - 25) { doc.addPage(); y = margin }
       doc.text(line, margin, y)
@@ -129,7 +162,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     y += 6
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    const noteLines = doc.splitTextToSize(recipe.notes, contentWidth)
+    const noteLines = doc.splitTextToSize(stripEmoji(recipe.notes), contentWidth)
     for (const line of noteLines) {
       if (y > pageHeight - 25) { doc.addPage(); y = margin }
       doc.text(line, margin, y)
@@ -157,7 +190,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
       doc.addImage(qrDataUrl, 'PNG', margin, y, 28, 28)
       doc.setFontSize(8)
       doc.setTextColor(120, 120, 120)
-      doc.text('QR-Code scannen → Rezept in RecipeDeck importieren', margin + 31, y + 14)
+      doc.text('QR-Code scannen -> Rezept in RecipeDeck importieren', margin + 31, y + 14)
     } catch { /* ignore */ }
   }
 
@@ -170,5 +203,5 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     doc.text(`RecipeDeck | Seite ${i} von ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
   }
 
-  doc.save(`${recipe.name.replace(/[^a-z0-9äöüÄÖÜ]/gi, '_')}.pdf`)
+  doc.save(`${stripEmoji(recipe.name).replace(/[^a-z0-9äöüÄÖÜ]/gi, '_').replace(/_+/g, '_')}.pdf`)
 }
