@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -154,7 +155,8 @@ export default function ExtractScreen() {
           clearInterval(interval);
 
           const recipe = status.result?.recipe;
-          if (recipe) {
+          // On web SQLite is a no-op stub; recipe is already saved server-side.
+          if (recipe && Platform.OS !== 'web') {
             try {
               await saveRecipeToLocalDB(recipe, submittedUrlRef.current);
             } catch (dbErr) {
