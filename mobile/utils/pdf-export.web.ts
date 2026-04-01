@@ -1,26 +1,17 @@
-// PDF Export für Web — jsPDF (gleiche Library wie im Web-Frontend)
-import { jsPDF } from 'jspdf'
-import QRCode from 'qrcode'
+// PDF Export für Web — jsPDF mit dynamischen Imports (kein SSR-Problem)
 import type { Recipe } from '@/db/schema'
 import { encodeRecipeToCompactJSON } from './recipe-qr'
-
-function buildSummary(recipe: Recipe): string {
-  const parts: string[] = []
-  const tags = parseJSON<string[]>(recipe.tags, [])
-  if (tags.length > 0) parts.push(tags.slice(0, 3).join(' · '))
-  const meta: string[] = []
-  if (recipe.servings) meta.push(`${recipe.servings} Portionen`)
-  if (recipe.duration) meta.push(recipe.duration)
-  if (meta.length > 0) parts.push(meta.join(' · '))
-  return parts.join('  |  ')
-}
 
 function parseJSON<T>(json: string | null, fallback: T): T {
   if (!json) return fallback
   try { return JSON.parse(json) as T } catch { return fallback }
 }
 
-export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
+export async function shareRecipePDF(recipe: Recipe): Promise<void> {
+  // Dynamische Imports — werden nur im Browser ausgeführt, nicht beim SSR
+  const { jsPDF } = await import('jspdf')
+  const QRCode = await import('qrcode')
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 20
@@ -31,46 +22,50 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0)
-  doc.text(recipe.name, margin, y)
+  doc.text(`${recipe.emoji ?? ''} ${recipe.name}`.trim(), margin, y)
   y += 8
 
-  // Summary
-  const summary = buildSummary(recipe)
-  if (summary) {
+  // Meta
+  const ingredients = parseJSON<string[]>(recipe.ingredients, [])
+  const steps = parseJSON<string[]>(recipe.steps, [])
+  const tags = parseJSON<string[]>(recipe.tags, [])
+
+  const meta: string[] = []
+  if (recipe.servings) meta.push(`${recipe.servings} Portionen`)
+  if (recipe.duration) meta.push(recipe.duration)
+  if (recipe.calories) meta.push(`${recipe.calories} kcal`)
+  if (meta.length > 0) {
     doc.setFontSize(10)
-    doc.setFont('helvetica', 'italic')
+    doc.setFont('helvetica', 'normal')
     doc.setTextColor(100)
-    doc.text(summary, margin, y)
-    y += 7
+    doc.text(meta.join(' · '), margin, y)
+    y += 6
   }
 
-  // Quelle
   if (recipe.source_url) {
-    doc.setFontSize(10)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'italic')
-    doc.setTextColor(100)
+    doc.setTextColor(120)
     doc.text(`Quelle: ${recipe.source_url}`, margin, y)
     y += 8
   }
 
-  // Meta
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(0)
-  const meta: string[] = []
-  if (recipe.servings) meta.push(`Portionen: ${recipe.servings}`)
-  if (recipe.duration) meta.push(`Dauer: ${recipe.duration}`)
-  if (recipe.calories) meta.push(`Kalorien: ${recipe.calories}`)
-  if (recipe.rating) meta.push(`Bewertung: ${'★'.repeat(recipe.rating)}${'☆'.repeat(5 - recipe.rating)}`)
-  if (meta.length > 0) { doc.text(meta.join(' | '), margin, y); y += 8 }
-  y += 5
+  if (tags.length > 0) {
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100)
+    doc.text(tags.join(' · '), margin, y)
+    y += 8
+  }
+
+  y += 4
 
   // Zutaten
-  const ingredients = parseJSON<string[]>(recipe.ingredients, [])
-  doc.setFontSize(16)
+  doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
+  doc.setTextColor(0)
   doc.text('Zutaten', margin, y)
-  y += 8
+  y += 7
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   for (const ing of ingredients) {
@@ -81,15 +76,14 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
       y += 5
     }
   }
-  y += 10
+  y += 8
 
   // Schritte
-  const steps = parseJSON<string[]>(recipe.steps, [])
   if (y > 230) { doc.addPage(); y = margin }
-  doc.setFontSize(16)
+  doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
   doc.text('Zubereitung', margin, y)
-  y += 8
+  y += 7
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   for (let i = 0; i < steps.length; i++) {
@@ -99,14 +93,14 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
       doc.text(line, margin, y)
       y += 5
     }
-    y += 3
+    y += 2
   }
 
   // Notizen
   if (recipe.notes) {
-    y += 10
+    y += 8
     if (y > 250) { doc.addPage(); y = margin }
-    doc.setFontSize(14)
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
     doc.text('Notizen', margin, y)
     y += 6
@@ -122,16 +116,17 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
 
   // QR Code
   y += 10
-  if (y > doc.internal.pageSize.getHeight() - 45) { doc.addPage(); y = margin }
+  const pageHeight = doc.internal.pageSize.getHeight()
+  if (y > pageHeight - 45) { doc.addPage(); y = margin }
   const qrData = encodeRecipeToCompactJSON({
     name: recipe.name,
     emoji: recipe.emoji ?? '',
-    ingredients: parseJSON<string[]>(recipe.ingredients, []),
-    steps: parseJSON<string[]>(recipe.steps, []),
+    ingredients,
+    steps,
     rating: recipe.rating ?? undefined,
     servings: recipe.servings ?? undefined,
     duration: recipe.duration ?? undefined,
-    tags: parseJSON<string[]>(recipe.tags, []),
+    tags,
     source_url: recipe.source_url ?? undefined,
   })
   if (qrData) {
@@ -140,7 +135,7 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
       doc.addImage(qrDataUrl, 'PNG', margin, y, 30, 30)
       doc.setFontSize(8)
       doc.setTextColor(100)
-      doc.text('QR-Code: Rezept scannen → in App importieren', margin, y + 32)
+      doc.text('QR-Code scannen → Rezept in App importieren', margin + 33, y + 15)
     } catch { /* ignore */ }
   }
 
@@ -151,23 +146,14 @@ export async function generateRecipePDF(recipe: Recipe): Promise<Blob> {
     doc.setFontSize(8)
     doc.setTextColor(150)
     doc.text(
-      `Rezept von RecipeDeck | Seite ${i} von ${totalPages}`,
+      `RecipeDeck | Seite ${i} von ${totalPages}`,
       pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 10,
+      pageHeight - 10,
       { align: 'center' }
     )
   }
 
-  return doc.output('blob')
-}
-
-export function downloadPDF(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  // Download im Browser
+  const filename = `${recipe.name.replace(/[^a-z0-9]/gi, '_')}.pdf`
+  doc.save(filename)
 }
