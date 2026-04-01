@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { encodeRecipeToCompactJSON, decodeRecipeFromCompactJSON, parseCompactRecipeToFull, isRecipeJSONQR } from '../../frontend/src/utils/recipe-qr.js'
-import type { Recipe } from '../../frontend/src/api/types.js'
+import { encodeRecipeToCompactJSON, decodeRecipeFromCompactJSON, parseCompactRecipeToFull, isRecipeJSONQR } from '../../mobile/utils/recipe-qr.js'
+import type { RecipeQRData } from '../../mobile/utils/recipe-qr.js'
 
-const baseRecipe: Recipe = {
-  id: 1,
+const baseRecipe: RecipeQRData = {
   name: 'Spaghetti puttanesca',
   emoji: '🍝',
   ingredients: ['300g Spaghetti', '2 Knoblauchzehen', '100g Oliven'],
@@ -11,11 +10,7 @@ const baseRecipe: Recipe = {
   tags: ['Pasta', 'Italienisch'],
   servings: '4 Portionen',
   duration: 'mittel',
-  calories: 495,
   source_url: 'https://example.com',
-  image_url: '',
-  tried: false,
-  created_at: '2026-03-27T00:00:00Z',
 }
 
 describe('recipe-qr', () => {
@@ -27,7 +22,7 @@ describe('recipe-qr', () => {
     })
 
     it('returns null when recipe exceeds 2KB', () => {
-      const bigRecipe: Recipe = {
+      const bigRecipe: RecipeQRData = {
         ...baseRecipe,
         steps: Array(50).fill('A'.repeat(200)),
       }

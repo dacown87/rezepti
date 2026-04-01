@@ -205,3 +205,103 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
 
   doc.save(`${stripEmoji(recipe.name).replace(/[^a-z0-9äöüÄÖÜ]/gi, '_').replace(/_+/g, '_')}.pdf`)
 }
+
+export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
+  if (recipes.length === 0) return
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 10
+  const cardW = (pageWidth - margin * 3) / 2
+  const cardH = (pageHeight - margin * 5) / 4
+  const cardsPerPage = 8
+
+  let idx = 0
+  for (const recipe of recipes) {
+    if (idx > 0 && idx % cardsPerPage === 0) doc.addPage()
+    const row = Math.floor((idx % cardsPerPage) / 2)
+    const col = (idx % cardsPerPage) % 2
+    const x = margin + col * (cardW + margin)
+    const y = margin + row * (cardH + margin)
+
+    // Card background
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(229, 231, 235)
+    doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD')
+
+    const tags = parseJSON<string[]>(recipe.tags, [])
+    const pad = 3
+
+    // Bild laden (wenn vorhanden)
+    const imgAreaH = cardH * 0.5
+    if (recipe.image_url) {
+      try {
+        const serverUrl = await getServerUrl()
+        const dataUrl = await fetchImageAsBase64(recipe.image_url, serverUrl)
+        if (dataUrl) doc.addImage(dataUrl, 'JPEG', x, y, cardW, imgAreaH)
+      } catch { /* kein Bild */ }
+    } else {
+      // Emoji als Platzhalter
+      doc.setFontSize(20)
+      doc.text(recipe.emoji ?? '🍽', x + cardW / 2, y + imgAreaH / 2 + 4, { align: 'center' })
+    }
+
+    // Name
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(17, 24, 39)
+    const nameLines = doc.splitTextToSize(stripEmoji(recipe.name), cardW - pad * 2)
+    doc.text(nameLines.slice(0, 2), x + pad, y + imgAreaH + pad + 4)
+
+    // Meta
+    const meta: string[] = []
+    if (recipe.servings) meta.push(`${recipe.servings} Port.`)
+    if (recipe.duration) meta.push(recipe.duration)
+    if (meta.length) {
+      doc.setFontSize(6)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(156, 163, 175)
+      doc.text(meta.join(' · '), x + pad, y + imgAreaH + pad + 10)
+    }
+
+    // Tags
+    if (tags.length > 0) {
+      doc.setFontSize(6)
+      doc.setTextColor(124, 58, 237)
+      doc.text(tags.slice(0, 3).join(' · '), x + pad, y + cardH - pad - 3)
+    }
+
+    // Footer
+    doc.setFontSize(5)
+    doc.setTextColor(209, 213, 219)
+    doc.text('RecipeDeck', x + cardW / 2, y + cardH - 1, { align: 'center' })
+
+    // QR Code
+    try {
+      const qrData = encodeRecipeToCompactJSON({
+        name: recipe.name, emoji: recipe.emoji ?? '',
+        ingredients: parseJSON<string[]>(recipe.ingredients, []),
+        steps: parseJSON<string[]>(recipe.steps, []),
+        tags,
+      })
+      if (qrData) {
+        const qrUrl = await QRCode.toDataURL(qrData, { width: 60, margin: 1 })
+        const qrSize = 14
+        doc.addImage(qrUrl, 'PNG', x + cardW - pad - qrSize, y + cardH - pad - qrSize, qrSize, qrSize)
+      }
+    } catch { /* ignore */ }
+
+    idx++
+  }
+
+  // Footer alle Seiten
+  const total = doc.getNumberOfPages()
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i)
+    doc.setFontSize(7)
+    doc.setTextColor(180, 180, 180)
+    doc.text(`RecipeDeck — Seite ${i} von ${total}`, pageWidth / 2, pageHeight - 4, { align: 'center' })
+  }
+
+  doc.save(`RecipeDeck_Karten.pdf`)
+}

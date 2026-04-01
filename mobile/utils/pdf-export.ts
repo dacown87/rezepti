@@ -2,3 +2,4 @@
 // Metro resolves to pdf-export.native.ts or pdf-export.web.ts at build time.
 import type { Recipe } from '@/db/schema';
 export declare function shareRecipePDF(recipe: Recipe): Promise<void>;
+export declare function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void>;

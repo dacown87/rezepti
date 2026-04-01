@@ -13,13 +13,15 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode, ShoppingCart } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import ScannerCamera from '@/components/ScannerCamera';
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr';
 
 import { getDB } from '@/db/migrate';
 import type { Recipe, MealPlanEntry } from '@/db/schema';
+import { addIngredients } from '@/app/(tabs)/shopping';
 
 const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
 const MEAL_PLAN_KEY = 'recipedeck_meal_plan';
@@ -417,6 +419,23 @@ export default function PlannerScreen() {
 
   const goToCurrentWeek = () => setMonday(getMondayOf(new Date()));
 
+  const handleAddWeekToShopping = async () => {
+    const allRecipes = await loadAllRecipes();
+    const recipeMap = new Map(allRecipes.map(r => [r.id, r]));
+    const ids = [...new Set(mealPlan.map(e => e.recipe_id))];
+    const ingredients: string[] = [];
+    for (const id of ids) {
+      const r = recipeMap.get(id);
+      if (r) {
+        const ings = parseJSON<string[]>(r.ingredients, []);
+        ingredients.push(...ings);
+      }
+    }
+    if (ingredients.length === 0) return;
+    await addIngredients(ingredients);
+    router.navigate('/(tabs)/shopping' as never);
+  };
+
   const handleQRScanned = async (value: string) => {
     const targetDay = qrDay;
     setQrDay(null);
@@ -499,9 +518,17 @@ export default function PlannerScreen() {
     <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
       <View className="px-4 pt-4 pb-3">
-        <View className="flex-row items-center gap-2 mb-3">
-          <Calendar size={20} color="#9333ea" />
-          <Text className="text-2xl font-bold text-gray-900">Wochenplaner</Text>
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center gap-2">
+            <Calendar size={20} color="#9333ea" />
+            <Text className="text-2xl font-bold text-gray-900">Wochenplaner</Text>
+          </View>
+          {mealPlan.length > 0 && (
+            <Pressable onPress={handleAddWeekToShopping} className="flex-row items-center gap-1.5 px-3 py-2 bg-purple-50 rounded-xl border border-purple-200">
+              <ShoppingCart size={15} color="#9333ea" />
+              <Text className="text-xs font-medium text-purple-600">Einkaufsliste</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Week navigation */}

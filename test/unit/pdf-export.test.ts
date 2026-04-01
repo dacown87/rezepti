@@ -24,7 +24,7 @@ describe('pdf-export', () => {
   })
 
   it('should exist and be importable', async () => {
-    const { generateRecipePDF } = await import('../../frontend/src/utils/pdf-export.js')
-    expect(generateRecipePDF).toBeDefined()
+    const { shareRecipePDF } = await import('../../mobile/utils/pdf-export.web.js')
+    expect(shareRecipePDF).toBeDefined()
   })
 })
