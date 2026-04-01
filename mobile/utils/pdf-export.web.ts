@@ -21,6 +21,24 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   const steps = parseJSON<string[]>(recipe.steps, [])
   const tags = parseJSON<string[]>(recipe.tags, [])
 
+  // Bild (wenn vorhanden, als base64 laden)
+  const imageUrl = recipe.image_url ?? null
+  if (imageUrl) {
+    try {
+      const res = await fetch(imageUrl)
+      const blob = await res.blob()
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+      const imgHeight = 60
+      doc.addImage(dataUrl, 'JPEG', margin, y, contentWidth, imgHeight)
+      y += imgHeight + 6
+    } catch { /* Bild nicht verfügbar */ }
+  }
+
   // Titel
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
