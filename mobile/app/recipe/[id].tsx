@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator, Platform,
-  TextInput, Modal, Image,
+  TextInput, Modal, Image, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
   ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
-  Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square,
+  Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode,
 } from 'lucide-react-native';
+import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -17,6 +18,8 @@ import { getDB } from '@/db/migrate';
 import type { Recipe } from '@/db/schema';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
 import { shareRecipePDF } from '@/utils/pdf-export';
+import { addIngredients } from '@/app/(tabs)/shopping';
+import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -256,6 +259,7 @@ export default function RecipeDetailScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [cookMode, setCookMode] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [editingIngredientIdx, setEditingIngredientIdx] = useState<number | null>(null);
   const [editingIngredientValue, setEditingIngredientValue] = useState('');
   const [editDraft, setEditDraft] = useState<{
@@ -374,11 +378,31 @@ export default function RecipeDetailScreen() {
     router.navigate('/(tabs)' as never);
   };
 
+  // ── Shopping ───────────────────────────────────────────────────────────────
+  const handleAddToShopping = async () => {
+    if (!recipe) return;
+    const ings = parseJSON<string[]>(recipe.ingredients, []);
+    const scaled = multiplier !== 1 ? ings.map(i => scaleIngredient(i, multiplier)) : ings;
+    await addIngredients(scaled, recipe.id);
+    router.navigate('/(tabs)/shopping' as never);
+  };
+
   // ── PDF ────────────────────────────────────────────────────────────────────
   const handlePDF = async () => {
     if (!recipe) return;
     try { await shareRecipePDF(recipe as Parameters<typeof shareRecipePDF>[0]); }
     catch { /* ignore */ }
+  };
+
+  // ── QR Share ───────────────────────────────────────────────────────────────
+  const handleShareText = async () => {
+    if (!recipe) return;
+    try {
+      await Share.share({
+        title: recipe.name,
+        message: `${recipe.emoji ?? '🍽️'} ${recipe.name}\n\nRecipeDeck-Rezept`,
+      });
+    } catch { /* ignore */ }
   };
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -417,6 +441,41 @@ export default function RecipeDetailScreen() {
       {showDeleteModal && (
         <DeleteModal onConfirm={confirmDelete} onCancel={() => setShowDeleteModal(false)} />
       )}
+
+      {/* QR-Teilen-Modal */}
+      <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>
+        <View className="flex-1 bg-black/60 items-center justify-center px-8">
+          <View className="bg-white rounded-2xl p-6 w-full items-center">
+            <Text className="text-lg font-bold text-gray-900 mb-1">{recipe.emoji ?? '🍽️'} {recipe.name}</Text>
+            <Text className="text-xs text-gray-400 mb-5 text-center">QR-Code scannen um das Rezept{'\n'}in RecipeDeck zu importieren</Text>
+            {(() => {
+              const qrData = encodeRecipeToCompactJSON({
+                name: recipe.name,
+                emoji: recipe.emoji ?? '',
+                ingredients,
+                steps,
+                tags,
+                rating: recipe.rating ?? undefined,
+                servings: recipe.servings ?? undefined,
+                duration: recipe.duration ?? undefined,
+              });
+              return qrData ? (
+                <QRCodeSVG value={qrData} size={200} color="#111827" backgroundColor="#ffffff" />
+              ) : (
+                <Text className="text-gray-400 text-sm">Rezept zu groß für QR-Code</Text>
+              );
+            })()}
+            <View className="flex-row gap-3 mt-6 w-full">
+              <Pressable onPress={handleShareText} className="flex-1 py-3 rounded-xl bg-purple-600 items-center">
+                <Text className="text-white text-sm font-semibold">Teilen</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowQrModal(false)} className="flex-1 py-3 rounded-xl bg-gray-100 items-center">
+                <Text className="text-gray-700 text-sm font-medium">Schließen</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <SafeAreaView className="flex-1 bg-gray-50">
         {/* Header */}
@@ -593,6 +652,14 @@ export default function RecipeDetailScreen() {
               <Pressable onPress={() => setCookMode(true)} className="flex-1 items-center py-3 rounded-xl bg-gray-900">
                 <UtensilsCrossed size={18} color="#fff" />
                 <Text className="text-white text-xs font-medium mt-1">Kochen</Text>
+              </Pressable>
+              <Pressable onPress={handleAddToShopping} className="flex-1 items-center py-3 rounded-xl bg-purple-50 border border-purple-200">
+                <ShoppingCart size={18} color="#9333ea" />
+                <Text className="text-purple-600 text-xs font-medium mt-1">Einkauf</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowQrModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white border border-gray-200">
+                <QrCode size={18} color="#6b7280" />
+                <Text className="text-gray-600 text-xs font-medium mt-1">Teilen</Text>
               </Pressable>
               <Pressable onPress={handlePDF} className="flex-1 items-center py-3 rounded-xl bg-white border border-gray-200">
                 <Download size={18} color="#6b7280" />

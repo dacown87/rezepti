@@ -35,17 +35,19 @@ COPY src/ ./src/
 # Falls tsc hier scheitert, zuerst 'npx tsc --noEmit' lokal prüfen.
 RUN npx tsc
 
-# ─── frontend-builder ─────────────────────────────────────────────────────────
-FROM base AS frontend-builder
+# ─── mobile-builder (Expo web export) ────────────────────────────────────────
+FROM node:20-slim AS frontend-builder
 
 WORKDIR /app
 
-COPY .npmrc package*.json ./
-RUN npm install
+# Install mobile dependencies (separate package.json in mobile/)
+COPY mobile/package*.json ./mobile/
+RUN cd mobile && npm install --legacy-peer-deps
 
-COPY frontend/ ./frontend/
-COPY vite.config.ts ./
-RUN npm run build:react
+# Copy mobile source and run Expo web export → output to /app/public/
+COPY mobile/ ./mobile/
+ENV CI=1 EXPO_NO_TELEMETRY=1
+RUN cd mobile && npx expo export --platform web --output-dir ../public
 
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production

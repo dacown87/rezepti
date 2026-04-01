@@ -155,3 +155,78 @@ export const generateRecipePDF = shareRecipePDF
 export const downloadPDF = (_blob: unknown, _filename: string) => {
   console.warn('downloadPDF ist auf Native nicht verfügbar — nutze shareRecipePDF')
 }
+
+/**
+ * Erstellt ein PDF mit mehreren Rezeptkarten (2×4 Grid pro Seite) und teilt es.
+ */
+export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
+  if (recipes.length === 0) return
+
+  const cardsPerPage = 8
+  const pages: Recipe[][] = []
+  for (let i = 0; i < recipes.length; i += cardsPerPage) {
+    pages.push(recipes.slice(i, i + cardsPerPage))
+  }
+
+  function buildCard(recipe: Recipe): string {
+    const tags = parseJSON<string[]>(recipe.tags, [])
+    const tagStr = tags.slice(0, 3).join(' · ')
+    const emoji = recipe.emoji ?? '🍽️'
+    const meta: string[] = []
+    if (recipe.servings) meta.push(recipe.servings + ' Port.')
+    if (recipe.duration) meta.push(recipe.duration)
+    if (recipe.calories) meta.push(recipe.calories + ' kcal')
+
+    return `
+      <div class="card">
+        <div class="card-img">${escapeHtml(emoji)}</div>
+        <div class="card-body">
+          <div class="card-title">${escapeHtml(recipe.name)}</div>
+          ${meta.length ? `<div class="card-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
+          ${tagStr ? `<div class="card-tags">${escapeHtml(tagStr)}</div>` : ''}
+        </div>
+        <div class="card-footer">RecipeDeck</div>
+      </div>`
+  }
+
+  const pagesHTML = pages.map(page => `
+    <div class="page">
+      <div class="grid">
+        ${page.map(buildCard).join('')}
+      </div>
+    </div>`).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; background: #f9fafb; }
+  .page { width: 210mm; min-height: 297mm; padding: 10mm; page-break-after: always; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); gap: 6mm; height: 277mm; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; }
+  .card-img { font-size: 32px; text-align: center; padding: 6px 4px 2px; line-height: 1; }
+  .card-body { flex: 1; padding: 4px 8px; }
+  .card-title { font-size: 11px; font-weight: 700; color: #111827; line-height: 1.3; margin-bottom: 2px; }
+  .card-meta { font-size: 8px; color: #9ca3af; margin-bottom: 2px; }
+  .card-tags { font-size: 8px; color: #7c3aed; }
+  .card-footer { font-size: 7px; color: #d1d5db; text-align: center; padding: 3px; border-top: 1px solid #f3f4f6; }
+  @media print { .page { page-break-after: always; } }
+</style>
+</head>
+<body>${pagesHTML}</body>
+</html>`
+
+  const { uri } = await Print.printToFileAsync({ html, base64: false })
+  const canShare = await Sharing.isAvailableAsync()
+  if (canShare) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/pdf',
+      dialogTitle: `RecipeDeck — ${recipes.length} Rezeptkarten`,
+      UTI: 'com.adobe.pdf',
+    })
+  } else {
+    await Print.printAsync({ uri })
+  }
+}

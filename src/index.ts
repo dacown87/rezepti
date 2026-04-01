@@ -59,7 +59,12 @@ app.get("/assets/*", (c) => servePublicFile(c, c.req.path.slice(1)));
 app.get("/vite.svg", (c) => servePublicFile(c, "vite.svg"));
 app.get("/Logo.png", (c) => servePublicFile(c, "Logo.png"));
 app.get("/changelog.json", (c) => {
-  const fullPath = join(import.meta.dirname, "..", "frontend", "public", "changelog.json");
+  // Try public/ first (Expo web export output), fall back to frontend/public/ (Vite dev)
+  const candidates = [
+    join(import.meta.dirname, "..", "public", "changelog.json"),
+    join(import.meta.dirname, "..", "frontend", "public", "changelog.json"),
+  ];
+  const fullPath = candidates.find(p => { try { statSync(p); return true; } catch { return false; } }) ?? candidates[1];
   try {
     const data = JSON.parse(readFileSync(fullPath, "utf-8"));
     const mtime = statSync(fullPath).mtime;
