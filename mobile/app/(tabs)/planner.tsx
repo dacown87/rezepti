@@ -10,14 +10,54 @@ import {
   Alert,
   TextInput,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScannerCamera from '@/components/ScannerCamera';
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr';
 
 import { getDB } from '@/db/migrate';
 import type { Recipe, MealPlanEntry } from '@/db/schema';
+
+const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
+
+async function getServerUrl(): Promise<string> {
+  try {
+    const stored = await AsyncStorage.getItem('recipedeck_server_url');
+    return stored?.trim() || PRODUCTION_URL;
+  } catch { return PRODUCTION_URL; }
+}
+
+async function loadAllRecipes(): Promise<Recipe[]> {
+  if (Platform.OS === 'web') {
+    const serverUrl = await getServerUrl();
+    const res = await fetch(`${serverUrl}/api/v1/recipes`);
+    if (!res.ok) return [];
+    const data: Array<Record<string, unknown>> = await res.json();
+    return data.map(r => ({
+      id: Number(r.id),
+      name: String(r.name),
+      emoji: (r.emoji as string | null) ?? null,
+      source_url: (r.source_url as string | null) ?? null,
+      image_url: (r.image_url as string | null) ?? null,
+      ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients ?? []),
+      steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps ?? []),
+      tags: typeof r.tags === 'string' ? r.tags : (r.tags ? JSON.stringify(r.tags) : null),
+      servings: (r.servings as string | null) ?? null,
+      duration: (r.duration as string | null) ?? null,
+      calories: r.calories != null ? Number(r.calories) : null,
+      rating: r.rating != null ? Number(r.rating) : null,
+      notes: (r.notes as string | null) ?? null,
+      transcript: null,
+      tried: 0,
+      pdf_created: 0,
+      created_at: null,
+    }));
+  }
+  return getDB().getAllAsync<Recipe>('SELECT * FROM recipes ORDER BY name ASC');
+}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -73,8 +113,8 @@ function RecipePickerModal({
 
   useEffect(() => {
     if (!visible) return;
-    const db = getDB();
-    db.getAllAsync<Recipe>('SELECT * FROM recipes ORDER BY name ASC')
+    setLoading(true);
+    loadAllRecipes()
       .then(rows => { setRecipes(rows); setFiltered(rows); })
       .finally(() => setLoading(false));
   }, [visible]);
