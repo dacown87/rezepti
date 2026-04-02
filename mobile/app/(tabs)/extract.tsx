@@ -125,12 +125,7 @@ export default function ExtractScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const handledRef = useRef(false);
-  const urlRef = useRef(url);
   const submittedUrlRef = useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    urlRef.current = url;
-  }, [url]);
 
   // ── Polling ────────────────────────────────────────────────────────────────
   useEffect(() => {
