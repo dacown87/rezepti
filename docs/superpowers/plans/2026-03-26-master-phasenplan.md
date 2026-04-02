@@ -233,9 +233,9 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 | 9 | Chefkoch Verbesserung | ✅ DONE | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
 | 10 | Zutaten-Rezeptvorschläge | ✅ DONE | 5-7d | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
 | 11 | Instagram Verbesserung | ✅ DONE | 2-3d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
-| 12 | TikTok Verbesserung | IN PROGRESS | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
-| 13 | Pinterest Import | PENDING | 6-8d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
-| 14 | Facebook Import | ✅ DONE | 4-5d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
+| 12 | TikTok Verbesserung | ✅ DONE | 4-6d | MEDIUM | — |
+| 13 | Pinterest Import | ✅ DONE | 6-8d | MEDIUM/HIGH | — |
+| 14 | Facebook Import | ✅ DONE | 4-5d | **HIGH** | — |
 
 **Gesamtdauer:** ~25-35 Tage (reduziert von ~46 Tagen)
 
@@ -335,6 +335,23 @@ Implementiert:
 4. **Phase 12** → TikTok: `phase/12-tiktok-verbesserung`
 5. **Phase 13** → Pinterest: `phase/13-pinterest-import`
 6. **Phase 14** → Facebook: `phase/14-facebook-import` (optional)
+
+### Phase 15: React Native Migration — ✅ DONE (Branch: ReactNative)
+**Status:** Abgeschlossen (2026-04-02)
+
+- [x] Vite/React-Frontend durch Expo ersetzt
+- [x] Expo Web als einziger Web-Build (`public/` Output)
+- [x] EAS Build vorbereitet (GitHub Actions Workflow, manuell)
+- [x] `getServerUrl` same-origin fix für Web
+- [x] CORS-Allowlist + SSRF-Proxy-Hardening
+- [x] Planer-Persistenz via AsyncStorage/localStorage
+
+**Offen:**
+- [ ] Android EAS Build testen (APK/AAB)
+- [ ] iOS Build konfigurieren
+- [ ] Docker-Image mit Expo Web Build aktualisieren
+
+---
 
 ### Phase 7+: Multi-User (sehr späte Zukunft)
 **Ziel:** Login, Cloud-Sync, Social-Features — nur wenn wirklich mehrere Nutzer die App verwenden sollen.
