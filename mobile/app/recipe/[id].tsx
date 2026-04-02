@@ -61,8 +61,9 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
 async function getServerUrl(): Promise<string> {
   try {
     const stored = await AsyncStorage.getItem('recipedeck_server_url');
-    return stored?.trim() || PRODUCTION_URL;
-  } catch { return PRODUCTION_URL; }
+    if (stored?.trim()) return stored.trim();
+  } catch {}
+  return Platform.OS === 'web' ? '' : PRODUCTION_URL;
 }
 
 async function apiPatch(id: number, data: Record<string, unknown>): Promise<void> {

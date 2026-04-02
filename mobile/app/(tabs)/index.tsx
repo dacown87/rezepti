@@ -23,10 +23,9 @@ const VIEW_MODE_KEY = 'recipedeck_view_mode';
 async function getServerUrl(): Promise<string> {
   try {
     const stored = await AsyncStorage.getItem(SERVER_URL_KEY);
-    return stored?.trim() || PRODUCTION_URL;
-  } catch {
-    return PRODUCTION_URL;
-  }
+    if (stored?.trim()) return stored.trim();
+  } catch {}
+  return Platform.OS === 'web' ? '' : PRODUCTION_URL;
 }
 
 interface ApiRecipe {
