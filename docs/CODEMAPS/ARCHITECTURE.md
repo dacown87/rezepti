@@ -1,38 +1,38 @@
 # Architecture Codemap
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-04-02
 
 ## System Overview
 
-Rezepti is a full-stack recipe extraction and management application:
+RecipeDeck is a full-stack recipe extraction and management application:
 
 1. **Backend:** Hono/Node.js server with REST API
 2. **Extraction Pipeline:** Multi-stage recipe extraction from URLs
 3. **Database:** Local SQLite with Drizzle ORM
-4. **Frontend:** React SPA with Vite
+4. **Frontend:** React Native (Expo) — Web + Android/iOS from single codebase
 
 ## Request Flow
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌──────────────────┐
-│   Browser   │────▶│   Hono      │────▶│   Pipeline       │
-│   (React)   │     │   Server    │     │   Orchestrator   │
-└─────────────┘     └─────────────┘     └──────────────────┘
-       │                   │                      │
-       │ GET/POST          │                      │
-       │ /api/v1/*         │                      │
-       │                   │                      │
-       ▼                   ▼                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    API Layer (api-react.ts)                 │
-│  recipes | extraction | shopping | planner | cookidoo       │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Database (db-react.ts)                         │
-│         recipes | shopping | meal_plan | jobs               │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────┐     ┌─────────────┐     ┌──────────────────┐
+│   Expo Web /    │────▶│   Hono      │────▶│   Pipeline       │
+│   Native App    │     │   Server    │     │   Orchestrator   │
+└─────────────────┘     └─────────────┘     └──────────────────┘
+       │                       │                      │
+       │ GET/POST              │                      │
+       │ /api/v1/*             │                      │
+       │                       ▼                      ▼
+       │         ┌─────────────────────────────────────────────┐
+       │         │           API Layer (api-react.ts)          │
+       │         │  recipes │ extraction │ shopping │ planner  │
+       │         │  cookidoo │ keys │ proxy │ health           │
+       │         └─────────────────────────────────────────────┘
+       │                            │
+       │                            ▼
+       │         ┌─────────────────────────────────────────────┐
+       └────────▶│          Database (db-react.ts)             │
+                 │   recipes │ shopping │ meal_plan │ jobs      │
+                 └─────────────────────────────────────────────┘
 ```
 
 ## Pipeline Stages
@@ -60,7 +60,7 @@ URL Input
          ▼
 ┌─────────────────────────────────────┐
 │  1. Schema.org JSON-LD?             │────Yes──▶ Fast path ──▶ Save
-│     (web only, fastest)             │
+│     (web/chefkoch/cookidoo, fastest)│
 └────────────────┬────────────────────┘
                  │ No
                  ▼
@@ -71,14 +71,13 @@ URL Input
                  │ No
                  ▼
 ┌─────────────────────────────────────┐
-│  3. Audio available?                 │────Yes──▶ Whisper ──▶ LLM
-│     (YouTube, TikTok, Instagram)   │
+│  3. Audio available?                │────Yes──▶ Whisper ──▶ LLM
+│     (YouTube, TikTok, Instagram)    │
 └────────────────┬────────────────────┘
                  │ No
                  ▼
 ┌─────────────────────────────────────┐
-│  4. Images available?              │────Yes──▶ Vision model
-│                                      │
+│  4. Images available?               │────Yes──▶ Vision model (Llama 4 Scout)
 └────────────────┬────────────────────┘
                  │ No
                  ▼
@@ -93,70 +92,61 @@ Frontend creates extraction job and polls for status:
 // 1. Create job
 POST /api/v1/extract/react
 { url: "https://..." }
-// Response: { jobId: "job_123_abc", status: "pending", pollUrl: "/api/v1/extract/react/job_123_abc" }
+// Response: { jobId: "job_123_abc", status: "pending" }
 
 // 2. Poll for status
-GET /api/v1/extract/react/job_123_abc?since=0
-// Response: { status: "running", progress: 35, currentStage: "fetching", message: "..." }
+GET /api/v1/extract/react/job_123_abc
+// Response: { status: "running", progress: 35, currentStage: "fetching" }
 
 // 3. On completion
 GET /api/v1/extract/react/job_123_abc
-// Response: { status: "completed", progress: 100, result: { success: true, recipeId: 42 } }
+// Response: { status: "completed", progress: 100, result: { recipeId: 42 } }
 ```
 
 ## Key Design Decisions
 
 ### Why Polling Instead of SSE?
-
-- Simpler to implement (no WebSocket server)
 - Works through load balancers/proxies
-- Client controls poll interval
-- Retry-friendly
+- Client controls poll interval, retry-friendly
+- Simpler state management in React Native
 
 ### Why SQLite?
-
-- Zero configuration
-- Single file storage
-- Good for local app use case
+- Zero configuration, single file storage
 - WAL mode for concurrent reads
+- Works on-device for future offline use
 
 ### Why Groq?
-
-- Free tier available
-- Fast inference
-- Vision models competitive
+- Free tier available, fast inference
+- Vision models competitive (Llama 4 Scout)
 - OpenAI-compatible API
 
 ### Why BYOK (Bring Your Own Key)?
-
-- Users can use their own Groq API key
-- Default: app's shared API key
-- Per-job override possible
+- Users can override with their own Groq key
+- Per-job override possible via API
 
 ## External Dependencies
 
-| Dependency | Purpose | Version |
-|------------|---------|---------|
-| `hono` | HTTP framework | ^4.x |
-| `better-sqlite3` | SQLite driver | ^11.x |
-| `drizzle-orm` | ORM | ^0.x |
-| `openai` | Groq API client | ^4.x |
-| `cheerio` | HTML parsing | ^1.x |
-| `react` | UI framework | ^18.x |
-| `react-router` | Routing | ^6.x |
-| `dnd-kit` | Drag & drop | ^6.x |
-| `tailwindcss` | Styling | ^3.x |
+| Dependency | Purpose |
+|------------|---------|
+| `hono` | HTTP framework |
+| `better-sqlite3` | SQLite driver |
+| `drizzle-orm` | ORM |
+| `openai` | Groq API client (compatible) |
+| `cheerio` | HTML parsing |
+| `expo` | React Native framework |
+| `dnd-kit` | Drag & drop (web) |
+| `tailwindcss` | Styling (web) |
 
 ## CLI Dependencies
 
 | Tool | Purpose |
 |------|---------|
-| `yt-dlp` | Video/audio download (YouTube, TikTok, Instagram) |
+| `yt-dlp` | Video/audio download (YouTube, TikTok, Instagram, Facebook) |
 
 ## File Structure
 
 ```
-rezepti/
+recipedeck/
 ├── src/                          # Backend source
 │   ├── index.ts                  # Server entry
 │   ├── api-react.ts              # API routes
@@ -168,30 +158,21 @@ rezepti/
 │   ├── schema.ts                 # Drizzle schema
 │   ├── types.ts                  # TypeScript types
 │   ├── fetchers/                 # Source-specific fetchers
-│   │   ├── web.ts
-│   │   ├── youtube.ts
-│   │   ├── instagram.ts
-│   │   ├── tiktok.ts
-│   │   ├── cookidoo.ts
-│   │   ├── pinterest.ts
-│   │   └── facebook.ts
-│   └── processors/               # Content processors
-│       ├── llm.ts               # Groq API
-│       ├── schema-org.ts        # JSON-LD
-│       └── whisper.ts           # Audio transcription
+│   │   ├── web.ts, youtube.ts, instagram.ts
+│   │   ├── tiktok.ts, chefkoch.ts, cookidoo.ts
+│   │   ├── pinterest.ts, facebook.ts, photo.ts
+│   └── processors/
+│       ├── llm.ts, schema-org.ts, whisper.ts
 │
-├── frontend/                     # React frontend
+├── frontend/                     # React Native (Expo)
 │   ├── src/
-│   │   ├── main.tsx             # Entry point
-│   │   ├── App.tsx             # Routes
-│   │   ├── components/          # React components
-│   │   └── utils/              # Utilities
-│   └── public/                 # Built output
+│   │   ├── components/           # Screens & UI components
+│   │   └── utils/               # Scaling, PDF, QR utilities
+│   └── app.json / eas.json      # Expo + EAS config
 │
-├── public/                       # Served static files
+├── public/                       # Expo Web build output (served by backend)
 ├── data/                         # SQLite database
-├── docs/CODEMAPS/               # This documentation
-└── package.json
+└── docs/CODEMAPS/               # This documentation
 ```
 
 ## Environment Variables
@@ -202,8 +183,7 @@ GROQ_API_KEY=...
 
 # Optional
 PORT=3000
-SQLITE_PATH=data/rezepti.db
-SQLITE_REACT_PATH=data/rezepti-react.db
+REACT_SQLITE_PATH=data/rezepti-react.db
 COOKIDOO_EMAIL=...
 COOKIDOO_PASSWORD=...
 GROQ_TEXT_MODEL=llama-3.3-70b-versatile

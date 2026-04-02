@@ -1,57 +1,48 @@
-# Rezepti Codemaps
+# RecipeDeck Codemaps
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-04-02
 
 ## Overview
 
-Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, Instagram, TikTok, web pages) and saves them to a local SQLite database. Recipes are processed and output in German. It uses Groq API (Llama models) for extraction/translation, with fallback paths through schema.org parsing, audio transcription, and vision models.
+RecipeDeck is a TypeScript web service that extracts recipes from URLs (YouTube, Instagram, TikTok, web pages) and saves them to a local SQLite database. Recipes are processed and output in German. It uses Groq API (Llama models) for extraction/translation, with fallback paths through schema.org parsing, audio transcription, and vision models.
+
+The frontend is built with React Native (Expo) — targeting Web, Android, and iOS from a single codebase.
 
 ## Architecture Map
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Rezepti Architecture                           │
+│                           RecipeDeck Architecture                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ┌──────────┐     ┌──────────────┐     ┌─────────────────────────────────┐ │
-│   │  Client  │────▶│  Hono Server │────▶│      Pipeline Orchestrator      │ │
-│   │ (React)  │     │  (index.ts)  │     │        (pipeline.ts)            │ │
-│   └──────────┘     └──────────────┘     └─────────────────────────────────┘ │
-│        │                                    │                               │
-│        │           ┌───────────────────────┘                               │
-│        │           ▼                                                       │
-│        │     ┌─────────────┐                                               │
-│        │     │  Classifier │                                               │
-│        │     │(classifier) │                                               │
-│        │     └──────┬──────┘                                               │
-│        │            │                                                       │
-│        ▼            ▼                                                       │
-│   ┌──────────────────────────────────────────────┐                         │
-│   │              Fetchers Layer                   │                         │
-│   │  ┌─────────┐ ┌──────────┐ ┌───────┐ ┌──────┐ ┌─────────┐ ┌────────┐  │                         │
-│   │  │  Web    │ │ YouTube  │ │ TikTok│ │ Insta│ │Pinterest│ │ Facebook│  │                         │
-│   │  │ (cheerio│ │(yt-dlp) │ │(yt-dlp│ │yt-dlp│ │  API    │ │ Cookies │  │                         │
-│   │  └─────────┘ └──────────┘ └───────┘ └──────┘ └─────────┘ └────────┘  │                         │
-│   └──────────────────────────────────────────────┘                         │
-│                              │                                              │
-│                              ▼                                              │
-│   ┌──────────────────────────────────────────────┐                         │
-│   │            Processors Layer                   │                         │
-│   │  ┌────────────┐ ┌─────────┐ ┌──────────────┐  │                         │
-│   │  │Schema-Org │ │   LLM   │ │   Whisper    │  │                         │
-│   │  │ (fast)    │ │(Groq)   │ │ (Audio)      │  │                         │
-│   │  └────────────┘ └─────────┘ └──────────────┘  │                         │
-│   └──────────────────────────────────────────────┘                         │
-│                              │                                              │
-│                              ▼                                              │
-│   ┌──────────────────────────────────────────────┐                         │
-│   │           Database Layer (SQLite)             │                         │
-│   │  ┌─────────────────────────────────────────┐   │                         │
-│   │  │ recipes | shopping_list | meal_plan    │   │                         │
-│   │  │ ingredient_dictionary | extraction_jobs │   │                         │
-│   │  └─────────────────────────────────────────┘   │                         │
-│   └──────────────────────────────────────────────┘                         │
-│                                                                             │
+│   ┌──────────────┐  ┌──────────────┐     ┌─────────────────────────────┐   │
+│   │  Expo Web    │  │  Expo Native │────▶│      Hono Server            │   │
+│   │  (Browser)   │  │  (Android/   │     │      (index.ts)             │   │
+│   └──────────────┘  │   iOS)       │     └─────────────────────────────┘   │
+│                     └──────────────┘                  │                    │
+│                                               Pipeline Orchestrator        │
+│                                                (pipeline.ts)               │
+│                                                        │                   │
+│                          ┌─────────────────────────────┘                   │
+│                          ▼                                                  │
+│   ┌────────────────────────────────────────────────────┐                   │
+│   │                   Fetchers Layer                    │                   │
+│   │  Web │ YouTube │ TikTok │ Instagram │ Cookidoo      │                   │
+│   │  Chefkoch │ Pinterest │ Facebook │ Photo           │                   │
+│   └────────────────────────────────────────────────────┘                   │
+│                          │                                                  │
+│                          ▼                                                  │
+│   ┌────────────────────────────────────────────────────┐                   │
+│   │                  Processors Layer                   │                   │
+│   │  Schema-Org (fast) │ LLM (Groq) │ Whisper (Audio)  │                   │
+│   └────────────────────────────────────────────────────┘                   │
+│                          │                                                  │
+│                          ▼                                                  │
+│   ┌────────────────────────────────────────────────────┐                   │
+│   │              Database Layer (SQLite)                │                   │
+│   │  recipes │ shopping_list │ meal_plan                │                   │
+│   │  ingredient_dictionary │ extraction_jobs           │                   │
+│   └────────────────────────────────────────────────────┘                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -70,7 +61,7 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 
 1. **Request:** Client sends URL → `/api/v1/extract/react`
 2. **Job Creation:** Job manager creates polling job, returns `jobId`
-3. **Classification:** URL classified (youtube/instagram/tiktok/cookidoo/web)
+3. **Classification:** URL classified (youtube/instagram/tiktok/cookidoo/chefkoch/pinterest/facebook/web)
 4. **Fetching:** Source-specific fetcher downloads content
 5. **Extraction:** Try schema.org → LLM text → Whisper audio → Vision model
 6. **Saving:** Recipe saved to SQLite, job marked complete
@@ -78,18 +69,16 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 
 ## External Dependencies
 
-- **Groq API** - LLM extraction (Llama 3.3 70B, Llama 4 Scout)
+- **Groq API** - LLM extraction (Llama 3.3 70B, Llama 4 Scout, Whisper)
 - **yt-dlp** - YouTube/Instagram/TikTok video downloading
 - **SQLite** - Local database (better-sqlite3 + Drizzle)
 - **Cheerio** - HTML parsing for web fetcher
-- **Pinterest API** - Pinterest pin extraction (Phase 13)
-- **Facebook** - Cookie-based access with rate limiting (Phase 14)
 
 ## Codemaps
 
 - [Architecture](ARCHITECTURE.md) - High-level system overview
 - [Backend](BACKEND.md) - API routes, pipeline, processors
-- [Frontend](FRONTEND.md) - React components and pages
+- [Frontend](FRONTEND.md) - React Native / Expo components and pages
 - [Database](DATABASE.md) - Schema and queries
 - [Fetchers](FETCHERS.md) - Source-specific content downloaders
 

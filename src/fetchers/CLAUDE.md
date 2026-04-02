@@ -73,5 +73,3 @@ Zugriff via `config.cookidoo.email` / `config.cookidoo.password`
 | `src/pipeline.ts` | `case "cookidoo"` im Switch |
 | `src/config.ts` | `config.cookidoo.{email,password}` |
 | `data/cookidoo-session.json` | Persistente Session (gitignored) |
-| `docs/superpowers/specs/2026-03-18-cookidoo-integration-design.md` | Design-Spec |
-| `docs/superpowers/plans/2026-03-18-cookidoo-integration.md` | Implementierungsplan |
