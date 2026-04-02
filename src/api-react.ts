@@ -945,6 +945,28 @@ app.get("/api/v1/proxy/image", async (c) => {
   if (!url || !url.startsWith("https://")) {
     return c.json({ error: "Invalid URL" }, 400);
   }
+
+  // SSRF guard: block private/metadata IP ranges
+  try {
+    const { hostname } = new URL(url);
+    const blocked = [
+      /^localhost$/i,
+      /^127\./,
+      /^10\./,
+      /^172\.(1[6-9]|2\d|3[01])\./,
+      /^192\.168\./,
+      /^169\.254\./,          // AWS metadata
+      /^::1$/,
+      /^fc00:/i,
+      /^fe80:/i,
+    ];
+    if (blocked.some((r) => r.test(hostname))) {
+      return c.json({ error: "Invalid URL" }, 400);
+    }
+  } catch {
+    return c.json({ error: "Invalid URL" }, 400);
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
@@ -953,7 +975,10 @@ app.get("/api/v1/proxy/image", async (c) => {
     if (!response.ok) {
       return c.json({ error: "Upstream error" }, 502);
     }
-    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("image/")) {
+      return c.json({ error: "Not an image" }, 415);
+    }
     const buffer = await response.arrayBuffer();
     if (buffer.byteLength > 5 * 1024 * 1024) {
       return c.json({ error: "Image too large" }, 413);

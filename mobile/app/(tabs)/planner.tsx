@@ -10,7 +10,6 @@ import {
   Alert,
   TextInput,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode, ShoppingCart } from 'lucide-react-native';
@@ -22,17 +21,9 @@ import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull }
 import { getDB } from '@/db/migrate';
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/app/(tabs)/shopping';
+import { getServerUrl } from '@/utils/server-url';
 
-const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
 const MEAL_PLAN_KEY = 'recipedeck_meal_plan';
-
-async function getServerUrl(): Promise<string> {
-  try {
-    const stored = await AsyncStorage.getItem('recipedeck_server_url');
-    if (stored?.trim()) return stored.trim();
-  } catch {}
-  return Platform.OS === 'web' ? '' : PRODUCTION_URL;
-}
 
 // ─── Web Meal Plan (AsyncStorage / localStorage) ──────────────────────────────
 

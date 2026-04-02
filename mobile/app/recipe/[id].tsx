@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, ScrollView, Pressable, ActivityIndicator, Platform,
+  View, Text, ScrollView, Pressable, ActivityIndicator,
   TextInput, Modal, Image, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,10 +20,7 @@ import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/u
 import { shareRecipePDF } from '@/utils/pdf-export';
 import { addIngredients } from '@/app/(tabs)/shopping';
 import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
+import { getServerUrl } from '@/utils/server-url';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,14 +53,6 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
           ? Math.floor(new Date(r.created_at).getTime() / 1000)
           : null),
   };
-}
-
-async function getServerUrl(): Promise<string> {
-  try {
-    const stored = await AsyncStorage.getItem('recipedeck_server_url');
-    if (stored?.trim()) return stored.trim();
-  } catch {}
-  return Platform.OS === 'web' ? '' : PRODUCTION_URL;
 }
 
 async function apiPatch(id: number, data: Record<string, unknown>): Promise<void> {
