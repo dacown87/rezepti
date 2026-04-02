@@ -80,10 +80,9 @@ interface RecipePayload {
 async function getServerUrl(): Promise<string> {
   try {
     const stored = await AsyncStorage.getItem(SERVER_URL_KEY);
-    return stored?.trim() || PRODUCTION_URL;
-  } catch {
-    return PRODUCTION_URL;
-  }
+    if (stored?.trim()) return stored.trim();
+  } catch {}
+  return Platform.OS === 'web' ? '' : PRODUCTION_URL;
 }
 
 async function getGroqKey(): Promise<string | null> {

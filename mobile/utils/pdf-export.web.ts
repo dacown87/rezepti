@@ -37,10 +37,9 @@ async function getServerUrl(): Promise<string> {
     // Dynamischer Import damit kein SSR-Problem entsteht
     const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
     const stored = await AsyncStorage.getItem('recipedeck_server_url')
-    return stored?.trim() || 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run'
-  } catch {
-    return 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run'
-  }
+    if (stored?.trim()) return stored.trim()
+  } catch {}
+  return '' // web-only file: use same origin
 }
 
 export async function shareRecipePDF(recipe: Recipe): Promise<void> {
