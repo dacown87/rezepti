@@ -9,18 +9,16 @@ import {
   ActivityIndicator,
   Modal,
   Switch,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map } from 'lucide-react-native';
 import { getDB } from '@/db/migrate';
+import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 
 const SECURE_KEY_GROQ = 'groq_key';
-const STORAGE_KEY_SERVER_URL = 'recipedeck_server_url';
 const STORAGE_KEY_FB_TOS = 'facebook_tos_accepted';
-const DEFAULT_SERVER_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
 
 // ── Roadmap data ──────────────────────────────────────────────────────────────
 
@@ -276,14 +274,6 @@ export default function SettingsScreen() {
   // App info
   const [recipeCount, setRecipeCount] = useState<number | null>(null);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-
-  const getServerUrl = useCallback(async (): Promise<string> => {
-    const stored = await AsyncStorage.getItem(STORAGE_KEY_SERVER_URL);
-    if (stored?.trim()) return stored.trim();
-    return Platform.OS === 'web' ? '' : DEFAULT_SERVER_URL;
-  }, []);
-
   // ── Load on mount ─────────────────────────────────────────────────────────────
 
   const loadSettings = useCallback(async () => {
@@ -300,7 +290,7 @@ export default function SettingsScreen() {
 
     // Server URL
     try {
-      const storedUrl = await AsyncStorage.getItem(STORAGE_KEY_SERVER_URL);
+      const storedUrl = await AsyncStorage.getItem(SERVER_URL_KEY);
       if (storedUrl) setServerUrl(storedUrl);
     } catch {
       // Ignore
@@ -341,7 +331,7 @@ export default function SettingsScreen() {
     } finally {
       setLoadingCookidooStatus(false);
     }
-  }, [getServerUrl]);
+  }, []);
 
   useEffect(() => {
     loadSettings();
@@ -398,9 +388,9 @@ export default function SettingsScreen() {
     setSavingServerUrl(true);
     try {
       if (trimmed) {
-        await AsyncStorage.setItem(STORAGE_KEY_SERVER_URL, trimmed);
+        await AsyncStorage.setItem(SERVER_URL_KEY, trimmed);
       } else {
-        await AsyncStorage.removeItem(STORAGE_KEY_SERVER_URL);
+        await AsyncStorage.removeItem(SERVER_URL_KEY);
       }
       Alert.alert(
         'Gespeichert',
@@ -424,7 +414,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await AsyncStorage.removeItem(STORAGE_KEY_SERVER_URL);
+              await AsyncStorage.removeItem(SERVER_URL_KEY);
               setServerUrl('');
               Alert.alert('Zurückgesetzt', 'Standard-Server wird jetzt verwendet.');
             } catch {
@@ -598,7 +588,7 @@ export default function SettingsScreen() {
             <Text className="text-base font-semibold text-gray-800 ml-2">Server-URL</Text>
           </View>
           <Text className="text-xs text-gray-400 mb-4">
-            Leer lassen für Standard-Server ({DEFAULT_SERVER_URL.replace('https://', '')})
+            Leer lassen für Standard-Server ({PRODUCTION_URL.replace('https://', '')})
           </Text>
 
           <View className="border border-gray-200 rounded-xl overflow-hidden mb-2">
@@ -606,7 +596,7 @@ export default function SettingsScreen() {
               className="px-4 py-3 text-sm text-gray-900"
               value={serverUrl}
               onChangeText={setServerUrl}
-              placeholder={DEFAULT_SERVER_URL}
+              placeholder={PRODUCTION_URL}
               placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
               autoCorrect={false}

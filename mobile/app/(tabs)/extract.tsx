@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -18,11 +17,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Globe, Camera, ScanLine, ImagePlus, CheckCircle, AlertCircle, X } from 'lucide-react-native';
 
 import { getDB } from '@/db/migrate';
+import { getServerUrl } from '@/utils/server-url';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
-const SERVER_URL_KEY = 'recipedeck_server_url';
 const GROQ_KEY_SECURE = 'groq_key';
 
 type Mode = 'url' | 'photo' | 'qr';
@@ -76,14 +74,6 @@ interface RecipePayload {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function getServerUrl(): Promise<string> {
-  try {
-    const stored = await AsyncStorage.getItem(SERVER_URL_KEY);
-    if (stored?.trim()) return stored.trim();
-  } catch {}
-  return Platform.OS === 'web' ? '' : PRODUCTION_URL;
-}
 
 async function getGroqKey(): Promise<string | null> {
   try {

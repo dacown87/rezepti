@@ -10,8 +10,13 @@ import reactApi from "./api-react.js";
 const app = new Hono();
 
 // CORS for mobile/dev clients (Expo web, local frontends)
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:8081",
+  "https://p01--rezepti-app--2s7hvlwm5zc5.code.run",
+];
 app.use("/api/*", cors({
-  origin: (origin) => origin ?? "*",
+  origin: (origin) => ALLOWED_ORIGINS.includes(origin ?? "") ? origin : null,
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type"],
   exposeHeaders: [],

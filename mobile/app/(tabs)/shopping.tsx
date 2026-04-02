@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, Pressable, ActivityIndicator,
-  RefreshControl, Platform, TextInput, Share, Modal,
+  RefreshControl, TextInput, Share, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -10,18 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getDB } from '@/db/migrate';
 import type { ShoppingListItem } from '@/db/schema';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
-
-async function getServerUrl(): Promise<string> {
-  try {
-    const s = await AsyncStorage.getItem('recipedeck_server_url');
-    if (s?.trim()) return s.trim();
-  } catch {}
-  return Platform.OS === 'web' ? '' : PRODUCTION_URL;
-}
+import { getServerUrl } from '@/utils/server-url';
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 

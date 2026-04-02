@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import type { Recipe } from '@/db/schema'
 import { encodeRecipeToCompactJSON } from './recipe-qr'
+import { getServerUrl } from '@/utils/server-url'
 
 function parseJSON<T>(json: string | null, fallback: T): T {
   if (!json) return fallback
@@ -32,15 +33,6 @@ async function fetchImageAsBase64(url: string, serverUrl: string): Promise<strin
   }
 }
 
-async function getServerUrl(): Promise<string> {
-  try {
-    // Dynamischer Import damit kein SSR-Problem entsteht
-    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
-    const stored = await AsyncStorage.getItem('recipedeck_server_url')
-    if (stored?.trim()) return stored.trim()
-  } catch {}
-  return '' // web-only file: use same origin
-}
 
 export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   const serverUrl = await getServerUrl()
