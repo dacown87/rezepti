@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
@@ -279,7 +280,8 @@ export default function SettingsScreen() {
 
   const getServerUrl = useCallback(async (): Promise<string> => {
     const stored = await AsyncStorage.getItem(STORAGE_KEY_SERVER_URL);
-    return stored?.trim() || DEFAULT_SERVER_URL;
+    if (stored?.trim()) return stored.trim();
+    return Platform.OS === 'web' ? '' : DEFAULT_SERVER_URL;
   }, []);
 
   // ── Load on mount ─────────────────────────────────────────────────────────────
