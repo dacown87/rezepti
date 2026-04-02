@@ -13,7 +13,7 @@ const app = new Hono();
 app.use("/api/*", cors({
   origin: (origin) => origin ?? "*",
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "x-groq-key"],
+  allowHeaders: ["Content-Type"],
   exposeHeaders: [],
   maxAge: 86400,
 }));
