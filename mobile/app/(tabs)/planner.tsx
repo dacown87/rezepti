@@ -551,7 +551,7 @@ export default function PlannerScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ padding: 16, paddingTop: 8, flexGrow: 1, justifyContent: Platform.OS === 'web' ? 'center' : 'flex-start' }}
+          contentContainerStyle={{ padding: 16, paddingTop: 8, ...(Platform.OS === 'web' ? { minWidth: '100%', justifyContent: 'center' } : { flexGrow: 1 }) }}
         >
           {DAYS_FULL.map((dayName, dayIndex) => {
             const dayEntries = mealPlan.filter(e => e.day_of_week === dayIndex);
