@@ -38,12 +38,21 @@ const MIME_TYPES: Record<string, string> = {
   ".ico": "image/x-icon",
 };
 
+// HTML never cached — JS/CSS assets have content hashes and can be cached long-term
+const NO_CACHE = "no-cache, no-store, must-revalidate";
+const IMMUTABLE = "public, max-age=31536000, immutable";
+
+function isHashedAsset(filePath: string): boolean {
+  // Expo web output: _expo/static/js/web/entry-<hash>.js etc.
+  return /[_-][a-f0-9]{8,}\./.test(filePath);
+}
+
 app.get("/", (c) => {
   const html = readFileSync(
     join(import.meta.dirname, "..", "public", "index.html"),
     "utf-8"
   );
-  return c.html(html);
+  return c.html(html, 200, { "Cache-Control": NO_CACHE });
 });
 
 // Serve all static files from public/ (assets, icons, etc.)
@@ -53,7 +62,8 @@ function servePublicFile(c: any, filePath: string) {
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
   try {
     const content = readFileSync(fullPath);
-    return c.body(content, 200, { "Content-Type": contentType });
+    const cacheControl = ext === ".html" || !isHashedAsset(filePath) ? NO_CACHE : IMMUTABLE;
+    return c.body(content, 200, { "Content-Type": contentType, "Cache-Control": cacheControl });
   } catch {
     return c.text("Not found", 404);
   }
@@ -101,7 +111,8 @@ app.get("*", (c) => {
     if (contentType) {
       try {
         const content = readFileSync(fullPath);
-        return c.body(content, 200, { "Content-Type": contentType });
+        const cacheControl = ext === ".html" || !isHashedAsset(filePath) ? NO_CACHE : IMMUTABLE;
+        return c.body(content, 200, { "Content-Type": contentType, "Cache-Control": cacheControl });
       } catch {
         // file not found, fall through to SPA
       }
@@ -112,7 +123,7 @@ app.get("*", (c) => {
     join(import.meta.dirname, "..", "public", "index.html"),
     "utf-8"
   );
-  return c.html(html);
+  return c.html(html, 200, { "Cache-Control": NO_CACHE });
 });
 
 // Start server

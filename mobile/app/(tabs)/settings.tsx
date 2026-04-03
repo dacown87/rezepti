@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   Modal,
   Switch,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map } from 'lucide-react-native';
+import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink } from 'lucide-react-native';
 import { getDB } from '@/db/migrate';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 
@@ -250,6 +251,7 @@ export default function SettingsScreen() {
   const [groqKeyStored, setGroqKeyStored] = useState(false);
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [savingGroqKey, setSavingGroqKey] = useState(false);
+  const [showGroqHelp, setShowGroqHelp] = useState(false);
 
   // Server URL
   const [serverUrl, setServerUrl] = useState('');
@@ -273,6 +275,7 @@ export default function SettingsScreen() {
 
   // App info
   const [recipeCount, setRecipeCount] = useState<number | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<{ date: string; time: string } | null>(null);
 
   // ── Load on mount ─────────────────────────────────────────────────────────────
 
@@ -312,6 +315,20 @@ export default function SettingsScreen() {
       setRecipeCount(row?.count ?? 0);
     } catch {
       setRecipeCount(null);
+    }
+
+    // Last build timestamp from server
+    try {
+      const base = await getServerUrl();
+      const res = await fetch(`${base}/changelog.json`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.lastUpdated?.date && data.lastUpdated?.time) {
+          setLastUpdated({ date: data.lastUpdated.date, time: data.lastUpdated.time });
+        }
+      }
+    } catch {
+      // Server nicht erreichbar — kein Problem
     }
   }, []);
 
@@ -511,11 +528,52 @@ export default function SettingsScreen() {
           <Text className="text-gray-500 mt-1">API-Keys, Server & Integrationen</Text>
         </View>
 
+        {/* ── GROQ Help Modal ── */}
+        <Modal visible={showGroqHelp} transparent animationType="fade" onRequestClose={() => setShowGroqHelp(false)}>
+          <Pressable className="flex-1 bg-black/50 justify-center items-center px-6" onPress={() => setShowGroqHelp(false)}>
+            <Pressable className="bg-white rounded-2xl p-6 w-full max-w-sm" onPress={(e: { stopPropagation: () => void }) => e.stopPropagation()}>
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-base font-bold text-gray-900">Was ist der Groq API-Key?</Text>
+                <TouchableOpacity onPress={() => setShowGroqHelp(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <X size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <Text className="text-sm text-gray-600 leading-6 mb-3">
+                RecipeDeck nutzt <Text className="font-semibold text-gray-900">Groq</Text> als KI-Backend, um Rezepte aus Videos, Webseiten und Fotos zu extrahieren und ins Deutsche zu übersetzen.
+              </Text>
+              <Text className="text-sm text-gray-600 leading-6 mb-3">
+                Ein Groq API-Key ist <Text className="font-semibold text-green-700">kostenlos</Text> und kann unter{' '}
+                <Text className="font-semibold text-blue-600">console.groq.com</Text>{' '}
+                in wenigen Sekunden erstellt werden.
+              </Text>
+              <View className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4">
+                <Text className="text-xs text-blue-700 leading-5">
+                  1. console.groq.com öffnen{'\n'}
+                  2. Kostenlosen Account erstellen{'\n'}
+                  3. „API Keys" → „Create API Key"{'\n'}
+                  4. Key hier einfügen und speichern
+                </Text>
+              </View>
+              <Text className="text-xs text-gray-400 leading-5">
+                Der Key wird ausschließlich lokal auf deinem Gerät gespeichert und nie an Dritte weitergegeben.
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         {/* ── GROQ API Key ── */}
         <View className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
           <View className="flex-row items-center mb-1">
             <Key size={18} color="#4B5563" />
             <Text className="text-base font-semibold text-gray-800 ml-2">Groq API-Key</Text>
+            <TouchableOpacity
+              onPress={() => setShowGroqHelp(true)}
+              className="ml-2 flex-row items-center bg-gray-100 rounded-full px-2.5 py-1"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <HelpCircle size={14} color="#6B7280" />
+              <Text className="text-xs text-gray-500 font-medium ml-1">Hilfe</Text>
+            </TouchableOpacity>
             {groqKeyStored && (
               <View className="ml-auto bg-green-100 rounded-full px-2 py-0.5">
                 <Text className="text-xs text-green-700 font-medium">Gespeichert</Text>
@@ -839,6 +897,18 @@ export default function SettingsScreen() {
                   : `${recipeCount} Rezept${recipeCount === 1 ? '' : 'e'}`}
               </Text>
             </View>
+
+            {lastUpdated && (
+              <>
+                <View className="h-px bg-gray-100" />
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-sm text-gray-500">Letzte Änderung</Text>
+                  <Text className="text-sm font-semibold text-gray-900">
+                    {lastUpdated.date} · {lastUpdated.time}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </ScrollView>

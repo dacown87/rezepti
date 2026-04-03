@@ -1,8 +1,65 @@
-// PDF Export für Native — expo-print + expo-sharing
+// PDF Export für Native — expo-print + expo-sharing / SAF Downloads
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
+import { StorageAccessFramework, EncodingType, readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Platform, Alert } from 'react-native'
 import type { Recipe } from '@/db/schema'
 import { encodeRecipeToCompactJSON } from './recipe-qr'
+
+const DOWNLOADS_URI_KEY = 'pdf_downloads_dir_uri'
+
+/**
+ * Auf Android: speichert das PDF direkt in den Downloads-Ordner via SAF.
+ * Beim ersten Aufruf öffnet sich ein Ordner-Picker — der User wählt "Downloads".
+ * Die Erlaubnis wird in AsyncStorage gespeichert (einmalig).
+ * Auf iOS: nicht verfügbar (kein SAF).
+ */
+async function saveToDownloadsAndroid(sourceUri: string, filename: string): Promise<void> {
+  let dirUri = await AsyncStorage.getItem(DOWNLOADS_URI_KEY)
+
+  if (!dirUri) {
+    const result = await StorageAccessFramework.requestDirectoryPermissionsAsync()
+    if (!result.granted) {
+      throw new Error('Ordner-Zugriff verweigert')
+    }
+    dirUri = result.directoryUri
+    await AsyncStorage.setItem(DOWNLOADS_URI_KEY, dirUri)
+  }
+
+  const base64 = await readAsStringAsync(sourceUri, { encoding: EncodingType.Base64 })
+
+  try {
+    const destUri = await StorageAccessFramework.createFileAsync(dirUri, filename, 'application/pdf')
+    await writeAsStringAsync(destUri, base64, { encoding: EncodingType.Base64 })
+  } catch {
+    // Gespeicherte Erlaubnis ungültig (z.B. nach Neustart) — zurücksetzen und erneut versuchen
+    await AsyncStorage.removeItem(DOWNLOADS_URI_KEY)
+    const result = await StorageAccessFramework.requestDirectoryPermissionsAsync()
+    if (!result.granted) throw new Error('Ordner-Zugriff verweigert')
+    await AsyncStorage.setItem(DOWNLOADS_URI_KEY, result.directoryUri)
+    const destUri = await StorageAccessFramework.createFileAsync(result.directoryUri, filename, 'application/pdf')
+    await writeAsStringAsync(destUri, base64, { encoding: EncodingType.Base64 })
+  }
+}
+
+async function deliverPDF(uri: string, filename: string, dialogTitle: string): Promise<void> {
+  if (Platform.OS === 'android') {
+    await saveToDownloadsAndroid(uri, filename)
+    Alert.alert('Gespeichert', `„${filename}" wurde im gewählten Ordner gespeichert.`)
+  } else {
+    const canShare = await Sharing.isAvailableAsync()
+    if (canShare) {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle,
+        UTI: 'com.adobe.pdf',
+      })
+    } else {
+      await Print.printAsync({ uri })
+    }
+  }
+}
 
 function parseJSON<T>(json: string | null, fallback: T): T {
   if (!json) return fallback
@@ -129,17 +186,8 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   const html = buildHTMLTemplate(recipe)
 
   const { uri } = await Print.printToFileAsync({ html, base64: false })
-
-  const canShare = await Sharing.isAvailableAsync()
-  if (canShare) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `${recipe.emoji ?? ''} ${recipe.name}`,
-      UTI: 'com.adobe.pdf',
-    })
-  } else {
-    await Print.printAsync({ uri })
-  }
+  const filename = `${recipe.name.replace(/[^a-z0-9äöüÄÖÜ]/gi, '_').replace(/_+/g, '_')}.pdf`
+  await deliverPDF(uri, filename, `${recipe.emoji ?? ''} ${recipe.name}`)
 }
 
 /**
@@ -158,9 +206,29 @@ export const downloadPDF = (_blob: unknown, _filename: string) => {
 
 /**
  * Erstellt ein PDF mit mehreren Rezeptkarten (2×4 Grid pro Seite) und teilt es.
+ * Layout identisch zur Web-Version: Bild oben (50%), Name/Meta/Tags darunter, QR unten rechts.
  */
 export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
   if (recipes.length === 0) return
+
+  // QR-Codes vorab generieren
+  const QRCode = await import('qrcode')
+  const qrMap = new Map<number, string>()
+  for (const recipe of recipes) {
+    if (recipe.id == null) continue
+    const qrData = encodeRecipeToCompactJSON({
+      name: recipe.name, emoji: recipe.emoji ?? '',
+      ingredients: parseJSON<string[]>(recipe.ingredients, []),
+      steps: parseJSON<string[]>(recipe.steps, []),
+      tags: parseJSON<string[]>(recipe.tags, []),
+    })
+    if (qrData) {
+      try {
+        const dataUrl = await QRCode.toDataURL(qrData, { width: 80, margin: 1 })
+        qrMap.set(recipe.id, dataUrl)
+      } catch { /* ignore */ }
+    }
+  }
 
   const cardsPerPage = 8
   const pages: Recipe[][] = []
@@ -175,15 +243,25 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
     const meta: string[] = []
     if (recipe.servings) meta.push(recipe.servings + ' Port.')
     if (recipe.duration) meta.push(recipe.duration)
-    if (recipe.calories) meta.push(recipe.calories + ' kcal')
+
+    // Bild: echte URL (expo-print lädt direkt) oder Emoji-Platzhalter
+    const imgAreaHTML = recipe.image_url
+      ? `<img src="${escapeHtml(recipe.image_url)}" class="card-real-img" />`
+      : `<div class="card-emoji">${escapeHtml(emoji)}</div>`
+
+    const qrUrl = recipe.id != null ? qrMap.get(recipe.id) : undefined
+    const qrHTML = qrUrl ? `<img src="${qrUrl}" class="card-qr" />` : ''
 
     return `
       <div class="card">
-        <div class="card-img">${escapeHtml(emoji)}</div>
+        <div class="card-img-area">${imgAreaHTML}</div>
         <div class="card-body">
           <div class="card-title">${escapeHtml(recipe.name)}</div>
           ${meta.length ? `<div class="card-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
-          ${tagStr ? `<div class="card-tags">${escapeHtml(tagStr)}</div>` : ''}
+          <div class="card-bottom">
+            <div class="card-tags">${escapeHtml(tagStr)}</div>
+            ${qrHTML}
+          </div>
         </div>
         <div class="card-footer">RecipeDeck</div>
       </div>`
@@ -206,12 +284,19 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
   .page { width: 210mm; min-height: 297mm; padding: 10mm; page-break-after: always; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); gap: 6mm; height: 277mm; }
   .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; }
-  .card-img { font-size: 32px; text-align: center; padding: 6px 4px 2px; line-height: 1; }
-  .card-body { flex: 1; padding: 4px 8px; }
-  .card-title { font-size: 11px; font-weight: 700; color: #111827; line-height: 1.3; margin-bottom: 2px; }
-  .card-meta { font-size: 8px; color: #9ca3af; margin-bottom: 2px; }
-  .card-tags { font-size: 8px; color: #7c3aed; }
-  .card-footer { font-size: 7px; color: #d1d5db; text-align: center; padding: 3px; border-top: 1px solid #f3f4f6; }
+  /* Bild-Bereich: obere 50% der Karte */
+  .card-img-area { height: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f9fafb; }
+  .card-real-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-emoji { font-size: 28px; line-height: 1; }
+  /* Unterer Bereich */
+  .card-body { flex: 1; padding: 4px 8px; display: flex; flex-direction: column; position: relative; }
+  .card-title { font-size: 9px; font-weight: 700; color: #111827; line-height: 1.3; margin-bottom: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-meta { font-size: 6px; color: #9ca3af; margin-bottom: 2px; }
+  /* Tags links, QR rechts — beide am unteren Rand */
+  .card-bottom { display: flex; align-items: flex-end; justify-content: space-between; flex: 1; }
+  .card-tags { font-size: 6px; color: #7c3aed; }
+  .card-qr { width: 18mm; height: 18mm; flex-shrink: 0; }
+  .card-footer { font-size: 5px; color: #d1d5db; text-align: center; padding: 2px; border-top: 1px solid #f3f4f6; }
   @media print { .page { page-break-after: always; } }
 </style>
 </head>
@@ -219,14 +304,5 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
 </html>`
 
   const { uri } = await Print.printToFileAsync({ html, base64: false })
-  const canShare = await Sharing.isAvailableAsync()
-  if (canShare) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `RecipeDeck — ${recipes.length} Rezeptkarten`,
-      UTI: 'com.adobe.pdf',
-    })
-  } else {
-    await Print.printAsync({ uri })
-  }
+  await deliverPDF(uri, 'RecipeDeck_Karten.pdf', `RecipeDeck — ${recipes.length} Rezeptkarten`)
 }
