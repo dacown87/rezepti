@@ -1,4 +1,60 @@
 import type { SchemaOrgRecipe, RecipeData } from "../types.js";
+import { RecipeDataSchema } from "../types.js";
+
+// ─── Emoji picker ──────────────────────────────────────────────────────────────
+
+const EMOJI_MAP: [string[], string][] = [
+  [["pasta", "nudel", "spaghetti", "penne", "lasagne", "tagliatelle", "rigatoni"], "🍝"],
+  [["pizza"], "🍕"],
+  [["salat", "salad"], "🥗"],
+  [["suppe", "soup", "brühe", "eintopf", "chowder", "bisque"], "🍲"],
+  [["kuchen", "torte", "cake", "muffin", "brownie"], "🎂"],
+  [["brot", "brötchen", "bread", "baguette", "croissant"], "🍞"],
+  [["rind", "steak", "beef", "schnitzel", "lamm", "schwein"], "🥩"],
+  [["hähnchen", "huhn", "chicken", "geflügel", "pute", "truthahn"], "🍗"],
+  [["fisch", "lachs", "thunfisch", "garnele", "shrimp", "meeresfrüchte", "calamari"], "🐟"],
+  [["vegan", "vegetarisch", "gemüse", "tofu"], "🥦"],
+  [["reis", "risotto", "paella"], "🍚"],
+  [["burger", "sandwich", "wrap", "hotdog"], "🍔"],
+  [["dessert", "nachtisch", "mousse", "panna cotta", "tiramisu"], "🍮"],
+  [["eis", "gelato", "sorbet"], "🍨"],
+  [["schokolade", "chocolate", "kakao"], "🍫"],
+  [["frühstück", "breakfast", "müsli", "granola"], "🥣"],
+  [["pfannkuchen", "pancake", "crêpe", "waffel"], "🥞"],
+  [["smoothie", "saft"], "🥤"],
+  [["cocktail", "drink", "bowle"], "🍹"],
+  [["kaffee", "coffee", "espresso", "cappuccino"], "☕"],
+  [["ei", "eier", "omelette", "rührei", "spiegelei"], "🍳"],
+  [["käse", "cheese", "fondue", "raclette"], "🧀"],
+  [["kartoffel", "pommes", "gnocchi"], "🥔"],
+  [["curry", "indisch", "dhal", "masala"], "🍛"],
+  [["sushi", "japanisch", "maki", "onigiri"], "🍱"],
+  [["taco", "burrito", "mexikanisch", "enchilada", "quesadilla"], "🌮"],
+  [["thermomix", "varoma", "dampfgaren"], "🫕"],
+  [["marmelade", "konfitüre", "aufstrich"], "🍯"],
+  [["sushi", "bowl", "poke"], "🥙"],
+];
+
+export function pickEmoji(name: string, tags: string[]): string {
+  const haystack = [name, ...tags].join(" ").toLowerCase();
+  for (const [keywords, emoji] of EMOJI_MAP) {
+    if (keywords.some(kw => haystack.includes(kw))) return emoji;
+  }
+  return "🍽️";
+}
+
+// ─── Finalize without LLM ──────────────────────────────────────────────────────
+
+/**
+ * Completes a partial recipe (from schema.org) into a full RecipeData
+ * without calling the LLM. Fills required fields with safe defaults.
+ * Use when name, ingredients, steps, and duration are already present.
+ */
+export function finalizeRecipe(partial: Partial<RecipeData>): RecipeData {
+  const tags = partial.tags ?? [];
+  const emoji = partial.emoji ?? pickEmoji(partial.name ?? "", tags);
+  return RecipeDataSchema.parse({ ...partial, tags, emoji });
+}
 
 /**
  * Parse ISO 8601 duration (PT30M, PT1H30M, etc.) to minutes.
@@ -46,19 +102,35 @@ function parseCalories(schema: SchemaOrgRecipe): number | undefined {
   return isNaN(num) ? undefined : num;
 }
 
+/** Strip HTML tags and normalize whitespace from step text. */
+function cleanStepText(raw: string): string {
+  return raw
+    .replace(/<[^>]+>/g, " ")          // strip all HTML tags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/[\uE000-\uF8FF]/g, "")   // strip Private Use Area chars (Cookidoo icons like U+E003)
+    // Cookidoo Linkslauf: PUA icon between slashes collapses to // after strip above
+    // e.g. "95°C//Stufe 1" → "95°C/Linkslauf/Stufe 1"
+    .replace(/\/\/Stufe/g, "/Linkslauf/Stufe")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function extractSteps(schema: SchemaOrgRecipe): string[] {
   if (!schema.recipeInstructions) return [];
   const steps: string[] = [];
   for (const step of schema.recipeInstructions) {
     if (typeof step === "string") {
-      steps.push(step);
+      steps.push(cleanStepText(step));
     } else if ("itemListElement" in step && Array.isArray(step.itemListElement)) {
       // HowToSection — flatten nested steps
       for (const subStep of step.itemListElement) {
-        if (subStep.text) steps.push(subStep.text.trim());
+        if (subStep.text) steps.push(cleanStepText(subStep.text));
       }
     } else if ("text" in step && step.text) {
-      steps.push(step.text.trim());
+      steps.push(cleanStepText(step.text));
     }
   }
   return steps.filter(Boolean);
@@ -79,6 +151,10 @@ export function schemaToRecipeData(
 
   if (ingredients.length === 0 && steps.length === 0) return null;
 
+  const equipment = (schema.tool ?? [])
+    .map(t => (typeof t === "string" ? t : (t.name ?? "")))
+    .filter(Boolean);
+
   return {
     name: schema.name,
     duration: getDurationCategory(schema),
@@ -91,5 +167,6 @@ export function schemaToRecipeData(
     servings: schema.recipeYield ?? undefined,
     ingredients,
     steps,
+    equipment: equipment.length > 0 ? equipment : undefined,
   };
 }

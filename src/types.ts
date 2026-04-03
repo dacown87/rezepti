@@ -21,6 +21,7 @@ export interface ContentBundle {
   imageUrls: string[];
   audioPath?: string;
   schemaRecipe?: SchemaOrgRecipe | null;
+  equipment?: string[];
   isCarousel?: boolean;
   carouselCount?: number;
 }
@@ -41,6 +42,7 @@ export interface SchemaOrgRecipe {
   recipeCuisine?: string[];
   nutrition?: { calories?: string };
   author?: string | { name?: string };
+  tool?: (string | { name?: string })[];
 }
 
 // --- Recipe Data (LLM output / final structure) ---
@@ -63,6 +65,10 @@ export const RecipeDataSchema = z.object({
   steps: z
     .array(z.string())
     .describe("Zubereitungsschritte auf Deutsch, nummeriert"),
+  equipment: z
+    .array(z.string())
+    .optional()
+    .describe("Benötigtes Zubehör/Geräte, z.B. Varoma, Schmetterling"),
 });
 
 export type RecipeData = z.infer<typeof RecipeDataSchema>;

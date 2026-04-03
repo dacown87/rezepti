@@ -10,6 +10,7 @@ import {
   Alert,
   TextInput,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode, ShoppingCart } from 'lucide-react-native';
@@ -550,7 +551,7 @@ export default function PlannerScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ padding: 16, paddingTop: 8 }}
+          contentContainerStyle={{ padding: 16, paddingTop: 8, flexGrow: 1, justifyContent: Platform.OS === 'web' ? 'center' : 'flex-start' }}
         >
           {DAYS_FULL.map((dayName, dayIndex) => {
             const dayEntries = mealPlan.filter(e => e.day_of_week === dayIndex);

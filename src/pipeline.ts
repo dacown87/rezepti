@@ -7,7 +7,7 @@ import { fetchCookidoo } from "./fetchers/cookidoo.js";
 import { fetchPinterest } from "./fetchers/pinterest.js";
 import { fetchFacebook } from "./fetchers/facebook.js";
 import { fetchChefkoch } from "./fetchers/chefkoch.js";
-import { schemaToRecipeData } from "./processors/schema-org.js";
+import { schemaToRecipeData, finalizeRecipe } from "./processors/schema-org.js";
 import {
   extractRecipeFromText,
   extractRecipeFromImage,
@@ -92,7 +92,17 @@ export async function processURL(
         message: "Schema.org-Rezept gefunden, wird verarbeitet...",
       });
       const partial = schemaToRecipeData(bundle.schemaRecipe);
-      if (partial && partial.ingredients && partial.ingredients.length > 0) {
+      const hasRequiredFields = !!(
+        partial?.name &&
+        partial.ingredients?.length &&
+        partial.steps?.length &&
+        partial.duration
+      );
+      if (partial && hasRequiredFields) {
+        // All required fields present — no LLM needed
+        recipe = finalizeRecipe(partial);
+      } else if (partial && partial.ingredients && partial.ingredients.length > 0) {
+        // Partial data — let LLM fill in missing fields (name, steps, etc.)
         await emit(onEvent, {
           stage: "extracting",
           message: "Rezept wird übersetzt und konvertiert...",
@@ -107,6 +117,11 @@ export async function processURL(
       const result = await extractFromBundle(bundle, tempDir, onEvent);
       recipe = result.recipe;
       transcript = result.transcript;
+    }
+
+    // Inject equipment from bundle (HTML-scraped, not LLM-generated)
+    if (bundle.equipment && bundle.equipment.length > 0 && !recipe.equipment?.length) {
+      recipe = { ...recipe, equipment: bundle.equipment };
     }
 
     await emit(onEvent, {

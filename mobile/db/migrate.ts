@@ -56,10 +56,9 @@ async function runMigrations(
   fromVersion: number,
   toVersion: number
 ): Promise<void> {
-  // Beispiel für künftige Migration:
-  // if (fromVersion < 2) {
-  //   await db.execAsync('ALTER TABLE recipes ADD COLUMN foo TEXT;');
-  // }
+  if (fromVersion < 2) {
+    await db.execAsync('ALTER TABLE recipes ADD COLUMN equipment TEXT;');
+  }
 
   console.log(`DB migration: v${fromVersion} → v${toVersion}`);
 }

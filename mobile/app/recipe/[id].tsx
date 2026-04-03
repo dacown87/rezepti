@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
-  TextInput, Modal, Image, Share,
+  TextInput, Modal, Image, Share, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -18,6 +18,7 @@ import { getDB } from '@/db/migrate';
 import type { Recipe } from '@/db/schema';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
 import { shareRecipePDF } from '@/utils/pdf-export';
+import { StepText } from '@/components/StepText';
 import { addIngredients } from '@/app/(tabs)/shopping';
 import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
 import { getServerUrl } from '@/utils/server-url';
@@ -44,6 +45,7 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
     calories: r.calories != null ? Number(r.calories) : null,
     rating: r.rating != null ? Number(r.rating) : null,
     notes: (r.notes as string | null) ?? null,
+    equipment: typeof r.equipment === 'string' ? r.equipment : (r.equipment ? JSON.stringify(r.equipment) : null),
     transcript: null,
     tried: 0,
     pdf_created: 0,
@@ -418,6 +420,7 @@ export default function RecipeDetailScreen() {
   const ingredients = parseJSON<string[]>(recipe.ingredients, []);
   const steps = parseJSON<string[]>(recipe.steps, []);
   const tags = parseJSON<string[]>(recipe.tags, []);
+  const equipment = parseJSON<string[]>(recipe.equipment ?? null, []);
   const scaledIngredients = multiplier !== 1
     ? ingredients.map(i => scaleIngredient(i, multiplier))
     : ingredients;
@@ -777,12 +780,26 @@ export default function RecipeDetailScreen() {
                     <View className="bg-purple-600 rounded-full w-7 h-7 items-center justify-center mr-3 mt-0.5 shrink-0">
                       <Text className="text-white text-xs font-bold">{i + 1}</Text>
                     </View>
-                    <Text className="text-gray-700 flex-1 leading-6 text-sm">{step}</Text>
+                    <StepText>{step}</StepText>
                   </View>
                 ))}
               </View>
             )}
           </View>
+
+          {/* ── Geräte & Zubehör (nur wenn vorhanden) ── */}
+          {equipment.length > 0 && (
+            <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
+              <Text className="text-base font-bold text-gray-900 mb-3">Geräte & Zubehör</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {equipment.map((item, i) => (
+                  <View key={i} className="bg-purple-50 border border-purple-200 rounded-xl px-3 py-1.5">
+                    <Text className="text-purple-800 text-sm">{item}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* ── Bewertung ── */}
           <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
