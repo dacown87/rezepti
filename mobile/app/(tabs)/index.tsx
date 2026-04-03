@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, Pressable,
-  ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share,
+  ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';

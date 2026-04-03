@@ -64,6 +64,8 @@ export function ensureReactSchema() {
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN notes TEXT`); } catch {}
   // Migration: pdf_created (Phase 4)
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN pdf_created INTEGER DEFAULT 0`); } catch {}
+  // Migration: equipment (Cookidoo Zubehör)
+  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN equipment TEXT`); } catch {}
   // Migration: ingredient_dictionary (Phase 3c)
   try { db.$client.exec(`CREATE TABLE IF NOT EXISTS ingredient_dictionary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,6 +114,7 @@ export function saveRecipeToReactDb(
     tags:        JSON.stringify(recipe.tags),
     ingredients: JSON.stringify(recipe.ingredients),
     steps:       JSON.stringify(recipe.steps),
+    equipment:   recipe.equipment ? JSON.stringify(recipe.equipment) : null,
     transcript,
   }).returning({ id: recipes.id }).get();
 
@@ -295,6 +298,7 @@ function deserialize(row: typeof recipes.$inferSelect) {
     tags:        JSON.parse(row.tags ?? "[]") as string[],
     ingredients: JSON.parse(row.ingredients) as string[],
     steps:       JSON.parse(row.steps) as string[],
+    equipment:   row.equipment ? JSON.parse(row.equipment) as string[] : undefined,
   };
 }
 

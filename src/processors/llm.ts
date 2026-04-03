@@ -137,6 +137,7 @@ export async function refineRecipe(
       role: "user",
       content: `Ergänze und übersetze dieses Rezept ins Deutsche. Wichtige Regeln:
 - Übernimm "ingredients" und "steps" EXAKT wie angegeben – keine Umformulierungen, keine Zusammenfassungen, keine Schritte zusammenfassen
+- Behalte alle Unicode-Sonderzeichen in steps unverändert bei (z.B. ↺ ⟳ ⚙ und andere Symbole – NICHT ersetzen oder entfernen)
 - Übersetze einzelne Felder nur wenn sie noch nicht auf Deutsch sind
 - Konvertiere Mengenangaben in metrische Einheiten falls nötig
 - Schätze Kalorien falls nicht vorhanden

@@ -68,3 +68,14 @@ services:
     restart: unless-stopped
     profiles:
       - react-prod
+
+  cf-clearance-scraper:
+    image: zfcsoftware/cf-clearance-scraper:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - PORT=3000
+      - browserLimit=5
+      - timeOut=300000
+    shm_size: 512mb
+    restart: unless-stopped

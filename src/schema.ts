@@ -14,6 +14,7 @@ export const recipes = sqliteTable("recipes", {
   ingredients: text("ingredients").notNull(), // JSON-Array
   steps:       text("steps").notNull(),       // JSON-Array
   transcript:  text("transcript"),
+  equipment:   text("equipment"),              // JSON-Array (nullable)
   tried:       integer("tried", { mode: "boolean" }).default(false),
   rating:      integer("rating"),   // 1–5 stars, null = unrated
   notes:       text("notes"),       // personal notes
