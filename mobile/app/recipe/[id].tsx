@@ -46,6 +46,9 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
     rating: r.rating != null ? Number(r.rating) : null,
     notes: (r.notes as string | null) ?? null,
     equipment: typeof r.equipment === 'string' ? r.equipment : (r.equipment ? JSON.stringify(r.equipment) : null),
+    nutrition_info: typeof (r as any).nutrition_info === 'string'
+      ? (r as any).nutrition_info
+      : ((r as any).nutritionInfo ? JSON.stringify((r as any).nutritionInfo) : null),
     transcript: null,
     tried: 0,
     pdf_created: 0,
@@ -74,7 +77,7 @@ async function sqlitePatch(id: number, data: Record<string, unknown>): Promise<v
     Array.isArray(v) ? JSON.stringify(v) : (v as string | number | null)
   );
   await db.runAsync(
-    `UPDATE recipes SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    `UPDATE recipes SET ${fields} WHERE id = ?`,
     ...values, id
   );
 }
@@ -99,12 +102,12 @@ function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
   return (
     <Modal transparent animationType="fade">
       <View className="flex-1 bg-black/50 items-center justify-center px-8">
-        <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-          <Text className="text-lg font-bold text-gray-900 mb-2">Rezept löschen</Text>
-          <Text className="text-gray-500 mb-6">Diese Aktion kann nicht rückgängig gemacht werden.</Text>
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full max-w-sm">
+          <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-2">Rezept löschen</Text>
+          <Text className="text-warm-500 dark:text-warm-400 mb-6">Diese Aktion kann nicht rückgängig gemacht werden.</Text>
           <View className="flex-row gap-3">
-            <Pressable onPress={onCancel} className="flex-1 py-3 rounded-xl border border-gray-200 items-center">
-              <Text className="text-gray-700 font-medium">Abbrechen</Text>
+            <Pressable onPress={onCancel} className="flex-1 py-3 rounded-xl border border-warm-200 dark:border-warm-700 items-center">
+              <Text className="text-warm-700 dark:text-warm-200 font-medium">Abbrechen</Text>
             </Pressable>
             <Pressable onPress={onConfirm} className="flex-1 py-3 rounded-xl bg-red-500 items-center">
               <Text className="text-white font-semibold">Löschen</Text>
@@ -131,11 +134,11 @@ function CookModal({ steps, ingredients, onClose }: {
 
   return (
     <Modal animationType="slide" statusBarTranslucent>
-      <SafeAreaView className="flex-1 bg-gray-900">
+      <SafeAreaView className="flex-1 bg-espresso-900">
         {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-700">
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-espresso-700">
           <Text className="text-white font-semibold text-base">Koch-Modus</Text>
-          <Pressable onPress={onClose} className="bg-gray-700 rounded-full p-2">
+          <Pressable onPress={onClose} className="bg-espresso-700 rounded-full p-2">
             <X size={18} color="#fff" />
           </Pressable>
         </View>
@@ -143,8 +146,8 @@ function CookModal({ steps, ingredients, onClose }: {
         {/* Split screen */}
         <View className="flex-1 flex-row">
           {/* Left: Zutaten */}
-          <View className="w-2/5 border-r border-gray-700">
-            <Text className="text-gray-400 text-xs font-semibold uppercase tracking-wider px-3 py-2">
+          <View className="w-2/5 border-r border-espresso-700">
+            <Text className="text-warm-500 dark:text-warm-400 text-xs font-semibold uppercase tracking-wider px-3 py-2">
               Zutaten
             </Text>
             <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}>
@@ -152,12 +155,12 @@ function CookModal({ steps, ingredients, onClose }: {
                 <Pressable
                   key={i}
                   onPress={() => toggleCheck(i)}
-                  className="flex-row items-start gap-2 py-2 border-b border-gray-800"
+                  className="flex-row items-start gap-2 py-2 border-b border-espresso-800"
                 >
                   {checked.has(i)
-                    ? <CheckSquare size={16} color="#9333ea" />
-                    : <Square size={16} color="#6b7280" />}
-                  <Text className={`text-sm flex-1 leading-5 ${checked.has(i) ? 'line-through text-gray-600' : 'text-gray-200'}`}>
+                    ? <CheckSquare size={16} color="#C84B31" />
+                    : <Square size={16} color="#9E8878" />}
+                  <Text className={`text-sm flex-1 leading-5 ${checked.has(i) ? 'line-through text-warm-600 dark:text-warm-300' : 'text-warm-300'}`}>
                     {ing}
                   </Text>
                 </Pressable>
@@ -168,18 +171,18 @@ function CookModal({ steps, ingredients, onClose }: {
           {/* Right: Schritte */}
           <View className="flex-1 flex-col">
             {/* Progress */}
-            <View className="h-1 bg-gray-700 mx-4 mt-3 rounded-full">
+            <View className="h-1 bg-espresso-700 mx-4 mt-3 rounded-full">
               <View
-                className="h-full bg-purple-500 rounded-full"
+                className="h-full bg-primary-500 rounded-full"
                 style={{ width: `${((current + 1) / steps.length) * 100}%` }}
               />
             </View>
-            <Text className="text-gray-500 text-xs text-center mt-2">
+            <Text className="text-warm-500 dark:text-warm-400 text-xs text-center mt-2">
               Schritt {current + 1} / {steps.length}
             </Text>
 
             <ScrollView className="flex-1 px-4 mt-4" contentContainerStyle={{ paddingBottom: 20 }}>
-              <View className="bg-purple-600 rounded-full w-12 h-12 items-center justify-center mb-4 self-start">
+              <View className="bg-primary-500 rounded-full w-12 h-12 items-center justify-center mb-4 self-start">
                 <Text className="text-white text-xl font-bold">{current + 1}</Text>
               </View>
               <Text className="text-white text-base leading-7">{steps[current]}</Text>
@@ -190,15 +193,15 @@ function CookModal({ steps, ingredients, onClose }: {
               <Pressable
                 onPress={() => setCurrent(c => Math.max(0, c - 1))}
                 disabled={current === 0}
-                className={`flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl ${current === 0 ? 'bg-gray-800' : 'bg-gray-700'}`}
+                className={`flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl ${current === 0 ? 'bg-espresso-800' : 'bg-espresso-700'}`}
               >
                 <ChevronLeft size={18} color={current === 0 ? '#4b5563' : '#fff'} />
-                <Text className={current === 0 ? 'text-gray-600' : 'text-white'}>Zurück</Text>
+                <Text className={current === 0 ? 'text-warm-600 dark:text-warm-300' : 'text-white'}>Zurück</Text>
               </Pressable>
               {current < steps.length - 1 ? (
                 <Pressable
                   onPress={() => setCurrent(c => c + 1)}
-                  className="flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl bg-purple-600"
+                  className="flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl bg-primary-500"
                 >
                   <Text className="text-white font-semibold">Weiter</Text>
                   <ChevronRight size={18} color="#fff" />
@@ -225,13 +228,13 @@ function StarRow({ value, onPress }: { value: number | null; onPress?: (s: numbe
         const filled = (value ?? 0) >= star;
         return (
           <Pressable key={star} onPress={() => onPress?.(star)} disabled={!onPress}>
-            <Star size={30} color="#f59e0b" fill={filled ? '#f59e0b' : 'transparent'} strokeWidth={1.5} />
+            <Star size={30} color="#D4A853" fill={filled ? '#f59e0b' : 'transparent'} strokeWidth={1.5} />
           </Pressable>
         );
       })}
       {onPress && value != null && (
         <Pressable onPress={() => onPress(value)} className="ml-1">
-          <X size={14} color="#9ca3af" />
+          <X size={14} color="#9E8878" />
         </Pressable>
       )}
     </View>
@@ -400,18 +403,18 @@ export default function RecipeDetailScreen() {
   // ──────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#9333ea" />
+      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center">
+        <ActivityIndicator size="large" color="#C84B31" />
       </SafeAreaView>
     );
   }
 
   if (!recipe) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center px-8">
-        <Text className="text-gray-500 text-center">Rezept nicht gefunden.</Text>
+      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center px-8">
+        <Text className="text-warm-500 dark:text-warm-400 text-center">Rezept nicht gefunden.</Text>
         <Pressable onPress={() => router.back()} className="mt-4">
-          <Text className="text-purple-600">Zurück</Text>
+          <Text className="text-primary-500">Zurück</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -421,6 +424,7 @@ export default function RecipeDetailScreen() {
   const steps = parseJSON<string[]>(recipe.steps, []);
   const tags = parseJSON<string[]>(recipe.tags, []);
   const equipment = parseJSON<string[]>(recipe.equipment ?? null, []);
+  const nutritionInfo = parseJSON<{ carbs?: string; fat?: string; protein?: string; fiber?: string }>((recipe as any).nutrition_info ?? null, null);
   const scaledIngredients = multiplier !== 1
     ? ingredients.map(i => scaleIngredient(i, multiplier))
     : ingredients;
@@ -438,9 +442,9 @@ export default function RecipeDetailScreen() {
       {/* QR-Teilen-Modal */}
       <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>
         <View className="flex-1 bg-black/60 items-center justify-center px-8">
-          <View className="bg-white rounded-2xl p-6 w-full items-center">
-            <Text className="text-lg font-bold text-gray-900 mb-1">{recipe.emoji ?? '🍽️'} {recipe.name}</Text>
-            <Text className="text-xs text-gray-400 mb-5 text-center">QR-Code scannen um das Rezept{'\n'}in RecipeDeck zu importieren</Text>
+          <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full items-center">
+            <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-1">{recipe.emoji ?? '🍽️'} {recipe.name}</Text>
+            <Text className="text-xs text-warm-500 dark:text-warm-400 mb-5 text-center">QR-Code scannen um das Rezept{'\n'}in RecipeDeck zu importieren</Text>
             {(() => {
               const qrData = encodeRecipeToCompactJSON({
                 name: recipe.name,
@@ -455,33 +459,33 @@ export default function RecipeDetailScreen() {
               return qrData ? (
                 <QRCodeSVG value={qrData} size={200} color="#111827" backgroundColor="#ffffff" />
               ) : (
-                <Text className="text-gray-400 text-sm">Rezept zu groß für QR-Code</Text>
+                <Text className="text-warm-500 dark:text-warm-400 text-sm">Rezept zu groß für QR-Code</Text>
               );
             })()}
             <View className="flex-row gap-3 mt-6 w-full">
-              <Pressable onPress={handleShareText} className="flex-1 py-3 rounded-xl bg-purple-600 items-center">
+              <Pressable onPress={handleShareText} className="flex-1 py-3 rounded-xl bg-primary-500 items-center">
                 <Text className="text-white text-sm font-semibold">Teilen</Text>
               </Pressable>
-              <Pressable onPress={() => setShowQrModal(false)} className="flex-1 py-3 rounded-xl bg-gray-100 items-center">
-                <Text className="text-gray-700 text-sm font-medium">Schließen</Text>
+              <Pressable onPress={() => setShowQrModal(false)} className="flex-1 py-3 rounded-xl bg-warm-100 dark:bg-espresso-800 items-center">
+                <Text className="text-warm-700 dark:text-warm-200 text-sm font-medium">Schließen</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
         {/* Header */}
-        <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+        <View className="flex-row items-center px-4 py-3 bg-white dark:bg-espresso-800 border-b border-warm-200 dark:border-warm-700">
           <Pressable onPress={() => router.back()} className="mr-3 p-1">
             <ArrowLeft size={22} color="#374151" />
           </Pressable>
-          <Text className="text-base font-semibold text-gray-900 flex-1" numberOfLines={1}>
+          <Text className="text-base font-semibold text-warm-900 dark:text-warm-50 flex-1" numberOfLines={1}>
             {recipe.name}
           </Text>
           {!isEditing && (
             <Pressable onPress={startEdit} className="p-1 ml-2">
-              <Edit size={20} color="#9333ea" />
+              <Edit size={20} color="#C84B31" />
             </Pressable>
           )}
         </View>
@@ -498,27 +502,27 @@ export default function RecipeDetailScreen() {
           ) : null}
 
           {/* ── Hero ── */}
-          <View className="bg-white px-4 pt-5 pb-4 items-center">
+          <View className="bg-white dark:bg-espresso-800 px-4 pt-5 pb-4 items-center">
             {isEditing && editDraft ? (
               <View className="w-full gap-3">
                 <View className="flex-row gap-2">
                   <TextInput
                     value={editDraft.emoji}
                     onChangeText={v => setEditDraft(d => d && { ...d, emoji: v })}
-                    className="border border-gray-200 rounded-xl px-3 py-2.5 text-2xl text-center w-16"
+                    className="border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-2xl text-center w-16"
                     maxLength={2}
                   />
                   <TextInput
                     value={editDraft.name}
                     onChangeText={v => setEditDraft(d => d && { ...d, name: v })}
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-base font-semibold text-gray-900"
+                    className="flex-1 border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-base font-semibold text-warm-900 dark:text-warm-50"
                     placeholder="Rezeptname"
                   />
                 </View>
                 <TextInput
                   value={editDraft.tags}
                   onChangeText={v => setEditDraft(d => d && { ...d, tags: v })}
-                  className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700"
+                  className="border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-sm text-warm-700 dark:text-warm-200"
                   placeholder="Tags, kommagetrennt"
                 />
               </View>
@@ -527,7 +531,7 @@ export default function RecipeDetailScreen() {
                 {!recipe.image_url && (
                   <Text className="text-6xl mb-3">{recipe.emoji ?? '🍽️'}</Text>
                 )}
-                <Text className="text-2xl font-bold text-gray-900 text-center">{recipe.name}</Text>
+                <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 text-center">{recipe.name}</Text>
 
                 {/* Rating Display */}
                 {rating != null && (
@@ -539,8 +543,8 @@ export default function RecipeDetailScreen() {
                 {tags.length > 0 && (
                   <View className="flex-row flex-wrap gap-2 justify-center mt-3">
                     {tags.map(tag => (
-                      <View key={tag} className="bg-purple-50 rounded-full px-3 py-1">
-                        <Text className="text-xs text-purple-600">{tag}</Text>
+                      <View key={tag} className="bg-primary-50 dark:bg-espresso-700 rounded-full px-3 py-1">
+                        <Text className="text-xs text-primary-500">{tag}</Text>
                       </View>
                     ))}
                   </View>
@@ -551,72 +555,72 @@ export default function RecipeDetailScreen() {
 
           {/* ── Meta ── */}
           <View className="flex-row gap-3 px-4 py-4">
-            <View className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 items-center">
-              <Clock size={16} color="#9ca3af" />
-              <Text className="text-xs text-gray-400 mt-1">Dauer</Text>
+            <View className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl p-3 border border-warm-200 dark:border-warm-700 items-center">
+              <Clock size={16} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-1">Dauer</Text>
               {isEditing && editDraft ? (
                 <TextInput
                   value={editDraft.duration}
                   onChangeText={v => setEditDraft(d => d && { ...d, duration: v })}
-                  className="text-sm font-bold text-gray-900 text-center mt-1 border-b border-gray-200 w-full"
+                  className="text-sm font-bold text-warm-900 dark:text-warm-50 text-center mt-1 border-b border-warm-200 dark:border-warm-700 w-full"
                   placeholder="30 min"
                 />
               ) : (
-                <Text className="text-sm font-bold text-gray-900 mt-1">{recipe.duration ?? '—'}</Text>
+                <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-1">{recipe.duration ?? '—'}</Text>
               )}
             </View>
 
-            <View className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 items-center">
-              <Users size={16} color="#9ca3af" />
-              <Text className="text-xs text-gray-400 mt-1">Portionen</Text>
+            <View className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl p-3 border border-warm-200 dark:border-warm-700 items-center">
+              <Users size={16} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-1">Portionen</Text>
               {isEditing && editDraft ? (
                 <TextInput
                   value={editDraft.servings}
                   onChangeText={v => setEditDraft(d => d && { ...d, servings: v })}
-                  className="text-sm font-bold text-gray-900 text-center mt-1 border-b border-gray-200 w-full"
+                  className="text-sm font-bold text-warm-900 dark:text-warm-50 text-center mt-1 border-b border-warm-200 dark:border-warm-700 w-full"
                   placeholder="4"
                 />
               ) : (
                 <>
-                  <Text className="text-sm font-bold text-gray-900 mt-1">{scaledServings}</Text>
+                  <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-1">{scaledServings}</Text>
                   <View className="flex-row items-center gap-2 mt-2">
                     <Pressable
                       onPress={() => setMultiplier(m => Math.max(0.5, Math.round((m - 0.5) * 10) / 10))}
                       disabled={multiplier <= 0.5}
-                      className={`w-7 h-7 rounded-full items-center justify-center ${multiplier <= 0.5 ? 'bg-gray-100' : 'bg-purple-600'}`}
+                      className={`w-7 h-7 rounded-full items-center justify-center ${multiplier <= 0.5 ? 'bg-warm-100 dark:bg-espresso-800' : 'bg-primary-500'}`}
                     >
-                      <Minus size={14} color={multiplier <= 0.5 ? '#9ca3af' : '#fff'} />
+                      <Minus size={14} color={multiplier <= 0.5 ? '#9E8878' : '#fff'} />
                     </Pressable>
                     <Pressable
                       onPress={() => setMultiplier(m => Math.min(4, Math.round((m + 0.5) * 10) / 10))}
                       disabled={multiplier >= 4}
-                      className={`w-7 h-7 rounded-full items-center justify-center ${multiplier >= 4 ? 'bg-gray-100' : 'bg-purple-600'}`}
+                      className={`w-7 h-7 rounded-full items-center justify-center ${multiplier >= 4 ? 'bg-warm-100 dark:bg-espresso-800' : 'bg-primary-500'}`}
                     >
-                      <Plus size={14} color={multiplier >= 4 ? '#9ca3af' : '#fff'} />
+                      <Plus size={14} color={multiplier >= 4 ? '#9E8878' : '#fff'} />
                     </Pressable>
                   </View>
                   {multiplier !== 1 && (
                     <Pressable onPress={() => setMultiplier(1)} className="flex-row items-center gap-1 mt-1">
-                      <RotateCcw size={10} color="#9333ea" />
-                      <Text className="text-xs text-purple-500">×{multiplier}</Text>
+                      <RotateCcw size={10} color="#C84B31" />
+                      <Text className="text-xs text-primary-500">×{multiplier}</Text>
                     </Pressable>
                   )}
                 </>
               )}
             </View>
 
-            <View className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 items-center">
-              <Flame size={16} color="#9ca3af" />
-              <Text className="text-xs text-gray-400 mt-1">kcal</Text>
+            <View className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl p-3 border border-warm-200 dark:border-warm-700 items-center">
+              <Flame size={16} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-1">kcal</Text>
               {isEditing && editDraft ? (
                 <TextInput
                   value={editDraft.calories}
                   onChangeText={v => setEditDraft(d => d && { ...d, calories: v })}
-                  className="text-sm font-bold text-gray-900 text-center mt-1 border-b border-gray-200 w-full"
+                  className="text-sm font-bold text-warm-900 dark:text-warm-50 text-center mt-1 border-b border-warm-200 dark:border-warm-700 w-full"
                   keyboardType="numeric"
                 />
               ) : (
-                <Text className="text-sm font-bold text-gray-900 mt-1">{recipe.calories ?? '—'}</Text>
+                <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-1">{recipe.calories ?? '—'}</Text>
               )}
             </View>
           </View>
@@ -627,38 +631,38 @@ export default function RecipeDetailScreen() {
               <Pressable
                 onPress={handleSave}
                 disabled={isSaving}
-                className={`flex-1 flex-row items-center justify-center gap-2 py-3 rounded-xl ${isSaving ? 'bg-purple-300' : 'bg-purple-600'}`}
+                className={`flex-1 flex-row items-center justify-center gap-2 py-3 rounded-xl ${isSaving ? 'bg-primary-300' : 'bg-primary-500'}`}
               >
                 {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" />}
                 <Text className="text-white font-semibold">Speichern</Text>
               </Pressable>
               <Pressable
                 onPress={() => { setIsEditing(false); setEditDraft(null); }}
-                className="flex-row items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-white"
+                className="flex-row items-center justify-center gap-2 px-4 py-3 rounded-xl border border-warm-200 dark:border-warm-700 bg-white dark:bg-espresso-800"
               >
-                <X size={18} color="#6b7280" />
-                <Text className="text-gray-600">Abbrechen</Text>
+                <X size={18} color="#9E8878" />
+                <Text className="text-warm-600 dark:text-warm-300">Abbrechen</Text>
               </Pressable>
             </View>
           ) : (
             <View className="flex-row gap-2 px-4 mb-4">
-              <Pressable onPress={() => setCookMode(true)} className="flex-1 items-center py-3 rounded-xl bg-gray-900">
+              <Pressable onPress={() => setCookMode(true)} className="flex-1 items-center py-3 rounded-xl bg-espresso-900">
                 <UtensilsCrossed size={18} color="#fff" />
                 <Text className="text-white text-xs font-medium mt-1">Kochen</Text>
               </Pressable>
-              <Pressable onPress={handleAddToShopping} className="flex-1 items-center py-3 rounded-xl bg-purple-50 border border-purple-200">
-                <ShoppingCart size={18} color="#9333ea" />
-                <Text className="text-purple-600 text-xs font-medium mt-1">Einkauf</Text>
+              <Pressable onPress={handleAddToShopping} className="flex-1 items-center py-3 rounded-xl bg-primary-50 dark:bg-espresso-700 border border-primary-200">
+                <ShoppingCart size={18} color="#C84B31" />
+                <Text className="text-primary-500 text-xs font-medium mt-1">Einkauf</Text>
               </Pressable>
-              <Pressable onPress={() => setShowQrModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white border border-gray-200">
-                <QrCode size={18} color="#6b7280" />
-                <Text className="text-gray-600 text-xs font-medium mt-1">Teilen</Text>
+              <Pressable onPress={() => setShowQrModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+                <QrCode size={18} color="#9E8878" />
+                <Text className="text-warm-600 dark:text-warm-300 text-xs font-medium mt-1">Teilen</Text>
               </Pressable>
-              <Pressable onPress={handlePDF} className="flex-1 items-center py-3 rounded-xl bg-white border border-gray-200">
-                <Download size={18} color="#6b7280" />
-                <Text className="text-gray-600 text-xs font-medium mt-1">PDF</Text>
+              <Pressable onPress={handlePDF} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+                <Download size={18} color="#9E8878" />
+                <Text className="text-warm-600 dark:text-warm-300 text-xs font-medium mt-1">PDF</Text>
               </Pressable>
-              <Pressable onPress={() => setShowDeleteModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white border border-gray-200">
+              <Pressable onPress={() => setShowDeleteModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
                 <Trash2 size={18} color="#ef4444" />
                 <Text className="text-red-500 text-xs font-medium mt-1">Löschen</Text>
               </Pressable>
@@ -666,13 +670,13 @@ export default function RecipeDetailScreen() {
           )}
 
           {/* ── Zutaten ── */}
-          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100">
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700">
             <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
-              <Text className="text-base font-bold text-gray-900">Zutaten</Text>
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50">Zutaten</Text>
               {!isEditing && multiplier !== 1 && (
                 <Pressable onPress={() => setMultiplier(1)} className="flex-row items-center gap-1">
-                  <RotateCcw size={12} color="#9333ea" />
-                  <Text className="text-xs text-purple-600">Zurücksetzen</Text>
+                  <RotateCcw size={12} color="#C84B31" />
+                  <Text className="text-xs text-primary-500">Zurücksetzen</Text>
                 </Pressable>
               )}
             </View>
@@ -688,7 +692,7 @@ export default function RecipeDetailScreen() {
                         const a = [...d.ingredients]; a[i] = v;
                         return { ...d, ingredients: a };
                       })}
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
+                      className="flex-1 border border-warm-200 dark:border-warm-700 rounded-lg px-3 py-2 text-sm text-warm-700 dark:text-warm-200"
                     />
                     <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: d.ingredients.filter((_, j) => j !== i) })}>
                       <X size={16} color="#ef4444" />
@@ -696,8 +700,8 @@ export default function RecipeDetailScreen() {
                   </View>
                 ))}
                 <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: [...d.ingredients, ''] })} className="flex-row items-center gap-1 mt-1">
-                  <Plus size={14} color="#9333ea" />
-                  <Text className="text-purple-600 text-sm">Zutat hinzufügen</Text>
+                  <Plus size={14} color="#C84B31" />
+                  <Text className="text-primary-500 text-sm">Zutat hinzufügen</Text>
                 </Pressable>
               </View>
             ) : (
@@ -706,8 +710,8 @@ export default function RecipeDetailScreen() {
                   const hasNum = parseIngredientNumber(ing) != null;
                   const isEditingThis = editingIngredientIdx === i;
                   return (
-                    <View key={i} className="flex-row items-center py-2 border-b border-gray-50">
-                      <Text className="text-purple-400 mr-2 text-base">•</Text>
+                    <View key={i} className="flex-row items-center py-2 border-b border-warm-100">
+                      <Text className="text-primary-400 mr-2 text-base">•</Text>
                       {isEditingThis ? (
                         <>
                           <TextInput
@@ -717,18 +721,37 @@ export default function RecipeDetailScreen() {
                             onSubmitEditing={() => confirmIngredientEdit(i, ingredients)}
                             keyboardType="numeric"
                             autoFocus
-                            className="w-20 border border-purple-400 rounded-lg px-2 py-1 text-sm text-gray-900 mr-2"
+                            className="w-20 border border-primary-400 rounded-lg px-2 py-1 text-sm text-warm-900 dark:text-warm-50 mr-2"
                           />
-                          <Text className="text-gray-500 text-sm flex-1">
+                          <Text className="text-warm-500 dark:text-warm-400 text-sm flex-1">
                             {ing.replace(/^[\d.,]+\s*/, '')}
                           </Text>
                           <Pressable onPress={() => { setEditingIngredientIdx(null); setEditingIngredientValue(''); }}>
-                            <X size={14} color="#9ca3af" />
+                            <X size={14} color="#9E8878" />
                           </Pressable>
                         </>
                       ) : (
                         <>
-                          <Text className="text-gray-700 flex-1 text-sm">{scaledIngredients[i]}</Text>
+                          <View className="flex-1">
+                            {(() => {
+                              const raw = scaledIngredients[i];
+                              // Split description sub-line (\n separator from cookidoo patcher)
+                              const nlIdx = raw.indexOf('\n');
+                              const mainLine = nlIdx === -1 ? raw : raw.slice(0, nlIdx);
+                              const descLine = nlIdx === -1 ? null : raw.slice(nlIdx + 1);
+                              // Split alternative sub-line (' (oder: ' separator)
+                              const oderIdx = mainLine.indexOf(' (oder: ');
+                              const mainText = oderIdx === -1 ? mainLine : mainLine.slice(0, oderIdx);
+                              const altText  = oderIdx === -1 ? null : mainLine.slice(oderIdx + 8, -1);
+                              return (
+                                <>
+                                  <Text className="text-warm-700 dark:text-warm-200 text-sm">{mainText}</Text>
+                                  {altText && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">↺ {altText}</Text>}
+                                  {descLine && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">{descLine}</Text>}
+                                </>
+                              );
+                            })()}
+                          </View>
                           {hasNum && (
                             <Pressable onPress={() => startIngredientEdit(i, ingredients)} className="p-1">
                               <Pencil size={14} color="#d1d5db" />
@@ -744,13 +767,13 @@ export default function RecipeDetailScreen() {
           </View>
 
           {/* ── Zubereitung ── */}
-          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100">
-            <Text className="text-base font-bold text-gray-900 px-4 pt-4 pb-2">Zubereitung</Text>
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700">
+            <Text className="text-base font-bold text-warm-900 dark:text-warm-50 px-4 pt-4 pb-2">Zubereitung</Text>
             {isEditing && editDraft ? (
               <View className="px-4 pb-4">
                 {editDraft.steps.map((step, i) => (
                   <View key={i} className="flex-row items-start gap-2 mb-2">
-                    <View className="bg-purple-600 rounded-full w-6 h-6 items-center justify-center shrink-0 mt-2">
+                    <View className="bg-primary-500 rounded-full w-6 h-6 items-center justify-center shrink-0 mt-2">
                       <Text className="text-white text-xs font-bold">{i + 1}</Text>
                     </View>
                     <TextInput
@@ -761,7 +784,7 @@ export default function RecipeDetailScreen() {
                         return { ...d, steps: a };
                       })}
                       multiline
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
+                      className="flex-1 border border-warm-200 dark:border-warm-700 rounded-lg px-3 py-2 text-sm text-warm-700 dark:text-warm-200"
                     />
                     <Pressable onPress={() => setEditDraft(d => d && { ...d, steps: d.steps.filter((_, j) => j !== i) })} className="mt-2">
                       <X size={16} color="#ef4444" />
@@ -769,15 +792,15 @@ export default function RecipeDetailScreen() {
                   </View>
                 ))}
                 <Pressable onPress={() => setEditDraft(d => d && { ...d, steps: [...d.steps, ''] })} className="flex-row items-center gap-1 mt-1">
-                  <Plus size={14} color="#9333ea" />
-                  <Text className="text-purple-600 text-sm">Schritt hinzufügen</Text>
+                  <Plus size={14} color="#C84B31" />
+                  <Text className="text-primary-500 text-sm">Schritt hinzufügen</Text>
                 </Pressable>
               </View>
             ) : (
               <View className="px-4 pb-4">
                 {steps.map((step, i) => (
                   <View key={i} className="flex-row items-start mb-4">
-                    <View className="bg-purple-600 rounded-full w-7 h-7 items-center justify-center mr-3 mt-0.5 shrink-0">
+                    <View className="bg-primary-500 rounded-full w-7 h-7 items-center justify-center mr-3 mt-0.5 shrink-0">
                       <Text className="text-white text-xs font-bold">{i + 1}</Text>
                     </View>
                     <StepText>{step}</StepText>
@@ -789,54 +812,87 @@ export default function RecipeDetailScreen() {
 
           {/* ── Geräte & Zubehör (nur wenn vorhanden) ── */}
           {equipment.length > 0 && (
-            <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
-              <Text className="text-base font-bold text-gray-900 mb-3">Geräte & Zubehör</Text>
+            <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-3">Geräte & Zubehör</Text>
               <View className="flex-row flex-wrap gap-2">
                 {equipment.map((item, i) => (
-                  <View key={i} className="bg-purple-50 border border-purple-200 rounded-xl px-3 py-1.5">
-                    <Text className="text-purple-800 text-sm">{item}</Text>
+                  <View key={i} className="bg-primary-50 dark:bg-espresso-700 border border-primary-200 rounded-xl px-3 py-1.5">
+                    <Text className="text-primary-700 text-sm">{item}</Text>
                   </View>
                 ))}
               </View>
             </View>
           )}
 
+          {/* ── Nährwerte (nur wenn vorhanden) ── */}
+          {nutritionInfo && (
+            <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-3">Nährwerte pro Portion</Text>
+              <View className="flex-row gap-3">
+                {nutritionInfo.carbs && (
+                  <View className="flex-1 items-center bg-orange-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Kohlenhydrate</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.carbs}</Text>
+                  </View>
+                )}
+                {nutritionInfo.fat && (
+                  <View className="flex-1 items-center bg-yellow-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Fett</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.fat}</Text>
+                  </View>
+                )}
+                {nutritionInfo.protein && (
+                  <View className="flex-1 items-center bg-blue-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Eiweiß</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.protein}</Text>
+                  </View>
+                )}
+                {nutritionInfo.fiber && (
+                  <View className="flex-1 items-center bg-green-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Ballaststoffe</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.fiber}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
           {/* ── Bewertung ── */}
-          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
-            <Text className="text-base font-bold text-gray-900 mb-3">Meine Bewertung</Text>
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+            <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-3">Meine Bewertung</Text>
             <StarRow value={rating} onPress={handleRating} />
           </View>
 
           {/* ── Notizen ── */}
-          <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
-            <Text className="text-base font-bold text-gray-900 mb-2">Notizen</Text>
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+            <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-2">Notizen</Text>
             <TextInput
               value={notes}
               onChangeText={handleNotesChange}
               placeholder="Eigene Anmerkungen, Tipps…"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9E8878"
               multiline
               numberOfLines={3}
-              className="text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-3 min-h-20"
+              className="text-sm text-warm-700 dark:text-warm-200 bg-warm-50 dark:bg-espresso-900 rounded-xl px-3 py-3 min-h-20"
               style={{ textAlignVertical: 'top' }}
             />
           </View>
 
           {/* ── Quelle ── */}
           {recipe.source_url ? (
-            <View className="mx-4 mb-4 bg-white rounded-2xl border border-gray-100 p-4">
-              <Text className="text-base font-bold text-gray-900 mb-2">Quelle</Text>
+            <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-2">Quelle</Text>
               {recipe.created_at ? (
-                <Text className="text-xs text-gray-400 mb-2">
+                <Text className="text-xs text-warm-500 dark:text-warm-400 mb-2">
                   Extrahiert am {new Date(recipe.created_at * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </Text>
               ) : null}
               <Pressable
                 onPress={() => recipe.source_url && Linking.openURL(recipe.source_url)}
-                className="flex-row items-center gap-2 bg-gray-50 rounded-xl p-3"
+                className="flex-row items-center gap-2 bg-warm-50 dark:bg-espresso-900 rounded-xl p-3"
               >
-                <ExternalLink size={16} color="#9333ea" />
-                <Text className="text-purple-600 text-sm flex-1" numberOfLines={1}>{recipe.source_url}</Text>
+                <ExternalLink size={16} color="#C84B31" />
+                <Text className="text-primary-500 text-sm flex-1" numberOfLines={1}>{recipe.source_url}</Text>
               </Pressable>
             </View>
           ) : null}

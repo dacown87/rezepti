@@ -64,44 +64,44 @@ export default function ScannerScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
       <ScrollView className="flex-1 px-4 pt-6">
         {/* Header */}
         <View className="mb-8">
-          <Text className="text-2xl font-bold text-gray-900">QR-Code scannen</Text>
-          <Text className="text-gray-500 mt-1">Rezept aus einem QR-Code importieren</Text>
+          <Text className="text-2xl font-bold text-warm-900">QR-Code scannen</Text>
+          <Text className="text-warm-500 mt-1">Rezept aus einem QR-Code importieren</Text>
         </View>
 
         {/* Scanned recipe preview */}
         {scannedRecipe ? (
-          <View className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-            <Text className="text-sm font-medium text-gray-500 mb-3">Gefundenes Rezept</Text>
+          <View className="bg-white rounded-2xl shadow-sm border border-warm-200 p-5 mb-6">
+            <Text className="text-sm font-medium text-warm-500 mb-3">Gefundenes Rezept</Text>
 
-            <Text className="text-2xl font-bold text-gray-900 mb-2">
+            <Text className="text-2xl font-bold text-warm-900 mb-2">
               {scannedRecipe.emoji} {scannedRecipe.name}
             </Text>
 
-            <Text className="text-sm text-gray-500 mb-1">
+            <Text className="text-sm text-warm-500 mb-1">
               {scannedRecipe.ingredients.length} Zutaten · {scannedRecipe.steps.length} Schritte
               {scannedRecipe.rating ? ` · ${'★'.repeat(scannedRecipe.rating)}` : ''}
             </Text>
 
             {scannedRecipe.duration ? (
-              <Text className="text-sm text-gray-500 mb-4">{scannedRecipe.duration}</Text>
+              <Text className="text-sm text-warm-500 mb-4">{scannedRecipe.duration}</Text>
             ) : (
               <View className="mb-4" />
             )}
 
             {/* Ingredients preview (first 3) */}
-            <View className="bg-gray-50 rounded-xl p-3 mb-4">
-              <Text className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <View className="bg-warm-50 rounded-xl p-3 mb-4">
+              <Text className="text-xs font-semibold text-warm-500 uppercase tracking-wider mb-2">
                 Zutaten
               </Text>
               {scannedRecipe.ingredients.slice(0, 3).map((ing, i) => (
-                <Text key={i} className="text-sm text-gray-700">• {ing}</Text>
+                <Text key={i} className="text-sm text-warm-700">• {ing}</Text>
               ))}
               {scannedRecipe.ingredients.length > 3 && (
-                <Text className="text-sm text-gray-400 mt-1">
+                <Text className="text-sm text-warm-500 mt-1">
                   + {scannedRecipe.ingredients.length - 3} weitere
                 </Text>
               )}
@@ -111,7 +111,7 @@ export default function ScannerScreen() {
               <Pressable
                 onPress={handleImport}
                 disabled={importing}
-                className="flex-1 bg-orange-500 rounded-xl py-3 items-center justify-center"
+                className="flex-1 bg-primary-500 rounded-xl py-3 items-center justify-center"
               >
                 {importing ? (
                   <ActivityIndicator color="white" />
@@ -121,9 +121,9 @@ export default function ScannerScreen() {
               </Pressable>
               <Pressable
                 onPress={() => setScannedRecipe(null)}
-                className="px-5 py-3 border border-gray-200 rounded-xl items-center justify-center"
+                className="px-5 py-3 border border-warm-200 rounded-xl items-center justify-center"
               >
-                <Text className="text-gray-600 font-medium">Abbrechen</Text>
+                <Text className="text-warm-600 font-medium">Abbrechen</Text>
               </Pressable>
             </View>
           </View>
@@ -131,7 +131,7 @@ export default function ScannerScreen() {
           /* Camera button */
           <Pressable
             onPress={() => setShowCamera(true)}
-            className="w-full bg-orange-500 rounded-xl py-4 items-center justify-center flex-row gap-3"
+            className="w-full bg-primary-500 rounded-xl py-4 items-center justify-center flex-row gap-3"
           >
             <Text className="text-white font-semibold text-lg">Kamera öffnen</Text>
           </Pressable>
@@ -139,7 +139,7 @@ export default function ScannerScreen() {
 
         {/* Info hint */}
         {!scannedRecipe && (
-          <Text className="text-center text-gray-400 text-sm mt-6">
+          <Text className="text-center text-warm-500 text-sm mt-6">
             Halte die Kamera auf einen RecipeDeck-QR-Code,{'\n'}um ein Rezept zu importieren.
           </Text>
         )}

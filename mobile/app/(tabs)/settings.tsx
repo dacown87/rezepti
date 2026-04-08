@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink } from 'lucide-react-native';
+import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon } from 'lucide-react-native';
+import { useTheme } from '@/utils/use-theme';
 import { getDB } from '@/db/migrate';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 
@@ -136,45 +137,45 @@ const RoadmapModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     presentationStyle="pageSheet"
     onRequestClose={onClose}
   >
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100">
+      <View className="flex-row items-center justify-between px-5 py-4 border-b border-warm-200 dark:border-warm-700">
         <View>
-          <Text className="text-xl font-bold text-gray-900">Roadmap</Text>
-          <Text className="text-xs text-gray-400 mt-0.5">Entwicklungsstand RecipeDeck</Text>
+          <Text className="text-xl font-bold text-warm-900 dark:text-warm-50">Roadmap</Text>
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mt-0.5">Entwicklungsstand RecipeDeck</Text>
         </View>
         <TouchableOpacity
           onPress={onClose}
-          className="bg-gray-100 rounded-full px-4 py-2"
+          className="bg-warm-100 dark:bg-espresso-800 rounded-full px-4 py-2"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text className="text-sm font-semibold text-gray-600">Schließen</Text>
+          <Text className="text-sm font-semibold text-warm-600 dark:text-warm-300">Schließen</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="px-5 py-4 pb-8">
         {ROADMAP.map((section) => (
           <View key={section.category} className="mb-6">
-            <Text className="text-base font-bold text-gray-800 mb-3">{section.category}</Text>
+            <Text className="text-base font-bold text-warm-800 dark:text-warm-100 mb-3">{section.category}</Text>
             <View className="space-y-3">
               {section.items.map((item) => (
                 <View key={item.label}>
                   <View className="flex-row justify-between items-center mb-1">
-                    <Text className="text-sm text-gray-600 flex-1 mr-2">{item.label}</Text>
+                    <Text className="text-sm text-warm-600 dark:text-warm-300 flex-1 mr-2">{item.label}</Text>
                     <Text
                       className={`text-xs font-semibold ${
                         item.percent >= 60
                           ? 'text-green-600'
                           : item.percent >= 20
                           ? 'text-yellow-600'
-                          : 'text-gray-400'
+                          : 'text-warm-500 dark:text-warm-400'
                       }`}
                     >
                       {item.percent}%
                     </Text>
                   </View>
                   {/* Track */}
-                  <View className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <View className="h-1.5 bg-warm-100 dark:bg-espresso-800 rounded-full overflow-hidden">
                     <View
                       style={{
                         width: `${item.percent}%`,
@@ -203,19 +204,19 @@ const ChangelogModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     presentationStyle="pageSheet"
     onRequestClose={onClose}
   >
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100">
+      <View className="flex-row items-center justify-between px-5 py-4 border-b border-warm-200 dark:border-warm-700">
         <View>
-          <Text className="text-xl font-bold text-gray-900">Changelog</Text>
-          <Text className="text-xs text-gray-400 mt-0.5">Letzte Änderungen</Text>
+          <Text className="text-xl font-bold text-warm-900 dark:text-warm-50">Changelog</Text>
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mt-0.5">Letzte Änderungen</Text>
         </View>
         <TouchableOpacity
           onPress={onClose}
-          className="bg-gray-100 rounded-full px-4 py-2"
+          className="bg-warm-100 dark:bg-espresso-800 rounded-full px-4 py-2"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text className="text-sm font-semibold text-gray-600">Schließen</Text>
+          <Text className="text-sm font-semibold text-warm-600 dark:text-warm-300">Schließen</Text>
         </TouchableOpacity>
       </View>
 
@@ -226,13 +227,13 @@ const ChangelogModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
               <View className="bg-blue-100 rounded-full px-3 py-1 mr-3">
                 <Text className="text-xs font-bold text-blue-700">v{entry.version}</Text>
               </View>
-              <Text className="text-xs text-gray-400">{entry.date}</Text>
+              <Text className="text-xs text-warm-500 dark:text-warm-400">{entry.date}</Text>
             </View>
             <View className="ml-1 space-y-1">
               {entry.changes.map((change, idx) => (
                 <View key={idx} className="flex-row items-start">
-                  <Text className="text-gray-400 mr-2 text-sm">•</Text>
-                  <Text className="text-sm text-gray-700 flex-1">{change}</Text>
+                  <Text className="text-warm-500 dark:text-warm-400 mr-2 text-sm">•</Text>
+                  <Text className="text-sm text-warm-700 dark:text-warm-200 flex-1">{change}</Text>
                 </View>
               ))}
             </View>
@@ -246,6 +247,9 @@ const ChangelogModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
+  // Theme
+  const { isDark, setTheme } = useTheme();
+
   // GROQ API Key
   const [groqKey, setGroqKey] = useState('');
   const [groqKeyStored, setGroqKeyStored] = useState(false);
@@ -513,7 +517,7 @@ export default function SettingsScreen() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
       {showRoadmap && <RoadmapModal onClose={() => setShowRoadmap(false)} />}
       {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
 
@@ -524,24 +528,24 @@ export default function SettingsScreen() {
       >
         {/* Header */}
         <View className="mb-6">
-          <Text className="text-2xl font-bold text-gray-900">Einstellungen</Text>
-          <Text className="text-gray-500 mt-1">API-Keys, Server & Integrationen</Text>
+          <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">Einstellungen</Text>
+          <Text className="text-warm-500 dark:text-warm-400 mt-1">API-Keys, Server & Integrationen</Text>
         </View>
 
         {/* ── GROQ Help Modal ── */}
         <Modal visible={showGroqHelp} transparent animationType="fade" onRequestClose={() => setShowGroqHelp(false)}>
           <Pressable className="flex-1 bg-black/50 justify-center items-center px-6" onPress={() => setShowGroqHelp(false)}>
-            <Pressable className="bg-white rounded-2xl p-6 w-full max-w-sm" onPress={(e: { stopPropagation: () => void }) => e.stopPropagation()}>
+            <Pressable className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full max-w-sm" onPress={(e: { stopPropagation: () => void }) => e.stopPropagation()}>
               <View className="flex-row items-center justify-between mb-4">
-                <Text className="text-base font-bold text-gray-900">Was ist der Groq API-Key?</Text>
+                <Text className="text-base font-bold text-warm-900 dark:text-warm-50">Was ist der Groq API-Key?</Text>
                 <TouchableOpacity onPress={() => setShowGroqHelp(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <X size={20} color="#6B7280" />
+                  <X size={20} color="#9E8878" />
                 </TouchableOpacity>
               </View>
-              <Text className="text-sm text-gray-600 leading-6 mb-3">
-                RecipeDeck nutzt <Text className="font-semibold text-gray-900">Groq</Text> als KI-Backend, um Rezepte aus Videos, Webseiten und Fotos zu extrahieren und ins Deutsche zu übersetzen.
+              <Text className="text-sm text-warm-600 dark:text-warm-300 leading-6 mb-3">
+                RecipeDeck nutzt <Text className="font-semibold text-warm-900 dark:text-warm-50">Groq</Text> als KI-Backend, um Rezepte aus Videos, Webseiten und Fotos zu extrahieren und ins Deutsche zu übersetzen.
               </Text>
-              <Text className="text-sm text-gray-600 leading-6 mb-3">
+              <Text className="text-sm text-warm-600 dark:text-warm-300 leading-6 mb-3">
                 Ein Groq API-Key ist <Text className="font-semibold text-green-700">kostenlos</Text> und kann unter{' '}
                 <Text className="font-semibold text-blue-600">console.groq.com</Text>{' '}
                 in wenigen Sekunden erstellt werden.
@@ -554,25 +558,53 @@ export default function SettingsScreen() {
                   4. Key hier einfügen und speichern
                 </Text>
               </View>
-              <Text className="text-xs text-gray-400 leading-5">
+              <Text className="text-xs text-warm-500 dark:text-warm-400 leading-5">
                 Der Key wird ausschließlich lokal auf deinem Gerät gespeichert und nie an Dritte weitergegeben.
               </Text>
             </Pressable>
           </Pressable>
         </Modal>
 
+        {/* ── Erscheinungsbild ── */}
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
+          <View className="flex-row items-center mb-4">
+            {isDark ? <Moon size={18} color="#8B7355" /> : <Sun size={18} color="#8B7355" />}
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-2">Erscheinungsbild</Text>
+          </View>
+          <View className="flex-row bg-warm-100 dark:bg-espresso-800 rounded-xl p-1">
+            <Pressable
+              onPress={() => setTheme('light')}
+              className={`flex-1 flex-row items-center justify-center gap-2 py-2.5 rounded-lg ${!isDark ? 'bg-white dark:bg-espresso-800 shadow-sm' : ''}`}
+            >
+              <Sun size={16} color={!isDark ? '#C84B31' : '#9E8878'} />
+              <Text className={`text-sm font-medium ${!isDark ? 'text-primary-500' : 'text-warm-500 dark:text-warm-400'}`}>
+                Hell
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setTheme('dark')}
+              className={`flex-1 flex-row items-center justify-center gap-2 py-2.5 rounded-lg ${isDark ? 'bg-warm-800 shadow-sm' : ''}`}
+            >
+              <Moon size={16} color={isDark ? '#FFFBF5' : '#9E8878'} />
+              <Text className={`text-sm font-medium ${isDark ? 'text-warm-50' : 'text-warm-500 dark:text-warm-400'}`}>
+                Dunkel
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* ── GROQ API Key ── */}
-        <View className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
           <View className="flex-row items-center mb-1">
-            <Key size={18} color="#4B5563" />
-            <Text className="text-base font-semibold text-gray-800 ml-2">Groq API-Key</Text>
+            <Key size={18} color="#8B7355" />
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-2">Groq API-Key</Text>
             <TouchableOpacity
               onPress={() => setShowGroqHelp(true)}
-              className="ml-2 flex-row items-center bg-gray-100 rounded-full px-2.5 py-1"
+              className="ml-2 flex-row items-center bg-warm-100 dark:bg-espresso-800 rounded-full px-2.5 py-1"
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <HelpCircle size={14} color="#6B7280" />
-              <Text className="text-xs text-gray-500 font-medium ml-1">Hilfe</Text>
+              <HelpCircle size={14} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400 font-medium ml-1">Hilfe</Text>
             </TouchableOpacity>
             {groqKeyStored && (
               <View className="ml-auto bg-green-100 rounded-full px-2 py-0.5">
@@ -580,17 +612,17 @@ export default function SettingsScreen() {
               </View>
             )}
           </View>
-          <Text className="text-xs text-gray-400 mb-4">
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
             Dein Key wird sicher auf dem Gerät gespeichert (SecureStore).
           </Text>
 
-          <View className="flex-row items-center border border-gray-200 rounded-xl overflow-hidden mb-2">
+          <View className="flex-row items-center border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-2">
             <TextInput
-              className="flex-1 px-4 py-3 text-sm text-gray-900 font-mono"
+              className="flex-1 px-4 py-3 text-sm text-warm-900 dark:text-warm-50 font-mono"
               value={groqKey}
               onChangeText={setGroqKey}
               placeholder="gsk_..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#9E8878"
               secureTextEntry={!showGroqKey}
               autoCapitalize="none"
               autoCorrect={false}
@@ -601,13 +633,13 @@ export default function SettingsScreen() {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               {showGroqKey
-                ? <EyeOff size={18} color="#6B7280" />
-                : <Eye size={18} color="#6B7280" />}
+                ? <EyeOff size={18} color="#9E8878" />
+                : <Eye size={18} color="#9E8878" />}
             </TouchableOpacity>
           </View>
 
           {groqKeyStored && (
-            <Text className="text-xs text-gray-400 mb-3">
+            <Text className="text-xs text-warm-500 dark:text-warm-400 mb-3">
               Aktuell gespeichert:{' '}
               <Text className="font-mono">{maskedKey(groqKey)}</Text>
             </Text>
@@ -640,22 +672,22 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Server URL ── */}
-        <View className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
           <View className="flex-row items-center mb-1">
-            <Server size={18} color="#4B5563" />
-            <Text className="text-base font-semibold text-gray-800 ml-2">Server-URL</Text>
+            <Server size={18} color="#8B7355" />
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-2">Server-URL</Text>
           </View>
-          <Text className="text-xs text-gray-400 mb-4">
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
             Leer lassen für Standard-Server ({PRODUCTION_URL.replace('https://', '')})
           </Text>
 
-          <View className="border border-gray-200 rounded-xl overflow-hidden mb-2">
+          <View className="border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-2">
             <TextInput
-              className="px-4 py-3 text-sm text-gray-900"
+              className="px-4 py-3 text-sm text-warm-900 dark:text-warm-50"
               value={serverUrl}
               onChangeText={setServerUrl}
               placeholder={PRODUCTION_URL}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#9E8878"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
@@ -689,12 +721,12 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Cookidoo ── */}
-        <View className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
           <View className="flex-row items-center mb-1">
             <Text className="text-lg mr-1">🍳</Text>
-            <Text className="text-base font-semibold text-gray-800 ml-1">Cookidoo</Text>
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">Cookidoo</Text>
             {loadingCookidooStatus ? (
-              <ActivityIndicator size="small" color="#9CA3AF" style={{ marginLeft: 'auto' }} />
+              <ActivityIndicator size="small" color="#9E8878" style={{ marginLeft: 'auto' }} />
             ) : cookidooConnected ? (
               <View className="ml-auto bg-green-100 rounded-full px-2 py-0.5">
                 <Text className="text-xs text-green-700 font-medium">Verbunden</Text>
@@ -705,7 +737,7 @@ export default function SettingsScreen() {
               </View>
             )}
           </View>
-          <Text className="text-xs text-gray-400 mb-4">
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
             Zugangsdaten für Cookidoo (Thermomix)
           </Text>
 
@@ -728,26 +760,26 @@ export default function SettingsScreen() {
           ) : (
             /* Disconnected — show input form */
             <View>
-              <View className="border border-gray-200 rounded-xl overflow-hidden mb-2">
+              <View className="border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-2">
                 <TextInput
-                  className="px-4 py-3 text-sm text-gray-900"
+                  className="px-4 py-3 text-sm text-warm-900 dark:text-warm-50"
                   value={cookidooEmail}
                   onChangeText={setCookidooEmail}
                   placeholder="deine@email.de"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#9E8878"
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
                 />
               </View>
 
-              <View className="flex-row items-center border border-gray-200 rounded-xl overflow-hidden mb-3">
+              <View className="flex-row items-center border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-3">
                 <TextInput
-                  className="flex-1 px-4 py-3 text-sm text-gray-900"
+                  className="flex-1 px-4 py-3 text-sm text-warm-900 dark:text-warm-50"
                   value={cookidooPassword}
                   onChangeText={setCookidooPassword}
                   placeholder="Passwort"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#9E8878"
                   secureTextEntry={!showCookidooPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -758,8 +790,8 @@ export default function SettingsScreen() {
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   {showCookidooPassword
-                    ? <EyeOff size={18} color="#6B7280" />
-                    : <Eye size={18} color="#6B7280" />}
+                    ? <EyeOff size={18} color="#9E8878" />
+                    : <Eye size={18} color="#9E8878" />}
                 </TouchableOpacity>
               </View>
 
@@ -780,31 +812,31 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          <Text className="text-xs text-gray-400 mt-3">
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mt-3">
             Zugangsdaten werden nur auf dem Server gespeichert.
           </Text>
         </View>
 
         {/* ── Facebook ── */}
-        <View className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
           <View className="flex-row items-center mb-1">
             <Text className="text-lg mr-1">📘</Text>
-            <Text className="text-base font-semibold text-gray-800 ml-1">Facebook Import</Text>
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">Facebook Import</Text>
             <View
               className={`ml-auto rounded-full px-2 py-0.5 ${
-                facebookTosAccepted ? 'bg-green-100' : 'bg-gray-100'
+                facebookTosAccepted ? 'bg-green-100' : 'bg-warm-100 dark:bg-espresso-800'
               }`}
             >
               <Text
                 className={`text-xs font-medium ${
-                  facebookTosAccepted ? 'text-green-700' : 'text-gray-500'
+                  facebookTosAccepted ? 'text-green-700' : 'text-warm-500 dark:text-warm-400'
                 }`}
               >
                 {facebookTosAccepted ? 'Aktiv' : 'Deaktiviert'}
               </Text>
             </View>
           </View>
-          <Text className="text-xs text-gray-400 mb-4">
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
             Öffentliche Videos und Reels importieren
           </Text>
 
@@ -822,7 +854,7 @@ export default function SettingsScreen() {
 
           <View className="flex-row items-center justify-between">
             <View className="flex-1 mr-4">
-              <Text className="text-sm font-medium text-gray-700">
+              <Text className="text-sm font-medium text-warm-700 dark:text-warm-200">
                 Ich akzeptiere die Facebook-Nutzungsbedingungen
               </Text>
               {facebookTosAccepted && (
@@ -835,63 +867,63 @@ export default function SettingsScreen() {
               value={facebookTosAccepted}
               onValueChange={handleFacebookTosToggle}
               trackColor={{ false: '#E5E7EB', true: '#86EFAC' }}
-              thumbColor={facebookTosAccepted ? '#16A34A' : '#9CA3AF'}
+              thumbColor={facebookTosAccepted ? '#16A34A' : '#9E8878'}
             />
           </View>
 
-          <Text className="text-xs text-gray-400 mt-3">
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mt-3">
             Cookie-Upload ist auf Mobile nicht verfügbar (Web-only Feature).
           </Text>
         </View>
 
         {/* ── App Info ── */}
-        <View className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5">
           <View className="flex-row items-center mb-4">
-            <Info size={18} color="#4B5563" />
-            <Text className="text-base font-semibold text-gray-800 ml-2">App-Info</Text>
+            <Info size={18} color="#8B7355" />
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-2">App-Info</Text>
 
             {/* Roadmap + Changelog buttons */}
             <View className="ml-auto flex-row gap-2">
               <TouchableOpacity
                 onPress={() => setShowChangelog(true)}
-                className="flex-row items-center bg-gray-100 rounded-full px-3 py-1.5"
+                className="flex-row items-center bg-warm-100 dark:bg-espresso-800 rounded-full px-3 py-1.5"
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <ScrollText size={14} color="#4B5563" />
-                <Text className="text-xs font-medium text-gray-600 ml-1">Changelog</Text>
+                <ScrollText size={14} color="#8B7355" />
+                <Text className="text-xs font-medium text-warm-600 dark:text-warm-300 ml-1">Changelog</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => setShowRoadmap(true)}
-                className="flex-row items-center bg-gray-100 rounded-full px-3 py-1.5"
+                className="flex-row items-center bg-warm-100 dark:bg-espresso-800 rounded-full px-3 py-1.5"
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <Map size={14} color="#4B5563" />
-                <Text className="text-xs font-medium text-gray-600 ml-1">Roadmap</Text>
+                <Map size={14} color="#8B7355" />
+                <Text className="text-xs font-medium text-warm-600 dark:text-warm-300 ml-1">Roadmap</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View className="space-y-3">
             <View className="flex-row justify-between items-center">
-              <Text className="text-sm text-gray-500">App</Text>
-              <Text className="text-sm font-semibold text-gray-900">RecipeDeck v1.0</Text>
+              <Text className="text-sm text-warm-500 dark:text-warm-400">App</Text>
+              <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50">RecipeDeck v1.0</Text>
             </View>
 
-            <View className="h-px bg-gray-100" />
+            <View className="h-px bg-warm-100 dark:bg-espresso-800" />
 
             <View className="flex-row justify-between items-center">
-              <Text className="text-sm text-gray-500">Beschreibung</Text>
-              <Text className="text-sm text-gray-700 flex-shrink ml-4 text-right">
+              <Text className="text-sm text-warm-500 dark:text-warm-400">Beschreibung</Text>
+              <Text className="text-sm text-warm-700 dark:text-warm-200 flex-shrink ml-4 text-right">
                 Rezepte aus URLs extrahieren
               </Text>
             </View>
 
-            <View className="h-px bg-gray-100" />
+            <View className="h-px bg-warm-100 dark:bg-espresso-800" />
 
             <View className="flex-row justify-between items-center">
-              <Text className="text-sm text-gray-500">Datenbank</Text>
-              <Text className="text-sm font-semibold text-gray-900">
+              <Text className="text-sm text-warm-500 dark:text-warm-400">Datenbank</Text>
+              <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50">
                 {recipeCount === null
                   ? '–'
                   : `${recipeCount} Rezept${recipeCount === 1 ? '' : 'e'}`}
@@ -900,10 +932,10 @@ export default function SettingsScreen() {
 
             {lastUpdated && (
               <>
-                <View className="h-px bg-gray-100" />
+                <View className="h-px bg-warm-100 dark:bg-espresso-800" />
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-sm text-gray-500">Letzte Änderung</Text>
-                  <Text className="text-sm font-semibold text-gray-900">
+                  <Text className="text-sm text-warm-500 dark:text-warm-400">Letzte Änderung</Text>
+                  <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50">
                     {lastUpdated.date} · {lastUpdated.time}
                   </Text>
                 </View>
