@@ -177,33 +177,33 @@ export default function ShoppingScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#9333ea" />
+      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#C84B31" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
       {/* Header */}
       <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-2">
-            <ShoppingCart size={20} color="#9333ea" />
-            <Text className="text-2xl font-bold text-gray-900">Einkaufsliste</Text>
+            <ShoppingCart size={20} color="#C84B31" />
+            <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">Einkaufsliste</Text>
           </View>
           <View className="flex-row gap-2">
             {items.length > 0 && (
               <>
-                <Pressable onPress={handleCopy} className="p-2 bg-white rounded-xl border border-gray-200">
-                  <Share2 size={16} color="#6b7280" />
+                <Pressable onPress={handleCopy} className="p-2 bg-white dark:bg-espresso-800 rounded-xl border border-warm-200 dark:border-warm-700">
+                  <Share2 size={16} color="#9E8878" />
                 </Pressable>
                 {checked.length > 0 && (
-                  <Pressable onPress={handleClearChecked} className="p-2 bg-white rounded-xl border border-gray-200">
-                    <Check size={16} color="#9333ea" />
+                  <Pressable onPress={handleClearChecked} className="p-2 bg-white dark:bg-espresso-800 rounded-xl border border-warm-200 dark:border-warm-700">
+                    <Check size={16} color="#C84B31" />
                   </Pressable>
                 )}
-                <Pressable onPress={handleClearAll} className="p-2 bg-white rounded-xl border border-gray-200">
+                <Pressable onPress={handleClearAll} className="p-2 bg-white dark:bg-espresso-800 rounded-xl border border-warm-200 dark:border-warm-700">
                   <Trash2 size={16} color="#ef4444" />
                 </Pressable>
               </>
@@ -218,16 +218,16 @@ export default function ShoppingScreen() {
             onChangeText={setNewItem}
             onSubmitEditing={handleAddManual}
             placeholder="Artikel hinzufügen…"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9E8878"
             returnKeyType="done"
-            className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900"
+            className="flex-1 bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-sm text-warm-900 dark:text-warm-50"
           />
           <Pressable
             onPress={handleAddManual}
             disabled={!newItem.trim()}
-            className={`px-4 rounded-xl items-center justify-center ${newItem.trim() ? 'bg-purple-600' : 'bg-gray-200'}`}
+            className={`px-4 rounded-xl items-center justify-center ${newItem.trim() ? 'bg-primary-500' : 'bg-warm-200'}`}
           >
-            <Plus size={18} color={newItem.trim() ? '#fff' : '#9ca3af'} />
+            <Plus size={18} color={newItem.trim() ? '#fff' : '#9E8878'} />
           </Pressable>
         </View>
       </View>
@@ -235,7 +235,7 @@ export default function ShoppingScreen() {
       {items.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
           <ShoppingCart size={48} color="#d1d5db" />
-          <Text className="text-gray-400 text-center mt-4">
+          <Text className="text-warm-500 dark:text-warm-400 text-center mt-4">
             Noch nichts auf der Liste.{'\n'}Füge Zutaten aus einem Rezept hinzu.
           </Text>
         </View>
@@ -244,22 +244,22 @@ export default function ShoppingScreen() {
           data={[...unchecked, ...checked]}
           keyExtractor={item => String(item.id)}
           contentContainerStyle={{ padding: 16, paddingTop: 4 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#9333ea" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           renderItem={({ item, index }) => {
             const isFirstChecked = !!item.checked && unchecked.length > 0 && index === unchecked.length;
             return (
               <>
                 {isFirstChecked && checked.length > 0 && (
-                  <Text className="text-xs text-gray-400 uppercase tracking-wider mb-2 mt-3">Erledigt</Text>
+                  <Text className="text-xs text-warm-500 dark:text-warm-400 uppercase tracking-wider mb-2 mt-3">Erledigt</Text>
                 )}
                 <Pressable
                   onPress={() => handleToggle(item)}
-                  className={`flex-row items-center bg-white rounded-xl mb-2 px-4 py-3 border ${item.checked ? 'border-gray-100 opacity-60' : 'border-gray-100'}`}
+                  className={`flex-row items-center bg-white dark:bg-espresso-800 rounded-xl mb-2 px-4 py-3 border ${item.checked ? 'border-warm-200 dark:border-warm-700 opacity-60' : 'border-warm-200 dark:border-warm-700'}`}
                 >
-                  <View className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${item.checked ? 'bg-purple-600 border-purple-600' : 'border-gray-300'}`}>
+                  <View className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${item.checked ? 'bg-primary-500 border-primary-500' : 'border-warm-300'}`}>
                     {item.checked ? <Check size={13} color="#fff" /> : null}
                   </View>
-                  <Text className={`flex-1 text-sm ${item.checked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                  <Text className={`flex-1 text-sm ${item.checked ? 'line-through text-warm-500 dark:text-warm-400' : 'text-warm-800 dark:text-warm-100'}`}>
                     {item.canonical_name}
                   </Text>
                   <Pressable onPress={() => handleDelete(item.id)} hitSlop={8} className="ml-2 p-1">
@@ -275,12 +275,12 @@ export default function ShoppingScreen() {
       {/* Löschen-Modal */}
       <Modal visible={showClearModal} transparent animationType="fade" onRequestClose={() => setShowClearModal(false)}>
         <View className="flex-1 bg-black/50 items-center justify-center px-8">
-          <View className="bg-white rounded-2xl p-6 w-full">
-            <Text className="text-lg font-bold text-gray-900 mb-2">Alles löschen</Text>
-            <Text className="text-sm text-gray-500 mb-6">Gesamte Einkaufsliste leeren?</Text>
+          <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full">
+            <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-2">Alles löschen</Text>
+            <Text className="text-sm text-warm-500 dark:text-warm-400 mb-6">Gesamte Einkaufsliste leeren?</Text>
             <View className="flex-row gap-3">
-              <Pressable onPress={() => setShowClearModal(false)} className="flex-1 py-3 rounded-xl bg-gray-100 items-center">
-                <Text className="text-sm font-medium text-gray-700">Abbrechen</Text>
+              <Pressable onPress={() => setShowClearModal(false)} className="flex-1 py-3 rounded-xl bg-warm-100 dark:bg-espresso-800 items-center">
+                <Text className="text-sm font-medium text-warm-700 dark:text-warm-200">Abbrechen</Text>
               </Pressable>
               <Pressable onPress={confirmClearAll} className="flex-1 py-3 rounded-xl bg-red-500 items-center">
                 <Text className="text-sm font-medium text-white">Leeren</Text>

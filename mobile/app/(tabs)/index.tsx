@@ -70,38 +70,39 @@ function ListCard({ recipe }: { recipe: Recipe }) {
   return (
     <Pressable
       onPress={() => router.push(`/recipe/${recipe.id}`)}
-      className="flex-row items-center bg-white rounded-2xl mb-3 border border-gray-100 overflow-hidden"
+      className="flex-row items-center bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 overflow-hidden"
+      style={{ borderLeftColor: '#C84B31', borderLeftWidth: 2 }}
     >
       {recipe.image_url ? (
         <Image source={{ uri: recipe.image_url }} className="w-20 h-20" resizeMode="cover" />
       ) : (
-        <View className="w-20 h-20 bg-purple-50 items-center justify-center">
+        <View className="w-20 h-20 bg-primary-50 dark:bg-espresso-700 items-center justify-center">
           <Text className="text-4xl">{recipe.emoji ?? '🍽️'}</Text>
         </View>
       )}
       <View className="flex-1 px-3 py-2">
-        <Text className="text-base font-semibold text-gray-900" numberOfLines={1}>
+        <Text className="text-base font-semibold text-warm-900 dark:text-warm-50" numberOfLines={1}>
           {recipe.name}
         </Text>
         <View className="flex-row items-center gap-3 mt-0.5">
           {recipe.duration ? (
             <View className="flex-row items-center gap-1">
-              <Clock size={11} color="#9ca3af" />
-              <Text className="text-xs text-gray-400">{recipe.duration}</Text>
+              <Clock size={11} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400">{recipe.duration}</Text>
             </View>
           ) : null}
           {recipe.rating ? (
             <View className="flex-row items-center gap-1">
-              <Star size={11} color="#f59e0b" fill="#f59e0b" />
-              <Text className="text-xs text-amber-500">{recipe.rating}/5</Text>
+              <Star size={11} color="#D4A853" fill="#D4A853" />
+              <Text className="text-xs text-gold-500">{recipe.rating}/5</Text>
             </View>
           ) : null}
         </View>
         {tags.length > 0 ? (
           <View className="flex-row flex-wrap gap-1 mt-1.5">
             {tags.slice(0, 3).map((tag) => (
-              <View key={tag} className="bg-purple-50 rounded-full px-2 py-0.5">
-                <Text className="text-xs text-purple-600">{tag}</Text>
+              <View key={tag} className="bg-primary-50 dark:bg-espresso-700 rounded-full px-2 py-0.5">
+                <Text className="text-xs text-primary-500">{tag}</Text>
               </View>
             ))}
           </View>
@@ -118,39 +119,39 @@ function GridCard({ recipe }: { recipe: Recipe }) {
   return (
     <Pressable
       onPress={() => router.push(`/recipe/${recipe.id}`)}
-      className="flex-1 bg-white rounded-2xl mb-3 border border-gray-100 overflow-hidden"
-      style={{ margin: 4 }}
+      className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 overflow-hidden"
+      style={{ margin: 4, borderLeftColor: '#C84B31', borderLeftWidth: 2 }}
     >
       {recipe.image_url ? (
         <Image source={{ uri: recipe.image_url }} style={{ width: '100%', height: 110 }} resizeMode="cover" />
       ) : (
-        <View className="w-full bg-purple-50 items-center justify-center" style={{ height: 110 }}>
+        <View className="w-full bg-primary-50 dark:bg-espresso-700 items-center justify-center" style={{ height: 110 }}>
           <Text style={{ fontSize: 44 }}>{recipe.emoji ?? '🍽️'}</Text>
         </View>
       )}
       <View className="p-2.5">
-        <Text className="text-sm font-semibold text-gray-900" numberOfLines={2}>
+        <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50" numberOfLines={2}>
           {recipe.name}
         </Text>
         <View className="flex-row items-center gap-2 mt-1">
           {recipe.duration ? (
             <View className="flex-row items-center gap-0.5">
-              <Clock size={10} color="#9ca3af" />
-              <Text className="text-xs text-gray-400">{recipe.duration}</Text>
+              <Clock size={10} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400">{recipe.duration}</Text>
             </View>
           ) : null}
           {recipe.rating ? (
             <View className="flex-row items-center gap-0.5">
-              <Star size={10} color="#f59e0b" fill="#f59e0b" />
-              <Text className="text-xs text-amber-500">{recipe.rating}</Text>
+              <Star size={10} color="#D4A853" fill="#D4A853" />
+              <Text className="text-xs text-gold-500">{recipe.rating}</Text>
             </View>
           ) : null}
         </View>
         {tags.length > 0 ? (
           <View className="flex-row flex-wrap gap-1 mt-1.5">
             {tags.slice(0, 2).map((tag) => (
-              <View key={tag} className="bg-purple-50 rounded-full px-1.5 py-0.5">
-                <Text className="text-xs text-purple-600" style={{ fontSize: 10 }}>{tag}</Text>
+              <View key={tag} className="bg-primary-50 dark:bg-espresso-700 rounded-full px-1.5 py-0.5">
+                <Text className="text-xs text-primary-500" style={{ fontSize: 10 }}>{tag}</Text>
               </View>
             ))}
           </View>
@@ -273,42 +274,42 @@ export default function RecipeListScreen() {
   }, [loadRecipes]);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
       {/* Header */}
       <View className="px-4 pt-4 pb-2">
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-2xl font-bold text-gray-900">RecipeDeck</Text>
+          <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">RecipeDeck</Text>
           <View className="flex-row items-center gap-2">
             {recipes.length > 0 && (
               <>
                 <Pressable
                   onPress={() => { setShowIngredientSearch(true); setIngredientInput(''); setIngredientResults([]); }}
-                  className="bg-white rounded-full w-9 h-9 items-center justify-center border border-gray-200"
+                  className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
                 >
-                  <Refrigerator size={17} color="#6b7280" />
+                  <Refrigerator size={17} color="#9E8878" />
                 </Pressable>
                 <Pressable
                   onPress={openCardModal}
                   disabled={exporting}
-                  className="bg-white rounded-full w-9 h-9 items-center justify-center border border-gray-200"
+                  className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
                 >
                   {exporting
-                    ? <ActivityIndicator size="small" color="#9333ea" />
-                    : <FileText size={17} color="#6b7280" />}
+                    ? <ActivityIndicator size="small" color="#C84B31" />
+                    : <FileText size={17} color="#9E8878" />}
                 </Pressable>
               </>
             )}
             <Pressable
               onPress={toggleViewMode}
-              className="bg-white rounded-full w-9 h-9 items-center justify-center border border-gray-200"
+              className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
             >
               {viewMode === 'list'
-                ? <LayoutGrid size={17} color="#6b7280" />
-                : <List size={17} color="#6b7280" />}
+                ? <LayoutGrid size={17} color="#9E8878" />
+                : <List size={17} color="#9E8878" />}
             </Pressable>
             <Pressable
               onPress={() => router.push('/(tabs)/extract')}
-              className="bg-purple-600 rounded-full w-9 h-9 items-center justify-center"
+              className="bg-primary-500 rounded-full w-9 h-9 items-center justify-center"
             >
               <Plus size={19} color="white" />
             </Pressable>
@@ -316,18 +317,18 @@ export default function RecipeListScreen() {
         </View>
 
         {/* Suchfeld */}
-        <View className="flex-row items-center bg-white rounded-xl px-3 py-2 border border-gray-200">
-          <Search size={16} color="#9ca3af" />
+        <View className="flex-row items-center bg-white dark:bg-espresso-800 rounded-xl px-3 py-2 border border-warm-200 dark:border-warm-700">
+          <Search size={16} color="#9E8878" />
           <TextInput
-            className="flex-1 ml-2 text-base text-gray-900"
+            className="flex-1 ml-2 text-base text-warm-900 dark:text-warm-50"
             placeholder="Rezepte suchen…"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9E8878"
             value={search}
             onChangeText={handleSearch}
           />
           {search ? (
             <Pressable onPress={() => handleSearch('')}>
-              <X size={16} color="#9ca3af" />
+              <X size={16} color="#9E8878" />
             </Pressable>
           ) : null}
         </View>
@@ -336,12 +337,12 @@ export default function RecipeListScreen() {
       {/* Content */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#9333ea" />
+          <ActivityIndicator size="large" color="#C84B31" />
         </View>
       ) : error ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-red-500 text-center">{error}</Text>
-          <Pressable onPress={() => { setLoading(true); loadRecipes(); }} className="mt-4 px-4 py-2 bg-purple-600 rounded-xl">
+          <Pressable onPress={() => { setLoading(true); loadRecipes(); }} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
             <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
           </Pressable>
         </View>
@@ -354,7 +355,7 @@ export default function RecipeListScreen() {
           renderItem={({ item }) => <GridCard recipe={item} />}
           contentContainerStyle={{ padding: 12, paddingTop: 8 }}
           columnWrapperStyle={{ gap: 0 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#9333ea" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search={search} />}
         />
       ) : (
@@ -364,41 +365,41 @@ export default function RecipeListScreen() {
           key="list"
           renderItem={({ item }) => <ListCard recipe={item} />}
           contentContainerStyle={{ padding: 16, paddingTop: 8 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#9333ea" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search={search} />}
         />
       )}
       {/* ── Zutaten-Suche Modal ── */}
       <Modal visible={showIngredientSearch} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowIngredientSearch(false)}>
-        <SafeAreaView className="flex-1 bg-white">
-          <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
+        <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800">
+          <View className="flex-row items-center px-4 py-3 border-b border-warm-200 dark:border-warm-700">
             <View className="flex-1">
-              <Text className="text-lg font-bold text-gray-900">Was habe ich zu Hause?</Text>
-              <Text className="text-xs text-gray-400 mt-0.5">Zutaten eingeben, Rezepte finden</Text>
+              <Text className="text-lg font-bold text-warm-900 dark:text-warm-50">Was habe ich zu Hause?</Text>
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-0.5">Zutaten eingeben, Rezepte finden</Text>
             </View>
             <Pressable onPress={() => setShowIngredientSearch(false)} className="p-2">
-              <X size={22} color="#6b7280" />
+              <X size={22} color="#9E8878" />
             </Pressable>
           </View>
 
-          <View className="px-4 py-3 border-b border-gray-100">
-            <View className="flex-row items-center bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200">
-              <Search size={16} color="#9ca3af" />
+          <View className="px-4 py-3 border-b border-warm-200 dark:border-warm-700">
+            <View className="flex-row items-center bg-warm-50 dark:bg-espresso-900 rounded-xl px-3 py-2.5 border border-warm-200 dark:border-warm-700">
+              <Search size={16} color="#9E8878" />
               <TextInput
-                className="flex-1 ml-2 text-base text-gray-900"
+                className="flex-1 ml-2 text-base text-warm-900 dark:text-warm-50"
                 placeholder="Tomate, Käse, Nudeln…"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#9E8878"
                 value={ingredientInput}
                 onChangeText={handleIngredientSearch}
                 autoFocus
               />
               {ingredientInput ? (
                 <Pressable onPress={() => { setIngredientInput(''); setIngredientResults([]); }}>
-                  <X size={16} color="#9ca3af" />
+                  <X size={16} color="#9E8878" />
                 </Pressable>
               ) : null}
             </View>
-            <Text className="text-xs text-gray-400 mt-2">Mehrere Zutaten mit Komma trennen</Text>
+            <Text className="text-xs text-warm-500 dark:text-warm-400 mt-2">Mehrere Zutaten mit Komma trennen</Text>
           </View>
 
           <FlatList
@@ -412,12 +413,12 @@ export default function RecipeListScreen() {
               return (
                 <Pressable
                   onPress={() => { setShowIngredientSearch(false); router.push(`/recipe/${item.id}`); }}
-                  className="flex-row items-center bg-white rounded-2xl mb-3 border border-gray-100 px-4 py-3"
+                  className="flex-row items-center bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 px-4 py-3"
                 >
                   <Text className="text-3xl mr-3">{item.emoji ?? '🍽️'}</Text>
                   <View className="flex-1">
-                    <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>{item.name}</Text>
-                    <Text className="text-xs text-purple-600 mt-0.5">{matched} von {terms.length} Zutaten</Text>
+                    <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50" numberOfLines={1}>{item.name}</Text>
+                    <Text className="text-xs text-primary-500 mt-0.5">{matched} von {terms.length} Zutaten</Text>
                   </View>
                 </Pressable>
               );
@@ -425,12 +426,12 @@ export default function RecipeListScreen() {
             ListEmptyComponent={
               ingredientInput ? (
                 <View className="items-center py-16">
-                  <Text className="text-gray-400 text-sm text-center">Keine Rezepte mit diesen Zutaten gefunden.</Text>
+                  <Text className="text-warm-500 dark:text-warm-400 text-sm text-center">Keine Rezepte mit diesen Zutaten gefunden.</Text>
                 </View>
               ) : (
                 <View className="items-center py-16">
                   <Refrigerator size={40} color="#d1d5db" />
-                  <Text className="text-gray-400 text-sm text-center mt-3">Gib Zutaten ein die du{'\n'}zu Hause hast.</Text>
+                  <Text className="text-warm-500 dark:text-warm-400 text-sm text-center mt-3">Gib Zutaten ein die du{'\n'}zu Hause hast.</Text>
                 </View>
               )
             }
@@ -440,37 +441,37 @@ export default function RecipeListScreen() {
 
       {/* ── Rezeptkarten-Modal ── */}
       <Modal visible={showCardModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCardModal(false)}>
-        <SafeAreaView className="flex-1 bg-white">
+        <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800">
           {/* Header */}
-          <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
+          <View className="flex-row items-center px-4 py-3 border-b border-warm-200 dark:border-warm-700">
             <View className="flex-1">
-              <Text className="text-lg font-bold text-gray-900">Rezeptkarten erstellen</Text>
-              <Text className="text-xs text-gray-400 mt-0.5">{selectedIds.size} von {recipes.length} ausgewählt</Text>
+              <Text className="text-lg font-bold text-warm-900 dark:text-warm-50">Rezeptkarten erstellen</Text>
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-0.5">{selectedIds.size} von {recipes.length} ausgewählt</Text>
             </View>
             <Pressable onPress={() => setShowCardModal(false)} className="p-2">
-              <X size={22} color="#6b7280" />
+              <X size={22} color="#9E8878" />
             </Pressable>
           </View>
 
           {/* Schnellauswahl */}
-          <View className="flex-row gap-2 px-4 py-3 border-b border-gray-100">
+          <View className="flex-row gap-2 px-4 py-3 border-b border-warm-200 dark:border-warm-700">
             <Pressable
               onPress={() => setSelectedIds(new Set(recipes.map(r => r.id)))}
-              className="flex-row items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full border border-purple-200"
+              className="flex-row items-center gap-1.5 px-3 py-1.5 bg-primary-50 dark:bg-espresso-700 rounded-full border border-primary-200"
             >
-              <Text className="text-xs font-medium text-purple-600">Alle</Text>
+              <Text className="text-xs font-medium text-primary-500">Alle</Text>
             </Pressable>
             <Pressable
               onPress={() => setSelectedIds(new Set())}
-              className="flex-row items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-full"
+              className="flex-row items-center gap-1.5 px-3 py-1.5 bg-warm-100 dark:bg-espresso-800 rounded-full"
             >
-              <Text className="text-xs font-medium text-gray-600">Keine</Text>
+              <Text className="text-xs font-medium text-warm-600 dark:text-warm-300">Keine</Text>
             </Pressable>
             <Pressable
               onPress={() => setSelectedIds(new Set(recipes.filter(r => !r.pdf_created).map(r => r.id)))}
-              className="flex-row items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-full"
+              className="flex-row items-center gap-1.5 px-3 py-1.5 bg-warm-100 dark:bg-espresso-800 rounded-full"
             >
-              <Text className="text-xs font-medium text-gray-600">Noch keine PDF</Text>
+              <Text className="text-xs font-medium text-warm-600 dark:text-warm-300">Noch keine PDF</Text>
             </Pressable>
           </View>
 
@@ -486,16 +487,16 @@ export default function RecipeListScreen() {
                     selected ? next.delete(recipe.id) : next.add(recipe.id);
                     setSelectedIds(next);
                   }}
-                  className={`flex-row items-center px-4 py-3 border-b border-gray-50 ${selected ? 'bg-purple-50' : ''}`}
+                  className={`flex-row items-center px-4 py-3 border-b border-warm-100 ${selected ? 'bg-primary-50 dark:bg-espresso-700' : ''}`}
                 >
-                  <View className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${selected ? 'bg-purple-600 border-purple-600' : 'border-gray-300'}`}>
+                  <View className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${selected ? 'bg-primary-500 border-primary-500' : 'border-warm-300'}`}>
                     {selected && <Text className="text-white text-xs font-bold">✓</Text>}
                   </View>
                   <Text className="text-2xl mr-3">{recipe.emoji ?? '🍽️'}</Text>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-900" numberOfLines={1}>{recipe.name}</Text>
+                    <Text className="text-sm font-medium text-warm-900 dark:text-warm-50" numberOfLines={1}>{recipe.name}</Text>
                     {recipe.pdf_created ? (
-                      <Text className="text-xs text-gray-400">PDF bereits erstellt</Text>
+                      <Text className="text-xs text-warm-500 dark:text-warm-400">PDF bereits erstellt</Text>
                     ) : null}
                   </View>
                 </Pressable>
@@ -504,13 +505,13 @@ export default function RecipeListScreen() {
           </ScrollView>
 
           {/* Export-Button */}
-          <View className="px-4 py-4 border-t border-gray-100">
+          <View className="px-4 py-4 border-t border-warm-200 dark:border-warm-700">
             <Pressable
               onPress={handleExportCards}
               disabled={selectedIds.size === 0}
-              className={`py-3.5 rounded-xl items-center ${selectedIds.size > 0 ? 'bg-purple-600' : 'bg-gray-200'}`}
+              className={`py-3.5 rounded-xl items-center ${selectedIds.size > 0 ? 'bg-primary-500' : 'bg-warm-200'}`}
             >
-              <Text className={`font-semibold text-base ${selectedIds.size > 0 ? 'text-white' : 'text-gray-400'}`}>
+              <Text className={`font-semibold text-base ${selectedIds.size > 0 ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
                 {selectedIds.size} Karte{selectedIds.size !== 1 ? 'n' : ''} als PDF exportieren
               </Text>
             </Pressable>
@@ -525,7 +526,7 @@ function EmptyState({ search }: { search: string }) {
   return (
     <View className="items-center justify-center py-20">
       <ChefHat size={48} color="#d1d5db" />
-      <Text className="text-gray-400 mt-4 text-center">
+      <Text className="text-warm-500 dark:text-warm-400 mt-4 text-center">
         {search ? 'Keine Rezepte gefunden.' : 'Noch keine Rezepte.\nFüge dein erstes Rezept hinzu!'}
       </Text>
     </View>
