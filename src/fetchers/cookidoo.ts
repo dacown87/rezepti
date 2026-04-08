@@ -269,6 +269,20 @@ async function fetchAuthenticated(url: string, retry = true): Promise<Response> 
   return response;
 }
 
+// ─── HTML entity decoding ──────────────────────────────────────────────────
+
+const HTML_ENTITIES: Record<string, string> = {
+  "&frac12;": "½", "&frac14;": "¼", "&frac34;": "¾",
+  "&frac13;": "⅓", "&frac23;": "⅔", "&frac15;": "⅕", "&frac25;": "⅖",
+  "&frac35;": "⅗", "&frac45;": "⅘", "&frac16;": "⅙", "&frac56;": "⅚",
+  "&frac18;": "⅛", "&frac38;": "⅜", "&frac58;": "⅝", "&frac78;": "⅞",
+  "&amp;": "&", "&nbsp;": " ", "&lt;": "<", "&gt;": ">",
+};
+
+function decodeHtmlEntities(s: string): string {
+  return s.replace(/&[a-zA-Z0-9#]+;/g, m => HTML_ENTITIES[m] ?? m);
+}
+
 // ─── Cheerio helpers ───────────────────────────────────────────────────────
 
 function extractJsonLdRecipes($: cheerio.CheerioAPI): SchemaOrgRecipe | null {
@@ -305,6 +319,68 @@ function findRecipeInJsonLd(data: unknown): SchemaOrgRecipe | null {
   return null;
 }
 
+/** Build map: ingredient name (lowercase) → preparation description */
+function extractDescriptions($: cheerio.CheerioAPI): Map<string, string> {
+  const map = new Map<string, string>();
+  $("recipe-ingredient").each((_, el) => {
+    const name = $(el).find(".recipe-ingredient__name").text().trim();
+    const desc = $(el).find(".recipe-ingredient__description").text().trim();
+    if (name && desc) map.set(name.toLowerCase(), desc);
+  });
+  return map;
+}
+
+/** Build map: ingredient name (lowercase) → alternative text */
+function extractAlternatives($: cheerio.CheerioAPI): Map<string, string> {
+  const map = new Map<string, string>();
+  $("recipe-ingredient").each((_, el) => {
+    const name = $(el).find(".recipe-ingredient__name").text().trim();
+    const alt  = $(el).find(".recipe-ingredient__alternative").text().replace(/\s+/g, " ").trim();
+    if (name && alt) map.set(name.toLowerCase(), alt);
+  });
+  return map;
+}
+
+/** Patch a SchemaOrgRecipe's ingredients: decode HTML entities + append alternatives and descriptions.
+ *
+ * Format: "main ingredient (oder: alternative)\npreparation description"
+ * - (oder: ...) on the main line → renderer shows ↺ sub-line
+ * - \n separator      → renderer shows gray description sub-line
+ */
+function patchIngredients(
+  recipe: SchemaOrgRecipe,
+  alternatives: Map<string, string>,
+  descriptions: Map<string, string>,
+): SchemaOrgRecipe {
+  if (!recipe.recipeIngredient?.length) return recipe;
+  const patched = recipe.recipeIngredient.map(raw => {
+    const decoded = decodeHtmlEntities(raw);
+    const lc = decoded.toLowerCase();
+
+    // Find alternative (searched against clean ingredient string)
+    let altText: string | null = null;
+    if (alternatives.size > 0) {
+      for (const [name, alt] of alternatives) {
+        if (lc.includes(name)) { altText = alt; break; }
+      }
+    }
+
+    // Find preparation description (searched against clean ingredient string)
+    let descText: string | null = null;
+    if (descriptions.size > 0) {
+      for (const [name, desc] of descriptions) {
+        if (lc.includes(name)) { descText = desc; break; }
+      }
+    }
+
+    // Build: "main (oder: alt)\ndesc"
+    let result = altText ? `${decoded} (oder: ${altText})` : decoded;
+    if (descText) result += `\n${descText}`;
+    return result;
+  });
+  return { ...recipe, recipeIngredient: patched };
+}
+
 function extractMainText($: cheerio.CheerioAPI): string {
   $("script, style, nav, footer, header, aside, .ad, .ads, .sidebar").remove();
   const selectors = [".recipe-card", ".recipe-detail", ".recipe-content", ".recipe", "#recipe", "main", "article"];
@@ -324,30 +400,47 @@ const KNOWN_ACCESSORIES = [
 function extractEquipment($: cheerio.CheerioAPI): string[] {
   const items = new Set<string>();
 
-  // 1. Elements with "utensil" in class name (Cookidoo uses these)
-  $('[class*="utensil"], [class*="accessory"], [class*="equipment"], [class*="tool"]').each((_, el) => {
+  // 1. Cookidoo uses <rdp-badges> with core-chip-button elements for inline equipment chips
+  //    (TM versions like "TM7" + accessories like "Varoma" appear here on authenticated pages)
+  $('rdp-badges .core-chip-button, rdp-badges button').each((_, el) => {
     const text = $(el).text().trim();
-    if (text && text.length < 80) items.add(text);
+    if (text && text.length < 60) items.add(text);
   });
 
-  // 2. Section headed "Utensilien" or "Zubehör"
+  // NOTE: Step 2 (`.rdp-tm-versions__name`) removed — it duplicates rdp-badges chips
+  //       (rdp-badges gives "TM7", rdp-tm-versions__name gives "Thermomix® TM7" → same device)
+
+  // 2. "Notwendiges Zubehör" — actual accessories as bullet list (separate section on auth pages)
   $('h2, h3, h4, span, p').each((_, el) => {
     const heading = $(el).text().trim().toLowerCase();
-    if (heading === 'utensilien' || heading === 'zubehör' || heading === 'geräte & zubehör') {
-      // Items in the same container or next sibling
-      const parent = $(el).parent();
-      parent.find('li, [class*="item"], [class*="chip"], span').each((_, child) => {
-        const t = $(child).text().trim();
-        if (t && t.length < 60 && t !== heading) items.add(t);
-      });
-      $(el).nextAll('ul, ol, div').first().find('li, span').each((_, li) => {
+    if (heading === 'notwendiges zubehör') {
+      // Only look at the immediately following sibling list — avoids pulling in Nährwerte etc.
+      $(el).nextAll('ul, ol, div').first().find('li').each((_, li) => {
         const t = $(li).text().trim();
-        if (t && t.length < 60) items.add(t);
+        if (t && t.length < 80) items.add(t);
       });
     }
   });
 
-  // 3. Fallback: scan full page text for known Thermomix accessories
+  // 3. "Geräte und Zubehör" modal — device names (TM7, TM6, TM5, Backofen etc.)
+  //    Walk UP to modal container to reach the content section (it's a sibling of the header)
+  //    NOTE: `.rdp-tm-versions__name` intentionally excluded here — already covered by rdp-badges
+  $('h2, h3, h4').each((_, el) => {
+    const heading = $(el).text().trim().toLowerCase();
+    if (
+      heading === 'utensilien' || heading === 'zubehör' ||
+      heading === 'geräte & zubehör' || heading === 'geräte und zubehör'
+    ) {
+      const container = $(el).closest('[class*="modal__container"], [class*="modal__wrapper"]');
+      const target = container.length ? container : $(el).parent().parent();
+      target.find('.core-chip-button, li').each((_, child) => {
+        const t = $(child).text().trim();
+        if (t && t.length < 60 && t.toLowerCase() !== heading) items.add(t);
+      });
+    }
+  });
+
+  // 4. Fallback: scan full page text for known Thermomix accessories
   if (items.size === 0) {
     const bodyText = $("body").text();
     for (const acc of KNOWN_ACCESSORIES) {
@@ -356,6 +449,18 @@ function extractEquipment($: cheerio.CheerioAPI): string[] {
   }
 
   return [...items].filter(s => s.length > 0 && s.length < 80);
+}
+
+/** Extract nutrition values from HTML that are missing from JSON-LD (e.g. Ballaststoffe / fiber) */
+function extractNutritionFromHtml($: cheerio.CheerioAPI): Record<string, string> {
+  const extra: Record<string, string> = {};
+  $(".rdp-nutritious__item").each((_, el) => {
+    const name  = $(el).find(".rdp-nutritious__name").text().trim().toLowerCase();
+    const value = $(el).find(".rdp-nutritious__value").text().trim();
+    if (!name || !value) return;
+    if (name === "ballaststoffe") extra["fiberContent"] = value;
+  });
+  return extra;
 }
 
 function extractImages($: cheerio.CheerioAPI, baseUrl: string): string[] {
@@ -395,8 +500,24 @@ export async function fetchCookidoo(url: string): Promise<ContentBundle> {
     html = await response.text();
   }
 
+  // Debug: set COOKIDOO_DEBUG_HTML=1 to save raw HTML for selector inspection
+  if (process.env.COOKIDOO_DEBUG_HTML) {
+    const debugPath = join(process.cwd(), "data", `cookidoo-debug-${Date.now()}.html`);
+    mkdirSync(dirname(debugPath), { recursive: true });
+    writeFileSync(debugPath, html, "utf-8");
+    console.log(`[cookidoo] debug HTML saved to ${debugPath}`);
+  }
+
   const $ = cheerio.load(html);
-  const schemaRecipe = extractJsonLdRecipes($);
+  const alternatives = extractAlternatives($);
+  const descriptions = extractDescriptions($);
+  const rawSchema = extractJsonLdRecipes($);
+  const htmlNutrition = extractNutritionFromHtml($);
+  let patched = rawSchema ? patchIngredients(rawSchema, alternatives, descriptions) : null;
+  if (patched && Object.keys(htmlNutrition).length > 0) {
+    patched = { ...patched, nutrition: { ...(patched.nutrition ?? {}), ...htmlNutrition } as SchemaOrgRecipe["nutrition"] };
+  }
+  const schemaRecipe = patched;
   const title = $("title").text().trim() || $("h1").first().text().trim();
   const description =
     $('meta[name="description"]').attr("content") ||

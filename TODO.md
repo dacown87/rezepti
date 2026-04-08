@@ -19,7 +19,7 @@
 **UX / Offene Bugs**
 - QR-Bild-Scan (BarcodeDetector API): Nur Chromium — Safari/Firefox zeigen Fehlermeldung. Alternativ: `expo-barcode-scanner` für native App.
 - Kamera-Zugriff im Wochenplan-Modal auf mobilen Geräten testen
-- Cookidoo Geräte & Zubehör: CSS-Selektoren in `src/fetchers/cookidoo.ts` `extractEquipment()` greifen nicht — echte Cookidoo-HTML-Struktur inspizieren und Selektoren anpassen (aktuell nur Keyword-Fallback für bekannte Namen wie Varoma, Schmetterling etc.)
+- Cookidoo Geräte & Zubehör: Selektoren gefixed (`rdp-badges`, `rdp-tm-versions__name`, Heading-Bug). Verifizieren mit: `COOKIDOO_DEBUG_HTML=1 npm run dev` → Varoma-Rezept importieren → `data/cookidoo-debug-*.html` prüfen.
 
 **Infrastruktur**
 - Docker-Image aktualisieren: Expo Web Build statt Vite-Build

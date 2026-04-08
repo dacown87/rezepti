@@ -136,6 +136,55 @@ Host github.com
   IdentityFile ~/.ssh/id_rezepti
 ```
 
+## Obsidian Write Protocol
+
+The vault at `~/Vault/` is the primary long-form documentation system. Use the
+`mcp__obsidian__*` tools to write to it proactively — without asking first. Patrick
+reviews afterwards (convention from `~/Vault/CLAUDE.md`).
+
+### Trigger Events → Destinations
+
+| Trigger | Destination | Tool |
+|---------|-------------|------|
+| End of any session with meaningful work | `KI-Log/YYYY-MM-DD.md` | `obsidian_append_content` |
+| Bug pattern discovered or fixed | `Projekte/RecipeDeck/Debugging-Lessons.md` | `obsidian_append_content` |
+| Architecture decision made | `Projekte/RecipeDeck/Entscheidungen.md` | `obsidian_append_content` |
+| Technical knowledge useful beyond this project | `Technik/<topic>.md` | `obsidian_append_content` |
+| Phase marked complete in TODO.md | `Projekte/RecipeDeck/Phasenplan.md` | `obsidian_patch_content` |
+
+### KI-Log Format
+
+File: `KI-Log/YYYY-MM-DD.md` — append if today's file exists, create if not.
+
+```markdown
+## Session YYYY-MM-DD — [Thema in 4 Worten]
+
+- **Entschieden:** [was]
+- **Fallstrick:** [was schiefging / worauf man achten muss]
+- **Architektur:** [Entscheidung und Begründung, falls relevant]
+```
+
+Max 10 Zeilen. Stichpunkte. Kein Fließtext. Deutsch.
+
+### Debugging-Lessons Format
+
+Append under a new `## Heading` with date:
+
+```markdown
+## YYYY-MM-DD — [Symptom in 5 Worten]
+
+**Problem:** ...
+**Fix:** ...
+**Grund:** ...
+```
+
+### Rules
+
+- Write immediately when the trigger fires — don't batch at session end
+- Use `obsidian_get_file_contents` first when patching (Phasenplan) to avoid overwrites
+- KI-Log is cumulative — append, never overwrite
+- If a `Technik/` file doesn't exist for the topic, create it
+
 ## Working Notes (Claude)
 
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
