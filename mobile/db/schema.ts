@@ -2,7 +2,7 @@
 // Kein Drizzle auf Mobile: raw SQL via expo-sqlite
 
 export const DB_NAME = 'recipedeck.db';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export const CREATE_TABLES_SQL = `
   CREATE TABLE IF NOT EXISTS recipes (
@@ -19,6 +19,7 @@ export const CREATE_TABLES_SQL = `
     steps TEXT NOT NULL,
     transcript TEXT,
     equipment TEXT,
+    nutrition_info TEXT,
     tried INTEGER DEFAULT 0,
     rating INTEGER,
     notes TEXT,
@@ -63,6 +64,7 @@ export interface Recipe {
   steps: string;               // JSON-Array serialized as TEXT
   transcript: string | null;
   equipment: string | null;    // JSON-Array serialized as TEXT
+  nutrition_info: string | null; // JSON: {carbs, fat, protein}
   tried: number;               // 0 | 1
   rating: number | null;       // 1–5 | null
   notes: string | null;

@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { View, Text } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { useThemeInit } from '@/utils/use-theme';
 import { initDB } from '@/db/migrate';
 import '../global.css';
 
@@ -57,7 +58,8 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
+  useThemeInit();
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

@@ -20,12 +20,20 @@ export default function Root({ children }: { children: React.ReactNode }) {
 
         {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
-        {/* Add any additional <head> elements that you want globally available on web... */}
+        {/* Unregister any legacy service workers (e.g. old Vite PWA build from main branch) */}
+        <script dangerouslySetInnerHTML={{ __html: unregisterServiceWorkers }} />
       </head>
       <body>{children}</body>
     </html>
   );
 }
+
+const unregisterServiceWorkers = `
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (var r of registrations) { r.unregister(); }
+  });
+}`;
 
 const responsiveBackground = `
 body {

@@ -102,6 +102,22 @@ function parseCalories(schema: SchemaOrgRecipe): number | undefined {
   return isNaN(num) ? undefined : num;
 }
 
+function parseNutritionInfo(schema: SchemaOrgRecipe): { carbs?: string; fat?: string; protein?: string; fiber?: string } | undefined {
+  const n = schema.nutrition as Record<string, string> | undefined;
+  if (!n) return undefined;
+  const carbs   = n.carbohydrateContent;
+  const fat     = n.fatContent;
+  const protein = n.proteinContent;
+  const fiber   = n.fiberContent;
+  if (!carbs && !fat && !protein && !fiber) return undefined;
+  return {
+    carbs:   carbs   ? carbs.replace(/\s+/g, " ").trim()   : undefined,
+    fat:     fat     ? fat.replace(/\s+/g, " ").trim()     : undefined,
+    protein: protein ? protein.replace(/\s+/g, " ").trim() : undefined,
+    fiber:   fiber   ? fiber.replace(/\s+/g, " ").trim()   : undefined,
+  };
+}
+
 /** Strip HTML tags and normalize whitespace from step text. */
 function cleanStepText(raw: string): string {
   return raw
@@ -168,5 +184,6 @@ export function schemaToRecipeData(
     ingredients,
     steps,
     equipment: equipment.length > 0 ? equipment : undefined,
+    nutritionInfo: parseNutritionInfo(schema),
   };
 }

@@ -152,26 +152,26 @@ function RecipePickerModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800">
         {/* Header */}
-        <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
+        <View className="flex-row items-center px-4 py-3 border-b border-warm-200 dark:border-warm-700">
           <View className="flex-1">
-            <Text className="text-lg font-bold text-gray-900">Rezept hinzufügen</Text>
-            <Text className="text-sm text-gray-400">{dayName}</Text>
+            <Text className="text-lg font-bold text-warm-900 dark:text-warm-50">Rezept hinzufügen</Text>
+            <Text className="text-sm text-warm-500 dark:text-warm-400">{dayName}</Text>
           </View>
           <Pressable onPress={onClose} className="p-2">
-            <X size={22} color="#6b7280" />
+            <X size={22} color="#9E8878" />
           </Pressable>
         </View>
 
         {/* Suche */}
         <View className="px-4 py-3">
-          <View className="flex-row items-center bg-gray-50 rounded-xl px-3 py-2">
-            <Search size={16} color="#9ca3af" />
+          <View className="flex-row items-center bg-warm-50 dark:bg-espresso-900 rounded-xl px-3 py-2">
+            <Search size={16} color="#9E8878" />
             <TextInput
-              className="flex-1 ml-2 text-base text-gray-900"
+              className="flex-1 ml-2 text-base text-warm-900 dark:text-warm-50"
               placeholder="Rezept suchen…"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9E8878"
               value={search}
               onChangeText={setSearch}
             />
@@ -179,7 +179,7 @@ function RecipePickerModal({
         </View>
 
         {loading ? (
-          <ActivityIndicator className="mt-8" color="#9333ea" />
+          <ActivityIndicator className="mt-8" color="#C84B31" />
         ) : (
           <FlatList
             data={filtered}
@@ -188,14 +188,14 @@ function RecipePickerModal({
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => { onSelect(item.id); onClose(); }}
-                className="flex-row items-center py-3 border-b border-gray-50"
+                className="flex-row items-center py-3 border-b border-warm-100"
               >
                 <Text className="text-2xl mr-3">{item.emoji ?? '🍽️'}</Text>
-                <Text className="flex-1 text-gray-800 font-medium" numberOfLines={1}>{item.name}</Text>
+                <Text className="flex-1 text-warm-800 dark:text-warm-100 font-medium" numberOfLines={1}>{item.name}</Text>
               </Pressable>
             )}
             ListEmptyComponent={
-              <Text className="text-center text-gray-400 py-12">Keine Rezepte gefunden.</Text>
+              <Text className="text-center text-warm-500 dark:text-warm-400 py-12">Keine Rezepte gefunden.</Text>
             }
           />
         )}
@@ -221,41 +221,41 @@ function AddMethodModal({
 }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
+      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800">
+        <View className="flex-row items-center px-4 py-3 border-b border-warm-200 dark:border-warm-700">
           <View className="flex-1">
-            <Text className="text-lg font-bold text-gray-900">Rezept hinzufügen</Text>
-            <Text className="text-sm text-gray-400">{dayName}</Text>
+            <Text className="text-lg font-bold text-warm-900 dark:text-warm-50">Rezept hinzufügen</Text>
+            <Text className="text-sm text-warm-500 dark:text-warm-400">{dayName}</Text>
           </View>
           <Pressable onPress={onClose} className="p-2">
-            <X size={22} color="#6b7280" />
+            <X size={22} color="#9E8878" />
           </Pressable>
         </View>
 
         <View className="p-6 gap-4">
           <Pressable
             onPress={onPickRecipe}
-            className="flex-row items-center gap-4 p-5 bg-purple-50 rounded-2xl border border-purple-100"
+            className="flex-row items-center gap-4 p-5 bg-primary-50 rounded-2xl border border-primary-100"
           >
-            <View className="w-12 h-12 bg-purple-600 rounded-xl items-center justify-center">
+            <View className="w-12 h-12 bg-primary-500 rounded-xl items-center justify-center">
               <BookOpen size={24} color="white" />
             </View>
             <View className="flex-1">
-              <Text className="text-base font-semibold text-gray-900">Rezept auswählen</Text>
-              <Text className="text-sm text-gray-500 mt-0.5">Aus deiner Sammlung wählen</Text>
+              <Text className="text-base font-semibold text-warm-900 dark:text-warm-50">Rezept auswählen</Text>
+              <Text className="text-sm text-warm-500 dark:text-warm-400 mt-0.5">Aus deiner Sammlung wählen</Text>
             </View>
           </Pressable>
 
           <Pressable
             onPress={onScanQR}
-            className="flex-row items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100"
+            className="flex-row items-center gap-4 p-5 bg-warm-50 dark:bg-espresso-900 rounded-2xl border border-warm-200 dark:border-warm-700"
           >
-            <View className="w-12 h-12 bg-gray-700 rounded-xl items-center justify-center">
+            <View className="w-12 h-12 bg-espresso-700 rounded-xl items-center justify-center">
               <QrCode size={24} color="white" />
             </View>
             <View className="flex-1">
-              <Text className="text-base font-semibold text-gray-900">QR-Code scannen</Text>
-              <Text className="text-sm text-gray-500 mt-0.5">Rezept von einer Rezeptkarte importieren</Text>
+              <Text className="text-base font-semibold text-warm-900 dark:text-warm-50">QR-Code scannen</Text>
+              <Text className="text-sm text-warm-500 dark:text-warm-400 mt-0.5">Rezept von einer Rezeptkarte importieren</Text>
             </View>
           </Pressable>
         </View>
@@ -306,13 +306,13 @@ function DayColumn({
   const weekend = dayIndex >= 5;
 
   return (
-    <View className={`w-36 mr-3 rounded-2xl overflow-hidden border ${today ? 'border-purple-300' : 'border-gray-100'} bg-white`}>
+    <View className={`w-36 mr-3 rounded-2xl overflow-hidden border ${today ? 'border-primary-300' : 'border-warm-200 dark:border-warm-700'} bg-white dark:bg-espresso-800`}>
       {/* Day header */}
-      <View className={`px-3 py-2.5 ${today ? 'bg-purple-600' : weekend ? 'bg-gray-50' : 'bg-white'}`}>
-        <Text className={`text-xs font-bold ${today ? 'text-white' : 'text-gray-400'}`}>
+      <View className={`px-3 py-2.5 ${today ? 'bg-primary-500' : weekend ? 'bg-warm-50 dark:bg-espresso-900' : 'bg-white dark:bg-espresso-800'}`}>
+        <Text className={`text-xs font-bold ${today ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
           {DAYS_SHORT[dayIndex]}
         </Text>
-        <Text className={`text-sm font-semibold ${today ? 'text-white' : 'text-gray-700'}`}>
+        <Text className={`text-sm font-semibold ${today ? 'text-white' : 'text-warm-700 dark:text-warm-200'}`}>
           {dateLabel}
         </Text>
       </View>
@@ -322,9 +322,9 @@ function DayColumn({
         {entries.map(entry => {
           const recipe = recipes.get(entry.recipe_id);
           return (
-            <View key={entry.id} className="flex-row items-start bg-gray-50 rounded-xl px-2 py-2 gap-1">
+            <View key={entry.id} className="flex-row items-start bg-warm-50 dark:bg-espresso-900 rounded-xl px-2 py-2 gap-1">
               <Text className="text-base leading-5">{recipe?.emoji ?? '🍽️'}</Text>
-              <Text className="flex-1 text-xs text-gray-700 leading-4" numberOfLines={2}>
+              <Text className="flex-1 text-xs text-warm-700 dark:text-warm-200 leading-4" numberOfLines={2}>
                 {recipe?.name ?? `Rezept #${entry.recipe_id}`}
               </Text>
               <Pressable onPress={() => onRemove(entry.id)} hitSlop={8}>
@@ -338,9 +338,9 @@ function DayColumn({
       {/* Add button */}
       <Pressable
         onPress={() => onAdd(dayIndex)}
-        className="mx-2 mb-2 py-2 rounded-xl border border-dashed border-gray-200 items-center"
+        className="mx-2 mb-2 py-2 rounded-xl border border-dashed border-warm-200 dark:border-warm-700 items-center"
       >
-        <Plus size={14} color="#9ca3af" />
+        <Plus size={14} color="#9E8878" />
       </Pressable>
     </View>
   );
@@ -508,36 +508,36 @@ export default function PlannerScreen() {
   const isCurrentWeek = monday.getTime() === getMondayOf(new Date()).getTime();
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
       {/* Header */}
       <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-2">
-            <Calendar size={20} color="#9333ea" />
-            <Text className="text-2xl font-bold text-gray-900">Wochenplaner</Text>
+            <Calendar size={20} color="#C84B31" />
+            <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">Wochenplaner</Text>
           </View>
           {mealPlan.length > 0 && (
-            <Pressable onPress={handleAddWeekToShopping} className="flex-row items-center gap-1.5 px-3 py-2 bg-purple-50 rounded-xl border border-purple-200">
-              <ShoppingCart size={15} color="#9333ea" />
-              <Text className="text-xs font-medium text-purple-600">Einkaufsliste</Text>
+            <Pressable onPress={handleAddWeekToShopping} className="flex-row items-center gap-1.5 px-3 py-2 bg-primary-50 rounded-xl border border-primary-200">
+              <ShoppingCart size={15} color="#C84B31" />
+              <Text className="text-xs font-medium text-primary-500">Einkaufsliste</Text>
             </Pressable>
           )}
         </View>
 
         {/* Week navigation */}
         <View className="flex-row items-center justify-between">
-          <Pressable onPress={goToPrevWeek} className="p-2 rounded-xl bg-white border border-gray-200">
-            <ChevronLeft size={18} color="#6b7280" />
+          <Pressable onPress={goToPrevWeek} className="p-2 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+            <ChevronLeft size={18} color="#9E8878" />
           </Pressable>
 
           <Pressable onPress={goToCurrentWeek} disabled={isCurrentWeek}>
-            <Text className={`text-sm font-medium ${isCurrentWeek ? 'text-purple-600' : 'text-gray-600'}`}>
+            <Text className={`text-sm font-medium ${isCurrentWeek ? 'text-primary-500' : 'text-warm-600 dark:text-warm-300'}`}>
               {weekLabel}
             </Text>
           </Pressable>
 
-          <Pressable onPress={goToNextWeek} className="p-2 rounded-xl bg-white border border-gray-200">
-            <ChevronRight size={18} color="#6b7280" />
+          <Pressable onPress={goToNextWeek} className="p-2 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+            <ChevronRight size={18} color="#9E8878" />
           </Pressable>
         </View>
       </View>
@@ -545,7 +545,7 @@ export default function PlannerScreen() {
       {/* Day columns */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#9333ea" />
+          <ActivityIndicator size="large" color="#C84B31" />
         </View>
       ) : (
         <ScrollView

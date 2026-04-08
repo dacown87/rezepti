@@ -69,6 +69,12 @@ export const RecipeDataSchema = z.object({
     .array(z.string())
     .optional()
     .describe("Benötigtes Zubehör/Geräte, z.B. Varoma, Schmetterling"),
+  nutritionInfo: z.object({
+    carbs: z.string().optional(),
+    fat: z.string().optional(),
+    protein: z.string().optional(),
+    fiber: z.string().optional(),
+  }).optional().describe("Nährwerte pro Portion (Kohlenhydrate, Fett, Eiweiß, Ballaststoffe)"),
 });
 
 export type RecipeData = z.infer<typeof RecipeDataSchema>;
@@ -96,4 +102,5 @@ export interface PipelineResult {
   recipe?: RecipeData;
   recipeId?: number;
   error?: string;
+  imageSuggestions?: string[];
 }
