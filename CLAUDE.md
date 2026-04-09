@@ -144,7 +144,9 @@ Host github.com
 
 ## Planning Documents
 
-- **Master Plan:** `docs/superpowers/plans/2026-03-26-master-phasenplan.md` — Strategischer Phasenplan (Phase 1–8), CEO-Review, Scope-Entscheidungen
+- **Master Plan (kanonisch):** Obsidian Vault → `Projekte/RecipeDeck/Phasenplan.md` — Immer aktuellster Stand. Zuerst hier nachschlagen.
+- **Legacy Plan:** `docs/superpowers/plans/2026-03-26-master-phasenplan.md` — Veraltet, nur als Archiv. Nicht mehr maßgeblich.
+- **Autoplan-Review:** `~/.claude/plans/joyful-kindling-anchor.md` — Vollständiger Projektstand-Review (2026-04-09) mit offenen Punkten
 - **Codemaps:** `docs/CODEMAPS/` — Architecture, Backend, Fetchers, Database, Frontend
 - **TODO:** `TODO.md` — Aktuelle Aufgaben und offene Bugs
 

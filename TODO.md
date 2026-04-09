@@ -1,4 +1,42 @@
 
+## Strategie-Überlegungen (2026-04-09)
+
+### Firebase statt SQLite (OFFEN — Evaluieren)
+**Idee:** Migration von lokaler SQLite-Datenbank zu Firebase (Firestore).
+
+**Vorteile:**
+- Login out of the box (Firebase Auth — Email, Google, Apple)
+- Bilder speichern in Firebase Storage (statt lokal/Proxy)
+- Multi-User von Anfang an sauber gelöst — kein nachträgliches `user_id`-Refactoring
+- Rezept-Sharing via Link nativ möglich (öffentliche Dokument-IDs)
+
+**Nachteile / Risiken:**
+- Vendor Lock-in (Google)
+- Kosten ab bestimmtem Traffic (Spark = kostenlos bis ~50k Reads/Tag)
+- Kompletter DB-Umbau — großer Aufwand, alle CRUD-Endpoints müssen umgeschrieben werden
+- SQLite ist aktuell gut getestet und stabil
+
+**Entscheidung:** Noch offen. Evaluieren sobald Multi-User-Login konkret angegangen wird.
+Alternativen: Supabase (PostgreSQL + Auth + Storage, open-source), PocketBase (SQLite-basiert, self-hosted).
+
+---
+
+### Rezept-Sharing via Link (GEPLANT — QR-Code-Sharing ersetzen)
+**Idee:** Statt QR-Code mit Rezept-JSON → öffentlicher Share-Link pro Rezept.
+
+**Funktionsweise:**
+- Nutzer klickt "Teilen" → erhält einen Link (z.B. `/share/abc123`)
+- Empfänger öffnet den Link → sieht das Rezept (auch ohne Login)
+- Mit einem Klick: "In mein Konto importieren" → Rezept landet in seiner Sammlung
+
+**Was damit entfällt:** QR-Code-Sharing (Share-Modal + Scanner für JSON-QR-Codes). Der QR-Code im PDF-Export (für den Link zur Quelle) bleibt.
+
+**Voraussetzung:** Braucht entweder Firebase (einfach) oder eine `shared_recipes`-Tabelle in SQLite mit öffentlichem Token + optionalem Ablaufdatum.
+
+**Priorität:** Nach Multi-User-Login umsetzen.
+
+---
+
 ## Phase 8: QR-Scan + Drag & Drop (28.03.2026)
 
 ### ✅ ABGESCHLOSSEN
