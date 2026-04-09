@@ -1,11 +1,13 @@
 ---
-status: PLANNING
-last_reviewed: 2026-03-28
+status: COMPLETED
+last_reviewed: 2026-04-09
 feature: TikTok Verbesserung (70% → 100%)
 priority: 4
 phase: 12
 branch: phase/12-tiktok-verbesserung
 ---
+
+**Abgeschlossen:** 2026-04-09
 
 # Plan: TikTok-Integration vollständig
 
@@ -227,11 +229,11 @@ async function fetchTikTokWithRegionFallback(
 
 ## Erfolgskriterien
 
-- [ ] **Video OCR:** Text aus Overlays wird extrahiert
-- [ ] **Kommentare:** Top 50 Kommentare werden verarbeitet
-- [ ] **Regionale Blöcke:** Mindestens 1 Region funktioniert
-- [ ] **Mobile URLs:** `vm.tiktok.com` wird erkannt
-- [ ] **Feature-Parität:** Gleiche Features wie Instagram
+- [x] **Video OCR:** Text aus Overlays wird extrahiert
+- [x] **Kommentare:** Top 50 Kommentare werden verarbeitet
+- [x] **Regionale Blöcke:** Mindestens 1 Region funktioniert
+- [x] **Mobile URLs:** `vm.tiktok.com` wird erkannt
+- [x] **Feature-Parität:** Gleiche Features wie Instagram
 
 ---
 
@@ -279,7 +281,7 @@ async function fetchTikTokWithRegionFallback(
 
 ## Fortschritt
 
-- [ ] Phase 1: Video OCR für Text-Overlays
-- [ ] Phase 2: Kommentar-Extraktion  
-- [ ] Phase 3: Regionale Fallbacks
-- [ ] Phase 4: Feature-Parität mit Instagram
+- [x] Phase 1: Video OCR für Text-Overlays
+- [x] Phase 2: Kommentar-Extraktion  
+- [x] Phase 3: Regionale Fallbacks
+- [x] Phase 4: Feature-Parität mit Instagram

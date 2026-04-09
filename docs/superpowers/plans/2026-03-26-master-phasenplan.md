@@ -233,7 +233,7 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 | 9 | Chefkoch Verbesserung | ✅ DONE | 2-4h | LOW | [plan](./2026-03-28-chefkoch-verbesserung.md) |
 | 10 | Zutaten-Rezeptvorschläge | ✅ DONE | 5-7d | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
 | 11 | Instagram Verbesserung | ✅ DONE | 2-3d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
-| 12 | TikTok Verbesserung | IN PROGRESS | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
+| 12 | TikTok Verbesserung | ✅ DONE | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
 | 13 | Pinterest Import | PENDING | 6-8d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
 | 14 | Facebook Import | ✅ DONE | 4-5d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
 
@@ -284,12 +284,15 @@ Implementiert:
 - 17 Unit-Tests für Instagram-Fetcher ✅
 
 ##### Phase 12: TikTok Verbesserung (70% → 95%)
+**Status:** ✅ DONE
 **Schätzung:** 4-6 Tage | **Risiko:** MEDIUM | **Branch:** `phase/12-tiktok-verbesserung`
+**Abgeschlossen:** 2026-04-09
 
-- Video OCR für Text-Overlays (1fps, max 10 Frames → Vision Model)
-- Kommentar-Extraktion (`--write-comments`)
-- Geo-Fallback (`--geo-bypass-country` für DE/EU-Blocks)
-- Mobile URL Support (`vm.tiktok.com`, `vt.tiktok.com`)
+- [x] Video OCR für Text-Overlays (1fps, max 10 Frames → Vision Model)
+- [x] Kommentar-Extraktion (`--write-comments`)
+- [x] Geo-Fallback (`--geo-bypass-country` für DE/EU-Blocks)
+- [x] Mobile URL Support (`vm.tiktok.com`, `vt.tiktok.com`)
+- [x] Thumbnails-Array Support und Feature-Parität mit Instagram
 - **Apify-Alternative:** `bulletproof/tiktok-transcript-extractor` als Fallback
 
 ##### Phase 13: Pinterest Import (0% → 90%)
@@ -395,10 +398,11 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 | Phase 7 QA | Orchestrated | Phase 7 implementation | 1 | passed | Cookidoo-Credentials-UI, Pinterest/Facebook-Platzhalter, 166 Unit-Tests bestanden ✅ |
 | Planner Review | /plan + web research | Phase 9-14 revision | 1 | passed | Dauer reduziert: 46d → 25-35d; Phase 10: 10-12d → 5-7d; bessere Fallbacks (Apify, Vision-OCR) |
 | Phase 10 | Orchestrated | Phase 10 implementation | 1 | COMPLETED | "Was habe ich zu Hause?" Feature: AND/OR-Toggle, Match-Score, fehlende Zutaten, localStorage-Persistenz ✅ |
+| Phase 12 | Orchestrated | Phase 12 TikTok Verbesserung | 1 | COMPLETED | Video OCR, Kommentar-Extraktion, Geo-Fallback, Mobile URLs, 21 Unit-Tests bestanden ✅ |
 
 **UNRESOLVED:** 1
 - QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
 
-**STATUS (2026-03-28):** Phase 1–14 vollständig implementiert.
-**CURRENT:** Phase 12 – TikTok Verbesserung (IN PROGRESS)
-**NEXT:** Phase 12 – TikTok Verbesserung
+**STATUS (2026-04-09):** Phase 1–13 vollständig implementiert. Phase 14 (Facebook) PENDING.
+**CURRENT:** Phase 13 – Pinterest Import ✅ DONE
+**NEXT:** Phase 14 – Facebook Import / Multi-User Login
