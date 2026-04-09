@@ -41,8 +41,8 @@ let changelog = fs.existsSync('CHANGELOG.md')
 changelog = changelog.replace(/^(# Changelog\n+)/, `$1${newSection}\n`)
 fs.writeFileSync('CHANGELOG.md', changelog)
 
-// --- Update frontend/public/changelog.json ---
-const changelogJsonPath = 'frontend/public/changelog.json'
+// --- Update public/changelog.json ---
+const changelogJsonPath = 'public/changelog.json'
 let data = { version: newVersion, entries: [] }
 if (fs.existsSync(changelogJsonPath)) {
   try { data = JSON.parse(fs.readFileSync(changelogJsonPath, 'utf8')) } catch {}
