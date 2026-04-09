@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.60] – 2026-04-09
+
+- Facebook-Einstellungen — Cookie-Hinweis klarer formuliert
+- Phase 12 TikTok Verbesserung abgeschlossen — alle Features implementiert und getestet
+- Phase 13 Pinterest Import abgeschlossen — OG-Extraktion, web-fetcher Delegation, yt-dlp Fallback
+- Groq→Ollama Fallback via GROQ_BASE_URL + yt-dlp Health Check Script
+- Phase 13 Pinterest Import - Proxy-Fetcher, API Integration, Vision-OCR
+- Phase 12 code review fixes + classifier tests
+- Phase 12 TikTok - Video OCR integration + unit tests
+- Phase 11 Instagram - Complete (Carousel, OCR, Fallback)
+- Phase 11 Instagram Verbesserungen (Kern)
+- Phase 10 - Zutaten-basierte Rezeptvorschläge
+
 ## [1.0.59] – 2026-04-09
 
 
