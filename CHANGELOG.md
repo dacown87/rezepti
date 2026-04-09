@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.61] – 2026-04-09
+
+- Cookidoo ingredient-patching, RN dark-mode header, CLAUDE.md Obsidian-Protokoll
+- PDF→Downloads, Planner-Zentrierung, Settings-Verbesserungen, Cache-Fix
+- DRY getServerUrl, CORS allowlist, SSRF proxy hardening
+- Dockerfile — veraltete frontend/public/changelog.json Zeile entfernt
+- EAS workflow nur manuell triggerbar, Expo-Projekt verknüpft
+- EAS Build vorbereitet (GitHub Actions + eas.json)
+- Planer auf Web via AsyncStorage/localStorage
+- Datum bei Quelle im Rezept anzeigen
+
 ## [1.0.60] – 2026-04-09
 
 - Facebook-Einstellungen — Cookie-Hinweis klarer formuliert
