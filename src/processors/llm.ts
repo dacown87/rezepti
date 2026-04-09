@@ -4,7 +4,7 @@ import { RecipeDataSchema, type RecipeData } from "../types.js";
 
 const groq = new OpenAI({
   apiKey:  config.groq.apiKey,
-  baseURL: "https://api.groq.com/openai/v1",
+  baseURL: config.groq.baseUrl,
 });
 
 const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Deine Aufgabe:
