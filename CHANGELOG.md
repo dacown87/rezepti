@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.52] – 2026-04-09
+
+
+
 ## [1.0.51] – 2026-04-09
 
 - Cookidoo ingredient-patching, RN dark-mode header, CLAUDE.md Obsidian-Protokoll
