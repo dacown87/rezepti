@@ -1,47 +1,6 @@
 {
-  "version": "1.0.56",
+  "version": "1.0.49",
   "entries": [
-    {
-      "version": "1.0.56",
-      "date": "2026-04-09",
-      "changes": [
-        "gelöschten image-search Import und Aufruf aus api-react.ts entfernt"
-      ]
-    },
-    {
-      "version": "1.0.55",
-      "date": "2026-04-09",
-      "changes": []
-    },
-    {
-      "version": "1.0.54",
-      "date": "2026-04-09",
-      "changes": []
-    },
-    {
-      "version": "1.0.53",
-      "date": "2026-04-09",
-      "changes": []
-    },
-    {
-      "version": "1.0.52",
-      "date": "2026-04-09",
-      "changes": []
-    },
-    {
-      "version": "1.0.51",
-      "date": "2026-04-09",
-      "changes": [
-        "Cookidoo ingredient-patching, RN dark-mode header, CLAUDE.md Obsidian-Protokoll",
-        "PDF→Downloads, Planner-Zentrierung, Settings-Verbesserungen, Cache-Fix",
-        "DRY getServerUrl, CORS allowlist, SSRF proxy hardening",
-        "Dockerfile — veraltete frontend/public/changelog.json Zeile entfernt",
-        "EAS workflow nur manuell triggerbar, Expo-Projekt verknüpft",
-        "EAS Build vorbereitet (GitHub Actions + eas.json)",
-        "Planer auf Web via AsyncStorage/localStorage",
-        "Datum bei Quelle im Rezept anzeigen"
-      ]
-    },
     {
       "version": "1.0.49",
       "date": "2026-03-31",
@@ -94,7 +53,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-04-09",
-    "time": "08:07"
+    "date": "2026-03-31",
+    "time": "16:42"
   }
 }
