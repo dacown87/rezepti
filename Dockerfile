@@ -35,18 +35,6 @@ COPY src/ ./src/
 # Falls tsc hier scheitert, zuerst 'npx tsc --noEmit' lokal prüfen.
 RUN npx tsc
 
-# ─── frontend-builder ─────────────────────────────────────────────────────────
-FROM base AS frontend-builder
-
-WORKDIR /app
-
-COPY .npmrc package*.json ./
-RUN npm install
-
-COPY frontend/ ./frontend/
-COPY vite.config.ts ./
-RUN npm run build:react
-
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production
 
@@ -56,8 +44,7 @@ COPY .npmrc package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
-COPY --from=frontend-builder /app/public/ ./public/
-COPY frontend/public/changelog.json ./frontend/public/changelog.json
+COPY public/ ./public/
 
 EXPOSE 3000
 
