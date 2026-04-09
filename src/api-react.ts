@@ -38,7 +38,6 @@ import type { RecipeData, PipelineEvent } from "./types.js";
 import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, getCredentials, hasCredentials, clearSession } from "./fetchers/cookidoo.js";
 import { savePinterestCredentialsToDisk, clearPinterestCredentialsFromDisk, getPinterestStatus, getPinterestCredentials } from "./fetchers/pinterest.js";
 import { hasFacebookCookies, getFacebookCookieDomains, validateFacebookCookies, saveFacebookCookies, clearFacebookCookies } from "./fetchers/facebook.js";
-import { searchRecipeImages } from "./utils/image-search.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
 const photoDataStore = new Map<string, string>();
@@ -685,8 +684,6 @@ async function processPhotoJobInBackground(jobId: string) {
       status: "running",
     });
 
-    const imageSuggestions = await searchRecipeImages(recipeData.name);
-
     jobManager.updateJob(jobId, {
       progress: 90,
       currentStage: "exporting",
@@ -695,7 +692,7 @@ async function processPhotoJobInBackground(jobId: string) {
     });
 
     const recipeId = saveRecipeToReactDb(recipeData, "photo://upload");
-    jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData, imageSuggestions });
+    jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData });
 
   } catch (error) {
     console.error(`Photo job ${jobId} failed:`, error);
