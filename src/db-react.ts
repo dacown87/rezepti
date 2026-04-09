@@ -4,7 +4,7 @@ import { eq, and, gte, lt, desc } from "drizzle-orm";
 import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { config } from "./config.js";
-import { recipes, ingredientDictionary, shoppingList, mealPlan } from "./schema.js";
+import { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
 
@@ -23,7 +23,7 @@ function openReactDb() {
   }
   const sqlite = new Database(resolvedPath);
   sqlite.pragma("journal_mode = WAL");
-  return drizzle(sqlite, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan } });
+  return drizzle(sqlite, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } });
 }
 
 // Lazy singleton for React database
@@ -92,6 +92,13 @@ export function ensureReactSchema() {
     recipe_id INTEGER NOT NULL,
     day_of_week INTEGER NOT NULL,
     week_start INTEGER NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  )`); } catch {}
+  // Migration: api_keys (BYOK key storage)
+  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key_hash TEXT NOT NULL UNIQUE,
+    model TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now'))
   )`); } catch {}
   // Migration: fix rows where created_at is NULL or stored as text (e.g. "2026-03-25 13:54:00")
@@ -481,4 +488,25 @@ export function removeRecipeFromMealPlan(id: number) {
 export function clearMealPlanForWeek(weekStart: number) {
   const db = getReactDb();
   db.delete(mealPlan).where(eq(mealPlan.weekStart, weekStart)).run();
+}
+
+// ============ API Keys CRUD ============
+
+export function storeApiKey(keyHash: string, model?: string) {
+  const db = getReactDb();
+  db.insert(apiKeys)
+    .values({ keyHash, model })
+    .onConflictDoUpdate({ target: apiKeys.keyHash, set: { model } })
+    .run();
+}
+
+export function removeApiKey(keyHash: string) {
+  const db = getReactDb();
+  const result = db.delete(apiKeys).where(eq(apiKeys.keyHash, keyHash)).returning({ id: apiKeys.id }).get();
+  return !!result;
+}
+
+export function getApiKeyByHash(keyHash: string) {
+  const db = getReactDb();
+  return db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).get() ?? null;
 }

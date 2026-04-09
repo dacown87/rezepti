@@ -50,6 +50,14 @@ export const mealPlan = sqliteTable("meal_plan", {
                .default(sql`(strftime('%s', 'now'))`),
 });
 
+export const apiKeys = sqliteTable("api_keys", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  keyHash: text("key_hash").notNull().unique(),
+  model: text("model"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+               .default(sql`(strftime('%s', 'now'))`),
+});
+
 export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type IngredientDictionaryEntry = typeof ingredientDictionary.$inferSelect;
@@ -58,3 +66,5 @@ export type ShoppingListItem = typeof shoppingList.$inferSelect;
 export type NewShoppingListItem = typeof shoppingList.$inferInsert;
 export type MealPlanEntry = typeof mealPlan.$inferSelect;
 export type NewMealPlanEntry = typeof mealPlan.$inferInsert;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type NewApiKey = typeof apiKeys.$inferInsert;

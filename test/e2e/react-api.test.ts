@@ -4,14 +4,16 @@
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, afterEach, expect } from 'vitest';
-import { TestRunner, testUrls, defaultConfig } from '../utils/test-helpers.js';
+import { TestRunner, testUrls, defaultConfig, isServerAvailable } from '../utils/test-helpers.js';
 import { ensureReactSchema } from '../../src/db-react.js';
 
 // Extend timeout for E2E tests
 const TEST_TIMEOUT = 60000;
 const POLL_TIMEOUT = 30000;
 
-describe('Rezepti React API E2E Tests', () => {
+const serverAvailable = await isServerAvailable();
+
+describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
   let testRunner: TestRunner;
   let createdJobs: string[] = [];
 

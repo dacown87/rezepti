@@ -152,10 +152,9 @@ export async function processURL(
 
     return { success: true, recipe, recipeId };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unbekannter Fehler";
+    const { message, hint } = toUserFriendlyError(error);
     await emit(onEvent, { stage: "error", message });
-    return { success: false, error: message };
+    return { success: false, error: message, hint };
   } finally {
     cleanupTempDir(tempDir);
   }
@@ -224,6 +223,61 @@ async function extractFromBundle(
   }
 
   throw new Error(
-    "Kein Rezept-Inhalt gefunden. Weder Text, Audio noch Bilder verfügbar."
+    "Kein verwertbarer Inhalt gefunden. Die Seite enthält kein erkennbares Rezept (kein Text, Audio oder Bild)."
   );
+}
+
+interface UserFriendlyError {
+  message: string;
+  hint?: string;
+}
+
+function toUserFriendlyError(error: unknown): UserFriendlyError {
+  const raw = error instanceof Error ? error.message : String(error);
+
+  // Groq / OpenAI rate limit (DX-4)
+  if (/429|rate.?limit|quota.?exceeded/i.test(raw)) {
+    return {
+      message: "Groq API-Limit erreicht. Bitte einen Moment warten oder einen eigenen API-Key hinzufügen.",
+      hint: "byok",
+    };
+  }
+
+  // Auth errors
+  if (/401|unauthorized|invalid.?api.?key|authentication/i.test(raw)) {
+    return {
+      message: "Groq API-Key ungültig. Bitte den Key in den Einstellungen prüfen.",
+      hint: "byok",
+    };
+  }
+
+  // yt-dlp / video download errors
+  if (/yt.?dlp|video unavailable|private video|geo.?blocked|copyright/i.test(raw)) {
+    return {
+      message: "Video konnte nicht abgerufen werden. Möglicherweise ist es privat, gelöscht oder in deiner Region gesperrt.",
+    };
+  }
+
+  // Network errors
+  if (/fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|network/i.test(raw)) {
+    return {
+      message: "Verbindungsfehler. Bitte die URL prüfen und es erneut versuchen.",
+    };
+  }
+
+  // Schema parse / Zod errors (no recipe found)
+  if (/ZodError|Expected|invalid_type|Required/i.test(raw) || raw.includes("parse")) {
+    return {
+      message: "Kein Rezept erkannt. Die Seite enthält möglicherweise kein strukturiertes Rezept.",
+    };
+  }
+
+  // Generic timeout
+  if (/timeout|timed out/i.test(raw)) {
+    return {
+      message: "Zeitüberschreitung beim Abrufen der Seite. Bitte erneut versuchen.",
+    };
+  }
+
+  return { message: raw };
 }

@@ -27,6 +27,7 @@ export interface ExtractionJob {
   message?: string;
   result?: PipelineResult;
   error?: string;
+  hint?: string;
   createdAt: number;
   updatedAt: number;
   startedAt?: number;
@@ -46,6 +47,7 @@ export interface JobEvent {
   message?: string;
   result?: PipelineResult;
   error?: string;
+  hint?: string;
   updatedAt: number;
 }
 
@@ -110,6 +112,9 @@ export class JobManager {
       )
     `);
     
+    // Migration: hint column for user-friendly error suggestions
+    try { this.db.exec(`ALTER TABLE extraction_jobs ADD COLUMN hint TEXT`); } catch {}
+
     // Create index for faster queries
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status 
@@ -149,7 +154,7 @@ export class JobManager {
     `);
     this.stmtFail = this.db.prepare(`
       UPDATE extraction_jobs
-      SET status = ?, progress = ?, error = ?, completed_at = ?, updated_at = ?
+      SET status = ?, progress = ?, error = ?, hint = ?, completed_at = ?, updated_at = ?
       WHERE id = ?
     `);
     this.stmtIsProcessing = this.db.prepare(`
@@ -283,11 +288,11 @@ export class JobManager {
   }
 
   /**
-   * Fail a job with error
+   * Fail a job with error (and optional hint for the frontend)
    */
-  failJob(jobId: string, error: string): boolean {
+  failJob(jobId: string, error: string, hint?: string): boolean {
     const now = Date.now();
-    const update = this.stmtFail.run("failed", 100, error, now, now, jobId);
+    const update = this.stmtFail.run("failed", 100, error, hint ?? null, now, now, jobId);
     return update.changes > 0;
   }
   
@@ -328,6 +333,7 @@ export class JobManager {
       message: job.message,
       result: job.result,
       error: job.error,
+      hint: job.hint,
       updatedAt: job.updatedAt,
     };
   }
@@ -364,6 +370,7 @@ export class JobManager {
       message: row.message || undefined,
       result: row.result ? JSON.parse(row.result) as PipelineResult : undefined,
       error: row.error || undefined,
+      hint: row.hint || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       startedAt: row.started_at || undefined,

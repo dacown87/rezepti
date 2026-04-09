@@ -4,9 +4,11 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { TestRunner, defaultConfig } from '../utils/test-helpers.js';
+import { TestRunner, defaultConfig, isServerAvailable } from '../utils/test-helpers.js';
 
-describe('Basic API Tests', () => {
+const serverAvailable = await isServerAvailable();
+
+describe.skipIf(!serverAvailable)('Basic API Tests', () => {
   let testRunner: TestRunner;
 
   beforeAll(() => {

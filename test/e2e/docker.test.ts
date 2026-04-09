@@ -4,7 +4,7 @@
  */
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
-import { TestRunner, defaultConfig } from '../utils/test-helpers.js';
+import { TestRunner, defaultConfig, isServerAvailable } from '../utils/test-helpers.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -18,7 +18,9 @@ const DOCKER_CONFIG = {
   legacyDbPath: '/app/data/rezepti.sqlite',
 };
 
-describe('Docker Environment Tests', () => {
+const serverAvailable = await isServerAvailable();
+
+describe.skipIf(!serverAvailable)('Docker Environment Tests', () => {
   let testRunner: TestRunner;
   let isDockerRunning = false;
 

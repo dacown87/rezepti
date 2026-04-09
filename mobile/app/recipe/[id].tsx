@@ -1,0 +1,904 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View, Text, ScrollView, Pressable, ActivityIndicator,
+  TextInput, Modal, Image, Share, Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, router } from 'expo-router';
+import {
+  ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
+  Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
+  Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode,
+} from 'lucide-react-native';
+import QRCodeSVG from 'react-native-qrcode-svg';
+import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { getDB } from '@/db/migrate';
+import type { Recipe } from '@/db/schema';
+import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
+import { shareRecipePDF } from '@/utils/pdf-export';
+import { StepText } from '@/components/StepText';
+import { addIngredients } from '@/app/(tabs)/shopping';
+import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
+import { getServerUrl } from '@/utils/server-url';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function parseJSON<T>(json: string | null, fallback: T): T {
+  if (!json) return fallback;
+  try { return JSON.parse(json) as T; } catch { return fallback; }
+}
+
+function normalizeRecipe(r: Record<string, unknown>): Recipe {
+  return {
+    id: Number(r.id),
+    name: String(r.name),
+    emoji: (r.emoji as string | null) ?? null,
+    source_url: (r.source_url as string | null) ?? null,
+    image_url: (r.image_url as string | null) ?? (r.imageUrl as string | null) ?? null,
+    ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients ?? []),
+    steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps ?? []),
+    tags: typeof r.tags === 'string' ? r.tags : (r.tags ? JSON.stringify(r.tags) : null),
+    servings: (r.servings as string | null) ?? null,
+    duration: (r.duration as string | null) ?? null,
+    calories: r.calories != null ? Number(r.calories) : null,
+    rating: r.rating != null ? Number(r.rating) : null,
+    notes: (r.notes as string | null) ?? null,
+    equipment: typeof r.equipment === 'string' ? r.equipment : (r.equipment ? JSON.stringify(r.equipment) : null),
+    nutrition_info: typeof (r as any).nutrition_info === 'string'
+      ? (r as any).nutrition_info
+      : ((r as any).nutritionInfo ? JSON.stringify((r as any).nutritionInfo) : null),
+    transcript: null,
+    tried: 0,
+    pdf_created: 0,
+    created_at: typeof r.created_at === 'number'
+      ? r.created_at
+      : (typeof r.created_at === 'string' && r.created_at
+          ? Math.floor(new Date(r.created_at).getTime() / 1000)
+          : null),
+  };
+}
+
+async function apiPatch(id: number, data: Record<string, unknown>): Promise<void> {
+  const serverUrl = await getServerUrl();
+  const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`PATCH ${res.status}`);
+}
+
+async function sqlitePatch(id: number, data: Record<string, unknown>): Promise<void> {
+  const db = getDB();
+  const fields = Object.entries(data).map(([k]) => `${k} = ?`).join(', ');
+  const values = Object.values(data).map(v =>
+    Array.isArray(v) ? JSON.stringify(v) : (v as string | number | null)
+  );
+  await db.runAsync(
+    `UPDATE recipes SET ${fields} WHERE id = ?`,
+    ...values, id
+  );
+}
+
+async function patchRecipe(id: number, data: Record<string, unknown>): Promise<void> {
+  if (Platform.OS === 'web') await apiPatch(id, data);
+  else await sqlitePatch(id, data);
+}
+
+async function deleteRecipeById(id: number): Promise<void> {
+  if (Platform.OS === 'web') {
+    const serverUrl = await getServerUrl();
+    await fetch(`${serverUrl}/api/v1/recipes/${id}`, { method: 'DELETE' });
+  } else {
+    await getDB().runAsync('DELETE FROM recipes WHERE id = ?', id);
+  }
+}
+
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+
+function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <Modal transparent animationType="fade">
+      <View className="flex-1 bg-black/50 items-center justify-center px-8">
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full max-w-sm">
+          <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-2">Rezept löschen</Text>
+          <Text className="text-warm-500 dark:text-warm-400 mb-6">Diese Aktion kann nicht rückgängig gemacht werden.</Text>
+          <View className="flex-row gap-3">
+            <Pressable onPress={onCancel} className="flex-1 py-3 rounded-xl border border-warm-200 dark:border-warm-700 items-center">
+              <Text className="text-warm-700 dark:text-warm-200 font-medium">Abbrechen</Text>
+            </Pressable>
+            <Pressable onPress={onConfirm} className="flex-1 py-3 rounded-xl bg-red-500 items-center">
+              <Text className="text-white font-semibold">Löschen</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Cook Mode Modal ──────────────────────────────────────────────────────────
+
+function CookModal({ steps, ingredients, onClose }: {
+  steps: string[];
+  ingredients: string[];
+  onClose: () => void;
+}) {
+  const [current, setCurrent] = useState(0);
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+
+  const toggleCheck = (i: number) =>
+    setChecked(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
+
+  return (
+    <Modal animationType="slide" statusBarTranslucent>
+      <SafeAreaView className="flex-1 bg-espresso-900">
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-espresso-700">
+          <Text className="text-white font-semibold text-base">Koch-Modus</Text>
+          <Pressable onPress={onClose} className="bg-espresso-700 rounded-full p-2">
+            <X size={18} color="#fff" />
+          </Pressable>
+        </View>
+
+        {/* Split screen */}
+        <View className="flex-1 flex-row">
+          {/* Left: Zutaten */}
+          <View className="w-2/5 border-r border-espresso-700">
+            <Text className="text-warm-500 dark:text-warm-400 text-xs font-semibold uppercase tracking-wider px-3 py-2">
+              Zutaten
+            </Text>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}>
+              {ingredients.map((ing, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => toggleCheck(i)}
+                  className="flex-row items-start gap-2 py-2 border-b border-espresso-800"
+                >
+                  {checked.has(i)
+                    ? <CheckSquare size={16} color="#C84B31" />
+                    : <Square size={16} color="#9E8878" />}
+                  <Text className={`text-sm flex-1 leading-5 ${checked.has(i) ? 'line-through text-warm-600 dark:text-warm-300' : 'text-warm-300'}`}>
+                    {ing}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Right: Schritte */}
+          <View className="flex-1 flex-col">
+            {/* Progress */}
+            <View className="h-1 bg-espresso-700 mx-4 mt-3 rounded-full">
+              <View
+                className="h-full bg-primary-500 rounded-full"
+                style={{ width: `${((current + 1) / steps.length) * 100}%` }}
+              />
+            </View>
+            <Text className="text-warm-500 dark:text-warm-400 text-xs text-center mt-2">
+              Schritt {current + 1} / {steps.length}
+            </Text>
+
+            <ScrollView className="flex-1 px-4 mt-4" contentContainerStyle={{ paddingBottom: 20 }}>
+              <View className="bg-primary-500 rounded-full w-12 h-12 items-center justify-center mb-4 self-start">
+                <Text className="text-white text-xl font-bold">{current + 1}</Text>
+              </View>
+              <Text className="text-white text-base leading-7">{steps[current]}</Text>
+            </ScrollView>
+
+            {/* Navigation */}
+            <View className="flex-row gap-2 px-4 pb-4">
+              <Pressable
+                onPress={() => setCurrent(c => Math.max(0, c - 1))}
+                disabled={current === 0}
+                className={`flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl ${current === 0 ? 'bg-espresso-800' : 'bg-espresso-700'}`}
+              >
+                <ChevronLeft size={18} color={current === 0 ? '#4b5563' : '#fff'} />
+                <Text className={current === 0 ? 'text-warm-600 dark:text-warm-300' : 'text-white'}>Zurück</Text>
+              </Pressable>
+              {current < steps.length - 1 ? (
+                <Pressable
+                  onPress={() => setCurrent(c => c + 1)}
+                  className="flex-1 flex-row items-center justify-center gap-1 py-3 rounded-xl bg-primary-500"
+                >
+                  <Text className="text-white font-semibold">Weiter</Text>
+                  <ChevronRight size={18} color="#fff" />
+                </Pressable>
+              ) : (
+                <Pressable onPress={onClose} className="flex-1 items-center justify-center py-3 rounded-xl bg-green-600">
+                  <Text className="text-white font-bold">Fertig!</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// ─── Star Display ─────────────────────────────────────────────────────────────
+
+function StarRow({ value, onPress }: { value: number | null; onPress?: (s: number) => void }) {
+  return (
+    <View className="flex-row gap-2 items-center">
+      {[1, 2, 3, 4, 5].map(star => {
+        const filled = (value ?? 0) >= star;
+        return (
+          <Pressable key={star} onPress={() => onPress?.(star)} disabled={!onPress}>
+            <Star size={30} color="#D4A853" fill={filled ? '#f59e0b' : 'transparent'} strokeWidth={1.5} />
+          </Pressable>
+        );
+      })}
+      {onPress && value != null && (
+        <Pressable onPress={() => onPress(value)} className="ml-1">
+          <X size={14} color="#9E8878" />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
+export default function RecipeDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [multiplier, setMultiplier] = useState(1);
+  const [rating, setRating] = useState<number | null>(null);
+  const [notes, setNotes] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [cookMode, setCookMode] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [editingIngredientIdx, setEditingIngredientIdx] = useState<number | null>(null);
+  const [editingIngredientValue, setEditingIngredientValue] = useState('');
+  const [editDraft, setEditDraft] = useState<{
+    name: string; emoji: string; duration: string; servings: string;
+    calories: string; tags: string; ingredients: string[]; steps: string[];
+  } | null>(null);
+
+  const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recipeId = Number(id);
+
+  // ── Load ───────────────────────────────────────────────────────────────────
+  const loadRecipe = useCallback(async () => {
+    if (!id) return;
+    try {
+      let row: Recipe | null = null;
+      if (Platform.OS === 'web') {
+        const serverUrl = await getServerUrl();
+        const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`);
+        if (res.ok) row = normalizeRecipe(await res.json());
+      } else {
+        row = await getDB().getFirstAsync<Recipe>('SELECT * FROM recipes WHERE id = ?', recipeId) ?? null;
+      }
+      if (row) {
+        setRecipe(row);
+        setRating(row.rating != null ? Number(row.rating) : null);
+        setNotes(row.notes ?? '');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id, recipeId]);
+
+  useEffect(() => { loadRecipe(); }, [loadRecipe]);
+
+  // ── Rating ─────────────────────────────────────────────────────────────────
+  const handleRating = async (stars: number) => {
+    const newRating = rating === stars ? null : stars;
+    setRating(newRating);
+    try { await patchRecipe(recipeId, { rating: newRating }); } catch { /* silent */ }
+  };
+
+  // ── Notes ──────────────────────────────────────────────────────────────────
+  const handleNotesChange = (value: string) => {
+    setNotes(value);
+    if (notesTimer.current) clearTimeout(notesTimer.current);
+    notesTimer.current = setTimeout(async () => {
+      try { await patchRecipe(recipeId, { notes: value }); } catch { /* silent */ }
+    }, 800);
+  };
+
+  // ── Ingredient inline edit ─────────────────────────────────────────────────
+  const startIngredientEdit = (index: number, ings: string[]) => {
+    const num = parseIngredientNumber(ings[index]);
+    const scaled = num != null ? Math.round(num * multiplier * 10) / 10 : null;
+    setEditingIngredientIdx(index);
+    setEditingIngredientValue(scaled != null ? String(scaled) : '');
+  };
+
+  const confirmIngredientEdit = (index: number, ings: string[]) => {
+    const entered = parseFloat(editingIngredientValue.replace(',', '.'));
+    if (!isNaN(entered) && entered > 0) {
+      const orig = parseIngredientNumber(ings[index]);
+      if (orig != null && orig > 0) {
+        setMultiplier(Math.max(0.1, Math.round((entered / orig) * 100) / 100));
+      }
+    }
+    setEditingIngredientIdx(null);
+    setEditingIngredientValue('');
+  };
+
+  // ── Edit ───────────────────────────────────────────────────────────────────
+  const startEdit = () => {
+    if (!recipe) return;
+    setEditDraft({
+      name: recipe.name,
+      emoji: recipe.emoji ?? '🍽️',
+      duration: recipe.duration ?? '',
+      servings: recipe.servings ?? '',
+      calories: String(recipe.calories ?? ''),
+      tags: parseJSON<string[]>(recipe.tags, []).join(', '),
+      ingredients: parseJSON<string[]>(recipe.ingredients, []),
+      steps: parseJSON<string[]>(recipe.steps, []),
+    });
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!recipe || !editDraft) return;
+    setIsSaving(true);
+    try {
+      const patch = {
+        name: editDraft.name.trim(),
+        emoji: editDraft.emoji.trim(),
+        duration: editDraft.duration.trim(),
+        servings: editDraft.servings.trim(),
+        calories: editDraft.calories ? parseInt(editDraft.calories) : null,
+        tags: JSON.stringify(editDraft.tags.split(',').map(t => t.trim()).filter(Boolean)),
+        ingredients: JSON.stringify(editDraft.ingredients.filter(Boolean)),
+        steps: JSON.stringify(editDraft.steps.filter(Boolean)),
+      };
+      await patchRecipe(recipeId, patch);
+      setRecipe({ ...recipe, ...patch });
+      setIsEditing(false);
+      setEditDraft(null);
+    } catch {
+      // ignore
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ── Delete ─────────────────────────────────────────────────────────────────
+  const confirmDelete = async () => {
+    setShowDeleteModal(false);
+    try { await deleteRecipeById(recipeId); } catch { /* ignore */ }
+    router.navigate('/(tabs)' as never);
+  };
+
+  // ── Shopping ───────────────────────────────────────────────────────────────
+  const handleAddToShopping = async () => {
+    if (!recipe) return;
+    const ings = parseJSON<string[]>(recipe.ingredients, []);
+    const scaled = multiplier !== 1 ? ings.map(i => scaleIngredient(i, multiplier)) : ings;
+    await addIngredients(scaled, recipe.id);
+    router.navigate('/(tabs)/shopping' as never);
+  };
+
+  // ── PDF ────────────────────────────────────────────────────────────────────
+  const handlePDF = async () => {
+    if (!recipe) return;
+    try { await shareRecipePDF(recipe as Parameters<typeof shareRecipePDF>[0]); }
+    catch { /* ignore */ }
+  };
+
+  // ── QR Share ───────────────────────────────────────────────────────────────
+  const handleShareText = async () => {
+    if (!recipe) return;
+    try {
+      await Share.share({
+        title: recipe.name,
+        message: `${recipe.emoji ?? '🍽️'} ${recipe.name}\n\nRecipeDeck-Rezept`,
+      });
+    } catch { /* ignore */ }
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center">
+        <ActivityIndicator size="large" color="#C84B31" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!recipe) {
+    return (
+      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center px-8">
+        <Text className="text-warm-500 dark:text-warm-400 text-center">Rezept nicht gefunden.</Text>
+        <Pressable onPress={() => router.back()} className="mt-4">
+          <Text className="text-primary-500">Zurück</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
+  const ingredients = parseJSON<string[]>(recipe.ingredients, []);
+  const steps = parseJSON<string[]>(recipe.steps, []);
+  const tags = parseJSON<string[]>(recipe.tags, []);
+  const equipment = parseJSON<string[]>(recipe.equipment ?? null, []);
+  const nutritionInfo = parseJSON<{ carbs?: string; fat?: string; protein?: string; fiber?: string }>((recipe as any).nutrition_info ?? null, null);
+  const scaledIngredients = multiplier !== 1
+    ? ingredients.map(i => scaleIngredient(i, multiplier))
+    : ingredients;
+  const scaledServings = Math.round(parseServingsNumber(recipe.servings) * multiplier);
+
+  return (
+    <>
+      {cookMode && (
+        <CookModal steps={steps} ingredients={scaledIngredients} onClose={() => setCookMode(false)} />
+      )}
+      {showDeleteModal && (
+        <DeleteModal onConfirm={confirmDelete} onCancel={() => setShowDeleteModal(false)} />
+      )}
+
+      {/* QR-Teilen-Modal */}
+      <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>
+        <View className="flex-1 bg-black/60 items-center justify-center px-8">
+          <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full items-center">
+            <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-1">{recipe.emoji ?? '🍽️'} {recipe.name}</Text>
+            <Text className="text-xs text-warm-500 dark:text-warm-400 mb-5 text-center">QR-Code scannen um das Rezept{'\n'}in RecipeDeck zu importieren</Text>
+            {(() => {
+              const qrData = encodeRecipeToCompactJSON({
+                name: recipe.name,
+                emoji: recipe.emoji ?? '',
+                ingredients,
+                steps,
+                tags,
+                rating: recipe.rating ?? undefined,
+                servings: recipe.servings ?? undefined,
+                duration: recipe.duration ?? undefined,
+              });
+              return qrData ? (
+                <QRCodeSVG value={qrData} size={200} color="#111827" backgroundColor="#ffffff" />
+              ) : (
+                <Text className="text-warm-500 dark:text-warm-400 text-sm">Rezept zu groß für QR-Code</Text>
+              );
+            })()}
+            <View className="flex-row gap-3 mt-6 w-full">
+              <Pressable onPress={handleShareText} className="flex-1 py-3 rounded-xl bg-primary-500 items-center">
+                <Text className="text-white text-sm font-semibold">Teilen</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowQrModal(false)} className="flex-1 py-3 rounded-xl bg-warm-100 dark:bg-espresso-800 items-center">
+                <Text className="text-warm-700 dark:text-warm-200 text-sm font-medium">Schließen</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
+        {/* Header */}
+        <View className="flex-row items-center px-4 py-3 bg-white dark:bg-espresso-800 border-b border-warm-200 dark:border-warm-700">
+          <Pressable onPress={() => router.back()} className="mr-3 p-1">
+            <ArrowLeft size={22} color="#374151" />
+          </Pressable>
+          <Text className="text-base font-semibold text-warm-900 dark:text-warm-50 flex-1" numberOfLines={1}>
+            {recipe.name}
+          </Text>
+          {!isEditing && (
+            <Pressable onPress={startEdit} className="p-1 ml-2">
+              <Edit size={20} color="#C84B31" />
+            </Pressable>
+          )}
+        </View>
+
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+
+          {/* ── Hero-Bild ── */}
+          {recipe.image_url ? (
+            <Image
+              source={{ uri: recipe.image_url }}
+              className="w-full h-52"
+              resizeMode="cover"
+            />
+          ) : null}
+
+          {/* ── Hero ── */}
+          <View className="bg-white dark:bg-espresso-800 px-4 pt-5 pb-4 items-center">
+            {isEditing && editDraft ? (
+              <View className="w-full gap-3">
+                <View className="flex-row gap-2">
+                  <TextInput
+                    value={editDraft.emoji}
+                    onChangeText={v => setEditDraft(d => d && { ...d, emoji: v })}
+                    className="border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-2xl text-center w-16"
+                    maxLength={2}
+                  />
+                  <TextInput
+                    value={editDraft.name}
+                    onChangeText={v => setEditDraft(d => d && { ...d, name: v })}
+                    className="flex-1 border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-base font-semibold text-warm-900 dark:text-warm-50"
+                    placeholder="Rezeptname"
+                  />
+                </View>
+                <TextInput
+                  value={editDraft.tags}
+                  onChangeText={v => setEditDraft(d => d && { ...d, tags: v })}
+                  className="border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-sm text-warm-700 dark:text-warm-200"
+                  placeholder="Tags, kommagetrennt"
+                />
+              </View>
+            ) : (
+              <>
+                {!recipe.image_url && (
+                  <Text className="text-6xl mb-3">{recipe.emoji ?? '🍽️'}</Text>
+                )}
+                <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 text-center">{recipe.name}</Text>
+
+                {/* Rating Display */}
+                {rating != null && (
+                  <View className="mt-2">
+                    <StarRow value={rating} />
+                  </View>
+                )}
+
+                {tags.length > 0 && (
+                  <View className="flex-row flex-wrap gap-2 justify-center mt-3">
+                    {tags.map(tag => (
+                      <View key={tag} className="bg-primary-50 dark:bg-espresso-700 rounded-full px-3 py-1">
+                        <Text className="text-xs text-primary-500">{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
+          {/* ── Meta ── */}
+          <View className="flex-row gap-3 px-4 py-4">
+            <View className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl p-3 border border-warm-200 dark:border-warm-700 items-center">
+              <Clock size={16} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-1">Dauer</Text>
+              {isEditing && editDraft ? (
+                <TextInput
+                  value={editDraft.duration}
+                  onChangeText={v => setEditDraft(d => d && { ...d, duration: v })}
+                  className="text-sm font-bold text-warm-900 dark:text-warm-50 text-center mt-1 border-b border-warm-200 dark:border-warm-700 w-full"
+                  placeholder="30 min"
+                />
+              ) : (
+                <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-1">{recipe.duration ?? '—'}</Text>
+              )}
+            </View>
+
+            <View className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl p-3 border border-warm-200 dark:border-warm-700 items-center">
+              <Users size={16} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-1">Portionen</Text>
+              {isEditing && editDraft ? (
+                <TextInput
+                  value={editDraft.servings}
+                  onChangeText={v => setEditDraft(d => d && { ...d, servings: v })}
+                  className="text-sm font-bold text-warm-900 dark:text-warm-50 text-center mt-1 border-b border-warm-200 dark:border-warm-700 w-full"
+                  placeholder="4"
+                />
+              ) : (
+                <>
+                  <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-1">{scaledServings}</Text>
+                  <View className="flex-row items-center gap-2 mt-2">
+                    <Pressable
+                      onPress={() => setMultiplier(m => Math.max(0.5, Math.round((m - 0.5) * 10) / 10))}
+                      disabled={multiplier <= 0.5}
+                      className={`w-7 h-7 rounded-full items-center justify-center ${multiplier <= 0.5 ? 'bg-warm-100 dark:bg-espresso-800' : 'bg-primary-500'}`}
+                    >
+                      <Minus size={14} color={multiplier <= 0.5 ? '#9E8878' : '#fff'} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setMultiplier(m => Math.min(4, Math.round((m + 0.5) * 10) / 10))}
+                      disabled={multiplier >= 4}
+                      className={`w-7 h-7 rounded-full items-center justify-center ${multiplier >= 4 ? 'bg-warm-100 dark:bg-espresso-800' : 'bg-primary-500'}`}
+                    >
+                      <Plus size={14} color={multiplier >= 4 ? '#9E8878' : '#fff'} />
+                    </Pressable>
+                  </View>
+                  {multiplier !== 1 && (
+                    <Pressable onPress={() => setMultiplier(1)} className="flex-row items-center gap-1 mt-1">
+                      <RotateCcw size={10} color="#C84B31" />
+                      <Text className="text-xs text-primary-500">×{multiplier}</Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
+            </View>
+
+            <View className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl p-3 border border-warm-200 dark:border-warm-700 items-center">
+              <Flame size={16} color="#9E8878" />
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mt-1">kcal</Text>
+              {isEditing && editDraft ? (
+                <TextInput
+                  value={editDraft.calories}
+                  onChangeText={v => setEditDraft(d => d && { ...d, calories: v })}
+                  className="text-sm font-bold text-warm-900 dark:text-warm-50 text-center mt-1 border-b border-warm-200 dark:border-warm-700 w-full"
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-1">{recipe.calories ?? '—'}</Text>
+              )}
+            </View>
+          </View>
+
+          {/* ── Actions ── */}
+          {isEditing ? (
+            <View className="flex-row gap-3 px-4 mb-4">
+              <Pressable
+                onPress={handleSave}
+                disabled={isSaving}
+                className={`flex-1 flex-row items-center justify-center gap-2 py-3 rounded-xl ${isSaving ? 'bg-primary-300' : 'bg-primary-500'}`}
+              >
+                {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" />}
+                <Text className="text-white font-semibold">Speichern</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { setIsEditing(false); setEditDraft(null); }}
+                className="flex-row items-center justify-center gap-2 px-4 py-3 rounded-xl border border-warm-200 dark:border-warm-700 bg-white dark:bg-espresso-800"
+              >
+                <X size={18} color="#9E8878" />
+                <Text className="text-warm-600 dark:text-warm-300">Abbrechen</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View className="flex-row gap-2 px-4 mb-4">
+              <Pressable onPress={() => setCookMode(true)} className="flex-1 items-center py-3 rounded-xl bg-espresso-900">
+                <UtensilsCrossed size={18} color="#fff" />
+                <Text className="text-white text-xs font-medium mt-1">Kochen</Text>
+              </Pressable>
+              <Pressable onPress={handleAddToShopping} className="flex-1 items-center py-3 rounded-xl bg-primary-50 dark:bg-espresso-700 border border-primary-200">
+                <ShoppingCart size={18} color="#C84B31" />
+                <Text className="text-primary-500 text-xs font-medium mt-1">Einkauf</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowQrModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+                <QrCode size={18} color="#9E8878" />
+                <Text className="text-warm-600 dark:text-warm-300 text-xs font-medium mt-1">Teilen</Text>
+              </Pressable>
+              <Pressable onPress={handlePDF} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+                <Download size={18} color="#9E8878" />
+                <Text className="text-warm-600 dark:text-warm-300 text-xs font-medium mt-1">PDF</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowDeleteModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+                <Trash2 size={18} color="#ef4444" />
+                <Text className="text-red-500 text-xs font-medium mt-1">Löschen</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* ── Zutaten ── */}
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700">
+            <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50">Zutaten</Text>
+              {!isEditing && multiplier !== 1 && (
+                <Pressable onPress={() => setMultiplier(1)} className="flex-row items-center gap-1">
+                  <RotateCcw size={12} color="#C84B31" />
+                  <Text className="text-xs text-primary-500">Zurücksetzen</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {isEditing && editDraft ? (
+              <View className="px-4 pb-4">
+                {editDraft.ingredients.map((ing, i) => (
+                  <View key={i} className="flex-row items-center gap-2 mb-2">
+                    <TextInput
+                      value={ing}
+                      onChangeText={v => setEditDraft(d => {
+                        if (!d) return d;
+                        const a = [...d.ingredients]; a[i] = v;
+                        return { ...d, ingredients: a };
+                      })}
+                      className="flex-1 border border-warm-200 dark:border-warm-700 rounded-lg px-3 py-2 text-sm text-warm-700 dark:text-warm-200"
+                    />
+                    <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: d.ingredients.filter((_, j) => j !== i) })}>
+                      <X size={16} color="#ef4444" />
+                    </Pressable>
+                  </View>
+                ))}
+                <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: [...d.ingredients, ''] })} className="flex-row items-center gap-1 mt-1">
+                  <Plus size={14} color="#C84B31" />
+                  <Text className="text-primary-500 text-sm">Zutat hinzufügen</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View className="px-4 pb-4">
+                {ingredients.map((ing, i) => {
+                  const hasNum = parseIngredientNumber(ing) != null;
+                  const isEditingThis = editingIngredientIdx === i;
+                  return (
+                    <View key={i} className="flex-row items-center py-2 border-b border-warm-100">
+                      <Text className="text-primary-400 mr-2 text-base">•</Text>
+                      {isEditingThis ? (
+                        <>
+                          <TextInput
+                            value={editingIngredientValue}
+                            onChangeText={setEditingIngredientValue}
+                            onBlur={() => confirmIngredientEdit(i, ingredients)}
+                            onSubmitEditing={() => confirmIngredientEdit(i, ingredients)}
+                            keyboardType="numeric"
+                            autoFocus
+                            className="w-20 border border-primary-400 rounded-lg px-2 py-1 text-sm text-warm-900 dark:text-warm-50 mr-2"
+                          />
+                          <Text className="text-warm-500 dark:text-warm-400 text-sm flex-1">
+                            {ing.replace(/^[\d.,]+\s*/, '')}
+                          </Text>
+                          <Pressable onPress={() => { setEditingIngredientIdx(null); setEditingIngredientValue(''); }}>
+                            <X size={14} color="#9E8878" />
+                          </Pressable>
+                        </>
+                      ) : (
+                        <>
+                          <View className="flex-1">
+                            {(() => {
+                              const raw = scaledIngredients[i];
+                              // Split description sub-line (\n separator from cookidoo patcher)
+                              const nlIdx = raw.indexOf('\n');
+                              const mainLine = nlIdx === -1 ? raw : raw.slice(0, nlIdx);
+                              const descLine = nlIdx === -1 ? null : raw.slice(nlIdx + 1);
+                              // Split alternative sub-line (' (oder: ' separator)
+                              const oderIdx = mainLine.indexOf(' (oder: ');
+                              const mainText = oderIdx === -1 ? mainLine : mainLine.slice(0, oderIdx);
+                              const altText  = oderIdx === -1 ? null : mainLine.slice(oderIdx + 8, -1);
+                              return (
+                                <>
+                                  <Text className="text-warm-700 dark:text-warm-200 text-sm">{mainText}</Text>
+                                  {altText && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">↺ {altText}</Text>}
+                                  {descLine && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">{descLine}</Text>}
+                                </>
+                              );
+                            })()}
+                          </View>
+                          {hasNum && (
+                            <Pressable onPress={() => startIngredientEdit(i, ingredients)} className="p-1">
+                              <Pencil size={14} color="#d1d5db" />
+                            </Pressable>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* ── Zubereitung ── */}
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700">
+            <Text className="text-base font-bold text-warm-900 dark:text-warm-50 px-4 pt-4 pb-2">Zubereitung</Text>
+            {isEditing && editDraft ? (
+              <View className="px-4 pb-4">
+                {editDraft.steps.map((step, i) => (
+                  <View key={i} className="flex-row items-start gap-2 mb-2">
+                    <View className="bg-primary-500 rounded-full w-6 h-6 items-center justify-center shrink-0 mt-2">
+                      <Text className="text-white text-xs font-bold">{i + 1}</Text>
+                    </View>
+                    <TextInput
+                      value={step}
+                      onChangeText={v => setEditDraft(d => {
+                        if (!d) return d;
+                        const a = [...d.steps]; a[i] = v;
+                        return { ...d, steps: a };
+                      })}
+                      multiline
+                      className="flex-1 border border-warm-200 dark:border-warm-700 rounded-lg px-3 py-2 text-sm text-warm-700 dark:text-warm-200"
+                    />
+                    <Pressable onPress={() => setEditDraft(d => d && { ...d, steps: d.steps.filter((_, j) => j !== i) })} className="mt-2">
+                      <X size={16} color="#ef4444" />
+                    </Pressable>
+                  </View>
+                ))}
+                <Pressable onPress={() => setEditDraft(d => d && { ...d, steps: [...d.steps, ''] })} className="flex-row items-center gap-1 mt-1">
+                  <Plus size={14} color="#C84B31" />
+                  <Text className="text-primary-500 text-sm">Schritt hinzufügen</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View className="px-4 pb-4">
+                {steps.map((step, i) => (
+                  <View key={i} className="flex-row items-start mb-4">
+                    <View className="bg-primary-500 rounded-full w-7 h-7 items-center justify-center mr-3 mt-0.5 shrink-0">
+                      <Text className="text-white text-xs font-bold">{i + 1}</Text>
+                    </View>
+                    <StepText>{step}</StepText>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* ── Geräte & Zubehör (nur wenn vorhanden) ── */}
+          {equipment.length > 0 && (
+            <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-3">Geräte & Zubehör</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {equipment.map((item, i) => (
+                  <View key={i} className="bg-primary-50 dark:bg-espresso-700 border border-primary-200 rounded-xl px-3 py-1.5">
+                    <Text className="text-primary-700 text-sm">{item}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Nährwerte (nur wenn vorhanden) ── */}
+          {nutritionInfo && (
+            <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-3">Nährwerte pro Portion</Text>
+              <View className="flex-row gap-3">
+                {nutritionInfo.carbs && (
+                  <View className="flex-1 items-center bg-orange-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Kohlenhydrate</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.carbs}</Text>
+                  </View>
+                )}
+                {nutritionInfo.fat && (
+                  <View className="flex-1 items-center bg-yellow-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Fett</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.fat}</Text>
+                  </View>
+                )}
+                {nutritionInfo.protein && (
+                  <View className="flex-1 items-center bg-blue-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Eiweiß</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.protein}</Text>
+                  </View>
+                )}
+                {nutritionInfo.fiber && (
+                  <View className="flex-1 items-center bg-green-50 rounded-xl py-2 px-1">
+                    <Text className="text-xs text-warm-500 dark:text-warm-400">Ballaststoffe</Text>
+                    <Text className="text-sm font-bold text-warm-900 dark:text-warm-50 mt-0.5">{nutritionInfo.fiber}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* ── Bewertung ── */}
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+            <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-3">Meine Bewertung</Text>
+            <StarRow value={rating} onPress={handleRating} />
+          </View>
+
+          {/* ── Notizen ── */}
+          <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+            <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-2">Notizen</Text>
+            <TextInput
+              value={notes}
+              onChangeText={handleNotesChange}
+              placeholder="Eigene Anmerkungen, Tipps…"
+              placeholderTextColor="#9E8878"
+              multiline
+              numberOfLines={3}
+              className="text-sm text-warm-700 dark:text-warm-200 bg-warm-50 dark:bg-espresso-900 rounded-xl px-3 py-3 min-h-20"
+              style={{ textAlignVertical: 'top' }}
+            />
+          </View>
+
+          {/* ── Quelle ── */}
+          {recipe.source_url ? (
+            <View className="mx-4 mb-4 bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 p-4">
+              <Text className="text-base font-bold text-warm-900 dark:text-warm-50 mb-2">Quelle</Text>
+              {recipe.created_at ? (
+                <Text className="text-xs text-warm-500 dark:text-warm-400 mb-2">
+                  Extrahiert am {new Date(recipe.created_at * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </Text>
+              ) : null}
+              <Pressable
+                onPress={() => recipe.source_url && Linking.openURL(recipe.source_url)}
+                className="flex-row items-center gap-2 bg-warm-50 dark:bg-espresso-900 rounded-xl p-3"
+              >
+                <ExternalLink size={16} color="#C84B31" />
+                <Text className="text-primary-500 text-sm flex-1" numberOfLines={1}>{recipe.source_url}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+        </ScrollView>
+      </SafeAreaView>
+    </>
+  );
+}

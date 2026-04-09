@@ -245,3 +245,18 @@ export const defaultConfig: TestConfig = {
   reactDbPath: 'data/rezepti-react.db',
   legacyDbPath: 'data/rezepti.sqlite',
 };
+
+/**
+ * Check if the dev server is reachable.
+ * E2E tests use this to skip instead of fail when no server is running.
+ */
+export async function isServerAvailable(base = defaultConfig.apiBase): Promise<boolean> {
+  try {
+    const res = await fetch(`${base}/api/v1/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

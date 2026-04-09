@@ -102,5 +102,6 @@ export interface PipelineResult {
   recipe?: RecipeData;
   recipeId?: number;
   error?: string;
+  hint?: string;
   imageSuggestions?: string[];
 }
