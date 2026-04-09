@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { eq, and, gte, lt } from "drizzle-orm";
+import { eq, and, gte, lt, desc } from "drizzle-orm";
 import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { config } from "./config.js";
@@ -68,6 +68,8 @@ export function ensureReactSchema() {
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN equipment TEXT`); } catch {}
   // Migration: nutrition_info (Kohlenhydrate, Fett, Eiweiß)
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN nutrition_info TEXT`); } catch {}
+  // Migration: index on created_at for ORDER BY performance
+  try { db.$client.exec(`CREATE INDEX IF NOT EXISTS idx_recipes_created_at ON recipes(created_at DESC)`); } catch {}
   // Migration: ingredient_dictionary (Phase 3c)
   try { db.$client.exec(`CREATE TABLE IF NOT EXISTS ingredient_dictionary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,6 +132,49 @@ export function saveRecipeToReactDb(
 export function getAllRecipesFromReactDb() {
   const db = getReactDb();
   return db.select().from(recipes).orderBy(recipes.created_at).all().map(deserialize);
+}
+
+/**
+ * Get recipe list — only columns needed for list view (no transcript/steps/ingredients/notes)
+ */
+export function getRecipeListFromReactDb() {
+  const db = getReactDb();
+  return db
+    .select({
+      id:         recipes.id,
+      name:       recipes.name,
+      emoji:      recipes.emoji,
+      image_url:  recipes.image_url,
+      tags:       recipes.tags,
+      duration:   recipes.duration,
+      calories:   recipes.calories,
+      rating:     recipes.rating,
+      tried:      recipes.tried,
+      created_at: recipes.created_at,
+    })
+    .from(recipes)
+    .orderBy(desc(recipes.created_at))
+    .all()
+    .map(deserializeListItem);
+}
+
+function deserializeListItem(row: {
+  id: number;
+  name: string;
+  emoji: string | null;
+  image_url: string | null;
+  tags: string | null;
+  duration: string | null;
+  calories: number | null;
+  rating: number | null;
+  tried: boolean | null;
+  created_at: Date | null;
+}) {
+  return {
+    ...row,
+    imageUrl: row.image_url ?? undefined,
+    tags: JSON.parse(row.tags ?? "[]") as string[],
+  };
 }
 
 export type MatchMode = "and" | "or";

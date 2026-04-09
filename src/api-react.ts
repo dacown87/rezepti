@@ -7,6 +7,7 @@ import { Hono } from "hono";
 import {
   ensureReactSchema,
   getAllRecipesFromReactDb,
+  getRecipeListFromReactDb,
   getRecipeByIdFromReactDb,
   saveRecipeToReactDb,
   updateRecipeInReactDb,
@@ -81,7 +82,7 @@ app.get("/api/v1/recipes", (c) => {
       });
     }
 
-    const recipes = getAllRecipesFromReactDb();
+    const recipes = getRecipeListFromReactDb();
     return c.json(recipes);
   } catch (error) {
     console.error("Error fetching recipes from React DB:", error);
