@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.57] – 2026-04-09
+
+- Expo-Web-Build in public/ wiederhergestellt (JS-Bundles fehlten)
+
 ## [1.0.56] – 2026-04-09
 
 - gelöschten image-search Import und Aufruf aus api-react.ts entfernt
