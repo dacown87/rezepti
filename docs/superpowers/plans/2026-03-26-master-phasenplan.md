@@ -234,7 +234,7 @@ CURRENT STATE                    DIESE PHASEN               12-MONATS-IDEAL
 | 10 | Zutaten-Rezeptvorschläge | ✅ DONE | 5-7d | MEDIUM | [plan](./2026-03-28-zutaten-rezeptvorschlaege.md) |
 | 11 | Instagram Verbesserung | ✅ DONE | 2-3d | MEDIUM | [plan](./2026-03-28-instagram-verbesserung.md) |
 | 12 | TikTok Verbesserung | IN PROGRESS | 4-6d | MEDIUM | [plan](./2026-03-28-tiktok-verbesserung.md) |
-| 13 | Pinterest Import | PENDING | 6-8d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
+| 13 | Pinterest Import | ✅ DONE | 6-8d | MEDIUM/HIGH | [plan](./2026-03-28-pinterest-import.md) |
 | 14 | Facebook Import | PENDING | 4-5d | **HIGH** | [plan](./2026-03-28-facebook-import.md) |
 
 **Gesamtdauer:** ~25-35 Tage (reduziert von ~46 Tagen)
@@ -293,12 +293,16 @@ Implementiert:
 - **Apify-Alternative:** `bulletproof/tiktok-transcript-extractor` als Fallback
 
 ##### Phase 13: Pinterest Import (0% → 90%)
+**Status:** ✅ DONE
+**Abgeschlossen:** 2026-04-09
 **Schätzung:** 6-8 Tage | **Risiko:** MEDIUM/HIGH | **Branch:** `phase/13-pinterest-import`
 
-- Proxy-Fetcher: Open Graph → Original-URL Detection → Web-Fetcher Delegation
-- Pin-Metadaten Extraktion (Titel, Beschreibung, Bild)
-- **Apify-Alternative:** `janbruinier/jan-pinterest-scraper` (robust, keine API nötig)
-- Optional: Pinterest OAuth 2.0 API
+- [x] Proxy-Fetcher: Open Graph → Original-URL Detection → Web-Fetcher Delegation
+- [x] Pin-Metadaten Extraktion (Titel, Beschreibung, Bild)
+- [x] yt-dlp Fallback für Pin-Videos
+- [x] `pinterest.(com|de)` Pattern in `classifier.ts`
+- [x] `case "pinterest"` in `pipeline.ts` (fetchPinterest mit url + tempDir)
+- [x] 29 Unit-Tests für `src/fetchers/pinterest.ts` ✅
 
 ##### Phase 14: Facebook Import (0% → 70%)
 **Schätzung:** 4-5 Tage | **Risiko:** **HIGH** | **Branch:** `phase/14-facebook-import`
@@ -395,11 +399,12 @@ Jede Phase liefert sofort nutzbaren Mehrwert. Login kommt ganz zum Schluss.
 | Phase 7 QA | Orchestrated | Phase 7 implementation | 1 | passed | Cookidoo-Credentials-UI, Pinterest/Facebook-Platzhalter, 166 Unit-Tests bestanden ✅ |
 | Planner Review | /plan + web research | Phase 9-14 revision | 1 | passed | Dauer reduziert: 46d → 25-35d; Phase 10: 10-12d → 5-7d; bessere Fallbacks (Apify, Vision-OCR) |
 | Phase 10 | Orchestrated | Phase 10 implementation | 1 | COMPLETED | "Was habe ich zu Hause?" Feature: AND/OR-Toggle, Match-Score, fehlende Zutaten, localStorage-Persistenz ✅ |
+| Phase 13 | Orchestrated | Phase 13 Pinterest Import | 1 | COMPLETED | OG-Extraktion, Original-URL-Detection, web-fetcher Delegation, yt-dlp Fallback, 29 Unit-Tests ✅ |
 
 **UNRESOLVED:** 2
 - QR-Bild-Scan (BarcodeDetector) in Phase 8 Backlog
 - Facebook Import: ToS-Risiko, niedrige Priorität
 
-**STATUS (2026-03-28):** Phase 1–11 vollständig implementiert. Phase 12-14 Import-Verbesserungen.
-**CURRENT:** Phase 11 – Instagram Verbesserung **COMPLETE** (auf Branch `phase/11-instagram-verbesserung`, bereit für Merge zu main)
-**NEXT:** Phase 12 – TikTok Verbesserung
+**STATUS (2026-04-09):** Phase 1–13 vollständig implementiert. Phase 14 (Facebook Import) ausstehend.
+**CURRENT:** Phase 13 – Pinterest Import **COMPLETE** (auf Branch `phase/13-pinterest-import`, bereit für Merge zu main)
+**NEXT:** Phase 14 – Facebook Import (HIGH Risiko, optional) oder Priority-1-Reliability (yt-dlp Health-Check, Groq Fallback)
