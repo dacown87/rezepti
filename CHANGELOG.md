@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.58] – 2026-04-09
+
+
+
 ## [1.0.57] – 2026-04-09
 
 - Expo-Web-Build in public/ wiederhergestellt (JS-Bundles fehlten)
