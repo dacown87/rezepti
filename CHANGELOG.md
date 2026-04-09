@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.62] – 2026-04-09
+
+- Prio 2–4 — Code-Split, BYOK-DB, Tests, DX-Verbesserungen
+
 ## [1.0.61] – 2026-04-09
 
 - Cookidoo ingredient-patching, RN dark-mode header, CLAUDE.md Obsidian-Protokoll
