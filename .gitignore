@@ -17,6 +17,3 @@ public/assets/
 frontend/dist/
 frontend/node_modules/
 public/sw.js.map
-
-# EAS secrets
-mobile/google-service-account.json

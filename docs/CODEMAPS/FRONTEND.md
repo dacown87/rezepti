@@ -1,28 +1,34 @@
 # Frontend Codemap
 
-**Last Updated:** 2026-04-02
+**Last Updated:** 2026-03-29
 
 ## Technology Stack
 
-- **Framework:** React Native (Expo) — Web + Android/iOS
+- **Framework:** React 18 with Vite
 - **Language:** TypeScript
-- **Styling:** Tailwind CSS (NativeWind für native), StyleSheet für native
-- **Routing:** Expo Router
-- **State:** React hooks + AsyncStorage (persisted state)
-- **Build:** Expo Web (static output → `public/`, served by backend)
-- **Native Builds:** EAS Build (`eas.json`)
+- **Styling:** Tailwind CSS
+- **Routing:** React Router v6
+- **State:** React hooks + Context (minimal)
+- **Build Output:** `public/` (served by backend)
 
 ## Entry Point
 
-**Location:** `frontend/src/` (Expo app)
+**Location:** `frontend/src/main.tsx`
+
+```typescript
+// Mounts App to #root
+// Loads index.html from public/
+```
 
 ## App Routes
+
+**Location:** `frontend/src/App.tsx`
 
 | Path | Component | Description |
 |------|-----------|-------------|
 | `/` | `RecipeList` | Main recipe list |
 | `/extract` | `ExtractionPage` | URL input, photo import, QR scanner |
-| `/settings` | `SettingsPage` | BYOK, app status, Cookidoo |
+| `/settings` | `SettingsPage` | BYOK, app status |
 | `/shopping` | `ShoppingPage` | Shopping list |
 | `/planner` | `PlannerPage` | 7-day meal planner with QR import |
 | `/recipe/:id` | `RecipeDetail` | Recipe detail view |
@@ -38,16 +44,15 @@
 - Routes: Home, Extract, Shopping, Planner, Settings
 - Toast notification system
 - Responsive design (mobile-first)
-- RecipeDeck logo (Logo.svg)
 
 ### RecipeList
 
 **Location:** `frontend/src/components/RecipeList.tsx`
 
-- Grid/list view toggle (persisted in AsyncStorage/localStorage)
+- Grid/list view toggle (persisted in localStorage)
 - Search/filter by ingredients
 - Rating display (1-5 stars)
-- PDF multi-export button
+- Click to navigate to detail
 
 ### RecipeDetail
 
@@ -55,35 +60,44 @@
 
 - Full recipe display: name, emoji, tags, image
 - Two-column layout: ingredients | steps
-- Inline edit mode
+- Inline edit mode (click to edit fields)
 - Serving size scaler (×0.5–×4)
-- Rating & notes
-- Cook Mode button, Share via QR, PDF export
+- Rating & notes (Phase 3a)
+- "Cook Mode" button
 - Original recipe link
+- Share via QR code
 
 ### ExtractionPage
 
 **Location:** `frontend/src/components/ExtractionPage.tsx`
 
-- Tabs: **URL** / **Kamera** / **Datei** / **QR-Code**
+- URL input field (YouTube, Instagram, TikTok, websites)
+- Photo import (camera capture or file upload)
+- QR code scanner (BarcodeDetector API)
 - Job creation → polling for status
 - Progress display (stage, percentage)
+- Result preview
+- Redirect to recipe detail on success
 - Error handling with retry
-- QR scanning via BarcodeDetector API (Chromium only; native: expo-barcode-scanner)
 
 ### CookMode
 
 **Location:** `frontend/src/components/CookMode.tsx`
 
-- Fullscreen recipe view, Wake Lock API
+- Fullscreen recipe view
+- Wake lock API (prevent screen sleep)
+- Large text for easy reading
 - Step-by-step navigation
+- Exit button
 
 ### ShoppingPage
 
 **Location:** `frontend/src/components/ShoppingPage.tsx`
 
 - Multi-recipe aggregation
-- Check-off items, clipboard export
+- Check-off items
+- Clipboard export
+- Clear checked/all buttons
 - Add custom items
 
 ### PlannerPage
@@ -91,17 +105,17 @@
 **Location:** `frontend/src/components/PlannerPage.tsx`
 
 - 7-day week view
-- Drag & drop (dnd-kit, web only)
-- Add-Modal mit Tabs: **Rezept** / **Kamera** (QR-Scan)
-- `scanningRef = useRef(false)` für Kamera-Loop-Kontrolle (kein stale closure)
+- Drag & drop recipes (dnd-kit)
+- Assign recipes to days
+- Clear week button
+- QR code scanner to add recipes directly to plan
 
 ### SettingsPage
 
 **Location:** `frontend/src/components/SettingsPage.tsx`
 
-- BYOK key management
+- BYOK key management (validate, store, remove)
 - App status (DB health, recipe count)
-- Cookidoo credentials
 - Changelog modal
 
 ### Shared Components
@@ -113,47 +127,36 @@
 | `SkeletonLoader.tsx` | Loading placeholder |
 | `ChangelogModal.tsx` | Version changelog display |
 | `ShareModal.tsx` | Share recipe dialog |
-| `PDFSelectionModal.tsx` | PDF export selection |
+| `PDFSelectionModal.tsx` | PDF export selection (single recipe or all) |
 
 ## Utility Functions
 
 **Location:** `frontend/src/utils/`
 
-| File | Purpose |
-|------|---------|
-| `scaling.ts` | Portion scaling: `parseServingsNumber`, `scaleIngredient` |
-| `pdf-export.ts` | jsPDF export with QR code + image via backend proxy |
-| `recipe-qr.ts` | QR encode/decode (compact JSON, 2 KB limit) |
+- `scaling.ts` - Portion scaling utilities
+  - `parseServingsNumber(servings)` - Parse "4 Portionen" → 4
+  - `scaleIngredient(ingredient, factor)` - Scale quantity
 
 ## API Client
 
-**Location:** `frontend/src/api/services.ts`
+Frontend communicates with backend via REST API. See [Backend Codemap](BACKEND.md) for endpoints.
 
-REST calls to backend `/api/v1/*`. Uses `getServerUrl()` for same-origin on web, configured URL on native.
+## Styling
+
+Tailwind CSS with custom design tokens:
+- Primary: Orange/amber theme
+- Mobile-first responsive breakpoints
+- Dark mode support via `dark:` classes
 
 ## Build
 
 ```bash
-npm run build:react   # Expo Web → public/ (served by backend)
-npm run dev:react     # Expo Dev Server
+npm run build:react   # Production build → public/
+npm run dev:react     # Dev server (Vite)
 ```
-
-## EAS / Native Builds
-
-```bash
-eas build --platform android   # Android APK/AAB via EAS
-eas build --platform ios       # iOS (requires Apple Developer Account)
-```
-
-Config: `app.json`, `eas.json` — EAS Project ID: `19e500e1-c382-4087-b510-2a07221806e3`
 
 ## PWA Support
 
-- Service worker via Expo Web
+- Service worker via Vite PWA plugin
 - Installable on mobile home screen
 - Offline capability for installed app
-
-## Known Limitations
-
-- **BarcodeDetector API:** Chromium only (Chrome/Edge) — Safari/Firefox not supported. For native builds: use `expo-barcode-scanner`.
-- **Drag & Drop:** `dnd-kit` is web-only; native equivalent needed if DnD is required on Android/iOS.
