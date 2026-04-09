@@ -1,6 +1,13 @@
 {
-  "version": "1.0.55",
+  "version": "1.0.56",
   "entries": [
+    {
+      "version": "1.0.56",
+      "date": "2026-04-09",
+      "changes": [
+        "gelöschten image-search Import und Aufruf aus api-react.ts entfernt"
+      ]
+    },
     {
       "version": "1.0.55",
       "date": "2026-04-09",
@@ -88,6 +95,6 @@
   ],
   "lastUpdated": {
     "date": "2026-04-09",
-    "time": "08:05"
+    "time": "08:07"
   }
 }
