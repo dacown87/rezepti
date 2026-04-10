@@ -91,7 +91,8 @@ export async function extractRecipeFromImage(
     { role: "user", content: userContent },
   ], config.groq.visionModel) as Record<string, unknown>;
 
-  if (!raw.imageUrl) {
+  // Don't use the input photo as recipe image — it's a recipe card/screenshot, not a dish photo
+  if (!raw.imageUrl && !imageUrl.startsWith("data:")) {
     raw.imageUrl = imageUrl;
   }
 
