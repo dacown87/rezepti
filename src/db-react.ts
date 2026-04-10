@@ -177,9 +177,13 @@ function deserializeListItem(row: {
   tried: boolean | null;
   created_at: Date | null;
 }) {
+  const imageUrl = row.image_url?.startsWith("data:")
+    ? `/api/v1/recipes/${row.id}/image`
+    : (row.image_url ?? undefined);
   return {
     ...row,
-    imageUrl: row.image_url ?? undefined,
+    image_url: imageUrl,
+    imageUrl,
     tags: JSON.parse(row.tags ?? "[]") as string[],
   };
 }

@@ -49,6 +49,27 @@ app.get("/api/v1/recipes", (c) => {
   }
 });
 
+// Serve base64 image stored in image_url as actual image bytes
+app.get("/api/v1/recipes/:id/image", (c) => {
+  const id = parseInt(c.req.param("id"), 10);
+  if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+
+  const recipe = getRecipeByIdFromReactDb(id);
+  if (!recipe?.image_url?.startsWith("data:")) return c.notFound();
+
+  const [meta, b64] = recipe.image_url.split(",");
+  const mimeMatch = meta.match(/data:([^;]+)/);
+  const mime = mimeMatch?.[1] ?? "image/jpeg";
+  const buffer = Buffer.from(b64, "base64");
+
+  return new Response(buffer, {
+    headers: {
+      "Content-Type": mime,
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+});
+
 // Get single recipe by ID
 app.get("/api/v1/recipes/:id", (c) => {
   try {
