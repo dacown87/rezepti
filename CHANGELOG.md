@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.64] – 2026-04-10
+
+
+
 ## [1.0.63] – 2026-04-10
 
 - performance fix + QR scanner relocation + web QR scanner
