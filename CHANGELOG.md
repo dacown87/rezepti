@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.63] – 2026-04-10
+
+- performance fix + QR scanner relocation + web QR scanner
+
 ## [1.0.62] – 2026-04-09
 
 - Prio 2–4 — Code-Split, BYOK-DB, Tests, DX-Verbesserungen
