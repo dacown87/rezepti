@@ -1,17 +1,19 @@
 import React, { useState } from 'react'
-import { View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, Pressable, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { router } from 'expo-router'
 import ScannerCamera from '@/components/ScannerCamera'
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr'
 import type { RecipeQRData } from '@/utils/recipe-qr'
 import { getDB } from '@/db/migrate'
+import { getServerUrl } from '@/utils/server-url'
 
 export default function ScannerScreen() {
   const [showCamera, setShowCamera] = useState(false)
   const [scannedRecipe, setScannedRecipe] = useState<RecipeQRData | null>(null)
   const [importing, setImporting] = useState(false)
 
-  function handleScan(value: string) {
+  async function handleScan(value: string) {
     setShowCamera(false)
 
     if (!isRecipeJSONQR(value)) {
@@ -25,11 +27,44 @@ export default function ScannerScreen() {
       return
     }
 
+    // Check if recipe already exists → navigate to it
+    try {
+      let existingId: number | null = null
+      if (Platform.OS !== 'web') {
+        const row = await getDB().getFirstAsync<{ id: number }>(
+          'SELECT id FROM recipes WHERE name = ?',
+          decoded.n
+        )
+        existingId = row?.id ?? null
+      } else {
+        const serverUrl = await getServerUrl()
+        const res = await fetch(`${serverUrl}/api/v1/recipes`)
+        if (res.ok) {
+          const data = await res.json()
+          const list: Array<{ id: number; name: string }> = Array.isArray(data) ? data : (data.recipes ?? [])
+          const found = list.find(r => r.name === decoded.n)
+          existingId = found?.id ?? null
+        }
+      }
+      if (existingId !== null) {
+        router.push(`/recipe/${existingId}`)
+        return
+      }
+    } catch {
+      // fall through to import offer
+    }
+
     setScannedRecipe(parseCompactRecipeToFull(decoded))
   }
 
   async function handleImport() {
     if (!scannedRecipe) return
+
+    if (Platform.OS === 'web') {
+      Alert.alert('Hinweis', 'Auf Web werden Rezepte über den "Hinzufügen"-Tab importiert.')
+      setScannedRecipe(null)
+      return
+    }
 
     setImporting(true)
     try {

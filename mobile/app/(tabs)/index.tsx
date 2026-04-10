@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import {
   Search, X, ChefHat, Clock, Star, Plus,
-  LayoutGrid, List, FileText, Refrigerator,
+  LayoutGrid, List, FileText, Refrigerator, QrCode,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -299,6 +299,12 @@ export default function RecipeListScreen() {
                 </Pressable>
               </>
             )}
+            <Pressable
+              onPress={() => router.push('/(tabs)/scanner')}
+              className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
+            >
+              <QrCode size={17} color="#9E8878" />
+            </Pressable>
             <Pressable
               onPress={toggleViewMode}
               className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"

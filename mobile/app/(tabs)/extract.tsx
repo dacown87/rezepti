@@ -15,7 +15,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Globe, Camera, ScanLine, ImagePlus, CheckCircle, AlertCircle, X } from 'lucide-react-native';
+import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X } from 'lucide-react-native';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 
 import { getDB } from '@/db/migrate';
@@ -25,7 +25,7 @@ import { getServerUrl } from '@/utils/server-url';
 
 const GROQ_KEY_SECURE = 'groq_key';
 
-type Mode = 'url' | 'photo' | 'qr';
+type Mode = 'url' | 'photo';
 
 const STAGES: Record<string, number> = {
   classifying: 20,
@@ -434,9 +434,7 @@ export default function ExtractScreen() {
           <Text className="text-warm-500 dark:text-warm-400 mt-1 text-sm">
             {mode === 'url'
               ? 'Füge eine URL ein — RecipeDeck extrahiert das Rezept automatisch.'
-              : mode === 'photo'
-              ? 'Foto eines Rezepts hochladen — KI erkennt Zutaten und Schritte.'
-              : 'QR-Code eines gespeicherten Rezepts scannen.'}
+              : 'Foto eines Rezepts hochladen — KI erkennt Zutaten und Schritte.'}
           </Text>
         </View>
 
@@ -462,17 +460,6 @@ export default function ExtractScreen() {
             <Camera size={16} color={mode === 'photo' ? '#fff' : '#9E8878'} />
             <Text className={`text-sm font-medium ${mode === 'photo' ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
               Foto
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => switchMode('qr')}
-            className={`flex-1 flex-row items-center justify-center gap-2 py-2.5 rounded-xl ${
-              mode === 'qr' ? 'bg-primary-500' : ''
-            }`}
-          >
-            <ScanLine size={16} color={mode === 'qr' ? '#fff' : '#9E8878'} />
-            <Text className={`text-sm font-medium ${mode === 'qr' ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
-              QR
             </Text>
           </Pressable>
         </View>
@@ -604,25 +591,6 @@ export default function ExtractScreen() {
                 {isLoading && <ProgressSection />}
               </View>
             )}
-          </View>
-        )}
-
-        {/* ── QR mode ── */}
-        {mode === 'qr' && (
-          <View className="bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 shadow-sm p-6 items-center">
-            <ScanLine size={56} color="#C84B31" />
-            <Text className="text-lg font-semibold text-warm-900 dark:text-warm-50 mt-4 text-center">
-              QR-Code scannen
-            </Text>
-            <Text className="text-warm-500 dark:text-warm-400 text-sm text-center mt-2 mb-6 leading-relaxed">
-              Nutze den Scanner-Tab, um einen Rezept-QR-Code zu scannen und direkt zu importieren.
-            </Text>
-            <Pressable
-              onPress={() => router.push('/(tabs)/scanner')}
-              className="bg-primary-500 px-8 py-3 rounded-xl"
-            >
-              <Text className="text-white font-semibold">Zum Scanner</Text>
-            </Pressable>
           </View>
         )}
 
