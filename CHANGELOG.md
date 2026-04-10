@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.65] – 2026-04-10
+
+- don't use photo input as recipe image_url on extraction
+
 ## [1.0.64] – 2026-04-10
 
 

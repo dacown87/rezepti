@@ -1,6 +1,13 @@
 {
-  "version": "1.0.64",
+  "version": "1.0.65",
   "entries": [
+    {
+      "version": "1.0.65",
+      "date": "2026-04-10",
+      "changes": [
+        "don't use photo input as recipe image_url on extraction"
+      ]
+    },
     {
       "version": "1.0.64",
       "date": "2026-04-10",
@@ -16,6 +23,6 @@
   ],
   "lastUpdated": {
     "date": "2026-04-10",
-    "time": "21:40"
+    "time": "22:04"
   }
 }
