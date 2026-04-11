@@ -1,6 +1,15 @@
 {
-  "version": "1.0.65",
+  "version": "1.0.66",
   "entries": [
+    {
+      "version": "1.0.66",
+      "date": "2026-04-11",
+      "changes": [
+        "image compression + ingredient fuzzy search + category grid",
+        "QR scanner auto-opens camera via autoOpen param",
+        "chefkoch image search + fuzzy ingredient matching"
+      ]
+    },
     {
       "version": "1.0.65",
       "date": "2026-04-10",
@@ -22,7 +31,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-04-10",
-    "time": "22:04"
+    "date": "2026-04-11",
+    "time": "15:23"
   }
 }

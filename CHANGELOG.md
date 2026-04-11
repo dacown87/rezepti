@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.66] – 2026-04-11
+
+- image compression + ingredient fuzzy search + category grid
+- QR scanner auto-opens camera via autoOpen param
+- chefkoch image search + fuzzy ingredient matching
+
 ## [1.0.65] – 2026-04-10
 
 - don't use photo input as recipe image_url on extraction
