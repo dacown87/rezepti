@@ -308,11 +308,18 @@ export default function ExtractScreen() {
       const groqKey = await getGroqKey();
 
       const compressedUri = await compressIfNeeded(photoUri);
-      const filename = compressedUri.split('/').pop() ?? 'photo.jpg';
+      const filename = (compressedUri.split('/').pop() ?? 'photo.jpg').replace(/[?#].*$/, '');
       const mimeType = filename.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
       const formData = new FormData();
-      formData.append('file', { uri: compressedUri, name: filename, type: mimeType } as unknown as Blob);
+      if (Platform.OS === 'web') {
+        // On web, URIs are blob/data URLs — fetch + convert to real File
+        const resp = await fetch(compressedUri);
+        const blob = await resp.blob();
+        formData.append('file', new File([blob], filename || 'photo.jpg', { type: mimeType }));
+      } else {
+        formData.append('file', { uri: compressedUri, name: filename, type: mimeType } as unknown as Blob);
+      }
 
       const headers: Record<string, string> = {};
       if (groqKey) headers['x-groq-key'] = groqKey;
