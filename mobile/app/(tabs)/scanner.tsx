@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { View, Text, Pressable, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import ScannerCamera from '@/components/ScannerCamera'
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr'
 import type { RecipeQRData } from '@/utils/recipe-qr'
@@ -10,6 +10,12 @@ import { getServerUrl } from '@/utils/server-url'
 
 export default function ScannerScreen() {
   const [showCamera, setShowCamera] = useState(false)
+  const { autoOpen } = useLocalSearchParams<{ autoOpen?: string }>()
+
+  useEffect(() => {
+    if (autoOpen === 'true') setShowCamera(true)
+  }, [autoOpen])
+
   const [scannedRecipe, setScannedRecipe] = useState<RecipeQRData | null>(null)
   const [importing, setImporting] = useState(false)
 

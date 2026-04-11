@@ -300,7 +300,7 @@ export default function RecipeListScreen() {
               </>
             )}
             <Pressable
-              onPress={() => router.push('/(tabs)/scanner')}
+              onPress={() => router.push('/(tabs)/scanner?autoOpen=true')}
               className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
             >
               <QrCode size={17} color="#9E8878" />
