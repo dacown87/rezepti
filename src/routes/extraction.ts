@@ -7,6 +7,7 @@ import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
 import { classifyURL } from "../classifier.js";
 import { saveRecipeToReactDb } from "../db-react.js";
 import type { PipelineEvent } from "../types.js";
+import { searchRecipeImages } from "../utils/image-search.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
 const photoDataStore = new Map<string, string>();
@@ -236,7 +237,9 @@ async function processPhotoJobInBackground(jobId: string) {
     });
 
     const recipeId = saveRecipeToReactDb(recipeData, "photo://upload");
-    jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData });
+    jobManager.updateJob(jobId, { progress: 95, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
+    const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
+    jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData, imageSuggestions });
 
   } catch (error) {
     console.error(`Photo job ${jobId} failed:`, error);

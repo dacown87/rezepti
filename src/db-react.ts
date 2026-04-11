@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { config } from "./config.js";
 import { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } from "./schema.js";
 import type { RecipeData } from "./types.js";
-import { isSimilar } from "./ingredient-dictionary.js";
+import { extractIngredientName, isSimilar } from "./ingredient-dictionary.js";
 
 /**
  * React-specific database connection
@@ -232,9 +232,15 @@ export function searchRecipesByIngredientsAdvanced(
     const missingIngredients: string[] = [...searchTerms];
 
     for (const ingredient of recipe.ingredients) {
+      const ingredientName = extractIngredientName(ingredient).toLowerCase();
       const ingredientLower = ingredient.toLowerCase();
       for (const term of searchTerms) {
-        if (ingredientLower.includes(term) && !matchedIngredients.includes(term)) {
+        if (matchedIngredients.includes(term)) continue;
+        const substringMatch = ingredientLower.includes(term);
+        const fuzzyMatch = isSimilar(ingredientName, term) ||
+                           ingredientName.includes(term) ||
+                           term.includes(ingredientName);
+        if (substringMatch || fuzzyMatch) {
           matchedIngredients.push(term);
           missingIngredients.splice(missingIngredients.indexOf(term), 1);
         }
