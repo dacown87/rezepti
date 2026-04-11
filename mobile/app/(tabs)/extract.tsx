@@ -17,6 +17,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X } from 'lucide-react-native';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
+import { compressIfNeeded } from '@/utils/image-compress';
 
 import { getDB } from '@/db/migrate';
 import { getServerUrl } from '@/utils/server-url';
@@ -306,11 +307,12 @@ export default function ExtractScreen() {
       const serverUrl = await getServerUrl();
       const groqKey = await getGroqKey();
 
-      const filename = photoUri.split('/').pop() ?? 'photo.jpg';
+      const compressedUri = await compressIfNeeded(photoUri);
+      const filename = compressedUri.split('/').pop() ?? 'photo.jpg';
       const mimeType = filename.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
       const formData = new FormData();
-      formData.append('photo', { uri: photoUri, name: filename, type: mimeType } as unknown as Blob);
+      formData.append('file', { uri: compressedUri, name: filename, type: mimeType } as unknown as Blob);
 
       const headers: Record<string, string> = {};
       if (groqKey) headers['x-groq-key'] = groqKey;

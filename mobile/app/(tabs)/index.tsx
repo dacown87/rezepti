@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TextInput, Pressable,
   ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share, Platform,
@@ -18,6 +18,57 @@ import { shareRecipePDF, shareRecipeCardsPDF } from '@/utils/pdf-export';
 import { getServerUrl } from '@/utils/server-url';
 
 const VIEW_MODE_KEY = 'recipedeck_view_mode';
+
+// mirrors src/ingredient-dictionary.ts — mobile cannot import from backend
+const UNIT_RE_MOB = /\b(g|kg|ml|l|el|tl|tsp|tbsp|prise|stk|stück|pack|päckchen|dose|n)\b/i;
+function extractIngName(full: string): string {
+  const numMatch = full.match(/^(\d+(?:[.,]\d+)?)(.*)/)
+  const rest = numMatch ? numMatch[2].trim() : full.trim();
+  const unitMatch = rest.match(UNIT_RE_MOB);
+  if (unitMatch) {
+    const after = rest.slice(unitMatch.index! + unitMatch[0].length).trim();
+    if (after) return after;
+  }
+  return rest || full.trim();
+}
+function isSimilarMob(a: string, b: string): boolean {
+  const al = a.toLowerCase(), bl = b.toLowerCase();
+  if (al.length === 0) return bl.length === 0;
+  const m: number[][] = Array.from({ length: bl.length + 1 }, (_, i) => [i]);
+  for (let j = 0; j <= al.length; j++) m[0][j] = j;
+  for (let i = 1; i <= bl.length; i++)
+    for (let j = 1; j <= al.length; j++)
+      m[i][j] = bl[i-1] === al[j-1] ? m[i-1][j-1] :
+        1 + Math.min(m[i-1][j-1], m[i][j-1], m[i-1][j]);
+  const dist = m[bl.length][al.length];
+  return dist <= Math.max(1, Math.floor(0.3 * Math.max(al.length, bl.length)));
+}
+function matchesIngredient(ing: string, term: string): boolean {
+  const ingLower = ing.toLowerCase();
+  const ingName = extractIngName(ing).toLowerCase();
+  return ingLower.includes(term) || isSimilarMob(ingName, term) ||
+         ingName.includes(term) || term.includes(ingName);
+}
+
+const CATEGORY_ICONS: Record<string, string> = {
+  'Frühstück': '🥐', 'Pasta': '🍝', 'Nudeln': '🍝', 'Suppe': '🍲',
+  'Dessert': '🍰', 'Kuchen': '🍰', 'Backen': '🍞', 'Vegan': '🌱',
+  'Vegetarisch': '🥗', 'Fleisch': '🥩', 'Hähnchen': '🍗', 'Fisch': '🐟',
+  'Schnell': '⚡', 'Asiatisch': '🍜', 'Italienisch': '🇮🇹', 'Salat': '🥗',
+  'Snack': '🧆', 'Alle Rezepte': '📖', 'default': '🍽️',
+};
+interface CategoryInfo { name: string; count: number }
+function buildCategories(recipeList: Recipe[]): CategoryInfo[] {
+  const counts = new Map<string, number>();
+  for (const r of recipeList) {
+    for (const tag of parseJSON<string[]>(r.tags, []))
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+  const sorted = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count }));
+  return [{ name: 'Alle Rezepte', count: recipeList.length }, ...sorted];
+}
 
 interface ApiRecipe {
   id: number;
@@ -161,6 +212,24 @@ function GridCard({ recipe }: { recipe: Recipe }) {
   );
 }
 
+// ─── Category Card ────────────────────────────────────────────────────────────
+
+function CategoryCard({ info, onPress }: { info: CategoryInfo; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress}
+      className="flex-1 m-1.5 bg-white dark:bg-espresso-800 rounded-2xl p-4 border border-warm-200 dark:border-warm-700 items-center justify-center min-h-[100px]"
+    >
+      <Text className="text-4xl mb-1">{CATEGORY_ICONS[info.name] ?? CATEGORY_ICONS['default']}</Text>
+      <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50 text-center" numberOfLines={2}>
+        {info.name}
+      </Text>
+      <Text className="text-xs text-warm-500 dark:text-warm-400 mt-0.5">
+        {info.count} {info.count === 1 ? 'Rezept' : 'Rezepte'}
+      </Text>
+    </Pressable>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function RecipeListScreen() {
@@ -177,6 +246,7 @@ export default function RecipeListScreen() {
   const [showIngredientSearch, setShowIngredientSearch] = useState(false);
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredientResults, setIngredientResults] = useState<Recipe[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const loadRecipes = useCallback(async () => {
     try {
@@ -221,6 +291,7 @@ export default function RecipeListScreen() {
 
   const handleSearch = (q: string) => {
     setSearch(q);
+    if (q.trim()) setSelectedCategory(null);
     if (!q.trim()) { setFiltered(recipes); return; }
     const lower = q.toLowerCase();
     setFiltered(recipes.filter(r =>
@@ -240,19 +311,15 @@ export default function RecipeListScreen() {
     setIngredientInput(input);
     if (!input.trim()) { setIngredientResults([]); return; }
     const terms = input.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-    const results = recipes.filter(recipe => {
-      const ings = parseJSON<string[]>(recipe.ingredients, []).join(' ').toLowerCase();
-      return terms.some(t => ings.includes(t));
-    });
-    // Sort by match count
-    results.sort((a, b) => {
-      const aIngs = parseJSON<string[]>(a.ingredients, []).join(' ').toLowerCase();
-      const bIngs = parseJSON<string[]>(b.ingredients, []).join(' ').toLowerCase();
-      const aCount = terms.filter(t => aIngs.includes(t)).length;
-      const bCount = terms.filter(t => bIngs.includes(t)).length;
-      return bCount - aCount;
-    });
-    setIngredientResults(results);
+    const scored = recipes
+      .map(r => {
+        const ings = parseJSON<string[]>(r.ingredients, []);
+        const score = terms.filter(t => ings.some(ing => matchesIngredient(ing, t))).length;
+        return { r, score };
+      })
+      .filter(s => s.score > 0);
+    scored.sort((a, b) => b.score - a.score);
+    setIngredientResults(scored.map(s => s.r));
   };
 
   const handleExportCards = async () => {
@@ -272,6 +339,11 @@ export default function RecipeListScreen() {
     await loadRecipes();
     setRefreshing(false);
   }, [loadRecipes]);
+
+  const allCategories = useMemo(() => buildCategories(recipes), [recipes]);
+  const categoryFiltered = selectedCategory && selectedCategory !== 'Alle Rezepte'
+    ? filtered.filter(r => parseJSON<string[]>(r.tags, []).includes(selectedCategory))
+    : filtered;
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
@@ -340,6 +412,18 @@ export default function RecipeListScreen() {
         </View>
       </View>
 
+      {selectedCategory && !search && (
+        <View className="flex-row items-center px-4 pb-2 gap-2">
+          <Pressable onPress={() => setSelectedCategory(null)} className="flex-row items-center gap-1">
+            <Text className="text-primary-500 text-sm font-medium">← Kategorien</Text>
+          </Pressable>
+          <Text className="text-warm-500 text-sm">/</Text>
+          <Text className="text-warm-900 dark:text-warm-50 text-sm font-semibold">
+            {CATEGORY_ICONS[selectedCategory] ?? CATEGORY_ICONS['default']} {selectedCategory}
+          </Text>
+        </View>
+      )}
+
       {/* Content */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
@@ -352,12 +436,29 @@ export default function RecipeListScreen() {
             <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
           </Pressable>
         </View>
+      ) : (!selectedCategory && !search) ? (
+        <FlatList
+          data={allCategories}
+          keyExtractor={(item) => item.name}
+          numColumns={2}
+          key="categories"
+          renderItem={({ item }) => (
+            <CategoryCard info={item} onPress={() => {
+              if (item.name === 'Alle Rezepte') { setSelectedCategory(null); setFiltered(recipes); }
+              else setSelectedCategory(item.name);
+            }} />
+          )}
+          contentContainerStyle={{ padding: 8 }}
+          columnWrapperStyle={{ gap: 0 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
+          ListEmptyComponent={<EmptyState search="" />}
+        />
       ) : viewMode === 'grid' ? (
         <FlatList
-          data={filtered}
+          data={categoryFiltered}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
-          key="grid"
+          key="list-grid"
           renderItem={({ item }) => <GridCard recipe={item} />}
           contentContainerStyle={{ padding: 12, paddingTop: 8 }}
           columnWrapperStyle={{ gap: 0 }}
@@ -366,9 +467,9 @@ export default function RecipeListScreen() {
         />
       ) : (
         <FlatList
-          data={filtered}
+          data={categoryFiltered}
           keyExtractor={(item) => String(item.id)}
-          key="list"
+          key="list-list"
           renderItem={({ item }) => <ListCard recipe={item} />}
           contentContainerStyle={{ padding: 16, paddingTop: 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
@@ -415,7 +516,7 @@ export default function RecipeListScreen() {
             renderItem={({ item }) => {
               const terms = ingredientInput.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
               const ings = parseJSON<string[]>(item.ingredients, []);
-              const matched = terms.filter(t => ings.join(' ').toLowerCase().includes(t)).length;
+              const matched = terms.filter(t => ings.some(ing => matchesIngredient(ing, t))).length;
               return (
                 <Pressable
                   onPress={() => { setShowIngredientSearch(false); router.push(`/recipe/${item.id}`); }}
