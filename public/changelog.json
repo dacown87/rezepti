@@ -1,0 +1,16 @@
+{
+  "version": "1.0.67",
+  "entries": [
+    {
+      "version": "1.0.67",
+      "date": "2026-04-11",
+      "changes": [
+        "photo import + install expo-image-manipulator + rebuild web app"
+      ]
+    }
+  ],
+  "lastUpdated": {
+    "date": "2026-04-11",
+    "time": "16:24"
+  }
+}

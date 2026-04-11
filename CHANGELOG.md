@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.67] – 2026-04-11
+
+- photo import + install expo-image-manipulator + rebuild web app
+
 ## [1.0.66] – 2026-04-11
 
 - image compression + ingredient fuzzy search + category grid
