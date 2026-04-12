@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.69] – 2026-04-12
+
+
+
 ## [1.0.68] – 2026-04-12
 
 - scanner opens camera immediately when autoOpen=true
