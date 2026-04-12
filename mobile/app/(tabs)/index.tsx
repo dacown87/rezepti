@@ -89,7 +89,7 @@ interface ApiRecipe {
   image_url?: string;
   ingredients: string;
   steps: string;
-  tags?: string;
+  tags?: string | string[];
   category?: string;
   servings?: string;
   duration?: string;
@@ -108,7 +108,7 @@ function apiToRecipe(r: ApiRecipe): Recipe {
     image_url: r.image_url ?? null,
     ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients ?? []),
     steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps ?? []),
-    tags: r.tags ?? null,
+    tags: Array.isArray(r.tags) ? JSON.stringify(r.tags) : (r.tags ?? null),
     category: r.category ?? null,
     servings: r.servings ?? null,
     duration: r.duration ?? null,
