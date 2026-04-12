@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.70] – 2026-04-12
+
+- build files after photo-import modal fix
+
 ## [1.0.69] – 2026-04-12
 
 
