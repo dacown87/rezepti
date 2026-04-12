@@ -138,6 +138,7 @@ export default function ExtractScreen() {
 
   const handledRef = useRef(false);
   const submittedUrlRef = useRef<string | undefined>(undefined);
+  const submittedModeRef = useRef<Mode>('url');
 
   // ── Polling ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -181,7 +182,7 @@ export default function ExtractScreen() {
 
           const suggestions = status.result?.imageSuggestions ?? [];
           const recipeId = status.result?.recipeId ?? null;
-          if (suggestions.length > 0 && recipeId) {
+          if (recipeId && (submittedModeRef.current === 'photo' || suggestions.length > 0)) {
             setImageSuggestions(suggestions);
             setRecipeIdForImage(recipeId);
           } else {
@@ -217,6 +218,7 @@ export default function ExtractScreen() {
     setImageSuggestions([]);
     setRecipeIdForImage(null);
     submittedUrlRef.current = undefined;
+    submittedModeRef.current = 'url';
   }, []);
 
   // ── URL submit ─────────────────────────────────────────────────────────────
@@ -225,6 +227,7 @@ export default function ExtractScreen() {
     if (!trimmed) return;
 
     submittedUrlRef.current = trimmed;
+    submittedModeRef.current = 'url';
     setIsLoading(true);
     setError(null);
     setSuccess(false);
@@ -297,6 +300,7 @@ export default function ExtractScreen() {
   const handlePhotoSubmit = async () => {
     if (!photoUri) return;
 
+    submittedModeRef.current = 'photo';
     setIsLoading(true);
     setError(null);
     setSuccess(false);

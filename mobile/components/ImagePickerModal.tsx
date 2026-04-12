@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, Text, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Image, Pressable, ActivityIndicator, TextInput as RNTextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckCircle } from 'lucide-react-native';
+import { CheckCircle, Search, AlertCircle } from 'lucide-react-native';
+import { getServerUrl } from '@/utils/server-url';
 
 interface ImagePickerModalProps {
   images: string[];
@@ -12,6 +13,10 @@ interface ImagePickerModalProps {
 export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<string[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
 
   const handleSelect = async () => {
     if (!selected) return;
@@ -20,17 +25,57 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
     setSaving(false);
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    setSearchError(false);
+    try {
+      const serverUrl = await getServerUrl();
+      const res = await fetch(`${serverUrl}/api/v1/images/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const data = await res.json();
+      setSearchResults(data.images ?? []);
+    } catch {
+      setSearchError(true);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const displayedImages = searchResults.length > 0 ? searchResults : images;
+  const hasChefkochImages = images.length > 0;
+  const hasSearchResults = searchResults.length > 0;
+  const showEmptyState = !hasChefkochImages && !hasSearchResults;
+
   return (
     <SafeAreaView className="flex-1 bg-warm-50">
       <View className="px-4 pt-6 pb-4">
         <Text className="text-2xl font-bold text-warm-900">Passendes Bild wählen</Text>
         <Text className="text-warm-500 mt-1 text-sm">
-          Gefunden auf Chefkoch.de — tippe ein Bild an
+          {hasChefkochImages
+            ? 'Von Chefkoch.de --- oder eigene Suche unten'
+            : showEmptyState
+              ? 'Suche nach einem Bild für dein Rezept'
+              : hasSearchResults
+                ? 'Suchergebnisse'
+                : ''}
         </Text>
       </View>
 
+      {showEmptyState && (
+        <View className="px-4 mb-2">
+          <Text className="text-warm-400 text-sm">Keine Treffer gefunden --- suche selbst nach einem Bild</Text>
+        </View>
+      )}
+
+      {(searchError && !searchResults.length) && (
+        <View className="px-4 mb-2">
+          <Text className="text-red-500 text-sm">Suche fehlgeschlagen --- bitte nochmal versuchen</Text>
+        </View>
+      )}
+
       <View className="flex-row flex-wrap px-4 gap-3">
-        {images.map((uri) => (
+        {displayedImages.map((uri) => (
           <Pressable
             key={uri}
             onPress={() => setSelected(uri)}
@@ -51,6 +96,33 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
             )}
           </Pressable>
         ))}
+      </View>
+
+      <View className="px-4 mt-6">
+        <View className="flex-row gap-2">
+          <View className="flex-1 bg-white border border-warm-200 rounded-xl px-3 py-2.5">
+            <RNTextInput
+              className="text-base text-warm-900"
+              placeholder="Bild suchen..."
+              placeholderTextColor="#9E8878"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+            />
+          </View>
+          <Pressable
+            onPress={handleSearch}
+            disabled={isSearching || !searchQuery.trim()}
+            className={`px-4 rounded-xl items-center justify-center ${isSearching || !searchQuery.trim() ? 'bg-warm-200' : 'bg-primary-500'}`}
+          >
+            {isSearching ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Search size={20} color={searchQuery.trim() ? '#fff' : '#9E8878'} />
+            )}
+          </Pressable>
+        </View>
       </View>
 
       <View className="flex-row gap-3 px-4 mt-6">

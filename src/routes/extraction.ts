@@ -250,6 +250,14 @@ async function processPhotoJobInBackground(jobId: string) {
   }
 }
 
+// Image search endpoint for photo import flow
+app.get("/api/v1/images/search", async (c) => {
+  const q = c.req.query("q")?.trim();
+  if (!q) return c.json({ images: [] });
+  const images = await searchRecipeImages(q).catch(() => []);
+  return c.json({ images });
+});
+
 async function processJobInBackground(jobId: string, userApiKey?: string) {
   try {
     const job = jobManager.getJob(jobId);
