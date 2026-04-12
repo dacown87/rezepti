@@ -1,4 +1,17 @@
 
+## Bildauswahl nach Foto-Import (2026-04-12) — ERLEDIGT ✅
+
+**Plan:** `docs/superpowers/plans/2026-04-12-foto-bildauswahl.md`
+
+**Problem:** Nach Foto-Import erscheint der Bildauswahl-Screen nicht wenn Chefkoch keine Treffer liefert. Bug in `extract.tsx:184` — Bedingung `suggestions.length > 0 && recipeId` schlägt bei leerer Chefkoch-Antwort fehl.
+
+**Zu tun (3 Dateien):**
+1. `src/routes/extraction.ts` — `GET /api/v1/images/search?q=` Endpoint hinzufügen
+2. `mobile/app/(tabs)/extract.tsx` — `submittedModeRef` + Modal-Trigger-Bedingung fixen
+3. `mobile/components/ImagePickerModal.tsx` — Suchfunktion, Leer-Zustand, Fehlerbehandlung
+
+---
+
 ## Strategie-Überlegungen (2026-04-09)
 
 ### Firebase statt SQLite (OFFEN — Evaluieren)
