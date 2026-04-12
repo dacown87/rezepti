@@ -376,7 +376,7 @@ export default function ExtractScreen() {
   );
 
   // ── Image picker modal ─────────────────────────────────────────────────────
-  if (imageSuggestions.length > 0 && recipeIdForImage) {
+  if (recipeIdForImage) {
     return (
       <ImagePickerModal
         images={imageSuggestions}

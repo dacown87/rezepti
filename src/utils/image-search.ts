@@ -7,7 +7,7 @@ export async function searchRecipeImages(recipeName: string): Promise<string[]> 
     if (!res.ok) return [];
     const data = await res.json();
     return (data.results ?? [])
-      .map((r: any) => r.previewImageUrl)
+      .map((r: any) => r.recipe?.previewImageUrlTemplate?.replace('<format>', 'crop-960x720'))
       .filter(Boolean)
       .slice(0, 4);
   } catch {

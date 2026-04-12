@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { View, Text, Image, Pressable, ActivityIndicator, TextInput as RNTextInput } from 'react-native';
+import { View, Text, Image, Pressable, ActivityIndicator, TextInput as RNTextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckCircle, Search, AlertCircle } from 'lucide-react-native';
+import { CheckCircle, Search } from 'lucide-react-native';
 import { getServerUrl } from '@/utils/server-url';
 
 interface ImagePickerModalProps {
@@ -43,62 +43,23 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
   };
 
   const displayedImages = searchResults.length > 0 ? searchResults : images;
-  const hasChefkochImages = images.length > 0;
-  const hasSearchResults = searchResults.length > 0;
-  const showEmptyState = !hasChefkochImages && !hasSearchResults;
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50">
-      <View className="px-4 pt-6 pb-4">
+      {/* Fixed header */}
+      <View className="px-4 pt-6 pb-3">
         <Text className="text-2xl font-bold text-warm-900">Passendes Bild wählen</Text>
         <Text className="text-warm-500 mt-1 text-sm">
-          {hasChefkochImages
-            ? 'Von Chefkoch.de --- oder eigene Suche unten'
-            : showEmptyState
-              ? 'Suche nach einem Bild für dein Rezept'
-              : hasSearchResults
-                ? 'Suchergebnisse'
-                : ''}
+          {searchResults.length > 0
+            ? 'Suchergebnisse'
+            : images.length > 0
+              ? 'Von Chefkoch.de — oder eigene Suche'
+              : 'Suche nach einem Bild für dein Rezept'}
         </Text>
       </View>
 
-      {showEmptyState && (
-        <View className="px-4 mb-2">
-          <Text className="text-warm-400 text-sm">Keine Treffer gefunden --- suche selbst nach einem Bild</Text>
-        </View>
-      )}
-
-      {(searchError && !searchResults.length) && (
-        <View className="px-4 mb-2">
-          <Text className="text-red-500 text-sm">Suche fehlgeschlagen --- bitte nochmal versuchen</Text>
-        </View>
-      )}
-
-      <View className="flex-row flex-wrap px-4 gap-3">
-        {displayedImages.map((uri) => (
-          <Pressable
-            key={uri}
-            onPress={() => setSelected(uri)}
-            className="rounded-2xl overflow-hidden"
-            style={{ width: '47%', aspectRatio: 4 / 3 }}
-          >
-            <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-            {selected === uri && (
-              <View
-                className="absolute inset-0 rounded-2xl"
-                style={{ borderWidth: 3, borderColor: '#C84B31' }}
-              />
-            )}
-            {selected === uri && (
-              <View className="absolute top-2 right-2 bg-primary-500 rounded-full p-1">
-                <CheckCircle size={16} color="#fff" />
-              </View>
-            )}
-          </Pressable>
-        ))}
-      </View>
-
-      <View className="px-4 mt-6">
+      {/* Fixed search */}
+      <View className="px-4 pb-3">
         <View className="flex-row gap-2">
           <View className="flex-1 bg-white border border-warm-200 rounded-xl px-3 py-2.5">
             <RNTextInput
@@ -123,9 +84,13 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
             )}
           </Pressable>
         </View>
+        {searchError && (
+          <Text className="text-red-500 text-sm mt-2">Suche fehlgeschlagen — bitte nochmal versuchen</Text>
+        )}
       </View>
 
-      <View className="flex-row gap-3 px-4 mt-6">
+      {/* Fixed action buttons */}
+      <View className="flex-row gap-3 px-4 pb-4">
         <Pressable
           onPress={onSkip}
           disabled={saving}
@@ -143,6 +108,35 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
             : <Text className={`font-semibold ${selected ? 'text-white' : 'text-warm-500'}`}>Auswählen</Text>}
         </Pressable>
       </View>
+
+      {/* Scrollable image grid */}
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12, flexDirection: 'row', flexWrap: 'wrap' }}>
+        {displayedImages.length === 0 ? (
+          <Text className="text-warm-400 text-sm">Keine Treffer gefunden — suche selbst nach einem Bild</Text>
+        ) : (
+          displayedImages.map((uri) => (
+            <Pressable
+              key={uri}
+              onPress={() => setSelected(uri)}
+              className="rounded-2xl overflow-hidden"
+              style={{ width: '47%', aspectRatio: 4 / 3 }}
+            >
+              <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              {selected === uri && (
+                <View
+                  className="absolute inset-0 rounded-2xl"
+                  style={{ borderWidth: 3, borderColor: '#C84B31' }}
+                />
+              )}
+              {selected === uri && (
+                <View className="absolute top-2 right-2 bg-primary-500 rounded-full p-1">
+                  <CheckCircle size={16} color="#fff" />
+                </View>
+              )}
+            </Pressable>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
