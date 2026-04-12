@@ -229,16 +229,17 @@ async function processPhotoJobInBackground(jobId: string) {
 
     const recipeData = await extractRecipeFromImage(dataUrl);
 
-    jobManager.updateJob(jobId, {
-      progress: 90,
-      currentStage: "exporting",
-      message: "Wird gespeichert",
-      status: "running",
-    });
-
-    const recipeId = saveRecipeToReactDb(recipeData, "photo://upload");
-    jobManager.updateJob(jobId, { progress: 95, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
+    jobManager.updateJob(jobId, { progress: 75, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
     const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
+
+    // If no Chefkoch images found, fall back to the uploaded photo itself as cover image.
+    // Only store if it's a compact data URL (base64 ≤ ~350 KB to avoid bloating the DB).
+    if (imageSuggestions.length === 0 && !recipeData.imageUrl && dataUrl.length < 500_000) {
+      recipeData.imageUrl = dataUrl;
+    }
+
+    jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
+    const recipeId = saveRecipeToReactDb(recipeData, "photo://upload");
     jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData, imageSuggestions });
 
   } catch (error) {
