@@ -45,6 +45,7 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
     calories: r.calories != null ? Number(r.calories) : null,
     rating: r.rating != null ? Number(r.rating) : null,
     notes: (r.notes as string | null) ?? null,
+    category: (r.category as string | null) ?? null,
     equipment: typeof r.equipment === 'string' ? r.equipment : (r.equipment ? JSON.stringify(r.equipment) : null),
     nutrition_info: typeof (r as any).nutrition_info === 'string'
       ? (r as any).nutrition_info

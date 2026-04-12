@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import {
   Search, X, ChefHat, Clock, Star, Plus,
-  LayoutGrid, List, FileText, Refrigerator, QrCode,
+  LayoutGrid, List, Tag, FileText, Refrigerator, QrCode,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -50,24 +50,35 @@ function matchesIngredient(ing: string, term: string): boolean {
          ingName.includes(term) || term.includes(ingName);
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  'Frühstück': '🥐', 'Pasta': '🍝', 'Nudeln': '🍝', 'Suppe': '🍲',
-  'Dessert': '🍰', 'Kuchen': '🍰', 'Backen': '🍞', 'Vegan': '🌱',
-  'Vegetarisch': '🥗', 'Fleisch': '🥩', 'Hähnchen': '🍗', 'Fisch': '🐟',
-  'Schnell': '⚡', 'Asiatisch': '🍜', 'Italienisch': '🇮🇹', 'Salat': '🥗',
-  'Snack': '🧆', 'Alle Rezepte': '📖', 'default': '🍽️',
-};
-interface CategoryInfo { name: string; count: number }
+// mirrors src/db-react.ts CATEGORY_KEYWORDS — mobile cannot import from backend
+const PREDEFINED_CATEGORIES: Array<{ name: string; icon: string; keywords: string[] }> = [
+  { name: 'Auflauf',         icon: '🥘', keywords: ['auflauf', 'gratin', 'lasagne', 'überbacken'] },
+  { name: 'Nudelgericht',    icon: '🍝', keywords: ['pasta', 'nudeln', 'spaghetti', 'penne', 'tagliatelle'] },
+  { name: 'Fleischgericht',  icon: '🥩', keywords: ['fleisch', 'steak', 'schnitzel', 'hackfleisch', 'braten', 'gulasch'] },
+  { name: 'Geflügel',        icon: '🍗', keywords: ['hähnchen', 'hühnchen', 'pute', 'geflügel'] },
+  { name: 'Fischgericht',    icon: '🐟', keywords: ['fisch', 'lachs', 'thunfisch', 'shrimps', 'garnele', 'meeresfrüchte'] },
+  { name: 'Suppe',           icon: '🍲', keywords: ['suppe', 'eintopf', 'brühe', 'cremesuppe', 'minestrone'] },
+  { name: 'Salat',           icon: '🥗', keywords: ['salat'] },
+  { name: 'Gebäck & Kuchen', icon: '🍰', keywords: ['kuchen', 'gebäck', 'muffin', 'torte', 'backen', 'kekse', 'brot'] },
+  { name: 'Frühstück',       icon: '🥐', keywords: ['frühstück', 'pancake', 'pfannkuchen', 'porridge', 'müsli', 'granola'] },
+  { name: 'Snack',           icon: '🧆', keywords: ['snack', 'vorspeise', 'fingerfood', 'dip', 'toast'] },
+  { name: 'Vegetarisch',     icon: '🌱', keywords: ['vegetarisch', 'vegan'] },
+  { name: 'Asiatisch',       icon: '🍜', keywords: ['asiatisch', 'wok', 'curry', 'sushi', 'ramen', 'thai', 'dim sum'] },
+];
+
+interface CategoryInfo { name: string; icon: string; count: number }
 function buildCategories(recipeList: Recipe[]): CategoryInfo[] {
-  const counts = new Map<string, number>();
-  for (const r of recipeList) {
-    for (const tag of parseJSON<string[]>(r.tags, []))
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  const result: CategoryInfo[] = [];
+  for (const cat of PREDEFINED_CATEGORIES) {
+    const count = recipeList.filter(r =>
+      r.category === cat.name ||
+      (!r.category && cat.keywords.some(kw =>
+        [...parseJSON<string[]>(r.tags, []), r.name].join(' ').toLowerCase().includes(kw)
+      ))
+    ).length;
+    if (count > 0) result.push({ name: cat.name, icon: cat.icon, count });
   }
-  const sorted = Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ name, count }));
-  return [{ name: 'Alle Rezepte', count: recipeList.length }, ...sorted];
+  return [{ name: 'Alle Rezepte', icon: '📖', count: recipeList.length }, ...result];
 }
 
 interface ApiRecipe {
@@ -79,6 +90,7 @@ interface ApiRecipe {
   ingredients: string;
   steps: string;
   tags?: string;
+  category?: string;
   servings?: string;
   duration?: string;
   calories?: number;
@@ -97,12 +109,15 @@ function apiToRecipe(r: ApiRecipe): Recipe {
     ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients ?? []),
     steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps ?? []),
     tags: r.tags ?? null,
+    category: r.category ?? null,
     servings: r.servings ?? null,
     duration: r.duration ?? null,
     calories: r.calories ?? null,
     rating: r.rating ?? null,
     notes: r.notes ?? null,
     transcript: null,
+    equipment: null,
+    nutrition_info: null,
     tried: 0,
     pdf_created: 0,
     created_at: null,
@@ -219,7 +234,7 @@ function CategoryCard({ info, onPress }: { info: CategoryInfo; onPress: () => vo
     <Pressable onPress={onPress}
       className="flex-1 m-1.5 bg-white dark:bg-espresso-800 rounded-2xl p-4 border border-warm-200 dark:border-warm-700 items-center justify-center min-h-[100px]"
     >
-      <Text className="text-4xl mb-1">{CATEGORY_ICONS[info.name] ?? CATEGORY_ICONS['default']}</Text>
+      <Text className="text-4xl mb-1">{info.icon}</Text>
       <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50 text-center" numberOfLines={2}>
         {info.name}
       </Text>
@@ -239,7 +254,7 @@ export default function RecipeListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'categories'>('categories');
   const [showCardModal, setShowCardModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [exporting, setExporting] = useState(false);
@@ -279,12 +294,12 @@ export default function RecipeListScreen() {
     loadRecipes();
     // Load persisted view mode
     AsyncStorage.getItem(VIEW_MODE_KEY).then(v => {
-      if (v === 'grid' || v === 'list') setViewMode(v);
+      if (v === 'grid' || v === 'list' || v === 'categories') setViewMode(v);
     });
   }, [loadRecipes]));
 
   const toggleViewMode = async () => {
-    const next = viewMode === 'list' ? 'grid' : 'list';
+    const next = viewMode === 'list' ? 'grid' : viewMode === 'grid' ? 'categories' : 'list';
     setViewMode(next);
     await AsyncStorage.setItem(VIEW_MODE_KEY, next);
   };
@@ -341,9 +356,17 @@ export default function RecipeListScreen() {
   }, [loadRecipes]);
 
   const allCategories = useMemo(() => buildCategories(recipes), [recipes]);
-  const categoryFiltered = selectedCategory && selectedCategory !== 'Alle Rezepte'
-    ? filtered.filter(r => parseJSON<string[]>(r.tags, []).includes(selectedCategory))
-    : filtered;
+  const categoryFiltered = useMemo(() => {
+    if (!selectedCategory) return filtered;
+    const cat = PREDEFINED_CATEGORIES.find(c => c.name === selectedCategory);
+    if (!cat) return filtered;
+    return filtered.filter(r =>
+      r.category === cat.name ||
+      (!r.category && cat.keywords.some(kw =>
+        [...parseJSON<string[]>(r.tags, []), r.name].join(' ').toLowerCase().includes(kw)
+      ))
+    );
+  }, [filtered, selectedCategory]);
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
@@ -383,7 +406,9 @@ export default function RecipeListScreen() {
             >
               {viewMode === 'list'
                 ? <LayoutGrid size={17} color="#9E8878" />
-                : <List size={17} color="#9E8878" />}
+                : viewMode === 'grid'
+                  ? <Tag size={17} color="#9E8878" />
+                  : <List size={17} color="#9E8878" />}
             </Pressable>
             <Pressable
               onPress={() => router.push('/(tabs)/extract')}
@@ -412,14 +437,21 @@ export default function RecipeListScreen() {
         </View>
       </View>
 
-      {selectedCategory && !search && (
+      {selectedCategory && !search && viewMode !== 'categories' && (
         <View className="flex-row items-center px-4 pb-2 gap-2">
-          <Pressable onPress={() => setSelectedCategory(null)} className="flex-row items-center gap-1">
+          <Pressable
+            onPress={() => {
+              setSelectedCategory(null);
+              setViewMode('categories');
+              AsyncStorage.setItem(VIEW_MODE_KEY, 'categories');
+            }}
+            className="flex-row items-center gap-1"
+          >
             <Text className="text-primary-500 text-sm font-medium">← Kategorien</Text>
           </Pressable>
           <Text className="text-warm-500 text-sm">/</Text>
           <Text className="text-warm-900 dark:text-warm-50 text-sm font-semibold">
-            {CATEGORY_ICONS[selectedCategory] ?? CATEGORY_ICONS['default']} {selectedCategory}
+            {PREDEFINED_CATEGORIES.find(c => c.name === selectedCategory)?.icon ?? '🍽️'} {selectedCategory}
           </Text>
         </View>
       )}
@@ -436,7 +468,7 @@ export default function RecipeListScreen() {
             <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
           </Pressable>
         </View>
-      ) : (!selectedCategory && !search) ? (
+      ) : (viewMode === 'categories' && !search) ? (
         <FlatList
           data={allCategories}
           keyExtractor={(item) => item.name}
@@ -444,8 +476,16 @@ export default function RecipeListScreen() {
           key="categories"
           renderItem={({ item }) => (
             <CategoryCard info={item} onPress={() => {
-              if (item.name === 'Alle Rezepte') { setSelectedCategory(null); setFiltered(recipes); }
-              else setSelectedCategory(item.name);
+              if (item.name === 'Alle Rezepte') {
+                setSelectedCategory(null);
+                setFiltered(recipes);
+                setViewMode('list');
+                AsyncStorage.setItem(VIEW_MODE_KEY, 'list');
+              } else {
+                setSelectedCategory(item.name);
+                setViewMode('list');
+                AsyncStorage.setItem(VIEW_MODE_KEY, 'list');
+              }
             }} />
           )}
           contentContainerStyle={{ padding: 8 }}

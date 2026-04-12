@@ -11,6 +11,7 @@ export const recipes = sqliteTable("recipes", {
   duration:    text("duration"),          // 'kurz' | 'mittel' | 'lang'
   calories:    integer("calories"),
   tags:        text("tags"),              // JSON-Array
+  category:    text("category"),          // Auto-assigned category label
   ingredients: text("ingredients").notNull(), // JSON-Array
   steps:       text("steps").notNull(),       // JSON-Array
   transcript:  text("transcript"),

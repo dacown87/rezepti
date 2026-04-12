@@ -8,6 +8,30 @@ import { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } from "
 import type { RecipeData } from "./types.js";
 import { extractIngredientName, isSimilar } from "./ingredient-dictionary.js";
 
+// ── Category auto-assignment ──────────────────────────────────────────────────
+export const CATEGORY_KEYWORDS: Array<{ category: string; keywords: string[] }> = [
+  { category: 'Auflauf',         keywords: ['auflauf', 'gratin', 'lasagne', 'überbacken'] },
+  { category: 'Nudelgericht',    keywords: ['pasta', 'nudeln', 'spaghetti', 'penne', 'tagliatelle'] },
+  { category: 'Fleischgericht',  keywords: ['fleisch', 'steak', 'schnitzel', 'hackfleisch', 'braten', 'gulasch'] },
+  { category: 'Geflügel',        keywords: ['hähnchen', 'hühnchen', 'pute', 'geflügel'] },
+  { category: 'Fischgericht',    keywords: ['fisch', 'lachs', 'thunfisch', 'shrimps', 'garnele', 'meeresfrüchte'] },
+  { category: 'Suppe',           keywords: ['suppe', 'eintopf', 'brühe', 'cremesuppe', 'minestrone'] },
+  { category: 'Salat',           keywords: ['salat'] },
+  { category: 'Gebäck & Kuchen', keywords: ['kuchen', 'gebäck', 'muffin', 'torte', 'backen', 'kekse', 'brot'] },
+  { category: 'Frühstück',       keywords: ['frühstück', 'pancake', 'pfannkuchen', 'porridge', 'müsli', 'granola'] },
+  { category: 'Snack',           keywords: ['snack', 'vorspeise', 'fingerfood', 'dip', 'toast'] },
+  { category: 'Vegetarisch',     keywords: ['vegetarisch', 'vegan'] },
+  { category: 'Asiatisch',       keywords: ['asiatisch', 'wok', 'curry', 'sushi', 'ramen', 'thai', 'dim sum'] },
+];
+
+export function detectCategory(tags: string[], name: string): string | null {
+  const text = [...tags, name].join(' ').toLowerCase();
+  for (const { category, keywords } of CATEGORY_KEYWORDS) {
+    if (keywords.some(kw => text.includes(kw))) return category;
+  }
+  return null;
+}
+
 /**
  * React-specific database connection
  * This uses a separate database file for React frontend
@@ -68,6 +92,18 @@ export function ensureReactSchema() {
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN equipment TEXT`); } catch {}
   // Migration: nutrition_info (Kohlenhydrate, Fett, Eiweiß)
   try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN nutrition_info TEXT`); } catch {}
+  // Migration: category (auto-assigned label for browse view)
+  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN category TEXT`); } catch {}
+  // Auto-assign categories to existing recipes that have none
+  for (const { category, keywords } of CATEGORY_KEYWORDS) {
+    const conditions = keywords
+      .map(() => `(LOWER(tags) LIKE ? OR LOWER(name) LIKE ?)`)
+      .join(' OR ');
+    const params = keywords.flatMap(kw => [`%${kw}%`, `%${kw}%`]);
+    db.$client.prepare(
+      `UPDATE recipes SET category = ? WHERE category IS NULL AND (${conditions})`
+    ).run(category, ...params);
+  }
   // Migration: index on created_at for ORDER BY performance
   try { db.$client.exec(`CREATE INDEX IF NOT EXISTS idx_recipes_created_at ON recipes(created_at DESC)`); } catch {}
   // Migration: ingredient_dictionary (Phase 3c)
@@ -127,6 +163,7 @@ export function saveRecipeToReactDb(
     steps:       JSON.stringify(recipe.steps),
     equipment:      recipe.equipment     ? JSON.stringify(recipe.equipment)     : null,
     nutrition_info: recipe.nutritionInfo ? JSON.stringify(recipe.nutritionInfo) : null,
+    category:    detectCategory(recipe.tags, recipe.name),
     transcript,
   }).returning({ id: recipes.id }).get();
 
@@ -327,8 +364,9 @@ export function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): 
   if (fields.tags        !== undefined) values.tags        = JSON.stringify(fields.tags);
   if (fields.ingredients !== undefined) values.ingredients = JSON.stringify(fields.ingredients);
   if (fields.steps       !== undefined) values.steps       = JSON.stringify(fields.steps);
-  if ((fields as any).rating !== undefined) values.rating = (fields as any).rating;
-  if ((fields as any).notes  !== undefined) values.notes  = (fields as any).notes;
+  if ((fields as any).rating    !== undefined) values.rating    = (fields as any).rating;
+  if ((fields as any).notes     !== undefined) values.notes     = (fields as any).notes;
+  if ((fields as any).category  !== undefined) values.category  = (fields as any).category;
   if ((fields as any).pdf_created !== undefined) values.pdf_created = (fields as any).pdf_created ? 1 : 0;
   if (Object.keys(values).length === 0) return false;
   const result = db.update(recipes).set(values).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();

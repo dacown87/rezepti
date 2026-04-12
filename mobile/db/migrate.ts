@@ -62,6 +62,9 @@ async function runMigrations(
   if (fromVersion < 3) {
     await db.execAsync('ALTER TABLE recipes ADD COLUMN nutrition_info TEXT;');
   }
+  if (fromVersion < 4) {
+    await db.execAsync('ALTER TABLE recipes ADD COLUMN category TEXT;');
+  }
 
   console.log(`DB migration: v${fromVersion} → v${toVersion}`);
 }
