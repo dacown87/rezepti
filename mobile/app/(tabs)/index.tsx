@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, Pressable,
   ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share, Platform,
@@ -255,6 +255,7 @@ export default function RecipeListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'categories'>('categories');
+  const ingredientSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [exporting, setExporting] = useState(false);
@@ -325,16 +326,37 @@ export default function RecipeListScreen() {
   const handleIngredientSearch = (input: string) => {
     setIngredientInput(input);
     if (!input.trim()) { setIngredientResults([]); return; }
-    const terms = input.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-    const scored = recipes
-      .map(r => {
-        const ings = parseJSON<string[]>(r.ingredients, []);
-        const score = terms.filter(t => ings.some(ing => matchesIngredient(ing, t))).length;
-        return { r, score };
-      })
-      .filter(s => s.score > 0);
-    scored.sort((a, b) => b.score - a.score);
-    setIngredientResults(scored.map(s => s.r));
+
+    if (Platform.OS === 'web') {
+      // On web, the list API omits ingredients — use the backend search endpoint instead
+      if (ingredientSearchTimer.current) clearTimeout(ingredientSearchTimer.current);
+      ingredientSearchTimer.current = setTimeout(async () => {
+        const terms = input.split(',').map(t => t.trim()).filter(Boolean);
+        if (!terms.length) return;
+        try {
+          const serverUrl = await getServerUrl();
+          const res = await fetch(
+            `${serverUrl}/api/v1/recipes?ingredients=${encodeURIComponent(terms.join(','))}&match=or`
+          );
+          if (!res.ok) return;
+          const data = await res.json();
+          const list: ApiRecipe[] = Array.isArray(data.recipes) ? data.recipes : [];
+          setIngredientResults(list.map(apiToRecipe));
+        } catch { /* ignore network errors */ }
+      }, 300);
+    } else {
+      // Native: SQLite returns full rows including ingredients — search in-memory
+      const terms = input.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+      const scored = recipes
+        .map(r => {
+          const ings = parseJSON<string[]>(r.ingredients, []);
+          const score = terms.filter(t => ings.some(ing => matchesIngredient(ing, t))).length;
+          return { r, score };
+        })
+        .filter(s => s.score > 0);
+      scored.sort((a, b) => b.score - a.score);
+      setIngredientResults(scored.map(s => s.r));
+    }
   };
 
   const handleExportCards = async () => {
