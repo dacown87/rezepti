@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.68] – 2026-04-12
+
+- scanner opens camera immediately when autoOpen=true
+- use uploaded photo as recipe cover when no Chefkoch images found
+- ingredient search on web — use API endpoint instead of empty local state
+- predefined categories + 3-mode view toggle + fix Alle Rezepte click
+
 ## [1.0.67] – 2026-04-11
 
 - photo import + install expo-image-manipulator + rebuild web app
