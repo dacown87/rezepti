@@ -1,5 +1,5 @@
-export async function searchRecipeImages(recipeName: string): Promise<string[]> {
-  const url = `https://api.chefkoch.de/v2/recipes?query=${encodeURIComponent(recipeName)}&limit=6&sortBy=relevance`;
+export async function searchRecipeImages(recipeName: string, limit = 4): Promise<string[]> {
+  const url = `https://api.chefkoch.de/v2/recipes?query=${encodeURIComponent(recipeName)}&limit=${limit + 2}&sortBy=relevance`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
@@ -9,7 +9,7 @@ export async function searchRecipeImages(recipeName: string): Promise<string[]> 
     return (data.results ?? [])
       .map((r: any) => r.recipe?.previewImageUrlTemplate?.replace('<format>', 'crop-960x720'))
       .filter(Boolean)
-      .slice(0, 4);
+      .slice(0, limit);
   } catch {
     return [];
   } finally {

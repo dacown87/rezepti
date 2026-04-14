@@ -135,10 +135,20 @@ export default function ExtractScreen() {
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
   const [recipeIdForImage, setRecipeIdForImage] = useState<number | null>(null);
+  const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
+  const [imageCount, setImageCount] = useState(4);
 
   const handledRef = useRef(false);
   const submittedUrlRef = useRef<string | undefined>(undefined);
   const submittedModeRef = useRef<Mode>('url');
+
+  // ── Load image count setting ───────────────────────────────────────────────
+  useEffect(() => {
+    AsyncStorage.getItem('image_search_count').then((val) => {
+      const n = parseInt(val ?? '4', 10);
+      if ([4, 8, 16].includes(n)) setImageCount(n);
+    }).catch(() => {});
+  }, []);
 
   // ── Polling ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -185,6 +195,7 @@ export default function ExtractScreen() {
           if (recipeId && (submittedModeRef.current === 'photo' || suggestions.length > 0)) {
             setImageSuggestions(suggestions);
             setRecipeIdForImage(recipeId);
+            setRecipeNameForImage(status.result?.recipe?.name);
           } else {
             setSuccess(true);
           }
@@ -217,6 +228,7 @@ export default function ExtractScreen() {
     setErrorHint(null);
     setImageSuggestions([]);
     setRecipeIdForImage(null);
+    setRecipeNameForImage(undefined);
     submittedUrlRef.current = undefined;
     submittedModeRef.current = 'url';
   }, []);
@@ -380,6 +392,8 @@ export default function ExtractScreen() {
     return (
       <ImagePickerModal
         images={imageSuggestions}
+        initialQuery={recipeNameForImage}
+        imageCount={imageCount}
         onSelect={async (url) => {
           const serverUrl = await getServerUrl();
           await fetch(`${serverUrl}/api/v1/recipes/${recipeIdForImage}`, {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Image, Pressable, ActivityIndicator, TextInput as RNTextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckCircle, Search } from 'lucide-react-native';
@@ -8,12 +8,14 @@ interface ImagePickerModalProps {
   images: string[];
   onSelect: (url: string) => Promise<void>;
   onSkip: () => void;
+  initialQuery?: string;
+  imageCount?: number;
 }
 
-export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalProps) {
+export function ImagePickerModal({ images, onSelect, onSkip, initialQuery, imageCount = 4 }: ImagePickerModalProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery ?? '');
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState(false);
@@ -25,13 +27,14 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
     setSaving(false);
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = async (queryOverride?: string) => {
+    const q = (queryOverride ?? searchQuery).trim();
+    if (!q) return;
     setIsSearching(true);
     setSearchError(false);
     try {
       const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/images/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const res = await fetch(`${serverUrl}/api/v1/images/search?q=${encodeURIComponent(q)}&limit=${imageCount}`);
       const data = await res.json();
       setSearchResults(data.images ?? []);
     } catch {
@@ -42,7 +45,15 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
     }
   };
 
-  const displayedImages = searchResults.length > 0 ? searchResults : images;
+  // Auto-search on mount when recipe name is known and no Chefkoch results exist
+  useEffect(() => {
+    if (initialQuery && images.length === 0) {
+      handleSearch(initialQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const displayedImages = (searchResults.length > 0 ? searchResults : images).slice(0, imageCount);
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50">
@@ -68,12 +79,12 @@ export function ImagePickerModal({ images, onSelect, onSkip }: ImagePickerModalP
               placeholderTextColor="#9E8878"
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearch}
+              onSubmitEditing={() => handleSearch()}
               returnKeyType="search"
             />
           </View>
           <Pressable
-            onPress={handleSearch}
+            onPress={() => handleSearch()}
             disabled={isSearching || !searchQuery.trim()}
             className={`px-4 rounded-xl items-center justify-center ${isSearching || !searchQuery.trim() ? 'bg-warm-200' : 'bg-primary-500'}`}
           >

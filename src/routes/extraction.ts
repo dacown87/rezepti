@@ -254,7 +254,9 @@ async function processPhotoJobInBackground(jobId: string) {
 app.get("/api/v1/images/search", async (c) => {
   const q = c.req.query("q")?.trim();
   if (!q) return c.json({ images: [] });
-  const images = await searchRecipeImages(q).catch(() => []);
+  const limitParam = parseInt(c.req.query("limit") ?? "4", 10);
+  const limit = [4, 8, 16].includes(limitParam) ? limitParam : 4;
+  const images = await searchRecipeImages(q, limit).catch(() => []);
   return c.json({ images });
 });
 

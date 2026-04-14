@@ -1,36 +1,43 @@
 
-## Bildauswahl nach Foto-Import (2026-04-12) — ERLEDIGT ✅
+## Bildauswahl nach Foto-Import — ✅ ABGESCHLOSSEN (2026-04-14)
 
 **Plan:** `docs/superpowers/plans/2026-04-12-foto-bildauswahl.md`
 
-**Problem:** Nach Foto-Import erscheint der Bildauswahl-Screen nicht wenn Chefkoch keine Treffer liefert. Bug in `extract.tsx:184` — Bedingung `suggestions.length > 0 && recipeId` schlägt bei leerer Chefkoch-Antwort fehl.
-
-**Zu tun (3 Dateien):**
-1. `src/routes/extraction.ts` — `GET /api/v1/images/search?q=` Endpoint hinzufügen
-2. `mobile/app/(tabs)/extract.tsx` — `submittedModeRef` + Modal-Trigger-Bedingung fixen
-3. `mobile/components/ImagePickerModal.tsx` — Suchfunktion, Leer-Zustand, Fehlerbehandlung
+**Umgesetzt:**
+- Modal erscheint immer nach Foto-Import (auch wenn Chefkoch keine Treffer liefert)
+- Rezeptname wird automatisch in die Suchleiste vorausgefüllt + Auto-Search bei leerem Ergebnis
+- Wiederholtes Suchen mit gleichem Suchbegriff funktioniert
+- Settings: Bildanzahl konfigurierbar (4/8/16, default 4) in Einstellungen → Foto-Import
+- Backend `GET /api/v1/images/search?q=&limit=N` unterstützt konfigurierbares Limit
 
 ---
 
 ## Strategie-Überlegungen (2026-04-09)
 
-### Firebase statt SQLite (OFFEN — Evaluieren)
-**Idee:** Migration von lokaler SQLite-Datenbank zu Firebase (Firestore).
+### Firebase vs. Supabase vs. SQLite (OFFEN — Evaluieren)
+**Kontext:** Sobald Multi-User-Login kommt, muss die DB-Strategie entschieden werden.
 
-**Vorteile:**
-- Login out of the box (Firebase Auth — Email, Google, Apple)
-- Bilder speichern in Firebase Storage (statt lokal/Proxy)
-- Multi-User von Anfang an sauber gelöst — kein nachträgliches `user_id`-Refactoring
-- Rezept-Sharing via Link nativ möglich (öffentliche Dokument-IDs)
+| Kriterium | SQLite (aktuell) | Firebase (Firestore) | Supabase |
+|-----------|-----------------|----------------------|----------|
+| **Auth** | ❌ Selbst bauen | ✅ Email, Google, Apple | ✅ Email, Google, Apple, Magic Link |
+| **Datenbank** | SQLite (lokal/Server) | NoSQL (Firestore) | PostgreSQL |
+| **Storage (Bilder)** | ❌ Lokal/Proxy | ✅ Firebase Storage | ✅ Supabase Storage |
+| **Rezept-Sharing** | ⚠️ Eigene Tabelle nötig | ✅ Public Document IDs | ✅ Row-Level Security |
+| **Open Source** | ✅ | ❌ Google Lock-in | ✅ Self-hostbar |
+| **Kosten** | ~0 (Server läuft eh) | Spark: kostenlos bis ~50k Reads/Tag, dann teuer | Free Tier: 500 MB DB, 1 GB Storage — danach $25/Monat |
+| **Umbauaufwand** | — | Groß — alle CRUD-Endpoints, kein SQL mehr | Mittel — PostgreSQL ähnlich SQLite, Drizzle ORM bleibt nutzbar |
+| **Realtime** | ❌ | ✅ | ✅ |
+| **Expo/RN SDK** | ✅ (expo-sqlite) | ✅ | ✅ (@supabase/supabase-js) |
 
-**Nachteile / Risiken:**
-- Vendor Lock-in (Google)
-- Kosten ab bestimmtem Traffic (Spark = kostenlos bis ~50k Reads/Tag)
-- Kompletter DB-Umbau — großer Aufwand, alle CRUD-Endpoints müssen umgeschrieben werden
-- SQLite ist aktuell gut getestet und stabil
+**Entscheidung: Supabase** — wenn Multi-User konkret ansteht.
+- PostgreSQL bleibt Drizzle-kompatibel (minimaler Schema-Umbau)
+- Kein Google Lock-in
+- RLS für Multi-User out of the box
+- Self-hosting auf Northflank möglich
 
-**Entscheidung:** Noch offen. Evaluieren sobald Multi-User-Login konkret angegangen wird.
-Alternativen: Supabase (PostgreSQL + Auth + Storage, open-source), PocketBase (SQLite-basiert, self-hosted).
+**Vorarbeit (jetzt umsetzbar, bevor Supabase kommt):**
+- [ ] `user_id`-Spalte ins `recipes`-Schema eintragen (nullable, default null = lokaler User) — `src/schema.ts`
+- [ ] Auth-Modul als leeren Stub anlegen (`src/auth.ts`) damit der Umbau später modular bleibt
 
 ---
 

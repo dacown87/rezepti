@@ -273,6 +273,9 @@ export default function SettingsScreen() {
   // Facebook
   const [facebookTosAccepted, setFacebookTosAccepted] = useState(false);
 
+  // Image search count
+  const [imageSearchCount, setImageSearchCount] = useState<4 | 8 | 16>(4);
+
   // Modals
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -307,6 +310,15 @@ export default function SettingsScreen() {
     try {
       const fbTos = await AsyncStorage.getItem(STORAGE_KEY_FB_TOS);
       setFacebookTosAccepted(fbTos === 'true');
+    } catch {
+      // Ignore
+    }
+
+    // Image search count
+    try {
+      const countStr = await AsyncStorage.getItem('image_search_count');
+      const n = parseInt(countStr ?? '4', 10);
+      if (n === 8 || n === 16) setImageSearchCount(n);
     } catch {
       // Ignore
     }
@@ -509,6 +521,17 @@ export default function SettingsScreen() {
     setFacebookTosAccepted(accepted);
     try {
       await AsyncStorage.setItem(STORAGE_KEY_FB_TOS, accepted ? 'true' : 'false');
+    } catch {
+      // Ignore
+    }
+  };
+
+  // ── Image search count handler ────────────────────────────────────────────────
+
+  const handleImageSearchCount = async (count: 4 | 8 | 16) => {
+    setImageSearchCount(count);
+    try {
+      await AsyncStorage.setItem('image_search_count', String(count));
     } catch {
       // Ignore
     }
@@ -874,6 +897,30 @@ export default function SettingsScreen() {
           <Text className="text-xs text-warm-500 dark:text-warm-400 mt-3">
             Cookie-Upload ist auf Mobile nicht verfügbar (Web-only Feature).
           </Text>
+        </View>
+
+        {/* ── Foto-Import ── */}
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
+          <View className="flex-row items-center mb-1">
+            <Text className="text-lg mr-1">📷</Text>
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">Foto-Import</Text>
+          </View>
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
+            Anzahl Bildvorschläge bei der Bildauswahl nach Foto-Import
+          </Text>
+          <View className="flex-row bg-warm-100 dark:bg-espresso-700 rounded-xl p-1 gap-1">
+            {([4, 8, 16] as const).map((n) => (
+              <Pressable
+                key={n}
+                onPress={() => handleImageSearchCount(n)}
+                className={`flex-1 py-2.5 rounded-lg items-center ${imageSearchCount === n ? 'bg-white dark:bg-espresso-800 shadow-sm' : ''}`}
+              >
+                <Text className={`text-sm font-semibold ${imageSearchCount === n ? 'text-primary-500' : 'text-warm-500 dark:text-warm-400'}`}>
+                  {n}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         {/* ── App Info ── */}
