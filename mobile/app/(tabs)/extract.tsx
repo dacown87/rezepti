@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -100,14 +101,15 @@ async function getGroqKey(): Promise<string | null> {
   }
 }
 
-async function saveRecipeToLocalDB(recipe: RecipePayload, sourceUrl?: string): Promise<void> {
+async function saveRecipeToLocalDB(recipe: RecipePayload, sourceUrl?: string): Promise<number> {
   const db = getDB();
-  await db.runAsync(
-    `INSERT INTO recipes (name, emoji, source_url, ingredients, steps, tags, servings, duration, calories, transcript, equipment, nutrition_info)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  const result = await db.runAsync(
+    `INSERT INTO recipes (name, emoji, source_url, image_url, ingredients, steps, tags, servings, duration, calories, transcript, equipment, nutrition_info)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     recipe.name,
     recipe.emoji ?? '🍽️',
     sourceUrl ?? null,
+    recipe.imageUrl ?? null,
     JSON.stringify(recipe.ingredients),
     JSON.stringify(recipe.steps),
     JSON.stringify(recipe.tags ?? []),
@@ -118,6 +120,7 @@ async function saveRecipeToLocalDB(recipe: RecipePayload, sourceUrl?: string): P
     recipe.equipment ? JSON.stringify(recipe.equipment) : null,
     recipe.nutritionInfo ? JSON.stringify(recipe.nutritionInfo) : null,
   );
+  return result.lastInsertRowId;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -136,19 +139,20 @@ export default function ExtractScreen() {
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
   const [recipeIdForImage, setRecipeIdForImage] = useState<number | null>(null);
   const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
+  const [localRecipeId, setLocalRecipeId] = useState<number | null>(null);
   const [imageCount, setImageCount] = useState(4);
 
   const handledRef = useRef(false);
   const submittedUrlRef = useRef<string | undefined>(undefined);
   const submittedModeRef = useRef<Mode>('url');
 
-  // ── Load image count setting ───────────────────────────────────────────────
-  useEffect(() => {
+  // ── Load image count setting (bei jedem Tab-Focus neu laden) ─────────────
+  useFocusEffect(useCallback(() => {
     AsyncStorage.getItem('image_search_count').then((val) => {
       const n = parseInt(val ?? '4', 10);
       if ([4, 8, 16].includes(n)) setImageCount(n);
     }).catch(() => {});
-  }, []);
+  }, []));
 
   // ── Polling ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -175,7 +179,8 @@ export default function ExtractScreen() {
           // On web SQLite is a no-op stub; recipe is already saved server-side.
           if (recipe && Platform.OS !== 'web') {
             try {
-              await saveRecipeToLocalDB(recipe, submittedUrlRef.current);
+              const localId = await saveRecipeToLocalDB(recipe, submittedUrlRef.current);
+              setLocalRecipeId(localId);
             } catch (dbErr) {
               console.error('SQLite save failed:', dbErr);
               setError('Rezept extrahiert, aber Speichern fehlgeschlagen.');
@@ -229,6 +234,7 @@ export default function ExtractScreen() {
     setImageSuggestions([]);
     setRecipeIdForImage(null);
     setRecipeNameForImage(undefined);
+    setLocalRecipeId(null);
     submittedUrlRef.current = undefined;
     submittedModeRef.current = 'url';
   }, []);
@@ -395,14 +401,23 @@ export default function ExtractScreen() {
         initialQuery={recipeNameForImage}
         imageCount={imageCount}
         onSelect={async (url) => {
+          // Server updaten (camelCase — updateRecipeInReactDb erwartet imageUrl)
           const serverUrl = await getServerUrl();
           await fetch(`${serverUrl}/api/v1/recipes/${recipeIdForImage}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image_url: url }),
+            body: JSON.stringify({ imageUrl: url }),
           }).catch(() => {});
+          // Lokales SQLite updaten
+          if (localRecipeId && Platform.OS !== 'web') {
+            await getDB().runAsync(
+              'UPDATE recipes SET image_url = ? WHERE id = ?',
+              url, localRecipeId,
+            ).catch(() => {});
+          }
           setImageSuggestions([]);
           setRecipeIdForImage(null);
+          setLocalRecipeId(null);
           setSuccess(true);
         }}
         onSkip={() => {

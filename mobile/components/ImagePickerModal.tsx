@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, Image, Pressable, ActivityIndicator, TextInput as RNTextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckCircle, Search } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getServerUrl } from '@/utils/server-url';
 
 interface ImagePickerModalProps {
@@ -33,8 +34,14 @@ export function ImagePickerModal({ images, onSelect, onSkip, initialQuery, image
     setIsSearching(true);
     setSearchError(false);
     try {
+      // Immer frisch aus AsyncStorage lesen — prop kann veraltet sein
+      const countStr = await AsyncStorage.getItem('image_search_count').catch(() => null);
+      const limit = (() => {
+        const n = parseInt(countStr ?? '4', 10);
+        return [4, 8, 16].includes(n) ? n : (imageCount ?? 4);
+      })();
       const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/images/search?q=${encodeURIComponent(q)}&limit=${imageCount}`);
+      const res = await fetch(`${serverUrl}/api/v1/images/search?q=${encodeURIComponent(q)}&limit=${limit}`);
       const data = await res.json();
       setSearchResults(data.images ?? []);
     } catch {
