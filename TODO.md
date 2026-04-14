@@ -16,12 +16,23 @@ Alle Screens nutzen immer Server-API, kein `Platform.OS`-Splitting mehr.
 - [ ] `mobile/app/(tabs)/settings.tsx` + `scanner.tsx` → API-Calls
 
 ### Phase 2 — Server: SQLite → Supabase (braucht Account + Credentials)
-- [ ] Supabase-Projekt anlegen, Schema deployen
+- [ ] Supabase-Projekt anlegen
 - [ ] `src/schema.ts` auf PostgreSQL umstellen
-- [ ] `src/db-react.ts` → `postgres-js` + Drizzle-PG (alle Exports werden async)
-- [ ] Alle Routen (`recipes.ts`, `planner.ts`, `extraction.ts`) auf `await` umstellen
+- [ ] `drizzle.config.ts` auf postgresql dialect umstellen
+- [ ] `npx drizzle-kit generate` + `migrate` → Schema deployen (nicht push!)
+- [ ] `src/db-react.ts` → `postgres-js` + Drizzle-PG (async, `ensureReactSchema` entfernen, max:3, Port 5432)
+- [ ] `src/job-manager.ts` → In-Memory Map (better-sqlite3 entfernen)
+- [ ] Alle Routen auf `await`: `recipes.ts`, `planner.ts`, `extraction.ts`, `keys.ts`, `pipeline.ts`
+- [ ] Tests anpassen: `db-react.test.ts`, `job-manager.test.ts`, `photo-extraction.test.ts`
 - [ ] `package.json` + `Dockerfile` anpassen (better-sqlite3 entfernen)
+- [ ] E2E Tests vorübergehend skippen (brauchen Postgres-Connection)
 - [ ] Northflank Env-Vars setzen + deploy
+
+### Offline-Modus (nach Phase 1 entfernt — nachrüsten)
+- [ ] React Query + AsyncStorage als Read-Through-Cache für Rezeptliste
+  - Stale-while-revalidate: App zeigt zuletzt gecachte Rezepte bei fehlendem Netzwerk
+  - Kein lokales SQLite mehr — nur AsyncStorage als Persistenz-Layer
+  - **Kontext:** Phase 1 entfernt bewusst lokales SQLite. Dieser TODO stellt Offline-Lesezugriff wieder her ohne den doppelten DB-Overhead.
 
 ---
 
