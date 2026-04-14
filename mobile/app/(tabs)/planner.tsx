@@ -14,49 +14,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode, ShoppingCart } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import ScannerCamera from '@/components/ScannerCamera';
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr';
 
-import { getDB } from '@/db/migrate';
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/app/(tabs)/shopping';
 import { getServerUrl } from '@/utils/server-url';
 
-const MEAL_PLAN_KEY = 'recipedeck_meal_plan';
-
-// ─── Web Meal Plan (AsyncStorage / localStorage) ──────────────────────────────
-
-async function webLoadEntries(weekStart: number): Promise<MealPlanEntry[]> {
-  try {
-    const raw = await AsyncStorage.getItem(MEAL_PLAN_KEY);
-    const all: MealPlanEntry[] = raw ? JSON.parse(raw) : [];
-    return all.filter(e => e.week_start === weekStart);
-  } catch { return []; }
-}
-
-async function webAddEntry(recipeId: number, dayOfWeek: number, weekStart: number): Promise<void> {
-  const raw = await AsyncStorage.getItem(MEAL_PLAN_KEY);
-  const all: MealPlanEntry[] = raw ? JSON.parse(raw) : [];
-  const newEntry: MealPlanEntry = {
-    id: Date.now(),
-    recipe_id: recipeId,
-    day_of_week: dayOfWeek,
-    week_start: weekStart,
-    created_at: Math.floor(Date.now() / 1000),
-  };
-  await AsyncStorage.setItem(MEAL_PLAN_KEY, JSON.stringify([...all, newEntry]));
-}
-
-async function webRemoveEntry(entryId: number): Promise<void> {
-  const raw = await AsyncStorage.getItem(MEAL_PLAN_KEY);
-  const all: MealPlanEntry[] = raw ? JSON.parse(raw) : [];
-  await AsyncStorage.setItem(MEAL_PLAN_KEY, JSON.stringify(all.filter(e => e.id !== entryId)));
-}
+// ─── Server API helpers ───────────────────────────────────────────────────────
 
 async function loadAllRecipes(): Promise<Recipe[]> {
-  if (Platform.OS === 'web') {
+  {
     const serverUrl = await getServerUrl();
     const res = await fetch(`${serverUrl}/api/v1/recipes`);
     if (!res.ok) return [];
@@ -84,7 +53,6 @@ async function loadAllRecipes(): Promise<Recipe[]> {
       created_at: null,
     }));
   }
-  return getDB().getAllAsync<Recipe>('SELECT * FROM recipes ORDER BY name ASC');
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -363,37 +331,22 @@ export default function PlannerScreen() {
   const weekStart = Math.floor(monday.getTime() / 1000);
 
   const loadData = useCallback(async () => {
-    let entries: MealPlanEntry[];
-    if (Platform.OS === 'web') {
-      entries = await webLoadEntries(weekStart);
-    } else {
-      entries = await getDB().getAllAsync<MealPlanEntry>(
-        'SELECT * FROM meal_plan WHERE week_start = ?', weekStart
-      );
-    }
+    const serverUrl = await getServerUrl();
+    const res = await fetch(`${serverUrl}/api/v1/planner?weekStart=${weekStart}`);
+    const entries: MealPlanEntry[] = res.ok ? await res.json() : [];
     setMealPlan(entries);
 
     const usedIds = [...new Set(entries.map(e => e.recipe_id))];
     if (usedIds.length === 0) { setRecipes(new Map()); return; }
 
-    if (Platform.OS === 'web') {
-      const serverUrl = await getServerUrl();
-      const all = await loadAllRecipes();
-      const map = new Map(all.map(r => [r.id, r]));
-      const filtered = usedIds.reduce((acc, id) => {
-        const r = map.get(id);
-        if (r) acc.set(id, r);
-        return acc;
-      }, new Map<number, Recipe>());
-      setRecipes(filtered);
-    } else {
-      const db = getDB();
-      const placeholders = usedIds.map(() => '?').join(',');
-      const rows = await db.getAllAsync<Recipe>(
-        `SELECT * FROM recipes WHERE id IN (${placeholders})`, ...usedIds
-      );
-      setRecipes(new Map(rows.map(r => [r.id, r])));
-    }
+    const all = await loadAllRecipes();
+    const map = new Map(all.map(r => [r.id, r]));
+    const filtered = usedIds.reduce((acc, id) => {
+      const r = map.get(id);
+      if (r) acc.set(id, r);
+      return acc;
+    }, new Map<number, Recipe>());
+    setRecipes(filtered);
   }, [weekStart]);
 
   useEffect(() => {
@@ -447,24 +400,33 @@ export default function PlannerScreen() {
     }
     const data = parseCompactRecipeToFull(decoded);
 
-    // Rezept in SQLite speichern und zum Planer hinzufügen
-    const db = getDB();
-    const result = await db.runAsync(
-      `INSERT INTO recipes (name, emoji, ingredients, steps, tags, servings, duration) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      data.name,
-      data.emoji ?? '🍽️',
-      JSON.stringify(data.ingredients),
-      JSON.stringify(data.steps),
-      JSON.stringify(data.tags ?? []),
-      data.servings ?? null,
-      data.duration ?? null,
-    );
-    const newId = result.lastInsertRowId;
+    // Rezept über Server-API importieren und zum Planer hinzufügen
+    const serverUrl = await getServerUrl();
+    const recipeRes = await fetch(`${serverUrl}/api/v1/recipes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: data.name,
+        emoji: data.emoji ?? '🍽️',
+        ingredients: data.ingredients,
+        steps: data.steps,
+        tags: data.tags ?? [],
+        servings: data.servings ?? null,
+        duration: data.duration ?? null,
+      }),
+    });
+    if (!recipeRes.ok) {
+      Alert.alert('Fehler', 'Rezept konnte nicht gespeichert werden.');
+      return;
+    }
+    const saved = await recipeRes.json();
+    const newId: number = saved.id;
     if (targetDay !== null) {
-      await db.runAsync(
-        'INSERT INTO meal_plan (recipe_id, day_of_week, week_start) VALUES (?, ?, ?)',
-        newId, targetDay, weekStart,
-      );
+      await fetch(`${serverUrl}/api/v1/planner`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipeId: newId, dayOfWeek: targetDay, weekStart }),
+      });
     }
     await loadData();
     Alert.alert('Importiert', `"${data.name}" wurde importiert und zum Planer hinzugefügt.`);
@@ -472,34 +434,28 @@ export default function PlannerScreen() {
 
   const handleAddRecipe = async (recipeId: number) => {
     if (pickerDay === null) return;
-    if (Platform.OS === 'web') {
-      await webAddEntry(recipeId, pickerDay, weekStart);
-    } else {
-      await getDB().runAsync(
-        'INSERT INTO meal_plan (recipe_id, day_of_week, week_start) VALUES (?, ?, ?)',
-        recipeId, pickerDay, weekStart
-      );
-    }
+    const serverUrl = await getServerUrl();
+    await fetch(`${serverUrl}/api/v1/planner`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipeId, dayOfWeek: pickerDay, weekStart }),
+    });
     await loadData();
   };
 
   const handleRemoveEntry = async (entryId: number) => {
-    if (Platform.OS === 'web') {
-      await webRemoveEntry(entryId);
-      await loadData();
-    } else {
-      Alert.alert('Entfernen', 'Rezept aus dem Planer entfernen?', [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Entfernen',
-          style: 'destructive',
-          onPress: async () => {
-            await getDB().runAsync('DELETE FROM meal_plan WHERE id = ?', entryId);
-            await loadData();
-          },
+    Alert.alert('Entfernen', 'Rezept aus dem Planer entfernen?', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Entfernen',
+        style: 'destructive',
+        onPress: async () => {
+          const serverUrl = await getServerUrl();
+          await fetch(`${serverUrl}/api/v1/planner/${entryId}`, { method: 'DELETE' });
+          await loadData();
         },
-      ]);
-    }
+      },
+    ]);
   };
 
   const weekLabel = (() => {

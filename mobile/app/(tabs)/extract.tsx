@@ -20,7 +20,6 @@ import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X } from 'lucide-re
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { compressIfNeeded } from '@/utils/image-compress';
 
-import { getDB } from '@/db/migrate';
 import { getServerUrl } from '@/utils/server-url';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -101,28 +100,6 @@ async function getGroqKey(): Promise<string | null> {
   }
 }
 
-async function saveRecipeToLocalDB(recipe: RecipePayload, sourceUrl?: string): Promise<number> {
-  const db = getDB();
-  const result = await db.runAsync(
-    `INSERT INTO recipes (name, emoji, source_url, image_url, ingredients, steps, tags, servings, duration, calories, transcript, equipment, nutrition_info)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    recipe.name,
-    recipe.emoji ?? '🍽️',
-    sourceUrl ?? null,
-    recipe.imageUrl ?? null,
-    JSON.stringify(recipe.ingredients),
-    JSON.stringify(recipe.steps),
-    JSON.stringify(recipe.tags ?? []),
-    recipe.servings ?? null,
-    recipe.duration ?? null,
-    recipe.calories ?? null,
-    recipe.transcript ?? null,
-    recipe.equipment ? JSON.stringify(recipe.equipment) : null,
-    recipe.nutritionInfo ? JSON.stringify(recipe.nutritionInfo) : null,
-  );
-  return result.lastInsertRowId;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ExtractScreen() {
@@ -139,7 +116,6 @@ export default function ExtractScreen() {
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
   const [recipeIdForImage, setRecipeIdForImage] = useState<number | null>(null);
   const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
-  const [localRecipeId, setLocalRecipeId] = useState<number | null>(null);
   const [imageCount, setImageCount] = useState(4);
   const navRecipeIdRef = useRef<number | null>(null);
 
@@ -176,22 +152,6 @@ export default function ExtractScreen() {
           handledRef.current = true;
           clearInterval(interval);
 
-          const recipe = status.result?.recipe;
-          // On web SQLite is a no-op stub; recipe is already saved server-side.
-          if (recipe && Platform.OS !== 'web') {
-            try {
-              const localId = await saveRecipeToLocalDB(recipe, submittedUrlRef.current);
-              setLocalRecipeId(localId);
-              navRecipeIdRef.current = localId;
-            } catch (dbErr) {
-              console.error('SQLite save failed:', dbErr);
-              setError('Rezept extrahiert, aber Speichern fehlgeschlagen.');
-              setIsLoading(false);
-              setJobId(null);
-              return;
-            }
-          }
-
           setProgress(100);
           setStage('done');
           setIsLoading(false);
@@ -199,8 +159,8 @@ export default function ExtractScreen() {
 
           const suggestions = status.result?.imageSuggestions ?? [];
           const recipeId = status.result?.recipeId ?? null;
-          // Web: Server-ID als Nav-Target (kein lokales SQLite)
-          if (Platform.OS === 'web' && recipeId) navRecipeIdRef.current = recipeId;
+          // Server-ID als Nav-Target
+          if (recipeId) navRecipeIdRef.current = recipeId;
 
           if (recipeId && (submittedModeRef.current === 'photo' || suggestions.length > 0)) {
             setImageSuggestions(suggestions);
@@ -239,7 +199,6 @@ export default function ExtractScreen() {
     setImageSuggestions([]);
     setRecipeIdForImage(null);
     setRecipeNameForImage(undefined);
-    setLocalRecipeId(null);
     submittedUrlRef.current = undefined;
     submittedModeRef.current = 'url';
     navRecipeIdRef.current = null;
@@ -414,16 +373,8 @@ export default function ExtractScreen() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imageUrl: url }),
           }).catch(() => {});
-          // Lokales SQLite updaten
-          if (localRecipeId && Platform.OS !== 'web') {
-            await getDB().runAsync(
-              'UPDATE recipes SET image_url = ? WHERE id = ?',
-              url, localRecipeId,
-            ).catch(() => {});
-          }
           setImageSuggestions([]);
           setRecipeIdForImage(null);
-          setLocalRecipeId(null);
           setSuccess(true);
         }}
         onSkip={() => {
@@ -446,7 +397,7 @@ export default function ExtractScreen() {
               Rezept gespeichert!
             </Text>
             <Text className="text-warm-500 dark:text-warm-400 text-center mt-2 mb-8 leading-relaxed">
-              Das Rezept wurde extrahiert und in deiner lokalen Sammlung gespeichert.
+              Das Rezept wurde extrahiert und gespeichert.
             </Text>
             <View className="flex-row gap-3">
               <Pressable
