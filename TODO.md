@@ -1,4 +1,30 @@
 
+## Migration: Lokale SQLite entfernen + Supabase (OFFEN)
+
+**Plan:** `docs/superpowers/plans/2026-04-14-supabase-migration.md`
+
+### Phase 1 — Mobile: Lokale expo-sqlite entfernen (bereit zur Umsetzung)
+Alle Screens nutzen immer Server-API, kein `Platform.OS`-Splitting mehr.
+
+- [ ] `mobile/db/migrate.ts` → No-op Stub
+- [ ] `mobile/app/_layout.tsx` → `initDB()` entfernen
+- [ ] `mobile/app/(tabs)/extract.tsx` → `saveRecipeToLocalDB`, `localRecipeId` entfernen
+- [ ] `mobile/app/(tabs)/index.tsx` → SQLite-Branch entfernen
+- [ ] `mobile/app/(tabs)/shopping.tsx` → SQLite-Branch entfernen
+- [ ] `mobile/app/(tabs)/planner.tsx` → AsyncStorage + SQLite-Branch → `/api/v1/planner`
+- [ ] `mobile/app/recipe/[id].tsx` → SQLite-Pfade entfernen
+- [ ] `mobile/app/(tabs)/settings.tsx` + `scanner.tsx` → API-Calls
+
+### Phase 2 — Server: SQLite → Supabase (braucht Account + Credentials)
+- [ ] Supabase-Projekt anlegen, Schema deployen
+- [ ] `src/schema.ts` auf PostgreSQL umstellen
+- [ ] `src/db-react.ts` → `postgres-js` + Drizzle-PG (alle Exports werden async)
+- [ ] Alle Routen (`recipes.ts`, `planner.ts`, `extraction.ts`) auf `await` umstellen
+- [ ] `package.json` + `Dockerfile` anpassen (better-sqlite3 entfernen)
+- [ ] Northflank Env-Vars setzen + deploy
+
+---
+
 ## Bildauswahl nach Foto-Import — ✅ ABGESCHLOSSEN (2026-04-14)
 
 **Plan:** `docs/superpowers/plans/2026-04-12-foto-bildauswahl.md`
