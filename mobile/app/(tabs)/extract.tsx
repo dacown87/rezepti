@@ -141,6 +141,7 @@ export default function ExtractScreen() {
   const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
   const [localRecipeId, setLocalRecipeId] = useState<number | null>(null);
   const [imageCount, setImageCount] = useState(4);
+  const navRecipeIdRef = useRef<number | null>(null);
 
   const handledRef = useRef(false);
   const submittedUrlRef = useRef<string | undefined>(undefined);
@@ -181,6 +182,7 @@ export default function ExtractScreen() {
             try {
               const localId = await saveRecipeToLocalDB(recipe, submittedUrlRef.current);
               setLocalRecipeId(localId);
+              navRecipeIdRef.current = localId; // für "Zum Rezept"-Button
             } catch (dbErr) {
               console.error('SQLite save failed:', dbErr);
               setError('Rezept extrahiert, aber Speichern fehlgeschlagen.');
@@ -197,6 +199,9 @@ export default function ExtractScreen() {
 
           const suggestions = status.result?.imageSuggestions ?? [];
           const recipeId = status.result?.recipeId ?? null;
+          // Web: Server-ID als Nav-Target (kein lokales SQLite)
+          if (Platform.OS === 'web' && recipeId) navRecipeIdRef.current = recipeId;
+
           if (recipeId && (submittedModeRef.current === 'photo' || suggestions.length > 0)) {
             setImageSuggestions(suggestions);
             setRecipeIdForImage(recipeId);
@@ -237,6 +242,7 @@ export default function ExtractScreen() {
     setLocalRecipeId(null);
     submittedUrlRef.current = undefined;
     submittedModeRef.current = 'url';
+    navRecipeIdRef.current = null;
   }, []);
 
   // ── URL submit ─────────────────────────────────────────────────────────────
@@ -443,12 +449,25 @@ export default function ExtractScreen() {
               Das Rezept wurde extrahiert und in deiner lokalen Sammlung gespeichert.
             </Text>
             <View className="flex-row gap-3">
-              <Pressable
-                onPress={() => router.push('/(tabs)' as never)}
-                className="bg-primary-500 px-6 py-3 rounded-xl"
-              >
-                <Text className="text-white font-semibold">Zur Sammlung</Text>
-              </Pressable>
+              {navRecipeIdRef.current ? (
+                <Pressable
+                  onPress={() => {
+                    const id = navRecipeIdRef.current;
+                    reset();
+                    router.push(`/recipe/${id}` as never);
+                  }}
+                  className="bg-primary-500 px-6 py-3 rounded-xl"
+                >
+                  <Text className="text-white font-semibold">Zum Rezept</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => router.push('/(tabs)' as never)}
+                  className="bg-primary-500 px-6 py-3 rounded-xl"
+                >
+                  <Text className="text-white font-semibold">Zur Sammlung</Text>
+                </Pressable>
+              )}
               <Pressable
                 onPress={reset}
                 className="border border-warm-200 dark:border-warm-700 bg-white dark:bg-espresso-800 px-6 py-3 rounded-xl"
