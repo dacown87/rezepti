@@ -1,0 +1,26 @@
+{
+  "version": "1.0.72",
+  "entries": [
+    {
+      "version": "1.0.72",
+      "date": "2026-04-12",
+      "changes": []
+    },
+    {
+      "version": "1.0.71",
+      "date": "2026-04-12",
+      "changes": []
+    },
+    {
+      "version": "1.0.70",
+      "date": "2026-04-12",
+      "changes": [
+        "build files after photo-import modal fix"
+      ]
+    }
+  ],
+  "lastUpdated": {
+    "date": "2026-04-12",
+    "time": "18:33"
+  }
+}
