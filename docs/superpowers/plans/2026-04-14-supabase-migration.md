@@ -46,21 +46,41 @@ Mobile App kommuniziert ausschließlich über Server-REST-API. Kein lokales expo
 ### Tech-Entscheidung
 **Drizzle ORM behalten**, aber PostgreSQL-Adapter (`drizzle-orm/postgres-js`) statt SQLite-Adapter. So bleiben Query-Syntax und Schema-Definitionen weitgehend gleich.
 
-⚠️ **Wichtige Änderung:** `better-sqlite3` ist synchron, `postgres-js` ist async. Alle Funktionen in `src/db-react.ts` werden **async**. Das erfordert `await` in allen Routen die DB-Funktionen aufrufen.
+⚠️ **Wichtige Änderung:** `better-sqlite3` ist synchron, `postgres-js` ist async. Alle Funktionen in `src/db-react.ts` werden **async**. Das erfordert `await` in allen Routen die DB-Funktionen aufrufen — inkl. `pipeline.ts` und `routes/keys.ts` (waren bisher nicht in der Dateiliste, müssen aber auch angepasst werden).
+
+### Schema-Deployment
+`ensureReactSchema()` entfernen (better-sqlite3-spezifisches API `db.$client.exec()`). Stattdessen Migration-Workflow:
+1. `drizzle.config.ts` auf PostgreSQL umstellen
+2. `npx drizzle-kit generate` — erzeugt SQL-Migrations-Dateien in `drizzle/`
+3. Supabase-Backup machen (Dashboard → Database → Backups)
+4. `npx drizzle-kit migrate` — wendet Migrationen gegen `DATABASE_URL` an
+5. Supabase-Dashboard bestätigt, dass alle Tabellen angelegt wurden
+
+Die `drizzle/`-Ordner-Dateien committen → versionierte Migration-History.
 
 ### Betroffene Dateien
 
 | Datei | Änderung |
 |-------|---------|
 | `src/schema.ts` | SQLite-Typen → PostgreSQL-Typen (INTEGER Timestamps → `timestamp`, JSON TEXT → `text` oder `jsonb`) |
-| `src/db-react.ts` | `better-sqlite3` → `postgres-js` + Drizzle PostgreSQL; alle Exports werden `async` |
+| `src/db-react.ts` | `better-sqlite3` → `postgres-js` + Drizzle PostgreSQL; alle Exports werden `async`; `ensureReactSchema()` entfernen |
+| `src/job-manager.ts` | better-sqlite3 DB → In-Memory `Map<string, ExtractionJob>`; kein persistenter Storage mehr (Jobs sind ephemer) |
 | `src/routes/recipes.ts` | `await` vor allen `db-react`-Aufrufen |
 | `src/routes/planner.ts` | `await` vor allen `db-react`-Aufrufen |
 | `src/routes/extraction.ts` | `await saveRecipeToReactDb(...)` |
-| `src/index.ts` | DB-Init-Logik anpassen (kein lokales SQLite mehr) |
-| `package.json` | `better-sqlite3` + `@types/better-sqlite3` entfernen; `postgres` + `@supabase/supabase-js` hinzufügen |
+| `src/routes/keys.ts` | `await storeApiKey(...)` und `await removeApiKey(...)` |
+| `src/pipeline.ts` | `await saveRecipeToReactDb(...)` (Zeile 139) |
+| `src/index.ts` | DB-Init-Logik anpassen (kein lokales SQLite mehr; `ensureReactSchema()` entfernen) |
+| `drizzle.config.ts` | `dialect: 'postgresql'`; `dbCredentials.url = process.env.DATABASE_URL` |
+| `package.json` | `better-sqlite3` + `@types/better-sqlite3` entfernen; `postgres` hinzufügen |
 | `Dockerfile` | Build-Tools für better-sqlite3 entfernen (`python3`, `make`, `g++` in Stage `base`) |
 | `.env.example` | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DATABASE_URL` ergänzen |
+
+⚠️ **Connection Pooling:** `postgres(DATABASE_URL, { max: 3 })` setzen — verhindert Connection-Exhaustion bei Northflank-Skalierung (Supabase Free Tier: 60 Verbindungen max).
+
+⚠️ **PgBouncer:** Supabase Port 5432 (direkt) verwenden, **nicht** Port 6543 (PgBouncer Transaction Mode). Drizzle benutzt Prepared Statements — diese sind mit PgBouncer Transaction Mode inkompatibel.
+
+⚠️ **E2E Tests:** Die 40 E2E Tests laufen gegen einen echten Server + DB. Nach Phase 2 brauchen sie entweder einen Supabase-Test-Projekt oder einen lokalen PostgreSQL-Container. Im CI vorerst deaktivieren (`test.skip`) bis eine Lösung steht.
 
 ### Schema-Änderungen (schema.ts)
 
@@ -98,14 +118,19 @@ Phase 1 (diese Session):
   7. tsc + build:mobile + commit
 
 Phase 2 (separate Session — braucht Supabase-Account + Credentials):
-  1. Supabase-Projekt anlegen, Schema deployen
+  1. Supabase-Projekt anlegen
   2. schema.ts auf PostgreSQL umstellen
-  3. db-react.ts auf postgres-js/Drizzle-PG umstellen (async)
-  4. Alle Routen auf await aktualisieren
-  5. package.json + Dockerfile anpassen
-  6. .env mit Supabase-Credentials befüllen
-  7. Datenmigration (optional)
-  8. Northflank Env-Vars setzen + deploy
+  3. drizzle.config.ts auf postgresql dialect umstellen (DATABASE_URL)
+  4. npx drizzle-kit generate → SQL-Migrations-Dateien in drizzle/ committen
+  5. Supabase-Backup + npx drizzle-kit migrate → Schema deployen
+  6. db-react.ts auf postgres-js/Drizzle-PG umstellen (async, ensureReactSchema entfernen, max:3)
+  7. job-manager.ts auf In-Memory Map umstellen (better-sqlite3 entfernen)
+  8. Alle Routen auf await aktualisieren: recipes.ts, planner.ts, extraction.ts, keys.ts, pipeline.ts
+  9. Tests anpassen: db-react.test.ts, job-manager.test.ts, photo-extraction.test.ts
+  10. package.json + Dockerfile anpassen (better-sqlite3 entfernen)
+  11. .env mit Supabase-Credentials befüllen (PORT 5432, nicht 6543)
+  12. Datenmigration (optional — Timestamps gehen verloren, Reihenfolge ändert sich)
+  13. Northflank Env-Vars setzen + deploy
 ```
 
 ---
@@ -118,8 +143,27 @@ Phase 2 (separate Session — braucht Supabase-Account + Credentials):
 
 ## Verifikation nach Phase 2
 
-1. `npx tsc --noEmit` — 0 Fehler
-2. Server starten, alle API-Endpoints prüfen (`/api/v1/health`, `/api/v1/recipes`)
-3. Supabase-Dashboard: Daten erscheinen in Tabellen
-4. Docker-Build erfolgreich (ohne native Build-Tools)
-5. Northflank-Deploy: App läuft ohne lokales Volume
+1. `npx tsc --noEmit` — 0 Fehler (alle await korrekt gesetzt)
+2. `npm test -- --run` — alle Unit-Tests grün (inkl. neue Mocks)
+3. Server starten, alle API-Endpoints prüfen (`/api/v1/health`, `/api/v1/recipes`)
+4. Supabase-Dashboard: Daten erscheinen in Tabellen
+5. Docker-Build erfolgreich (ohne native Build-Tools — better-sqlite3 entfernt)
+6. Northflank-Deploy: App läuft ohne lokales Volume
+
+---
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR (2026-03-26) | 16 proposals, 13 accepted, 3 deferred |
+| Codex Review | `/codex review` | Independent 2nd opinion | 2 | issues_found | Outside Voice: 9 Punkte, 2 Cross-Model-Entscheidungen |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 10 | CLEAR (PLAN) | 9 issues, 1 critical gap — alle resolved |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+**CROSS-MODEL:** Beide Modelle einig bei: job-manager in-memory, drizzle-kit generate+migrate, E2E-Tests-Problem. Disagreement aufgelöst: drizzle-kit push → generate+migrate (Outside Voice hatte recht).
+
+**UNRESOLVED:** 0
+
+**VERDICT:** ENG CLEARED — Plan reviewt und bereit zur Implementierung. Phase 1 sofort umsetzbar. Phase 2 braucht Supabase-Account.
