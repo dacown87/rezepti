@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, Pressable,
-  ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share, Platform,
+  ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -12,7 +12,6 @@ import {
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getDB } from '@/db/migrate';
 import type { Recipe } from '@/db/schema';
 import { shareRecipePDF, shareRecipeCardsPDF } from '@/utils/pdf-export';
 import { getServerUrl } from '@/utils/server-url';
@@ -266,19 +265,12 @@ export default function RecipeListScreen() {
 
   const loadRecipes = useCallback(async () => {
     try {
-      let rows: Recipe[];
-      if (Platform.OS === 'web') {
-        const serverUrl = await getServerUrl();
-        const res = await fetch(`${serverUrl}/api/v1/recipes`);
-        if (!res.ok) throw new Error(`Server-Fehler ${res.status}`);
-        const data = await res.json();
-        const list: ApiRecipe[] = Array.isArray(data) ? data : (data.recipes ?? []);
-        rows = list.map(apiToRecipe);
-      } else {
-        rows = await getDB().getAllAsync<Recipe>(
-          'SELECT * FROM recipes ORDER BY id DESC'
-        );
-      }
+      const serverUrl = await getServerUrl();
+      const res = await fetch(`${serverUrl}/api/v1/recipes`);
+      if (!res.ok) throw new Error(`Server-Fehler ${res.status}`);
+      const data = await res.json();
+      const list: ApiRecipe[] = Array.isArray(data) ? data : (data.recipes ?? []);
+      const rows = list.map(apiToRecipe);
       setRecipes(rows);
       setFiltered(rows);
       setError(null);
@@ -327,36 +319,22 @@ export default function RecipeListScreen() {
     setIngredientInput(input);
     if (!input.trim()) { setIngredientResults([]); return; }
 
-    if (Platform.OS === 'web') {
-      // On web, the list API omits ingredients — use the backend search endpoint instead
-      if (ingredientSearchTimer.current) clearTimeout(ingredientSearchTimer.current);
-      ingredientSearchTimer.current = setTimeout(async () => {
-        const terms = input.split(',').map(t => t.trim()).filter(Boolean);
-        if (!terms.length) return;
-        try {
-          const serverUrl = await getServerUrl();
-          const res = await fetch(
-            `${serverUrl}/api/v1/recipes?ingredients=${encodeURIComponent(terms.join(','))}&match=or`
-          );
-          if (!res.ok) return;
-          const data = await res.json();
-          const list: ApiRecipe[] = Array.isArray(data.recipes) ? data.recipes : [];
-          setIngredientResults(list.map(apiToRecipe));
-        } catch { /* ignore network errors */ }
-      }, 300);
-    } else {
-      // Native: SQLite returns full rows including ingredients — search in-memory
-      const terms = input.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-      const scored = recipes
-        .map(r => {
-          const ings = parseJSON<string[]>(r.ingredients, []);
-          const score = terms.filter(t => ings.some(ing => matchesIngredient(ing, t))).length;
-          return { r, score };
-        })
-        .filter(s => s.score > 0);
-      scored.sort((a, b) => b.score - a.score);
-      setIngredientResults(scored.map(s => s.r));
-    }
+    // Use the backend search endpoint
+    if (ingredientSearchTimer.current) clearTimeout(ingredientSearchTimer.current);
+    ingredientSearchTimer.current = setTimeout(async () => {
+      const terms = input.split(',').map(t => t.trim()).filter(Boolean);
+      if (!terms.length) return;
+      try {
+        const serverUrl = await getServerUrl();
+        const res = await fetch(
+          `${serverUrl}/api/v1/recipes?ingredients=${encodeURIComponent(terms.join(','))}&match=or`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const list: ApiRecipe[] = Array.isArray(data.recipes) ? data.recipes : [];
+        setIngredientResults(list.map(apiToRecipe));
+      } catch { /* ignore network errors */ }
+    }, 300);
   };
 
   const handleExportCards = async () => {

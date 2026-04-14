@@ -1,99 +1,69 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, Pressable, ActivityIndicator,
-  RefreshControl, TextInput, Share, Modal, Platform,
+  RefreshControl, TextInput, Share, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getDB } from '@/db/migrate';
 import type { ShoppingListItem } from '@/db/schema';
 import { getServerUrl } from '@/utils/server-url';
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 
 async function fetchItems(): Promise<ShoppingListItem[]> {
-  if (Platform.OS === 'web') {
-    const url = await getServerUrl();
-    const res = await fetch(`${url}/api/v1/shopping`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    const raw: Array<Record<string, unknown>> = data.items ?? data ?? [];
-    return raw.map(r => ({
-      id: Number(r.id),
-      recipe_id: r.recipe_id != null ? Number(r.recipe_id) : null,
-      canonical_name: String(r.canonical_name ?? r.canonicalName ?? ''),
-      quantity: (r.quantity as string | null) ?? null,
-      unit: (r.unit as string | null) ?? null,
-      checked: Number(r.checked ?? 0),
-      created_at: null,
-    }));
-  }
-  return getDB().getAllAsync<ShoppingListItem>('SELECT * FROM shopping_list ORDER BY checked ASC, id DESC');
+  const url = await getServerUrl();
+  const res = await fetch(`${url}/api/v1/shopping`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  const raw: Array<Record<string, unknown>> = data.items ?? data ?? [];
+  return raw.map(r => ({
+    id: Number(r.id),
+    recipe_id: r.recipe_id != null ? Number(r.recipe_id) : null,
+    canonical_name: String(r.canonical_name ?? r.canonicalName ?? ''),
+    quantity: (r.quantity as string | null) ?? null,
+    unit: (r.unit as string | null) ?? null,
+    checked: Number(r.checked ?? 0),
+    created_at: null,
+  }));
 }
 
-async function toggleItem(id: number, checked: number): Promise<void> {
-  if (Platform.OS === 'web') {
-    const url = await getServerUrl();
-    await fetch(`${url}/api/v1/shopping/${id}`, { method: 'PATCH' });
-  } else {
-    await getDB().runAsync('UPDATE shopping_list SET checked = ? WHERE id = ?', checked ? 0 : 1, id);
-  }
+async function toggleItem(id: number): Promise<void> {
+  const url = await getServerUrl();
+  await fetch(`${url}/api/v1/shopping/${id}`, { method: 'PATCH' });
 }
 
 async function deleteItem(id: number): Promise<void> {
-  if (Platform.OS === 'web') {
-    const url = await getServerUrl();
-    await fetch(`${url}/api/v1/shopping/${id}`, { method: 'DELETE' });
-  } else {
-    await getDB().runAsync('DELETE FROM shopping_list WHERE id = ?', id);
-  }
+  const url = await getServerUrl();
+  await fetch(`${url}/api/v1/shopping/${id}`, { method: 'DELETE' });
 }
 
 async function clearChecked(): Promise<void> {
-  if (Platform.OS === 'web') {
-    const url = await getServerUrl();
-    await fetch(`${url}/api/v1/shopping/checked`, { method: 'DELETE' });
-  } else {
-    await getDB().runAsync('DELETE FROM shopping_list WHERE checked = 1');
-  }
+  const url = await getServerUrl();
+  await fetch(`${url}/api/v1/shopping/checked`, { method: 'DELETE' });
 }
 
 async function clearAll(): Promise<void> {
-  if (Platform.OS === 'web') {
-    const url = await getServerUrl();
-    await fetch(`${url}/api/v1/shopping/all`, { method: 'DELETE' });
-  } else {
-    await getDB().runAsync('DELETE FROM shopping_list');
-  }
+  const url = await getServerUrl();
+  await fetch(`${url}/api/v1/shopping/all`, { method: 'DELETE' });
 }
 
 export async function addIngredients(
   ingredients: string[],
   recipeId?: number
 ): Promise<void> {
-  if (Platform.OS === 'web') {
-    const url = await getServerUrl();
-    await Promise.all(
-      ingredients.map(ing =>
-        fetch(`${url}/api/v1/shopping`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ canonicalName: ing, recipeId: recipeId ?? null }),
-        })
-      )
-    );
-  } else {
-    const db = getDB();
-    for (const ing of ingredients) {
-      await db.runAsync(
-        'INSERT INTO shopping_list (recipe_id, canonical_name) VALUES (?, ?)',
-        recipeId ?? null, ing
-      );
-    }
-  }
+  const url = await getServerUrl();
+  await Promise.all(
+    ingredients.map(ing =>
+      fetch(`${url}/api/v1/shopping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canonicalName: ing, recipeId: recipeId ?? null }),
+      })
+    )
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -127,7 +97,7 @@ export default function ShoppingScreen() {
 
   const handleToggle = async (item: ShoppingListItem) => {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: i.checked ? 0 : 1 } : i));
-    await toggleItem(item.id, item.checked);
+    await toggleItem(item.id);
   };
 
   const handleDelete = async (id: number) => {
@@ -152,16 +122,12 @@ export default function ShoppingScreen() {
     const name = newItem.trim();
     if (!name) return;
     setNewItem('');
-    if (Platform.OS === 'web') {
-      const url = await getServerUrl();
-      await fetch(`${url}/api/v1/shopping`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canonicalName: name }),
-      });
-    } else {
-      await getDB().runAsync('INSERT INTO shopping_list (canonical_name) VALUES (?)', name);
-    }
+    const url = await getServerUrl();
+    await fetch(`${url}/api/v1/shopping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canonicalName: name }),
+    });
     await load();
   };
 

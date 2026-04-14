@@ -1,70 +1,17 @@
-import * as SQLite from 'expo-sqlite';
-import { DB_NAME, DB_VERSION, CREATE_TABLES_SQL } from './schema';
+// No-op stub — lokales expo-sqlite entfernt.
+// Alle Datenoperationen laufen über die Server-REST-API.
 
-let _db: SQLite.SQLiteDatabase | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiDbStub: any = {
+  getAllAsync: async <T>(_sql: string, ..._args: unknown[]): Promise<T[]> => [],
+  getFirstAsync: async <T>(_sql: string, ..._args: unknown[]): Promise<T | null> => null,
+  runAsync: async (_sql: string, ..._args: unknown[]) => ({ changes: 0, lastInsertRowId: 0 }),
+  execAsync: async (_sql: string) => {},
+};
 
-/**
- * Öffnet die DB und führt Migrations aus.
- * Wirft einen Fehler wenn die Initialisierung fehlschlägt — kein stiller Fehler!
- */
-export async function initDB(): Promise<SQLite.SQLiteDatabase> {
-  if (_db) return _db;
+export async function initDB(): Promise<void> {}
 
-  const db = await SQLite.openDatabaseAsync(DB_NAME);
-
-  // WAL-Mode für Performance
-  await db.execAsync('PRAGMA journal_mode = WAL;');
-  await db.execAsync('PRAGMA foreign_keys = ON;');
-
-  // Tabellen anlegen
-  await db.execAsync(CREATE_TABLES_SQL);
-
-  // Version tracken
-  const versionRow = await db.getFirstAsync<{ version: number }>(
-    'SELECT version FROM db_version LIMIT 1'
-  );
-
-  if (!versionRow) {
-    await db.runAsync('INSERT INTO db_version (version) VALUES (?)', DB_VERSION);
-  } else if (versionRow.version < DB_VERSION) {
-    await runMigrations(db, versionRow.version, DB_VERSION);
-    await db.runAsync('UPDATE db_version SET version = ?', DB_VERSION);
-  }
-
-  _db = db;
-  return db;
-}
-
-/**
- * Gibt die bereits initialisierte DB zurück.
- * Wirft wenn initDB() noch nicht aufgerufen wurde.
- */
-export function getDB(): SQLite.SQLiteDatabase {
-  if (!_db) {
-    throw new Error(
-      'DB nicht initialisiert. initDB() muss vor getDB() aufgerufen werden.'
-    );
-  }
-  return _db;
-}
-
-/**
- * Migrations-Runner — hier künftige Schema-Änderungen eintragen.
- */
-async function runMigrations(
-  db: SQLite.SQLiteDatabase,
-  fromVersion: number,
-  toVersion: number
-): Promise<void> {
-  if (fromVersion < 2) {
-    await db.execAsync('ALTER TABLE recipes ADD COLUMN equipment TEXT;');
-  }
-  if (fromVersion < 3) {
-    await db.execAsync('ALTER TABLE recipes ADD COLUMN nutrition_info TEXT;');
-  }
-  if (fromVersion < 4) {
-    await db.execAsync('ALTER TABLE recipes ADD COLUMN category TEXT;');
-  }
-
-  console.log(`DB migration: v${fromVersion} → v${toVersion}`);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getDB(): any {
+  return apiDbStub;
 }

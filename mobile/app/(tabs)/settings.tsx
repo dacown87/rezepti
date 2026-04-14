@@ -16,7 +16,6 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon } from 'lucide-react-native';
 import { useTheme } from '@/utils/use-theme';
-import { getDB } from '@/db/migrate';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 
 const SECURE_KEY_GROQ = 'groq_key';
@@ -323,12 +322,14 @@ export default function SettingsScreen() {
       // Ignore
     }
 
-    // Recipe count
+    // Recipe count from server health endpoint
     try {
-      const row = await getDB().getFirstAsync<{ count: number }>(
-        'SELECT COUNT(*) as count FROM recipes'
-      );
-      setRecipeCount(row?.count ?? 0);
+      const base = await getServerUrl();
+      const res = await fetch(`${base}/api/v1/health`);
+      if (res.ok) {
+        const data = await res.json();
+        setRecipeCount(data.recipeCount ?? 0);
+      }
     } catch {
       setRecipeCount(null);
     }

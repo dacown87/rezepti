@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
-  TextInput, Modal, Image, Share, Platform,
+  TextInput, Modal, Image, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -14,7 +14,6 @@ import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getDB } from '@/db/migrate';
 import type { Recipe } from '@/db/schema';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
 import { shareRecipePDF } from '@/utils/pdf-export';
@@ -71,30 +70,13 @@ async function apiPatch(id: number, data: Record<string, unknown>): Promise<void
   if (!res.ok) throw new Error(`PATCH ${res.status}`);
 }
 
-async function sqlitePatch(id: number, data: Record<string, unknown>): Promise<void> {
-  const db = getDB();
-  const fields = Object.entries(data).map(([k]) => `${k} = ?`).join(', ');
-  const values = Object.values(data).map(v =>
-    Array.isArray(v) ? JSON.stringify(v) : (v as string | number | null)
-  );
-  await db.runAsync(
-    `UPDATE recipes SET ${fields} WHERE id = ?`,
-    ...values, id
-  );
-}
-
 async function patchRecipe(id: number, data: Record<string, unknown>): Promise<void> {
-  if (Platform.OS === 'web') await apiPatch(id, data);
-  else await sqlitePatch(id, data);
+  await apiPatch(id, data);
 }
 
 async function deleteRecipeById(id: number): Promise<void> {
-  if (Platform.OS === 'web') {
-    const serverUrl = await getServerUrl();
-    await fetch(`${serverUrl}/api/v1/recipes/${id}`, { method: 'DELETE' });
-  } else {
-    await getDB().runAsync('DELETE FROM recipes WHERE id = ?', id);
-  }
+  const serverUrl = await getServerUrl();
+  await fetch(`${serverUrl}/api/v1/recipes/${id}`, { method: 'DELETE' });
 }
 
 // ─── Delete Confirm Modal ─────────────────────────────────────────────────────
@@ -270,14 +252,9 @@ export default function RecipeDetailScreen() {
   const loadRecipe = useCallback(async () => {
     if (!id) return;
     try {
-      let row: Recipe | null = null;
-      if (Platform.OS === 'web') {
-        const serverUrl = await getServerUrl();
-        const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`);
-        if (res.ok) row = normalizeRecipe(await res.json());
-      } else {
-        row = await getDB().getFirstAsync<Recipe>('SELECT * FROM recipes WHERE id = ?', recipeId) ?? null;
-      }
+      const serverUrl = await getServerUrl();
+      const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`);
+      const row: Recipe | null = res.ok ? normalizeRecipe(await res.json()) : null;
       if (row) {
         setRecipe(row);
         setRating(row.rating != null ? Number(row.rating) : null);
@@ -286,7 +263,7 @@ export default function RecipeDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, recipeId]);
+  }, [id]);
 
   useEffect(() => { loadRecipe(); }, [loadRecipe]);
 
@@ -425,7 +402,7 @@ export default function RecipeDetailScreen() {
   const steps = parseJSON<string[]>(recipe.steps, []);
   const tags = parseJSON<string[]>(recipe.tags, []);
   const equipment = parseJSON<string[]>(recipe.equipment ?? null, []);
-  const nutritionInfo = parseJSON<{ carbs?: string; fat?: string; protein?: string; fiber?: string }>((recipe as any).nutrition_info ?? null, null);
+  const nutritionInfo = parseJSON<{ carbs?: string; fat?: string; protein?: string; fiber?: string } | null>((recipe as any).nutrition_info ?? null, null);
   const scaledIngredients = multiplier !== 1
     ? ingredients.map(i => scaleIngredient(i, multiplier))
     : ingredients;

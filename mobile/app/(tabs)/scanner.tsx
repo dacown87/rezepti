@@ -1,11 +1,10 @@
 import React, { useState } from 'react'
-import { View, Text, Pressable, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native'
+import { View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import ScannerCamera from '@/components/ScannerCamera'
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr'
 import type { RecipeQRData } from '@/utils/recipe-qr'
-import { getDB } from '@/db/migrate'
 import { getServerUrl } from '@/utils/server-url'
 
 export default function ScannerScreen() {
@@ -31,26 +30,16 @@ export default function ScannerScreen() {
 
     // Check if recipe already exists → navigate to it
     try {
-      let existingId: number | null = null
-      if (Platform.OS !== 'web') {
-        const row = await getDB().getFirstAsync<{ id: number }>(
-          'SELECT id FROM recipes WHERE name = ?',
-          decoded.n
-        )
-        existingId = row?.id ?? null
-      } else {
-        const serverUrl = await getServerUrl()
-        const res = await fetch(`${serverUrl}/api/v1/recipes`)
-        if (res.ok) {
-          const data = await res.json()
-          const list: Array<{ id: number; name: string }> = Array.isArray(data) ? data : (data.recipes ?? [])
-          const found = list.find(r => r.name === decoded.n)
-          existingId = found?.id ?? null
+      const serverUrl = await getServerUrl()
+      const res = await fetch(`${serverUrl}/api/v1/recipes`)
+      if (res.ok) {
+        const data = await res.json()
+        const list: Array<{ id: number; name: string }> = Array.isArray(data) ? data : (data.recipes ?? [])
+        const found = list.find(r => r.name === decoded.n)
+        if (found) {
+          router.push(`/recipe/${found.id}`)
+          return
         }
-      }
-      if (existingId !== null) {
-        router.push(`/recipe/${existingId}`)
-        return
       }
     } catch {
       // fall through to import offer
@@ -62,25 +51,23 @@ export default function ScannerScreen() {
   async function handleImport() {
     if (!scannedRecipe) return
 
-    if (Platform.OS === 'web') {
-      Alert.alert('Hinweis', 'Auf Web werden Rezepte über den "Hinzufügen"-Tab importiert.')
-      setScannedRecipe(null)
-      return
-    }
-
     setImporting(true)
     try {
-      const db = getDB()
-      await db.runAsync(
-        `INSERT INTO recipes (name, emoji, ingredients, steps, tags, servings, duration) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        scannedRecipe.name,
-        scannedRecipe.emoji ?? '🍽️',
-        JSON.stringify(scannedRecipe.ingredients),
-        JSON.stringify(scannedRecipe.steps),
-        JSON.stringify(scannedRecipe.tags ?? []),
-        scannedRecipe.servings ?? null,
-        scannedRecipe.duration ?? null
-      )
+      const serverUrl = await getServerUrl()
+      const res = await fetch(`${serverUrl}/api/v1/recipes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: scannedRecipe.name,
+          emoji: scannedRecipe.emoji ?? '🍽️',
+          ingredients: scannedRecipe.ingredients,
+          steps: scannedRecipe.steps,
+          tags: scannedRecipe.tags ?? [],
+          servings: scannedRecipe.servings ?? null,
+          duration: scannedRecipe.duration ?? null,
+        }),
+      })
+      if (!res.ok) throw new Error(`Server-Fehler ${res.status}`)
       setScannedRecipe(null)
       Alert.alert('Importiert!', `"${scannedRecipe.name}" wurde gespeichert.`)
     } catch (err) {
