@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.74] – 2026-04-15
+
+
+
 ## [1.0.73] – 2026-04-14
 
 - Success-Screen zeigt "Zum Rezept" statt "Zur Sammlung"

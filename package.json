@@ -1,6 +1,6 @@
 {
   "name": "rezepti",
-  "version": "1.0.73",
+  "version": "1.0.74",
   "description": "Rezept-Extraktor mit SQLite-Export",
   "type": "module",
   "scripts": {
