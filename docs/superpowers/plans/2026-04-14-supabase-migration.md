@@ -39,7 +39,8 @@ Mobile App kommuniziert ausschließlich über Server-REST-API. Kein lokales expo
 ## Phase 2: Server — SQLite durch Supabase ersetzen
 
 ### Voraussetzung
-- Supabase-Projekt anlegen auf supabase.com
+- Zwei Supabase-Projekte anlegen auf supabase.com: `rezepti-dev` (lokal/testing) und `rezepti-prod` (Northflank)
+- `.env` zeigt auf `rezepti-dev`, Northflank-Env-Vars zeigen auf `rezepti-prod`
 - Umgebungsvariablen bereitstellen: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DATABASE_URL` (PostgreSQL Connection String)
 
 ### Tech-Entscheidung

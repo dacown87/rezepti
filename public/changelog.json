@@ -1,6 +1,15 @@
 {
-  "version": "1.0.72",
+  "version": "1.0.73",
   "entries": [
+    {
+      "version": "1.0.73",
+      "date": "2026-04-14",
+      "changes": [
+        "Success-Screen zeigt \"Zum Rezept\" statt \"Zur Sammlung\"",
+        "Bildauswahl — image_url camelCase, imageCount aus AsyncStorage, lokales SQLite-Update",
+        "Bildauswahl-Verbesserungen + Supabase-Entscheidung dokumentiert"
+      ]
+    },
     {
       "version": "1.0.72",
       "date": "2026-04-12",
@@ -20,7 +29,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-04-12",
-    "time": "18:33"
+    "date": "2026-04-14",
+    "time": "22:12"
   }
 }

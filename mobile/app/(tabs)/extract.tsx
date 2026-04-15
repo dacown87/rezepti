@@ -400,25 +400,22 @@ export default function ExtractScreen() {
               Das Rezept wurde extrahiert und gespeichert.
             </Text>
             <View className="flex-row gap-3">
-              {navRecipeIdRef.current ? (
-                <Pressable
-                  onPress={() => {
-                    const id = navRecipeIdRef.current;
+              <Pressable
+                onPress={() => {
+                  const id = navRecipeIdRef.current;
+                  if (id) {
                     reset();
                     router.push(`/recipe/${id}` as never);
-                  }}
-                  className="bg-primary-500 px-6 py-3 rounded-xl"
-                >
-                  <Text className="text-white font-semibold">Zum Rezept</Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => router.push('/(tabs)' as never)}
-                  className="bg-primary-500 px-6 py-3 rounded-xl"
-                >
-                  <Text className="text-white font-semibold">Zur Sammlung</Text>
-                </Pressable>
-              )}
+                  } else {
+                    router.push('/(tabs)' as never);
+                  }
+                }}
+                className="bg-primary-500 px-6 py-3 rounded-xl"
+              >
+                <Text className="text-white font-semibold">
+                  {navRecipeIdRef.current ? 'Zum Rezept' : 'Zur Sammlung'}
+                </Text>
+              </Pressable>
               <Pressable
                 onPress={reset}
                 className="border border-warm-200 dark:border-warm-700 bg-white dark:bg-espresso-800 px-6 py-3 rounded-xl"

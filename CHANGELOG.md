@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.73] – 2026-04-14
+
+- Success-Screen zeigt "Zum Rezept" statt "Zur Sammlung"
+- Bildauswahl — image_url camelCase, imageCount aus AsyncStorage, lokales SQLite-Update
+- Bildauswahl-Verbesserungen + Supabase-Entscheidung dokumentiert
+
 ## [1.0.72] – 2026-04-12
 
 
