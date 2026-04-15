@@ -108,7 +108,7 @@ Bestehende Rezepte aus `data/rezepti-react.db` nach Supabase exportieren:
 ## Reihenfolge der Implementierung
 
 ```
-Phase 1 (diese Session):
+Phase 1 ✅ DONE — Branch: phase1-remove-local-sqlite
   1. mobile/db/migrate.ts → No-op Stub
   2. mobile/app/_layout.tsx → initDB entfernen
   3. extract.tsx → SQLite-Code entfernen
