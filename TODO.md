@@ -1,21 +1,17 @@
 
-## Phase 9 — Quality & Stability (Branch: phase-9-quality-stability → gemergt main 2026-04-16)
+## Phase 9 — Quality & Stability ✅ ABGESCHLOSSEN (2026-04-16)
 
-### ✅ Abgeschlossen
-- **Chefkoch tags bug:** `recipeCategory`/`recipeCuisine` als `string | string[]` typisiert, vor Spread normalisiert — kein Buchstaben-Splitting mehr
-- **Connection pool:** `connect_timeout: 10, idle_timeout: 30` in `src/db-react.ts`
-- **postbuild:mobile:** `public/changelog.json` wird nach Expo-Export wiederhergestellt
-- **CLAUDE.md:** Architektur auf PostgreSQL/Supabase aktualisiert
-- **QR-Scanner (9d):** jsQR-Fallback für Firefox/Safari + Autofokus via `applyConstraints`
+- **9a** — CLAUDE.md auf PostgreSQL/Supabase aktualisiert
+- **9b** — `db-react.test.ts` neugeschrieben: `detectCategory` pure tests (19), DB-Integration-Tests mit `skipIf(!TEST_DATABASE_URL)` (4); `.github/workflows/ci.yml` mit `postgres:15` + `drizzle-kit push --force`
+- **9c** — React Query v5 + AsyncStorage-Persistenz (`PersistQueryClientProvider`); `useRecipes`/`useRecipe`/`useUpdateRecipe`/`useDeleteRecipe` Hooks; `OfflineBanner`; `index.tsx` auf stale-while-revalidate umgestellt
+- **9d** — QR-Scanner: jsQR-Fallback für Firefox/Safari; dreistufiger Autofokus (getUserMedia + onloadeddata-Timing + direct applyConstraints)
+- **9e** — `user_id` UUID nullable in recipes/shoppingList/mealPlan/apiKeys; `src/auth.ts` Stub (`getCurrentUserId`/`isAuthenticated`)
+- **9f** — `youtube.test.ts` (10), `schema-org.test.ts` (22), `chefkoch.test.ts` (14); Fix: `parseGermanPortions` Regex für "1 Person" (Singular)
+- **Chefkoch tags bug** — `recipeCategory`/`recipeCuisine` als `string | string[]` typisiert, vor Spread normalisiert
+- **Connection pool** — `connect_timeout: 10, idle_timeout: 30` in `src/db-react.ts`
 
-### ⚠️ Noch nicht getestet
-- **QR-Scanner auf Handy (Chrome):** Autofokus + BarcodeDetector-Pfad — bitte auf mobilem Chrome testen
-
-### ❌ Offen (nächste Sessions — brauchen mehr Budget)
-- **9b** ✅ — `db-react.test.ts` neugeschrieben: `detectCategory` + `CATEGORY_KEYWORDS` (pure, 19 Tests); DB-Integration-Tests mit `describe.skipIf(!TEST_DATABASE_URL)` (4 Tests); `.github/workflows/ci.yml` mit `postgres:15` service + `drizzle-kit push --force`
-- **9f** ✅ — `youtube.test.ts` (10 Tests), `schema-org.test.ts` (22 Tests), `chefkoch.test.ts` (14 Tests); Fix: `parseGermanPortions` jetzt auch "für 1 Person" (Singular)
-- **9e** ✅ — `user_id` UUID nullable in recipes, shoppingList, mealPlan, apiKeys; `db:push` auf Supabase deployed; `src/auth.ts` Stub mit `getCurrentUserId()` + `isAuthenticated()`
-- **9c** ✅ — React Query v5 + AsyncStorage-Persistenz: `PersistQueryClientProvider` in `_layout.tsx`; `useRecipes` + `useRecipe` + `useUpdateRecipe` + `useDeleteRecipe` Hooks; `OfflineBanner` (web: navigator.onLine); `index.tsx` auf `useRecipes` umgestellt (stale-while-revalidate, kein manuelles loading-State mehr)
+### ⚠️ Noch zu testen
+- **QR-Scanner Autofokus auf mobilem Chrome** — BarcodeDetector-Pfad + Autofokus bitte auf echtem Android-Chrome testen
 
 ---
 

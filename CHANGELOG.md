@@ -2,35 +2,33 @@
 
 ## [1.0.88] – 2026-04-16
 
+### Phase 9 — Quality & Stability (komplett)
 
+- **React Query v5** — `useRecipes`, `useRecipe`, `useUpdateRecipe`, `useDeleteRecipe` Hooks; stale-while-revalidate (5 min staleTime, 24h gcTime)
+- **Offline-Modus** — AsyncStorage-Persistenz via `PersistQueryClientProvider`; `OfflineBanner` zeigt Verbindungsstatus
+- **CI** — `.github/workflows/ci.yml` mit `postgres:15` service, `drizzle-kit push --force`, Type-Check, Unit- + E2E-Tests
+- **user_id Schema** — UUID nullable in recipes/shoppingList/mealPlan/apiKeys; `src/auth.ts` Stub für spätere Supabase-Auth
+- **Tests** — 46 neue Unit-Tests: `schema-org.test.ts` (22), `chefkoch.test.ts` (14), `youtube.test.ts` (10); `db-react.test.ts` komplett neu (19 pure + 4 DB-Integration)
+- **Bugfix** — `parseGermanPortions` Regex: "für 1 Person" (Singular) wurde nicht erkannt
+- **QR-Scanner Autofokus** — Dreistufig: getUserMedia-Constraint + onloadeddata-Timing + direct applyConstraints vor advanced-Fallback
 
 ## [1.0.87] – 2026-04-16
 
-
+- QR-Scanner: BarcodeDetector direkt auf video-Element; Autofokus-Fix
 
 ## [1.0.86] – 2026-04-16
 
-
+- public/ rebuild nach 9d Autofokus-Fix
 
 ## [1.0.85] – 2026-04-16
 
-
-
 ## [1.0.84] – 2026-04-16
-
-
 
 ## [1.0.83] – 2026-04-16
 
-
-
 ## [1.0.82] – 2026-04-16
 
-
-
 ## [1.0.81] – 2026-04-16
-
-
 
 ## [1.0.80] – 2026-04-16
 
