@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.89] – 2026-04-16
+
+
+
 ## [1.0.88] – 2026-04-16
 
 ### Phase 9 — Quality & Stability (komplett)
