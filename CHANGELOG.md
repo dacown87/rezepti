@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.77] – 2026-04-16
+
+- yt-dlp via pip3 statt statischem Binary
+
 ## [1.0.76] – 2026-04-16
 
 - curl --fail für yt-dlp Download im Dockerfile

@@ -1,6 +1,13 @@
 {
-  "version": "1.0.76",
+  "version": "1.0.77",
   "entries": [
+    {
+      "version": "1.0.77",
+      "date": "2026-04-16",
+      "changes": [
+        "yt-dlp via pip3 statt statischem Binary"
+      ]
+    },
     {
       "version": "1.0.76",
       "date": "2026-04-16",
@@ -49,6 +56,6 @@
   ],
   "lastUpdated": {
     "date": "2026-04-16",
-    "time": "08:08"
+    "time": "08:27"
   }
 }
