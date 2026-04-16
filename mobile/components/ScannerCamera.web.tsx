@@ -1,16 +1,103 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import type { BarcodeScanningResult } from 'expo-camera'
+import jsQR from 'jsqr'
 
 interface ScannerCameraProps {
   onScan: (value: string) => void
   onClose: () => void
 }
 
+// BarcodeDetector is available in Chrome/Edge but not Firefox/Safari
+const BARCODE_DETECTOR_AVAILABLE = typeof window !== 'undefined' && 'BarcodeDetector' in window
+
 export default function ScannerCamera({ onScan, onClose }: ScannerCameraProps) {
   const [permission, requestPermission] = useCameraPermissions()
   const [scanned, setScanned] = useState(false)
+
+  // jsQR fallback refs
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rafRef = useRef<number>(0)
+  const streamRef = useRef<MediaStream | null>(null)
+  const scannedRef = useRef(false)
+
+  const stopStream = useCallback(() => {
+    cancelAnimationFrame(rafRef.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+  }, [])
+
+  // jsQR scan loop — runs only when BarcodeDetector is NOT available
+  useEffect(() => {
+    if (BARCODE_DETECTOR_AVAILABLE) return
+    if (!permission?.granted) return
+
+    let mounted = true
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        })
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.play()
+        }
+        tick()
+      } catch {
+        // camera access denied or not available
+      }
+    }
+
+    function tick() {
+      if (!mounted) return
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        rafRef.current = requestAnimationFrame(tick)
+        return
+      }
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        rafRef.current = requestAnimationFrame(tick)
+        return
+      }
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      })
+
+      if (code && !scannedRef.current) {
+        scannedRef.current = true
+        setTimeout(() => { scannedRef.current = false }, 500)
+        onScan(code.data)
+        return
+      }
+
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    startCamera()
+
+    return () => {
+      mounted = false
+      stopStream()
+    }
+  }, [permission?.granted, onScan, stopStream])
+
+  // Cleanup stream on close
+  function handleClose() {
+    stopStream()
+    onClose()
+  }
 
   function handleBarcodeScan(result: BarcodeScanningResult) {
     if (scanned) return
@@ -34,13 +121,43 @@ export default function ScannerCamera({ onScan, onClose }: ScannerCameraProps) {
         <Pressable style={styles.button} onPress={requestPermission}>
           <Text style={styles.buttonText}>Berechtigung erteilen</Text>
         </Pressable>
-        <Pressable style={[styles.button, styles.buttonSecondary]} onPress={onClose}>
+        <Pressable style={[styles.button, styles.buttonSecondary]} onPress={handleClose}>
           <Text style={styles.buttonTextSecondary}>Abbrechen</Text>
         </Pressable>
       </View>
     )
   }
 
+  // Firefox/Safari: jsQR canvas-based scanner
+  if (!BARCODE_DETECTOR_AVAILABLE) {
+    return (
+      <View style={StyleSheet.absoluteFillObject}>
+        {/* Native video element for camera stream */}
+        <video
+          ref={videoRef}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          playsInline
+          muted
+        />
+        {/* Hidden canvas for pixel analysis */}
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+        <Pressable style={styles.closeButton} onPress={handleClose}>
+          <Text style={styles.closeButtonText}>✕</Text>
+        </Pressable>
+
+        <View style={styles.hintContainer}>
+          <Text style={styles.hintText}>QR-Code in den Rahmen halten…</Text>
+        </View>
+
+        <View style={styles.frameContainer} pointerEvents="none">
+          <View style={styles.frame} />
+        </View>
+      </View>
+    )
+  }
+
+  // Chrome/Edge: native BarcodeDetector via Expo CameraView
   return (
     <View style={StyleSheet.absoluteFillObject}>
       <CameraView
@@ -50,7 +167,7 @@ export default function ScannerCamera({ onScan, onClose }: ScannerCameraProps) {
         onBarcodeScanned={scanned ? undefined : handleBarcodeScan}
       />
 
-      <Pressable style={styles.closeButton} onPress={onClose}>
+      <Pressable style={styles.closeButton} onPress={handleClose}>
         <Text style={styles.closeButtonText}>✕</Text>
       </Pressable>
 
