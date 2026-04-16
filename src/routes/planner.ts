@@ -18,9 +18,9 @@ import {
 const app = new Hono();
 
 // Shopping List
-app.get("/api/v1/shopping", (c) => {
+app.get("/api/v1/shopping", async (c) => {
   try {
-    const items = getShoppingList();
+    const items = await getShoppingList();
     return c.json({ items });
   } catch (error) {
     console.error("Error fetching shopping list:", error);
@@ -36,7 +36,7 @@ app.post("/api/v1/shopping", async (c) => {
       return c.json({ error: "canonicalName is required" }, 400);
     }
 
-    const result = addToShoppingList(recipeId ?? null, canonicalName, quantity, unit);
+    const result = await addToShoppingList(recipeId ?? null, canonicalName, quantity, unit);
     return c.json({ success: true, id: result.id }, 201);
   } catch (error) {
     console.error("Error adding to shopping list:", error);
@@ -44,12 +44,12 @@ app.post("/api/v1/shopping", async (c) => {
   }
 });
 
-app.patch("/api/v1/shopping/:id", (c) => {
+app.patch("/api/v1/shopping/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const toggled = toggleShoppingItem(id);
+    const toggled = await toggleShoppingItem(id);
     if (!toggled) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });
@@ -60,9 +60,9 @@ app.patch("/api/v1/shopping/:id", (c) => {
 });
 
 // Specific routes before wildcard to avoid shadowing
-app.delete("/api/v1/shopping/checked", (c) => {
+app.delete("/api/v1/shopping/checked", async (c) => {
   try {
-    clearCheckedItems();
+    await clearCheckedItems();
     return c.json({ success: true });
   } catch (error) {
     console.error("Error clearing checked items:", error);
@@ -70,9 +70,9 @@ app.delete("/api/v1/shopping/checked", (c) => {
   }
 });
 
-app.delete("/api/v1/shopping/all", (c) => {
+app.delete("/api/v1/shopping/all", async (c) => {
   try {
-    clearAllShoppingItems();
+    await clearAllShoppingItems();
     return c.json({ success: true });
   } catch (error) {
     console.error("Error clearing shopping list:", error);
@@ -80,12 +80,12 @@ app.delete("/api/v1/shopping/all", (c) => {
   }
 });
 
-app.delete("/api/v1/shopping/:id", (c) => {
+app.delete("/api/v1/shopping/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const deleted = deleteShoppingItem(id);
+    const deleted = await deleteShoppingItem(id);
     if (!deleted) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });
@@ -96,9 +96,9 @@ app.delete("/api/v1/shopping/:id", (c) => {
 });
 
 // Ingredient Dictionary
-app.get("/api/v1/dictionary", (c) => {
+app.get("/api/v1/dictionary", async (c) => {
   try {
-    const entries = getAllDictionaryEntries();
+    const entries = await getAllDictionaryEntries();
     return c.json({ entries });
   } catch (error) {
     console.error("Error fetching dictionary:", error);
@@ -114,7 +114,7 @@ app.post("/api/v1/dictionary", async (c) => {
       return c.json({ error: "canonicalName is required" }, 400);
     }
 
-    const result = addToDictionary(canonicalName, aliases ?? []);
+    const result = await addToDictionary(canonicalName, aliases ?? []);
     return c.json({ success: true, id: result.id }, 201);
   } catch (error) {
     console.error("Error adding to dictionary:", error);
@@ -122,12 +122,12 @@ app.post("/api/v1/dictionary", async (c) => {
   }
 });
 
-app.get("/api/v1/dictionary/match", (c) => {
+app.get("/api/v1/dictionary/match", async (c) => {
   try {
     const name = c.req.query("name");
     if (!name) return c.json({ error: "name query param required" }, 400);
 
-    const match = findCanonicalBySimilarity(name);
+    const match = await findCanonicalBySimilarity(name);
     return c.json({ match });
   } catch (error) {
     console.error("Error matching dictionary:", error);
@@ -136,7 +136,7 @@ app.get("/api/v1/dictionary/match", (c) => {
 });
 
 // Meal Plan
-app.get("/api/v1/planner", (c) => {
+app.get("/api/v1/planner", async (c) => {
   try {
     const queryWeek = c.req.query("week");
     let weekStart: number;
@@ -152,7 +152,7 @@ app.get("/api/v1/planner", (c) => {
       weekStart = Math.floor(monday.getTime() / 1000);
     }
 
-    const entries = getMealPlanForWeek(weekStart);
+    const entries = await getMealPlanForWeek(weekStart);
     return c.json({ entries, weekStart });
   } catch (error) {
     console.error("Error fetching meal plan:", error);
@@ -168,7 +168,7 @@ app.post("/api/v1/planner", async (c) => {
       return c.json({ error: "recipeId, dayOfWeek, and weekStart are required" }, 400);
     }
 
-    const result = addRecipeToMealPlan(recipeId, dayOfWeek, weekStart);
+    const result = await addRecipeToMealPlan(recipeId, dayOfWeek, weekStart);
     return c.json({ success: true, id: result.id }, 201);
   } catch (error) {
     console.error("Error adding to meal plan:", error);
@@ -176,12 +176,12 @@ app.post("/api/v1/planner", async (c) => {
   }
 });
 
-app.delete("/api/v1/planner/week/:weekStart", (c) => {
+app.delete("/api/v1/planner/week/:weekStart", async (c) => {
   try {
     const weekStart = parseInt(c.req.param("weekStart"), 10);
     if (isNaN(weekStart)) return c.json({ error: "Invalid weekStart" }, 400);
 
-    clearMealPlanForWeek(weekStart);
+    await clearMealPlanForWeek(weekStart);
     return c.json({ success: true });
   } catch (error) {
     console.error("Error clearing meal plan:", error);
@@ -189,12 +189,12 @@ app.delete("/api/v1/planner/week/:weekStart", (c) => {
   }
 });
 
-app.delete("/api/v1/planner/:id", (c) => {
+app.delete("/api/v1/planner/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const removed = removeRecipeFromMealPlan(id);
+    const removed = await removeRecipeFromMealPlan(id);
     if (!removed) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });

@@ -9,18 +9,23 @@ function mockFetch(response: { ok: boolean; json?: () => Promise<unknown> }) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
 }
 
+// Chefkoch API v2 structure: { results: [{ recipe: { previewImageUrlTemplate: '...' } }] }
+function makeResult(url: string) {
+  return { recipe: { previewImageUrlTemplate: url } }
+}
+
 describe('searchRecipeImages', () => {
   it('returns up to 4 image URLs from 6 API results', async () => {
-    const results = Array.from({ length: 6 }, (_, i) => ({
-      previewImageUrl: `https://img.chefkoch.de/recipe${i + 1}.jpg`,
-    }))
+    const results = Array.from({ length: 6 }, (_, i) =>
+      makeResult(`https://img.chefkoch.de/recipe${i + 1}.<format>`)
+    )
     mockFetch({ ok: true, json: async () => ({ results }) })
 
     const urls = await searchRecipeImages('Spaghetti Bolognese')
 
     expect(urls).toHaveLength(4)
-    expect(urls[0]).toBe('https://img.chefkoch.de/recipe1.jpg')
-    expect(urls[3]).toBe('https://img.chefkoch.de/recipe4.jpg')
+    expect(urls[0]).toBe('https://img.chefkoch.de/recipe1.crop-960x720')
+    expect(urls[3]).toBe('https://img.chefkoch.de/recipe4.crop-960x720')
   })
 
   it('returns [] when API results are empty', async () => {
@@ -47,18 +52,19 @@ describe('searchRecipeImages', () => {
     expect(urls).toEqual([])
   })
 
-  it('filters out entries without previewImageUrl', async () => {
+  it('filters out entries without previewImageUrlTemplate', async () => {
     const results = [
-      { previewImageUrl: 'https://img.chefkoch.de/valid.jpg' },
-      { previewImageUrl: null },
-      { previewImageUrl: '' },
+      makeResult('https://img.chefkoch.de/valid.<format>'),
+      { recipe: { previewImageUrlTemplate: null } },
+      { recipe: { previewImageUrlTemplate: '' } },
+      { recipe: {} },
       { title: 'no image here' },
     ]
     mockFetch({ ok: true, json: async () => ({ results }) })
 
     const urls = await searchRecipeImages('Schnitzel')
 
-    expect(urls).toEqual(['https://img.chefkoch.de/valid.jpg'])
+    expect(urls).toEqual(['https://img.chefkoch.de/valid.crop-960x720'])
   })
 
   it('calls the Chefkoch API with the encoded recipe name', async () => {

@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { join } from "node:path";
 
 export const config = {
   groq: {
@@ -9,9 +8,9 @@ export const config = {
     visionModel:   process.env.GROQ_VISION_MODEL  || "meta-llama/llama-4-scout-17b-16e-instruct",
     whisperModel:  process.env.GROQ_WHISPER_MODEL || "whisper-large-v3-turbo",
   },
-  sqlite: {
-    path: process.env.SQLITE_PATH || join(process.cwd(), "data", "rezepti.db"),
-    reactPath: process.env.SQLITE_REACT_PATH || join(process.cwd(), "data", "rezepti-react.db"),
+  supabase: {
+    url:     process.env.SUPABASE_URL || "",
+    anonKey: process.env.SUPABASE_ANON_KEY || "",
   },
   cookidoo: {
     email:    process.env.COOKIDOO_EMAIL    || "",

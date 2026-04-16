@@ -1,8 +1,7 @@
-import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
-import { sql } from "drizzle-orm";
+import { pgTable, serial, integer, text, boolean, timestamp } from "drizzle-orm/pg-core";
 
-export const recipes = sqliteTable("recipes", {
-  id:          integer("id").primaryKey({ autoIncrement: true }),
+export const recipes = pgTable("recipes", {
+  id:          serial("id").primaryKey(),
   name:        text("name").notNull(),
   emoji:       text("emoji"),
   source_url:  text("source_url"),
@@ -17,46 +16,42 @@ export const recipes = sqliteTable("recipes", {
   transcript:  text("transcript"),
   equipment:      text("equipment"),             // JSON-Array (nullable)
   nutrition_info: text("nutrition_info"),        // JSON: {carbs, fat, protein} (nullable)
-  tried:       integer("tried", { mode: "boolean" }).default(false),
+  tried:       boolean("tried").default(false),
   rating:      integer("rating"),   // 1–5 stars, null = unrated
   notes:       text("notes"),       // personal notes
-  pdf_created: integer("pdf_created", { mode: "boolean" }).default(false),
-  created_at:  integer("created_at", { mode: "timestamp" })
-                  .default(sql`(strftime('%s', 'now'))`),
+  pdf_created: boolean("pdf_created").default(false),
+  created_at:  timestamp("created_at").defaultNow(),
 });
 
-export const ingredientDictionary = sqliteTable("ingredient_dictionary", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const ingredientDictionary = pgTable("ingredient_dictionary", {
+  id: serial("id").primaryKey(),
   canonicalName: text("canonical_name").notNull().unique(),
   aliases: text("aliases"), // JSON-Array of alternative names
 });
 
-export const shoppingList = sqliteTable("shopping_list", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const shoppingList = pgTable("shopping_list", {
+  id: serial("id").primaryKey(),
   recipeId: integer("recipe_id"), // nullable for standalone items
   canonicalName: text("canonical_name").notNull(),
   quantity: text("quantity"), // e.g. "200" or "1/2"
   unit: text("unit"), // e.g. "g", "ml", "Stück"
-  checked: integer("checked", { mode: "boolean" }).default(false),
-  createdAt: integer("created_at", { mode: "timestamp" })
-               .default(sql`(strftime('%s', 'now'))`),
+  checked: boolean("checked").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const mealPlan = sqliteTable("meal_plan", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const mealPlan = pgTable("meal_plan", {
+  id: serial("id").primaryKey(),
   recipeId: integer("recipe_id").notNull(),
   dayOfWeek: integer("day_of_week").notNull(), // 0=Montag, 6=Sonntag
   weekStart: integer("week_start").notNull(), // ISO-Wochenstart (Montag) als Unix-Timestamp
-  createdAt: integer("created_at", { mode: "timestamp" })
-               .default(sql`(strftime('%s', 'now'))`),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const apiKeys = sqliteTable("api_keys", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const apiKeys = pgTable("api_keys", {
+  id: serial("id").primaryKey(),
   keyHash: text("key_hash").notNull().unique(),
   model: text("model"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-               .default(sql`(strftime('%s', 'now'))`),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export type Recipe = typeof recipes.$inferSelect;

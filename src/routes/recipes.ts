@@ -12,7 +12,7 @@ import {
 const app = new Hono();
 
 // List all recipes (with optional ingredient filter)
-app.get("/api/v1/recipes", (c) => {
+app.get("/api/v1/recipes", async (c) => {
   try {
     const ingredientsParam = c.req.query("ingredients");
     const matchParam = c.req.query("match") as "and" | "or" | undefined;
@@ -30,7 +30,7 @@ app.get("/api/v1/recipes", (c) => {
       const match = matchParam === "and" ? "and" : "or";
       const threshold = thresholdParam ? Math.max(0, Math.min(100, parseInt(thresholdParam, 10))) : 0;
 
-      const results = searchRecipesByIngredientsAdvanced({ ingredients, match, threshold });
+      const results = await searchRecipesByIngredientsAdvanced({ ingredients, match, threshold });
 
       return c.json({
         recipes: results.map(r => r.recipe),
@@ -41,7 +41,7 @@ app.get("/api/v1/recipes", (c) => {
       });
     }
 
-    const recipes = getRecipeListFromReactDb();
+    const recipes = await getRecipeListFromReactDb();
     return c.json(recipes);
   } catch (error) {
     console.error("Error fetching recipes from React DB:", error);
@@ -50,11 +50,11 @@ app.get("/api/v1/recipes", (c) => {
 });
 
 // Serve base64 image stored in image_url as actual image bytes
-app.get("/api/v1/recipes/:id/image", (c) => {
+app.get("/api/v1/recipes/:id/image", async (c) => {
   const id = parseInt(c.req.param("id"), 10);
   if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-  const recipe = getRecipeByIdFromReactDb(id);
+  const recipe = await getRecipeByIdFromReactDb(id);
   if (!recipe?.image_url?.startsWith("data:")) return c.notFound();
 
   const [meta, b64] = recipe.image_url.split(",");
@@ -71,12 +71,12 @@ app.get("/api/v1/recipes/:id/image", (c) => {
 });
 
 // Get single recipe by ID
-app.get("/api/v1/recipes/:id", (c) => {
+app.get("/api/v1/recipes/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const recipe = getRecipeByIdFromReactDb(id);
+    const recipe = await getRecipeByIdFromReactDb(id);
     if (!recipe) return c.json({ error: "Not found" }, 404);
 
     return c.json(recipe);
@@ -96,7 +96,7 @@ app.post("/api/v1/recipes", async (c) => {
       return c.json({ error: "Missing required fields" }, 400);
     }
 
-    const id = saveRecipeToReactDb(recipe, sourceUrl, transcript);
+    const id = await saveRecipeToReactDb(recipe, sourceUrl, transcript);
     return c.json({ id, success: true }, 201);
   } catch (error) {
     console.error("Error saving recipe to React DB:", error);
@@ -111,7 +111,7 @@ app.patch("/api/v1/recipes/:id", async (c) => {
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
     const body = await c.req.json();
-    const updated = updateRecipeInReactDb(id, body);
+    const updated = await updateRecipeInReactDb(id, body);
 
     if (!updated) return c.json({ error: "Not found" }, 404);
     return c.json({ success: true });
@@ -122,12 +122,12 @@ app.patch("/api/v1/recipes/:id", async (c) => {
 });
 
 // Delete recipe
-app.delete("/api/v1/recipes/:id", (c) => {
+app.delete("/api/v1/recipes/:id", async (c) => {
   try {
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const deleted = deleteRecipeFromReactDb(id);
+    const deleted = await deleteRecipeFromReactDb(id);
     if (!deleted) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });
@@ -138,20 +138,20 @@ app.delete("/api/v1/recipes/:id", (c) => {
 });
 
 // Health check
-app.get("/api/v1/health", (c) => {
+app.get("/api/v1/health", async (c) => {
   try {
-    const recipeCount = getRecipeCount();
+    const recipeCount = await getRecipeCount();
     return c.json({
       server: true,
-      database: "react",
+      database: "supabase",
       recipeCount,
       status: "healthy"
     });
   } catch (error) {
-    console.error("React database health check failed:", error);
+    console.error("Database health check failed:", error);
     return c.json({
       server: true,
-      database: "react",
+      database: "supabase",
       status: "unhealthy",
       error: error instanceof Error ? error.message : "Unknown error"
     }, 500);

@@ -48,7 +48,7 @@ app.post("/api/v1/keys", async (c) => {
     }
 
     const keyHash = BYOKValidator.hashKey(apiKey);
-    storeApiKey(keyHash, validation.model);
+    await storeApiKey(keyHash, validation.model);
 
     return c.json({
       success: true,
@@ -67,10 +67,10 @@ app.post("/api/v1/keys", async (c) => {
 });
 
 // Remove a BYOK API key
-app.delete("/api/v1/keys/:keyHash", (c) => {
+app.delete("/api/v1/keys/:keyHash", async (c) => {
   try {
     const keyHash = c.req.param("keyHash");
-    removeApiKey(keyHash);
+    await removeApiKey(keyHash);
     return c.json({
       success: true,
       message: "API key removed"

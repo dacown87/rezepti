@@ -5,7 +5,6 @@ import { serve } from "@hono/node-server";
 import { readFileSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 import { config } from "./config.js";
-import { ensureReactSchema } from "./db-react.js";
 import reactApi from "./api-react.js";
 
 const app = new Hono();
@@ -132,6 +131,5 @@ app.get("*", (c) => {
 
 // Start server
 const port = config.port;
-ensureReactSchema();
 console.log(`Rezepti läuft auf http://localhost:${port}`);
 serve({ fetch: app.fetch, port });

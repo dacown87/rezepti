@@ -136,7 +136,7 @@ export async function processURL(
       message: "Rezept wird in Datenbank gespeichert...",
     });
     
-    const recipeId = saveRecipeToReactDb(recipe, classified.url, transcript);
+    const recipeId = await saveRecipeToReactDb(recipe, classified.url, transcript);
     
     await emit(onEvent, {
       stage: "exporting",

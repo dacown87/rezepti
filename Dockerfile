@@ -3,11 +3,6 @@ FROM node:20-slim AS base
 
 WORKDIR /app
 
-# Build-Tools für better-sqlite3 (natives Node-Addon)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 # yt-dlp (static binary) + ffmpeg for video/audio processing
 # Static binary is preferred over pip - no Python overhead, smaller image
 RUN apt-get update && apt-get install -y --no-install-recommends \

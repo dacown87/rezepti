@@ -239,7 +239,7 @@ async function processPhotoJobInBackground(jobId: string) {
     }
 
     jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
-    const recipeId = saveRecipeToReactDb(recipeData, "photo://upload");
+    const recipeId = await saveRecipeToReactDb(recipeData, "photo://upload");
     jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData, imageSuggestions });
 
   } catch (error) {

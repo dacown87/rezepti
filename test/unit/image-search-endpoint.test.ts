@@ -9,11 +9,16 @@ function mockFetch(response: { ok: boolean; json?: () => Promise<unknown> }) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
 }
 
+// Chefkoch API v2 structure: { results: [{ recipe: { previewImageUrlTemplate: '...' } }] }
+function makeResult(url: string) {
+  return { recipe: { previewImageUrlTemplate: url } }
+}
+
 describe('GET /api/v1/images/search endpoint logic', () => {
   it('returns up to 4 image URLs for a valid search query', async () => {
-    const results = Array.from({ length: 6 }, (_, i) => ({
-      previewImageUrl: `https://img.chefkoch.de/recipe${i + 1}.jpg`,
-    }))
+    const results = Array.from({ length: 6 }, (_, i) =>
+      makeResult(`https://img.chefkoch.de/recipe${i + 1}.<format>`)
+    )
     mockFetch({ ok: true, json: async () => ({ results }) })
 
     const urls = await searchRecipeImages('Bolognese')

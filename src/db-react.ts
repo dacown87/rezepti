@@ -1,9 +1,6 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { eq, and, gte, lt, desc } from "drizzle-orm";
-import { mkdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { config } from "./config.js";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { eq, desc } from "drizzle-orm";
 import { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { extractIngredientName, isSimilar } from "./ingredient-dictionary.js";
@@ -32,125 +29,36 @@ export function detectCategory(tags: string[], name: string): string | null {
   return null;
 }
 
-/**
- * React-specific database connection
- * This uses a separate database file for React frontend
- */
+// ── DB connection (lazy singleton) ────────────────────────────────────────────
 
-function openReactDb() {
-  const path = config.sqlite.reactPath;
-  // Ensure we're using a relative path from current working directory
-  const resolvedPath = path.startsWith('/') ? path : join(process.cwd(), path);
-  const dir = dirname(resolvedPath);
-  if (dir !== '.' && dir !== '/' && !existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+let _client: ReturnType<typeof postgres> | null = null;
+let _db: ReturnType<typeof drizzle> | null = null;
+
+function getDb() {
+  if (!_db) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) throw new Error("DATABASE_URL environment variable is required");
+    _client = postgres(connectionString, { max: 10 });
+    _db = drizzle(_client, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } });
   }
-  const sqlite = new Database(resolvedPath);
-  sqlite.pragma("journal_mode = WAL");
-  return drizzle(sqlite, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } });
+  return _db;
 }
 
-// Lazy singleton for React database
-let _reactDb: ReturnType<typeof openReactDb> | null = null;
-function getReactDb() {
-  if (!_reactDb) _reactDb = openReactDb();
-  return _reactDb;
-}
-
-/**
- * Ensure React database schema exists
- */
+// ── No-op: schema is managed via Supabase dashboard / migrations ──────────────
 export function ensureReactSchema() {
-  const db = getReactDb();
-  // Create table if not exists (simple migration without drizzle-kit)
-  db.$client.exec(`
-    CREATE TABLE IF NOT EXISTS recipes (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT NOT NULL,
-      emoji       TEXT,
-      source_url  TEXT,
-      image_url   TEXT,
-      servings    TEXT,
-      duration    TEXT,
-      calories    INTEGER,
-      tags        TEXT,
-      ingredients TEXT NOT NULL,
-      steps       TEXT NOT NULL,
-      transcript  TEXT,
-      tried       INTEGER DEFAULT 0,
-      created_at  INTEGER DEFAULT (strftime('%s', 'now'))
-    )
-  `);
-  // Migration: add created_at column to older DBs that lack it
-  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN created_at INTEGER DEFAULT (strftime('%s', 'now'))`); } catch {}
-  // Migration: rating + notes (Phase 3a)
-  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN rating INTEGER`); } catch {}
-  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN notes TEXT`); } catch {}
-  // Migration: pdf_created (Phase 4)
-  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN pdf_created INTEGER DEFAULT 0`); } catch {}
-  // Migration: equipment (Cookidoo Zubehör)
-  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN equipment TEXT`); } catch {}
-  // Migration: nutrition_info (Kohlenhydrate, Fett, Eiweiß)
-  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN nutrition_info TEXT`); } catch {}
-  // Migration: category (auto-assigned label for browse view)
-  try { db.$client.exec(`ALTER TABLE recipes ADD COLUMN category TEXT`); } catch {}
-  // Auto-assign categories to existing recipes that have none
-  for (const { category, keywords } of CATEGORY_KEYWORDS) {
-    const conditions = keywords
-      .map(() => `(LOWER(tags) LIKE ? OR LOWER(name) LIKE ?)`)
-      .join(' OR ');
-    const params = keywords.flatMap(kw => [`%${kw}%`, `%${kw}%`]);
-    db.$client.prepare(
-      `UPDATE recipes SET category = ? WHERE category IS NULL AND (${conditions})`
-    ).run(category, ...params);
-  }
-  // Migration: index on created_at for ORDER BY performance
-  try { db.$client.exec(`CREATE INDEX IF NOT EXISTS idx_recipes_created_at ON recipes(created_at DESC)`); } catch {}
-  // Migration: ingredient_dictionary (Phase 3c)
-  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS ingredient_dictionary (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    canonical_name TEXT NOT NULL UNIQUE,
-    aliases TEXT
-  )`); } catch {}
-  // Migration: shopping_list (Phase 3c)
-  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS shopping_list (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipe_id INTEGER,
-    canonical_name TEXT NOT NULL,
-    quantity TEXT,
-    unit TEXT,
-    checked INTEGER DEFAULT 0,
-    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-  )`); } catch {}
-  // Migration: meal_plan (Phase 5)
-  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS meal_plan (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipe_id INTEGER NOT NULL,
-    day_of_week INTEGER NOT NULL,
-    week_start INTEGER NOT NULL,
-    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-  )`); } catch {}
-  // Migration: api_keys (BYOK key storage)
-  try { db.$client.exec(`CREATE TABLE IF NOT EXISTS api_keys (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    key_hash TEXT NOT NULL UNIQUE,
-    model TEXT,
-    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-  )`); } catch {}
-  // Migration: fix rows where created_at is NULL or stored as text (e.g. "2026-03-25 13:54:00")
-  db.$client.exec(`UPDATE recipes SET created_at = strftime('%s', 'now') WHERE created_at IS NULL OR typeof(created_at) = 'text'`);
+  // PostgreSQL schema is managed externally (Supabase dashboard / drizzle-kit push).
+  // This function is kept for API compatibility but does nothing.
 }
 
-/**
- * Save recipe to React database
- */
-export function saveRecipeToReactDb(
+// ── Recipes ───────────────────────────────────────────────────────────────────
+
+export async function saveRecipeToReactDb(
   recipe: RecipeData,
   sourceUrl: string,
   transcript?: string
-): number {
-  const db = getReactDb();
-  const result = db.insert(recipes).values({
+): Promise<number> {
+  const db = getDb();
+  const rows = await db.insert(recipes).values({
     name:        recipe.name,
     emoji:       recipe.emoji,
     source_url:  sourceUrl,
@@ -165,25 +73,20 @@ export function saveRecipeToReactDb(
     nutrition_info: recipe.nutritionInfo ? JSON.stringify(recipe.nutritionInfo) : null,
     category:    detectCategory(recipe.tags, recipe.name),
     transcript,
-  }).returning({ id: recipes.id }).get();
+  }).returning({ id: recipes.id });
 
-  return result.id;
+  return rows[0].id;
 }
 
-/**
- * Get all recipes from React database
- */
-export function getAllRecipesFromReactDb() {
-  const db = getReactDb();
-  return db.select().from(recipes).orderBy(recipes.created_at).all().map(deserialize);
+export async function getAllRecipesFromReactDb() {
+  const db = getDb();
+  const rows = await db.select().from(recipes).orderBy(recipes.created_at);
+  return rows.map(deserialize);
 }
 
-/**
- * Get recipe list — only columns needed for list view (no transcript/steps/ingredients/notes)
- */
-export function getRecipeListFromReactDb() {
-  const db = getReactDb();
-  return db
+export async function getRecipeListFromReactDb() {
+  const db = getDb();
+  const rows = await db
     .select({
       id:         recipes.id,
       name:       recipes.name,
@@ -197,9 +100,8 @@ export function getRecipeListFromReactDb() {
       created_at: recipes.created_at,
     })
     .from(recipes)
-    .orderBy(desc(recipes.created_at))
-    .all()
-    .map(deserializeListItem);
+    .orderBy(desc(recipes.created_at));
+  return rows.map(deserializeListItem);
 }
 
 function deserializeListItem(row: {
@@ -228,7 +130,7 @@ function deserializeListItem(row: {
 export type MatchMode = "and" | "or";
 
 export interface RecipeSearchResult {
-  recipe: ReturnType<typeof deserialize>;
+  recipe: Awaited<ReturnType<typeof getAllRecipesFromReactDb>>[number];
   matchScore: number;
   matchedIngredients: string[];
   missingIngredients: string[];
@@ -240,14 +142,12 @@ export interface SearchRecipesOptions {
   threshold?: number;
 }
 
-/**
- * Search recipes by ingredients with AND/OR logic and match scoring
- */
-export function searchRecipesByIngredientsAdvanced(
+export async function searchRecipesByIngredientsAdvanced(
   options: SearchRecipesOptions
-): RecipeSearchResult[] {
-  const db = getReactDb();
-  const allRecipes = db.select().from(recipes).all().map(deserialize);
+): Promise<RecipeSearchResult[]> {
+  const db = getDb();
+  const allRows = await db.select().from(recipes);
+  const allRecipes = allRows.map(deserialize);
 
   const { ingredients, match = "or", threshold = 0 } = options;
 
@@ -261,7 +161,6 @@ export function searchRecipesByIngredientsAdvanced(
   }
 
   const searchTerms = ingredients.map(i => i.toLowerCase().trim());
-
   const results: RecipeSearchResult[] = [];
 
   for (const recipe of allRecipes) {
@@ -294,12 +193,7 @@ export function searchRecipesByIngredientsAdvanced(
         : matchedIngredients.length > 0;
 
     if (matches && matchScore >= threshold) {
-      results.push({
-        recipe,
-        matchScore,
-        matchedIngredients,
-        missingIngredients,
-      });
+      results.push({ recipe, matchScore, matchedIngredients, missingIngredients });
     }
   }
 
@@ -315,45 +209,34 @@ export function searchRecipesByIngredientsAdvanced(
   return results;
 }
 
-/**
- * Search recipes by ingredients (OR logic - matches any ingredient)
- * @deprecated Use searchRecipesByIngredientsAdvanced for AND/OR support
- */
-export function searchRecipesByIngredients(ingredients: string[]): ReturnType<typeof getAllRecipesFromReactDb> {
-  const db = getReactDb();
-  const allRecipes = db.select().from(recipes).all().map(deserialize);
-  
+/** @deprecated Use searchRecipesByIngredientsAdvanced */
+export async function searchRecipesByIngredients(ingredients: string[]) {
+  const db = getDb();
+  const allRows = await db.select().from(recipes);
+  const allRecipes = allRows.map(deserialize);
+
   if (ingredients.length === 0) return allRecipes;
-  
+
   const searchTerms = ingredients.map(i => i.toLowerCase().trim());
-  
   return allRecipes.filter(recipe => {
     for (const ingredient of recipe.ingredients) {
       const ingredientLower = ingredient.toLowerCase();
       for (const term of searchTerms) {
-        if (ingredientLower.includes(term)) {
-          return true;
-        }
+        if (ingredientLower.includes(term)) return true;
       }
     }
     return false;
   });
 }
 
-/**
- * Get single recipe by ID from React database
- */
-export function getRecipeByIdFromReactDb(id: number) {
-  const db = getReactDb();
-  const row = db.select().from(recipes).where(eq(recipes.id, id)).get();
-  return row ? deserialize(row) : null;
+export async function getRecipeByIdFromReactDb(id: number) {
+  const db = getDb();
+  const rows = await db.select().from(recipes).where(eq(recipes.id, id));
+  return rows[0] ? deserialize(rows[0]) : null;
 }
 
-/**
- * Update recipe in React database
- */
-export function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): boolean {
-  const db = getReactDb();
+export async function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): Promise<boolean> {
+  const db = getDb();
   const values: Record<string, unknown> = {};
   if (fields.name        !== undefined) values.name        = fields.name;
   if (fields.emoji       !== undefined) values.emoji       = fields.emoji;
@@ -364,36 +247,29 @@ export function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): 
   if (fields.tags        !== undefined) values.tags        = JSON.stringify(fields.tags);
   if (fields.ingredients !== undefined) values.ingredients = JSON.stringify(fields.ingredients);
   if (fields.steps       !== undefined) values.steps       = JSON.stringify(fields.steps);
-  if ((fields as any).rating    !== undefined) values.rating    = (fields as any).rating;
-  if ((fields as any).notes     !== undefined) values.notes     = (fields as any).notes;
-  if ((fields as any).category  !== undefined) values.category  = (fields as any).category;
-  if ((fields as any).pdf_created !== undefined) values.pdf_created = (fields as any).pdf_created ? 1 : 0;
+  if ((fields as any).rating      !== undefined) values.rating      = (fields as any).rating;
+  if ((fields as any).notes       !== undefined) values.notes       = (fields as any).notes;
+  if ((fields as any).category    !== undefined) values.category    = (fields as any).category;
+  if ((fields as any).pdf_created !== undefined) values.pdf_created = (fields as any).pdf_created;
   if (Object.keys(values).length === 0) return false;
-  const result = db.update(recipes).set(values).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();
-  return !!result;
+  const rows = await db.update(recipes).set(values).where(eq(recipes.id, id)).returning({ id: recipes.id });
+  return rows.length > 0;
 }
 
-/**
- * Delete recipe from React database
- */
-export function deleteRecipeFromReactDb(id: number): boolean {
-  const db = getReactDb();
-  const result = db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id }).get();
-  return !!result;
+export async function deleteRecipeFromReactDb(id: number): Promise<boolean> {
+  const db = getDb();
+  const rows = await db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id });
+  return rows.length > 0;
 }
 
-/**
- * Get recipe count from React database (lightweight COUNT query)
- */
-export function getRecipeCount(): number {
-  const db = getReactDb();
-  const result = db.$client.prepare("SELECT COUNT(*) AS count FROM recipes").get() as { count: number };
-  return result.count;
+export async function getRecipeCount(): Promise<number> {
+  const db = getDb();
+  const rows = await db.select({ id: recipes.id }).from(recipes);
+  return rows.length;
 }
 
-/**
- * Deserialize JSON fields from database row
- */
+// ── Deserialize ───────────────────────────────────────────────────────────────
+
 function deserialize(row: typeof recipes.$inferSelect) {
   return {
     ...row,
@@ -406,7 +282,6 @@ function deserialize(row: typeof recipes.$inferSelect) {
   };
 }
 
-// Serializers: map Drizzle camelCase → snake_case for API/frontend compatibility
 function serializeDictionaryEntry(row: typeof ingredientDictionary.$inferSelect) {
   return {
     id: row.id,
@@ -437,124 +312,122 @@ function serializeMealPlanEntry(row: typeof mealPlan.$inferSelect) {
   };
 }
 
-// ============ Ingredient Dictionary CRUD ============
+// ── Ingredient Dictionary ─────────────────────────────────────────────────────
 
-export function getAllDictionaryEntries() {
-  const db = getReactDb();
-  return db.select().from(ingredientDictionary).all().map(serializeDictionaryEntry);
+export async function getAllDictionaryEntries() {
+  const db = getDb();
+  const rows = await db.select().from(ingredientDictionary);
+  return rows.map(serializeDictionaryEntry);
 }
 
-export function addToDictionary(canonicalName: string, aliases: string[] = []) {
-  const db = getReactDb();
-  return db.insert(ingredientDictionary).values({
+export async function addToDictionary(canonicalName: string, aliases: string[] = []) {
+  const db = getDb();
+  const rows = await db.insert(ingredientDictionary).values({
     canonicalName,
     aliases: JSON.stringify(aliases),
-  }).returning({ id: ingredientDictionary.id }).get();
+  }).returning({ id: ingredientDictionary.id });
+  return rows[0];
 }
 
-export function findCanonicalBySimilarity(name: string) {
-  const db = getReactDb();
-  const entries = db.select().from(ingredientDictionary).all();
+export async function findCanonicalBySimilarity(name: string) {
+  const db = getDb();
+  const entries = await db.select().from(ingredientDictionary);
 
   for (const entry of entries) {
     const aliases = JSON.parse(entry.aliases ?? "[]") as string[];
     const allNames = [entry.canonicalName, ...aliases];
-
     for (const knownName of allNames) {
-      if (isSimilar(name, knownName)) {
-        return serializeDictionaryEntry(entry);
-      }
+      if (isSimilar(name, knownName)) return serializeDictionaryEntry(entry);
     }
   }
   return null;
 }
 
-// ============ Shopping List CRUD ============
+// ── Shopping List ─────────────────────────────────────────────────────────────
 
-export function getShoppingList() {
-  const db = getReactDb();
-  return db.select().from(shoppingList).orderBy(shoppingList.createdAt).all().map(serializeShoppingItem);
+export async function getShoppingList() {
+  const db = getDb();
+  const rows = await db.select().from(shoppingList).orderBy(shoppingList.createdAt);
+  return rows.map(serializeShoppingItem);
 }
 
-export function addToShoppingList(recipeId: number | null, canonicalName: string, quantity?: string, unit?: string) {
-  const db = getReactDb();
-  return db.insert(shoppingList).values({
+export async function addToShoppingList(recipeId: number | null, canonicalName: string, quantity?: string, unit?: string) {
+  const db = getDb();
+  const rows = await db.insert(shoppingList).values({
     recipeId,
     canonicalName,
     quantity,
     unit,
-  }).returning({ id: shoppingList.id }).get();
+  }).returning({ id: shoppingList.id });
+  return rows[0];
 }
 
-export function toggleShoppingItem(id: number) {
-  const db = getReactDb();
-  const item = db.select().from(shoppingList).where(eq(shoppingList.id, id)).get();
-  if (!item) return false;
-  
-  db.update(shoppingList).set({ checked: !item.checked }).where(eq(shoppingList.id, id)).run();
+export async function toggleShoppingItem(id: number): Promise<boolean> {
+  const db = getDb();
+  const items = await db.select().from(shoppingList).where(eq(shoppingList.id, id));
+  if (!items[0]) return false;
+  await db.update(shoppingList).set({ checked: !items[0].checked }).where(eq(shoppingList.id, id));
   return true;
 }
 
-export function deleteShoppingItem(id: number) {
-  const db = getReactDb();
-  const result = db.delete(shoppingList).where(eq(shoppingList.id, id)).returning({ id: shoppingList.id }).get();
-  return !!result;
+export async function deleteShoppingItem(id: number): Promise<boolean> {
+  const db = getDb();
+  const rows = await db.delete(shoppingList).where(eq(shoppingList.id, id)).returning({ id: shoppingList.id });
+  return rows.length > 0;
 }
 
-export function clearCheckedItems() {
-  const db = getReactDb();
-  db.delete(shoppingList).where(eq(shoppingList.checked, true)).run();
+export async function clearCheckedItems() {
+  const db = getDb();
+  await db.delete(shoppingList).where(eq(shoppingList.checked, true));
 }
 
-export function clearAllShoppingItems() {
-  const db = getReactDb();
-  db.delete(shoppingList).run();
+export async function clearAllShoppingItems() {
+  const db = getDb();
+  await db.delete(shoppingList);
 }
 
-// ============ Meal Plan CRUD ============
+// ── Meal Plan ─────────────────────────────────────────────────────────────────
 
-export function getMealPlanForWeek(weekStart: number) {
-  const db = getReactDb();
-  return db.select().from(mealPlan).where(eq(mealPlan.weekStart, weekStart)).all().map(serializeMealPlanEntry);
+export async function getMealPlanForWeek(weekStart: number) {
+  const db = getDb();
+  const rows = await db.select().from(mealPlan).where(eq(mealPlan.weekStart, weekStart));
+  return rows.map(serializeMealPlanEntry);
 }
 
-export function addRecipeToMealPlan(recipeId: number, dayOfWeek: number, weekStart: number) {
-  const db = getReactDb();
-  return db.insert(mealPlan).values({
-    recipeId,
-    dayOfWeek,
-    weekStart,
-  }).returning({ id: mealPlan.id }).get();
+export async function addRecipeToMealPlan(recipeId: number, dayOfWeek: number, weekStart: number) {
+  const db = getDb();
+  const rows = await db.insert(mealPlan).values({ recipeId, dayOfWeek, weekStart }).returning({ id: mealPlan.id });
+  return rows[0];
 }
 
-export function removeRecipeFromMealPlan(id: number) {
-  const db = getReactDb();
-  const result = db.delete(mealPlan).where(eq(mealPlan.id, id)).returning({ id: mealPlan.id }).get();
-  return !!result;
+export async function removeRecipeFromMealPlan(id: number): Promise<boolean> {
+  const db = getDb();
+  const rows = await db.delete(mealPlan).where(eq(mealPlan.id, id)).returning({ id: mealPlan.id });
+  return rows.length > 0;
 }
 
-export function clearMealPlanForWeek(weekStart: number) {
-  const db = getReactDb();
-  db.delete(mealPlan).where(eq(mealPlan.weekStart, weekStart)).run();
+export async function clearMealPlanForWeek(weekStart: number) {
+  const db = getDb();
+  await db.delete(mealPlan).where(eq(mealPlan.weekStart, weekStart));
 }
 
-// ============ API Keys CRUD ============
+// ── API Keys ──────────────────────────────────────────────────────────────────
 
-export function storeApiKey(keyHash: string, model?: string) {
-  const db = getReactDb();
-  db.insert(apiKeys)
+export async function storeApiKey(keyHash: string, model?: string) {
+  const db = getDb();
+  await db.insert(apiKeys)
     .values({ keyHash, model })
-    .onConflictDoUpdate({ target: apiKeys.keyHash, set: { model } })
-    .run();
+    .onConflictDoUpdate({ target: apiKeys.keyHash, set: { model } });
 }
 
-export function removeApiKey(keyHash: string) {
-  const db = getReactDb();
-  const result = db.delete(apiKeys).where(eq(apiKeys.keyHash, keyHash)).returning({ id: apiKeys.id }).get();
-  return !!result;
+export async function removeApiKey(keyHash: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db.delete(apiKeys).where(eq(apiKeys.keyHash, keyHash)).returning({ id: apiKeys.id });
+  return rows.length > 0;
 }
 
-export function getApiKeyByHash(keyHash: string) {
-  const db = getReactDb();
-  return db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).get() ?? null;
+export async function getApiKeyByHash(keyHash: string) {
+  const db = getDb();
+  const rows = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
+  return rows[0] ?? null;
 }
