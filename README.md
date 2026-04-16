@@ -1,16 +1,22 @@
-# Rezepti
+# RecipeDeck
 
-> **Dieser Fork** — Fork von [keno303/rezepti](https://github.com/keno303/rezepti)
+Rezepte aus URLs extrahieren — YouTube, Instagram, TikTok, Webseiten, Cookidoo — ins Deutsche übersetzen, speichern und verwalten.
 
-| | Original (keno303) | **Dieser Fork (dacown87)** |
-|---|---|---|
-| **Frontend** | Vanilla JS + Tailwind (CDN) | **React + Vite + TypeScript** |
-| **LLM** | Ollama (lokal) | **Groq API** (Cloud) |
-| **Export** | Notion | **SQLite (lokal)** |
-| **Deployment** | Manuell | **Docker** |
-| **Features** | Basic | **BYOK, React UI, Polling API** |
+**Production:** https://p01--rezepti-app--2s7hvlwm5zc5.code.run
 
-Rezepti extrahiert Rezepte aus URLs — YouTube, Instagram, TikTok, Webseiten — übersetzt sie ins Deutsche, normalisiert Einheiten und speichert sie in einer lokalen SQLite-Datenbank.
+---
+
+## Features
+
+- **Extraktion** aus YouTube, Instagram, TikTok, Webseiten, Cookidoo, Foto-Import
+- **KI-Analyse** via Groq (Llama 3.3 / Llama 4 / Whisper) — Text, Audio, Bild
+- **Rezeptverwaltung** — Inline-Bearbeitung, Bewertung, Notizen, Tags, Kategorien
+- **Kochmodus** — Vollbild, Wake Lock, Portionsscaler
+- **Meal Planner** — 7-Tage-Plan mit Drag & Drop
+- **Einkaufsliste** — Multi-Rezept-Aggregation, Abhaken, Export
+- **PDF-Export** — Rezeptkarte mit QR-Code
+- **BYOK** — Bring Your Own Groq Key
+- **PWA** — Homescreen-Installation auf iOS/Android
 
 ---
 
@@ -18,6 +24,9 @@ Rezepti extrahiert Rezepte aus URLs — YouTube, Instagram, TikTok, Webseiten �
 
 - [Docker](https://docs.docker.com/get-docker/) & Docker Compose
 - Kostenloser [Groq API-Key](https://console.groq.com)
+- [Supabase](https://supabase.com) Projekt (kostenloser Free-Tier reicht)
+
+---
 
 ## Schnellstart
 
@@ -25,25 +34,23 @@ Rezepti extrahiert Rezepte aus URLs — YouTube, Instagram, TikTok, Webseiten �
 git clone git@github.com:dacown87/rezepti.git
 cd rezepti
 
-# .env anlegen (liegt im gleichen Ordner wie docker-compose.yml)
 cp .env.example .env
-# → .env öffnen und GROQ_API_KEY eintragen
-
-# React Frontend + Server starten
-docker compose up --profile react
+# .env öffnen und ausfüllen:
+#   GROQ_API_KEY=...
+#   DATABASE_URL=postgresql://postgres.[ref]:[pw]@aws-0-[region].pooler.supabase.com:6543/postgres
 ```
 
-> Beim ersten Start wird das Image lokal gebaut (~2–3 Minuten). Danach startet es sofort.
+### Dev-Modus (Hot Reload)
 
-Anschließend: [http://localhost:3000](http://localhost:3000)
+```bash
+docker compose up
+```
 
-Änderungen in `src/` oder `frontend/` sind sofort im Browser sichtbar — kein Neustart nötig.
+→ [http://localhost:3000](http://localhost:3000)
 
----
+Änderungen in `src/` und `public/` sind sofort sichtbar.
 
-## Production-Modus
-
-Fertiges Image von Docker Hub, kein lokaler Build:
+### Production-Modus (Docker Hub Image)
 
 ```bash
 docker compose --profile prod up
@@ -51,192 +58,87 @@ docker compose --profile prod up
 
 ---
 
-## Docker Deployment
+## Konfiguration (`.env`)
 
-**Verfügbare Profile:**
+| Variable | Pflicht | Beschreibung |
+|----------|---------|--------------|
+| `GROQ_API_KEY` | ✅ | Groq API-Key ([console.groq.com](https://console.groq.com)) |
+| `DATABASE_URL` | ✅ | Supabase PostgreSQL — **Transaction Pooler URL** (Port 6543) |
+| `SUPABASE_URL` | | Supabase Projekt-URL (für zukünftige Auth-Features) |
+| `SUPABASE_ANON_KEY` | | Supabase Anon Key |
+| `PORT` | | Server-Port (Standard: `3000`) |
+| `GROQ_TEXT_MODEL` | | Standard: `llama-3.3-70b-versatile` |
+| `GROQ_VISION_MODEL` | | Standard: `meta-llama/llama-4-scout-17b-16e-instruct` |
+| `GROQ_WHISPER_MODEL` | | Standard: `whisper-large-v3-turbo` |
+| `COOKIDOO_EMAIL` | | Thermomix-Login (optional) |
+| `COOKIDOO_PASSWORD` | | Thermomix-Passwort (optional) |
 
-| Profile | Beschreibung |
-|---------|--------------|
-| `react` | React Dev + Backend mit Hot Reload |
-| `react-prod` | React Production Build |
-| `prod` | Legacy Production (Docker Hub Image) |
+> **DATABASE_URL:** Die direkte Supabase-URL (`db.[ref].supabase.co:5432`) funktioniert nur lokal.
+> Für Production immer den Transaction Pooler verwenden.
+> URL im Supabase Dashboard: Settings → Database → Connection pooling.
 
-**Nützliche Befehle:**
+---
+
+## Datenbankschema deployen
+
+Beim ersten Start das Schema in Supabase anlegen:
+
 ```bash
-# Logs anzeigen
-docker compose --profile react logs -f
-
-# Container neu starten
-docker compose --profile react restart
-
-# Alle stoppen
-docker compose --profile react --profile react-prod --profile prod down
-```
-
-### Daten sichern
-
-```bash
-# Backup erstellen
-mkdir -p backups
-tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/
-
-# Wiederherstellen (YYYYMMDD durch Backup-Datum ersetzen)
-tar -xzf backups/rezepti-YYYYMMDD.tar.gz
+npx drizzle-kit push
 ```
 
 ---
 
-## Konfiguration
-
-Alle Einstellungen werden über die Datei `.env` im **Projekt-Stammverzeichnis** gesetzt (neben `docker-compose.yml`). Vorlage: `.env.example`
-
-```
-rezepti/
-├── .env              ← hier
-├── .env.example      ← Vorlage zum Kopieren
-├── docker-compose.yml
-└── ...
-```
-
-> **Hinweis:** Dateien die mit `.` beginnen sind versteckt und werden standardmäßig nicht angezeigt.
-> - **Windows:** Im Explorer → Ansicht → "Ausgeblendete Elemente" aktivieren
-> - **macOS:** Im Finder `Cmd + Shift + .` drücken
-> - **Linux:** Im Dateimanager `Strg + H` drücken
-> - **Terminal:** `ls -la` zeigt alle Dateien inkl. versteckter
-
-| Variable | Pflicht | Standard | Beschreibung |
-|----------|---------|----------|--------------|
-| `GROQ_API_KEY` | ✅ | — | **Default Groq Key** (kostenlos unter console.groq.com) |
-| `REACT_SQLITE_PATH` | | `./data/rezepti-react.db` | Neue DB für React Frontend |
-| `PORT` | | `3000` | Server-Port |
-| `SQLITE_PATH` | | `./data/rezepti.db` | Legacy DB (für alte UI) |
-| `GROQ_TEXT_MODEL` | | `llama-3.3-70b-versatile` | Textmodell für Extraktion |
-| `GROQ_VISION_MODEL` | | `meta-llama/llama-4-scout-17b-16e-instruct` | Bildanalyse-Modell |
-| `GROQ_WHISPER_MODEL` | | `whisper-large-v3-turbo` | Audio-Transkription |
-| `COOKIDOO_EMAIL` | | — | Cookidoo-Login (optional) |
-| `COOKIDOO_PASSWORD` | | — | Cookidoo-Passwort (optional) |
-
----
-
-## API
+## API-Endpunkte
 
 | Route | Methode | Beschreibung |
 |-------|---------|--------------|
-| `/` | GET | **React Frontend** (mit BYOK Support) |
-| `/api/extract?url=<URL>` | GET | Legacy: Rezept extrahieren (SSE-Stream) |
-| `/api/v1/extract/react?url=<URL>` | GET | **React:** Rezept extrahieren (Polling) |
-| `/api/recipes` | GET | Alle gespeicherten Rezepte |
-| `/api/v1/recipes` | GET | **React:** Rezepte aus neuer DB |
-| `/api/recipes/:id` | GET | Einzelnes Rezept (Legacy DB) |
-| `/api/v1/recipes/:id` | GET | **React:** Rezept aus neuer DB |
-| `/api/v1/keys` | POST/DELETE | **BYOK:** User Key Management |
-| `/api/health` | GET | Server-Status |
+| `/` | GET | Web-App |
+| `/api/v1/recipes` | GET/POST | Rezepte auflisten / erstellen |
+| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Einzelnes Rezept |
+| `/api/v1/extract/react` | POST | Extraktion starten (Polling) |
+| `/api/v1/extract/react/:jobId` | GET/DELETE | Job-Status / abbrechen |
+| `/api/v1/keys/validate` | POST | BYOK Key validieren |
+| `/api/v1/keys` | POST | BYOK Key speichern |
+| `/api/v1/keys/:keyHash` | DELETE | BYOK Key löschen |
+| `/api/v1/health` | GET | Server + DB Status |
+| `/api/v1/planner` | GET/POST/DELETE | Meal Planner |
+| `/api/v1/shopping` | GET/POST/DELETE | Einkaufsliste |
 
 ---
 
-## Daten
+## Tech Stack
 
-- **React DB:** `./data/rezepti-react.db` - Neue SQLite DB für React Frontend
-- **Legacy DB:** `./data/rezepti.db` - Alte DB (kompatibilität)
-
-Datenbanken werden automatisch erstellt. Das `data/` Verzeichnis ist als Docker-Volume gemountet — Daten bleiben auch nach `docker compose down` erhalten.
+| Bereich | Technologie |
+|---------|-------------|
+| Backend | [Hono.js](https://hono.dev) + TypeScript |
+| Datenbank | [Supabase](https://supabase.com) PostgreSQL + [Drizzle ORM](https://orm.drizzle.team) |
+| Frontend | [Expo](https://expo.dev) (React Native Web) + TypeScript + Tailwind CSS |
+| KI | [Groq API](https://console.groq.com) — Llama 3.3 / Llama 4 Scout / Whisper |
+| Video | [yt-dlp](https://github.com/yt-dlp/yt-dlp) (via pip3 im Docker-Image) |
+| Deployment | Docker → [Northflank](https://northflank.com) |
+| CI/CD | GitHub Actions → Docker Hub (`dacown/rezepti:latest`) |
 
 ---
 
-## Technologie
+## Deployment
 
-- **Frontend:** React 19 + Vite 8 + TypeScript 6 + Tailwind CSS
-- **Server:** Node.js 22, TypeScript, [Hono](https://hono.dev)
-- **KI:** [Groq API](https://console.groq.com) (Llama 3.3 / Llama 4 / Whisper)
-- **BYOK:** Bring Your Own Key Support (User können eigenen Groq Key verwenden)
-- **Datenbank:** SQLite via [Drizzle ORM](https://orm.drizzle.team)
-- **Video:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) (im Docker-Image enthalten)
-- **Mobile Ready:** Platform-Abstraktion für spätere Android/iOS Apps
+```
+git push → main
+  → GitHub Actions: Changelog + Version bump
+  → Docker Hub: dacown/rezepti:latest
+  → Northflank: auto-redeploy
+```
 
 ---
 
 ## Roadmap
 
-> Stand: März 2026 — **Phasen 1-14 implementiert** ✅ | React 19, Vite 8, TypeScript 6
-
----
-
-### 📥 Import & Extraktion
-
-| Feature | Fortschritt | Status |
-|---------|-------------|--------|
-| Webseiten (allgemein) | ████████░░ 80% | Funktioniert, kleinere Lücken |
-| YouTube | ████████░░ 80% | Audio + Untertitel + Vision |
-| TikTok | ███████░░░ 80% | Via yt-dlp + Video OCR |
-| Instagram | ██████████ 100% | Vollständig implementiert (Phase 11) |
-| Chefkoch | ██████████ 100% | Schema.org + Fallback (Phase 9) |
-| Cookidoo | ██████████ 100% | OAuth2 ROPC Flow (Phase 8) |
-| Pinterest | ███████░░░ 70% | API + Proxy (Phase 13) |
-| Facebook | ███████░░░ 70% | Cookies + Rate Limiting (Phase 14) |
-| Foto-Import (Kamera/Galerie) | ██████████ 100% | ✅ Implementiert (Phase 3b) |
-
----
-
-### 🍽️ Rezeptanzeige & Navigation
-
-| Feature | Fortschritt | Status |
-|---------|-------------|--------|
-| Rezeptliste & Detailansicht | ██████████ 100% | ✅ Implementiert |
-| Zutaten & Zubereitung getrennt anzeigen (à la Dr. Oetker) | ██████████ 100% | ✅ Implementiert |
-| Personenzahl einstellbar + Hochskalierung | ██████████ 100% | ✅ Implementiert (Phase 3b) |
-| Vollbild-Kochmodus | ██████████ 100% | ✅ Implementiert (Phase 2) |
-| Original-Rezept-Link | ██████████ 100% | ✅ Implementiert |
-| Rezept inline bearbeiten | ██████████ 100% | ✅ Implementiert |
-
----
-
-### 🛒 Einkauf & Planung
-
-| Feature | Fortschritt | Status |
-|---------|-------------|--------|
-| Einkaufsliste | ██████████ 100% | ✅ Implementiert (Phase 3c) |
-| 7-Tage Meal Planner | ██████████ 100% | ✅ Implementiert (Phase 5 + 8) |
-| Zutaten-basierte Rezeptsuche | ██████████ 100% | ✅ Implementiert (Phase 4) |
-| Zutaten eingeben → Rezeptvorschläge | ░░░░░░░░░░ 0% | Nicht implementiert |
-
----
-
-### 👥 Community & Sozial
-
-| Feature | Fortschritt | Status |
-|---------|-------------|--------|
-| Benutzer-Login (inkl. „Angemeldet bleiben") | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Bewertungsfunktion (Sterne) | ██████████ 100% | ✅ Implementiert (Phase 3a) |
-| Persönliche Notizen | ██████████ 100% | ✅ Implementiert (Phase 3a) |
-| Kommentarfunktion | ░░░░░░░░░░ 0% | Nicht implementiert |
-| Rezepte teilen via QR-Code | ██████████ 100% | ✅ Implementiert (Phase 4/5) |
-
----
-
-### 🖨️ Export & Druck
-
-| Feature | Fortschritt | Status |
-|---------|-------------|--------|
-| Rezeptkarte als PDF (Bild + Kurzbeschreibung + QR-Code) | ██████████ 100% | ✅ Implementiert (Phase 4) |
-
----
-
-### 📱 Mobile
-
-| Feature | Fortschritt | Status |
-|---------|-------------|--------|
-| Mobile-First / Responsive | ██████████ 100% | ✅ Implementiert |
-| PWA (Homescreen install) | ██████████ 100% | ✅ Implementiert (Phase 2) |
-| Android App | ░░░░░░░░░░ 0% | Nicht implementiert |
-
----
-
-### Gesamtfortschritt: ~70%
-
-```
-Import/Extraktion     █████████░░░░░░░░░░░░ 75%
-Rezeptanzeige         ████████████████████ 100%
-Einkauf & Planung     ████████████████████ 100%
-Community & Sozial    ████████████░░░░░░░░░ 70%
-Export & Druck        ████████████████████ 100%
-```
+| Phase | Feature | Status |
+|-------|---------|--------|
+| 1–14 | Core, Cook Mode, Foto, PDF, Planner, Cookidoo, etc. | ✅ |
+| 15 | React Native / Expo Web Migration | ✅ |
+| SB-1 | Mobile: expo-sqlite entfernt → Server-API | ✅ |
+| SB-2 | Server: SQLite → Supabase PostgreSQL | ✅ |
+| — | Multi-User Login (Supabase Auth) | 🔜 |
+| — | Rezept-Sharing via Link | 🔜 |
