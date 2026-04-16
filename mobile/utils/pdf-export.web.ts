@@ -2,7 +2,6 @@
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import type { Recipe } from '@/db/schema'
-import { encodeRecipeToCompactJSON } from './recipe-qr'
 import { getServerUrl } from '@/utils/server-url'
 
 function parseJSON<T>(json: string | null, fallback: T): T {
@@ -161,27 +160,17 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     }
   }
 
-  // QR Code
-  const qrData = encodeRecipeToCompactJSON({
-    name: recipe.name,
-    emoji: recipe.emoji ?? '',
-    ingredients,
-    steps,
-    rating: recipe.rating ?? undefined,
-    servings: recipe.servings ?? undefined,
-    duration: recipe.duration ?? undefined,
-    tags,
-    source_url: recipe.source_url ?? undefined,
-  })
-  if (qrData) {
+  // QR Code — enkodiert direkte Navigations-URL zum Rezept
+  if (recipe.id) {
     try {
       y += 8
       if (y > pageHeight - 45) { doc.addPage(); y = margin }
-      const qrDataUrl = await QRCode.toDataURL(qrData, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+      const qrValue = `${serverUrl}/recipe/${recipe.id}`
+      const qrDataUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
       doc.addImage(qrDataUrl, 'PNG', margin, y, 28, 28)
       doc.setFontSize(8)
       doc.setTextColor(120, 120, 120)
-      doc.text('QR-Code scannen -> Rezept in RecipeDeck importieren', margin + 31, y + 14)
+      doc.text('QR-Code scannen -> Rezept in RecipeDeck öffnen', margin + 31, y + 14)
     } catch { /* ignore */ }
   }
 
@@ -199,6 +188,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
 
 export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
   if (recipes.length === 0) return
+  const serverUrl = await getServerUrl()
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -267,20 +257,15 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
     doc.setTextColor(209, 213, 219)
     doc.text('RecipeDeck', x + cardW / 2, y + cardH - 1, { align: 'center' })
 
-    // QR Code
-    try {
-      const qrData = encodeRecipeToCompactJSON({
-        name: recipe.name, emoji: recipe.emoji ?? '',
-        ingredients: parseJSON<string[]>(recipe.ingredients, []),
-        steps: parseJSON<string[]>(recipe.steps, []),
-        tags,
-      })
-      if (qrData) {
-        const qrUrl = await QRCode.toDataURL(qrData, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+    // QR Code — direkte Navigations-URL
+    if (recipe.id) {
+      try {
+        const qrValue = `${serverUrl}/recipe/${recipe.id}`
+        const qrUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
         const qrSize = 18
         doc.addImage(qrUrl, 'PNG', x + cardW - pad - qrSize, y + cardH - pad - qrSize, qrSize, qrSize)
-      }
-    } catch { /* ignore */ }
+      } catch { /* ignore */ }
+    }
 
     idx++
   }

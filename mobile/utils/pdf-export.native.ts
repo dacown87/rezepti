@@ -5,7 +5,7 @@ import { StorageAccessFramework, EncodingType, readAsStringAsync, writeAsStringA
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform, Alert } from 'react-native'
 import type { Recipe } from '@/db/schema'
-import { encodeRecipeToCompactJSON } from './recipe-qr'
+import { getServerUrl } from '@/utils/server-url'
 
 const DOWNLOADS_URI_KEY = 'pdf_downloads_dir_uri'
 
@@ -66,23 +66,22 @@ function parseJSON<T>(json: string | null, fallback: T): T {
   try { return JSON.parse(json) as T } catch { return fallback }
 }
 
-function buildHTMLTemplate(recipe: Recipe): string {
+async function buildHTMLTemplate(recipe: Recipe, serverUrl: string): Promise<string> {
   const ingredients = parseJSON<string[]>(recipe.ingredients, [])
   const steps = parseJSON<string[]>(recipe.steps, [])
   const tags = parseJSON<string[]>(recipe.tags, [])
   const emoji = recipe.emoji ?? '🍽️'
 
-  const qrData = encodeRecipeToCompactJSON({
-    name: recipe.name,
-    emoji: recipe.emoji ?? '',
-    ingredients,
-    steps,
-    rating: recipe.rating ?? undefined,
-    servings: recipe.servings ?? undefined,
-    duration: recipe.duration ?? undefined,
-    tags,
-    source_url: recipe.source_url ?? undefined,
-  })
+  // QR-Code enkodiert direkte Navigations-URL
+  let qrImgTag = ''
+  if (recipe.id) {
+    try {
+      const QRCode = await import('qrcode')
+      const qrValue = `${serverUrl}/recipe/${recipe.id}`
+      const dataUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+      qrImgTag = `<div class="qr-block"><img src="${dataUrl}" class="qr-img" /><p class="qr-label">In RecipeDeck öffnen</p></div>`
+    } catch { /* ignore */ }
+  }
 
   const metaParts: string[] = []
   if (recipe.servings) metaParts.push(`${recipe.servings} Portionen`)
@@ -109,11 +108,6 @@ function buildHTMLTemplate(recipe: Recipe): string {
     ? `<p class="source">Quelle: ${escapeHtml(recipe.source_url)}</p>`
     : ''
 
-  // QR placeholder — expo-print kann kein dynamisches QR rendern ohne externe URL
-  // Wir zeigen stattdessen den Compact-JSON-Code als Text-Hinweis
-  const qrNote = qrData
-    ? `<div class="qr-note">RecipeDeck QR-Import: Dieses Rezept kann mit der RecipeDeck-App gescannt werden.</div>`
-    : ''
 
   return `<!DOCTYPE html>
 <html lang="de">
@@ -139,7 +133,9 @@ function buildHTMLTemplate(recipe: Recipe): string {
   .step-num { background: #9333ea; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
   .notes { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 4px; }
   .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; text-align: center; }
-  .qr-note { margin-top: 16px; font-size: 10px; color: #9ca3af; font-style: italic; }
+  .qr-block { margin-top: 24px; display: flex; align-items: center; gap: 12px; }
+  .qr-img { width: 60px; height: 60px; flex-shrink: 0; }
+  .qr-label { font-size: 10px; color: #9ca3af; }
   hr { border: none; border-top: 1px solid #f3f4f6; margin: 20px 0; }
 </style>
 </head>
@@ -163,7 +159,7 @@ function buildHTMLTemplate(recipe: Recipe): string {
 
   ${notesHTML}
 
-  ${qrNote}
+  ${qrImgTag}
 
   <div class="footer">Rezept von RecipeDeck</div>
 </body>
@@ -183,7 +179,8 @@ function escapeHtml(str: string): string {
  * Wirft bei Fehler — Aufrufer muss catch.
  */
 export async function shareRecipePDF(recipe: Recipe): Promise<void> {
-  const html = buildHTMLTemplate(recipe)
+  const serverUrl = await getServerUrl()
+  const html = await buildHTMLTemplate(recipe, serverUrl)
 
   const { uri } = await Print.printToFileAsync({ html, base64: false })
   const filename = `${recipe.name.replace(/[^a-z0-9äöüÄÖÜ]/gi, '_').replace(/_+/g, '_')}.pdf`
@@ -194,7 +191,8 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
  * Öffnet direkt den System-Druckdialog (Print.printAsync).
  */
 export async function printRecipe(recipe: Recipe): Promise<void> {
-  const html = buildHTMLTemplate(recipe)
+  const serverUrl = await getServerUrl()
+  const html = await buildHTMLTemplate(recipe, serverUrl)
   await Print.printAsync({ html })
 }
 
@@ -211,23 +209,18 @@ export const downloadPDF = (_blob: unknown, _filename: string) => {
 export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
   if (recipes.length === 0) return
 
-  // QR-Codes vorab generieren
+  const serverUrl = await getServerUrl()
+
+  // QR-Codes vorab generieren — enkodieren direkte Navigations-URL
   const QRCode = await import('qrcode')
   const qrMap = new Map<number, string>()
   for (const recipe of recipes) {
     if (recipe.id == null) continue
-    const qrData = encodeRecipeToCompactJSON({
-      name: recipe.name, emoji: recipe.emoji ?? '',
-      ingredients: parseJSON<string[]>(recipe.ingredients, []),
-      steps: parseJSON<string[]>(recipe.steps, []),
-      tags: parseJSON<string[]>(recipe.tags, []),
-    })
-    if (qrData) {
-      try {
-        const dataUrl = await QRCode.toDataURL(qrData, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
-        qrMap.set(recipe.id, dataUrl)
-      } catch { /* ignore */ }
-    }
+    try {
+      const qrValue = `${serverUrl}/recipe/${recipe.id}`
+      const dataUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+      qrMap.set(recipe.id, dataUrl)
+    } catch { /* ignore */ }
   }
 
   const cardsPerPage = 8

@@ -17,6 +17,16 @@ export default function ScannerScreen() {
   async function handleScan(value: string) {
     setShowCamera(false)
 
+    // Direktlink aus PDF/Karte: "<serverUrl>/recipe/<id>"
+    const serverUrl = await getServerUrl()
+    const recipeUrlPattern = /\/recipe\/(\d+)$/
+    const urlMatch = value.match(recipeUrlPattern)
+    if (urlMatch) {
+      router.push(`/recipe/${urlMatch[1]}`)
+      return
+    }
+
+    // Legacy: kompaktes Rezept-JSON (für QR-Codes die mit älteren Versionen erstellt wurden)
     if (!isRecipeJSONQR(value)) {
       Alert.alert('Kein Rezept-QR', 'Dieser QR-Code enthält kein RecipeDeck-Rezept.')
       return
@@ -28,9 +38,8 @@ export default function ScannerScreen() {
       return
     }
 
-    // Check if recipe already exists → navigate to it
+    // Prüfen ob Rezept schon vorhanden → direkt navigieren
     try {
-      const serverUrl = await getServerUrl()
       const res = await fetch(`${serverUrl}/api/v1/recipes`)
       if (res.ok) {
         const data = await res.json()
