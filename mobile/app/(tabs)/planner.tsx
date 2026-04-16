@@ -332,8 +332,9 @@ export default function PlannerScreen() {
 
   const loadData = useCallback(async () => {
     const serverUrl = await getServerUrl();
-    const res = await fetch(`${serverUrl}/api/v1/planner?weekStart=${weekStart}`);
-    const entries: MealPlanEntry[] = res.ok ? await res.json() : [];
+    const res = await fetch(`${serverUrl}/api/v1/planner?week=${weekStart}`);
+    const body = res.ok ? await res.json() : {};
+    const entries: MealPlanEntry[] = Array.isArray(body) ? body : (body.entries ?? []);
     setMealPlan(entries);
 
     const usedIds = [...new Set(entries.map(e => e.recipe_id))];
@@ -388,7 +389,25 @@ export default function PlannerScreen() {
   const handleQRScanned = async (value: string) => {
     const targetDay = qrDay;
     setQrDay(null);
+    const serverUrl = await getServerUrl();
 
+    // Neues Format: direkter Rezept-Link "<serverUrl>/recipe/<id>"
+    const urlMatch = value.match(/\/recipe\/(\d+)$/);
+    if (urlMatch) {
+      const recipeId = parseInt(urlMatch[1], 10);
+      if (targetDay !== null) {
+        await fetch(`${serverUrl}/api/v1/planner`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
+        });
+        await loadData();
+        Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
+      }
+      return;
+    }
+
+    // Legacy: kompaktes JSON-Format (ältere PDFs)
     if (!isRecipeJSONQR(value)) {
       Alert.alert('Kein Rezept-QR', 'Dieser QR-Code enthält kein RecipeDeck-Rezept.');
       return;
@@ -400,8 +419,6 @@ export default function PlannerScreen() {
     }
     const data = parseCompactRecipeToFull(decoded);
 
-    // Rezept über Server-API importieren und zum Planer hinzufügen
-    const serverUrl = await getServerUrl();
     const recipeRes = await fetch(`${serverUrl}/api/v1/recipes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -509,7 +526,6 @@ export default function PlannerScreen() {
       ) : (
         <ScrollView
           horizontal
-          showsHorizontalScrollIndicator={false}
           showsHorizontalScrollIndicator={Platform.OS === 'web'}
           contentContainerStyle={{ padding: 16, paddingTop: 8, ...(Platform.OS === 'web' ? { minWidth: '100%' } : { flexGrow: 1 }) }}
         >
