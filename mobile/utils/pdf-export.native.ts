@@ -224,7 +224,7 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
     })
     if (qrData) {
       try {
-        const dataUrl = await QRCode.toDataURL(qrData, { width: 80, margin: 1 })
+        const dataUrl = await QRCode.toDataURL(qrData, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
         qrMap.set(recipe.id, dataUrl)
       } catch { /* ignore */ }
     }

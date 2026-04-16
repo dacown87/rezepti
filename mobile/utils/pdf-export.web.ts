@@ -177,7 +177,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     try {
       y += 8
       if (y > pageHeight - 45) { doc.addPage(); y = margin }
-      const qrDataUrl = await QRCode.toDataURL(qrData, { width: 80, margin: 1 })
+      const qrDataUrl = await QRCode.toDataURL(qrData, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
       doc.addImage(qrDataUrl, 'PNG', margin, y, 28, 28)
       doc.setFontSize(8)
       doc.setTextColor(120, 120, 120)
@@ -276,8 +276,8 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
         tags,
       })
       if (qrData) {
-        const qrUrl = await QRCode.toDataURL(qrData, { width: 60, margin: 1 })
-        const qrSize = 14
+        const qrUrl = await QRCode.toDataURL(qrData, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+        const qrSize = 18
         doc.addImage(qrUrl, 'PNG', x + cardW - pad - qrSize, y + cardH - pad - qrSize, qrSize, qrSize)
       }
     } catch { /* ignore */ }
