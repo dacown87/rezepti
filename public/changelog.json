@@ -1,6 +1,11 @@
 {
-  "version": "1.0.86",
+  "version": "1.0.87",
   "entries": [
+    {
+      "version": "1.0.87",
+      "date": "2026-04-16",
+      "changes": []
+    },
     {
       "version": "1.0.86",
       "date": "2026-04-16",
