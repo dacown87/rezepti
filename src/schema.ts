@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const recipes = pgTable("recipes", {
   id:          serial("id").primaryKey(),
@@ -21,6 +21,7 @@ export const recipes = pgTable("recipes", {
   notes:       text("notes"),       // personal notes
   pdf_created: boolean("pdf_created").default(false),
   created_at:  timestamp("created_at").defaultNow(),
+  user_id:     uuid("user_id"),     // null = global/unauthenticated; set when multi-user auth is active
 });
 
 export const ingredientDictionary = pgTable("ingredient_dictionary", {
@@ -37,6 +38,7 @@ export const shoppingList = pgTable("shopping_list", {
   unit: text("unit"), // e.g. "g", "ml", "Stück"
   checked: boolean("checked").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  userId: uuid("user_id"),
 });
 
 export const mealPlan = pgTable("meal_plan", {
@@ -45,6 +47,7 @@ export const mealPlan = pgTable("meal_plan", {
   dayOfWeek: integer("day_of_week").notNull(), // 0=Montag, 6=Sonntag
   weekStart: integer("week_start").notNull(), // ISO-Wochenstart (Montag) als Unix-Timestamp
   createdAt: timestamp("created_at").defaultNow(),
+  userId: uuid("user_id"),
 });
 
 export const apiKeys = pgTable("api_keys", {
@@ -52,6 +55,7 @@ export const apiKeys = pgTable("api_keys", {
   keyHash: text("key_hash").notNull().unique(),
   model: text("model"),
   createdAt: timestamp("created_at").defaultNow(),
+  userId: uuid("user_id"),
 });
 
 export type Recipe = typeof recipes.$inferSelect;

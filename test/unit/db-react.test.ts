@@ -1,184 +1,198 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { RecipeData } from '../../src/types.js'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { detectCategory, CATEGORY_KEYWORDS } from '../../src/db-react.js'
 
-vi.mock('better-sqlite3', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      exec: vi.fn(),
-      prepare: vi.fn().mockReturnValue({
-        run: vi.fn().mockReturnValue({ changes: 1 }),
-        get: vi.fn(),
-        all: vi.fn().mockReturnValue([]),
-      }),
-      pragma: vi.fn(),
-      close: vi.fn(),
-    })),
-  }
+// ─── detectCategory (pure function — always run) ──────────────────────────────
+
+describe('detectCategory', () => {
+  it('detects Nudelgericht from tags', () => {
+    expect(detectCategory(['pasta', 'vegan'], 'Spaghetti Aglio')).toBe('Nudelgericht')
+  })
+
+  it('detects Nudelgericht from name', () => {
+    expect(detectCategory([], 'Penne all\'Arrabbiata')).toBe('Nudelgericht')
+  })
+
+  it('detects Suppe from name', () => {
+    expect(detectCategory([], 'Tomatensuppe mit Croutons')).toBe('Suppe')
+  })
+
+  it('detects Salat from tags', () => {
+    expect(detectCategory(['salat', 'frisch'], 'Gemischter Teller')).toBe('Salat')
+  })
+
+  it('detects Gebäck & Kuchen from name', () => {
+    expect(detectCategory([], 'Schokoladenkuchen mit Glasur')).toBe('Gebäck & Kuchen')
+  })
+
+  it('detects Fleischgericht from name', () => {
+    expect(detectCategory([], 'Wiener Schnitzel mit Kartoffelsalat')).toBe('Fleischgericht')
+  })
+
+  it('detects Geflügel from name', () => {
+    expect(detectCategory([], 'Hähnchenbrust mit Gemüse')).toBe('Geflügel')
+  })
+
+  it('detects Fischgericht from tags', () => {
+    expect(detectCategory(['fisch', 'mediterran'], 'Gegrillter Teller')).toBe('Fischgericht')
+  })
+
+  it('detects Vegetarisch from tags', () => {
+    expect(detectCategory(['vegan', 'glutenfrei'], 'Gemüse-Bowl')).toBe('Vegetarisch')
+  })
+
+  it('detects Asiatisch from name', () => {
+    expect(detectCategory([], 'Thai Curry mit Kokosmilch')).toBe('Asiatisch')
+  })
+
+  it('detects Frühstück from name', () => {
+    expect(detectCategory([], 'Amerikanische Pancakes')).toBe('Frühstück')
+  })
+
+  it('detects Auflauf from name', () => {
+    expect(detectCategory([], 'Kartoffelgratin aus dem Ofen')).toBe('Auflauf')
+  })
+
+  it('detects Snack from tags', () => {
+    expect(detectCategory(['vorspeise', 'schnell'], 'Käseplatte')).toBe('Snack')
+  })
+
+  it('returns null for unknown category', () => {
+    expect(detectCategory([], 'Etwas Unbekanntes')).toBeNull()
+  })
+
+  it('returns null for empty name and tags', () => {
+    expect(detectCategory([], '')).toBeNull()
+  })
+
+  it('is case-insensitive', () => {
+    expect(detectCategory(['PASTA'], 'LASAGNE')).toBe('Auflauf')
+  })
 })
 
-vi.mock('../../src/config.js', () => ({
-  config: {
-    sqlite: {
-      reactPath: ':memory:',
-    },
-  },
-}))
-
-vi.mock('../../src/schema.js', () => ({
-  recipes: {
-    id: { primaryKey: true, autoIncrement: true },
-    name: { notNull: true },
-    emoji: { notNull: false },
-    source_url: { notNull: false },
-    image_url: { notNull: false },
-    servings: { notNull: false },
-    duration: { notNull: false },
-    calories: { notNull: false },
-    tags: { notNull: false },
-    ingredients: { notNull: true },
-    steps: { notNull: true },
-    transcript: { notNull: false },
-    tried: { notNull: false },
-    created_at: { notNull: false },
-  },
-}))
-
-describe('db-react', () => {
-  describe('RecipeData type', () => {
-    it('should have all required fields', () => {
-      const recipe: RecipeData = {
-        name: 'Test Recipe',
-        duration: 'mittel',
-        tags: ['Italian', 'Pasta'],
-        emoji: '🍝',
-        ingredients: ['pasta', 'tomato sauce', 'cheese'],
-        steps: ['Cook pasta', 'Add sauce', 'Top with cheese'],
-      }
-
-      expect(recipe.name).toBe('Test Recipe')
-      expect(recipe.duration).toBe('mittel')
-      expect(recipe.tags).toEqual(['Italian', 'Pasta'])
-      expect(recipe.emoji).toBe('🍝')
-      expect(recipe.ingredients).toHaveLength(3)
-      expect(recipe.steps).toHaveLength(3)
-    })
-
-    it('should support optional fields', () => {
-      const recipe: RecipeData = {
-        name: 'Full Recipe',
-        duration: 'lang',
-        tags: ['Vegan', 'Healthy'],
-        emoji: '🥗',
-        imageUrl: 'https://example.com/image.jpg',
-        calories: 350,
-        servings: '4 Portionen',
-        ingredients: ['tofu', 'vegetables'],
-        steps: ['Prepare tofu', 'Add vegetables'],
-      }
-
-      expect(recipe.imageUrl).toBe('https://example.com/image.jpg')
-      expect(recipe.calories).toBe(350)
-      expect(recipe.servings).toBe('4 Portionen')
-    })
+describe('CATEGORY_KEYWORDS completeness', () => {
+  it('has at least 10 categories defined', () => {
+    expect(CATEGORY_KEYWORDS.length).toBeGreaterThanOrEqual(10)
   })
 
-  describe('JSON serialization', () => {
-    it('should serialize recipe fields to JSON', () => {
-      const recipe: RecipeData = {
-        name: 'Test',
+  it('every category has a non-empty keyword list', () => {
+    for (const { category, keywords } of CATEGORY_KEYWORDS) {
+      expect(keywords.length, `${category} has no keywords`).toBeGreaterThan(0)
+    }
+  })
+
+  it('every keyword is lowercase (consistent matching)', () => {
+    for (const { category, keywords } of CATEGORY_KEYWORDS) {
+      for (const kw of keywords) {
+        expect(kw, `${category}: keyword "${kw}" is not lowercase`).toBe(kw.toLowerCase())
+      }
+    }
+  })
+})
+
+// ─── DB integration tests (requires TEST_DATABASE_URL) ────────────────────────
+//
+// These tests run against a real Postgres database.
+// To run locally:  TEST_DATABASE_URL=postgresql://... npm test
+// In CI:           set via services.postgres in ci.yml
+
+const hasTestDb = !!process.env.TEST_DATABASE_URL
+
+describe.skipIf(!hasTestDb)('DB integration', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let db: any
+
+  beforeAll(async () => {
+    // Point to test database before the lazy singleton initialises
+    process.env.DATABASE_URL = process.env.TEST_DATABASE_URL
+
+    // Dynamic import AFTER env var is set, so the singleton connects to the test DB
+    const {
+      saveRecipeToReactDb,
+      getRecipeByIdFromReactDb,
+      updateRecipeInReactDb,
+      deleteRecipeFromReactDb,
+      getAllRecipesFromReactDb,
+    } = await import('../../src/db-react.js')
+
+    db = { saveRecipeToReactDb, getRecipeByIdFromReactDb, updateRecipeInReactDb, deleteRecipeFromReactDb, getAllRecipesFromReactDb }
+  })
+
+  afterAll(async () => {
+    // Restore original env
+    if (process.env.ORIGINAL_DATABASE_URL) {
+      process.env.DATABASE_URL = process.env.ORIGINAL_DATABASE_URL
+    }
+  })
+
+  it('saves and retrieves a recipe', async () => {
+    const id = await db.saveRecipeToReactDb(
+      {
+        name: '__test__ DB Integration',
         duration: 'kurz',
-        tags: ['tag1', 'tag2'],
-        emoji: '🍕',
-        ingredients: ['item1', 'item2'],
-        steps: ['step1', 'step2'],
-      }
-
-      const tagsJson = JSON.stringify(recipe.tags)
-      const ingredientsJson = JSON.stringify(recipe.ingredients)
-      const stepsJson = JSON.stringify(recipe.steps)
-
-      expect(tagsJson).toBe('["tag1","tag2"]')
-      expect(ingredientsJson).toBe('["item1","item2"]')
-      expect(stepsJson).toBe('["step1","step2"]')
-    })
-
-    it('should deserialize JSON fields from database', () => {
-      const tagsJson = '["vegan","healthy"]'
-      const ingredientsJson = '["tofu","spinach"]'
-      const stepsJson = '["blend","serve"]'
-
-      const tags = JSON.parse(tagsJson)
-      const ingredients = JSON.parse(ingredientsJson)
-      const steps = JSON.parse(stepsJson)
-
-      expect(tags).toEqual(['vegan', 'healthy'])
-      expect(ingredients).toEqual(['tofu', 'spinach'])
-      expect(steps).toEqual(['blend', 'serve'])
-    })
-
-    it('should handle empty arrays in JSON', () => {
-      const tags = JSON.parse('[]')
-      const ingredients = JSON.parse('[]')
-      const steps = JSON.parse('[]')
-
-      expect(tags).toEqual([])
-      expect(ingredients).toEqual([])
-      expect(steps).toEqual([])
-    })
-  })
-
-  describe('Database schema mapping', () => {
-    it('should map RecipeData to database schema fields', () => {
-      const recipe: RecipeData = {
-        name: 'Database Recipe',
-        duration: 'mittel',
         tags: ['test'],
-        emoji: '🍕',
-        imageUrl: 'https://example.com/img.jpg',
-        servings: '2',
-        calories: 500,
-        ingredients: ['ingredient1'],
-        steps: ['step1'],
-      }
+        emoji: '🧪',
+        ingredients: ['100g Salz'],
+        steps: ['Salz hinzufügen.'],
+      },
+      'https://example.com/test'
+    )
+    expect(id).toBeGreaterThan(0)
 
-      const dbRecord = {
-        name: recipe.name,
-        emoji: recipe.emoji,
-        source_url: 'https://example.com',
-        image_url: recipe.imageUrl,
-        servings: recipe.servings,
-        duration: recipe.duration,
-        calories: recipe.calories,
-        tags: JSON.stringify(recipe.tags),
-        ingredients: JSON.stringify(recipe.ingredients),
-        steps: JSON.stringify(recipe.steps),
-        transcript: null,
-        tried: false,
-        created_at: Date.now(),
-      }
+    const recipe = await db.getRecipeByIdFromReactDb(id)
+    expect(recipe).not.toBeNull()
+    expect(recipe!.name).toBe('__test__ DB Integration')
+    expect(recipe!.ingredients).toEqual(['100g Salz'])
+    expect(recipe!.tags).toEqual(['test'])
 
-      expect(dbRecord.name).toBe('Database Recipe')
-      expect(dbRecord.image_url).toBe('https://example.com/img.jpg')
-      expect(dbRecord.calories).toBe(500)
-      expect(JSON.parse(dbRecord.tags)).toEqual(['test'])
-    })
+    // cleanup
+    await db.deleteRecipeFromReactDb(id)
   })
 
-  describe('Duration enum values', () => {
-    it('should accept valid duration values', () => {
-      const validDurations = ['kurz', 'mittel', 'lang'] as const
+  it('updates a recipe field', async () => {
+    const id = await db.saveRecipeToReactDb(
+      {
+        name: '__test__ Update',
+        duration: 'mittel',
+        tags: [],
+        emoji: '🧪',
+        ingredients: ['Mehl'],
+        steps: ['Backen.'],
+      },
+      'https://example.com/update-test'
+    )
 
-      validDurations.forEach(d => {
-        const recipe: RecipeData = {
-          name: 'Test',
-          duration: d,
-          tags: [],
-          emoji: '🍕',
-          ingredients: [],
-          steps: [],
-        }
-        expect(recipe.duration).toBe(d)
-      })
-    })
+    const updated = await db.updateRecipeInReactDb(id, { name: '__test__ Updated Name' })
+    expect(updated).toBe(true)
+
+    const recipe = await db.getRecipeByIdFromReactDb(id)
+    expect(recipe!.name).toBe('__test__ Updated Name')
+
+    // cleanup
+    await db.deleteRecipeFromReactDb(id)
+  })
+
+  it('deletes a recipe', async () => {
+    const id = await db.saveRecipeToReactDb(
+      {
+        name: '__test__ Delete',
+        duration: 'lang',
+        tags: [],
+        emoji: '🧪',
+        ingredients: ['Wasser'],
+        steps: ['Kochen.'],
+      },
+      'https://example.com/delete-test'
+    )
+
+    const deleted = await db.deleteRecipeFromReactDb(id)
+    expect(deleted).toBe(true)
+
+    const recipe = await db.getRecipeByIdFromReactDb(id)
+    expect(recipe).toBeNull()
+  })
+
+  it('returns false when deleting non-existent recipe', async () => {
+    const deleted = await db.deleteRecipeFromReactDb(999999999)
+    expect(deleted).toBe(false)
   })
 })

@@ -42,11 +42,11 @@ function findRecipeInJsonLd(data: unknown): SchemaOrgRecipe | null {
   return null;
 }
 
-function parseGermanPortions(yieldText: string | undefined): string | undefined {
+export function parseGermanPortions(yieldText: string | undefined): string | undefined {
   if (!yieldText) return undefined;
 
   // "für 4 Personen", "für 4 Personen (ca. 40 Stück)"
-  const personMatch = yieldText.match(/für\s*(\d+)\s*Personen?/i);
+  const personMatch = yieldText.match(/für\s*(\d+)\s*Persone?n?/i);
   if (personMatch) return personMatch[1];
 
   // "ca. 6 Stück", "etwa 8 Stück"
@@ -140,7 +140,7 @@ function extractChefkochSteps($: cheerio.CheerioAPI): string[] {
   return steps;
 }
 
-function resolveSchemaImage(image: string | string[] | { url?: string } | { url?: string }[] | undefined): string | undefined {
+export function resolveSchemaImage(image: string | string[] | { url?: string } | { url?: string }[] | undefined): string | undefined {
   if (!image) return undefined;
   if (typeof image === "string") return image;
   if (Array.isArray(image)) {

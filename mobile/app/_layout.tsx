@@ -4,9 +4,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useThemeInit } from '@/utils/use-theme';
+import { queryClient, asyncStoragePersister } from '@/utils/query-client';
 import '../global.css';
 
 export { ErrorBoundary } from 'expo-router';
@@ -30,7 +32,14 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: asyncStoragePersister }}
+    >
+      <RootLayoutNav />
+    </PersistQueryClientProvider>
+  );
 }
 
 function RootLayoutNav() {

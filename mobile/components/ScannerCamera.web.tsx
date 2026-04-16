@@ -32,25 +32,41 @@ export default function ScannerCamera({ onScan, onClose }: ScannerCameraProps) {
 
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        })
-
-        // Request continuous autofocus where supported (Android Chrome, some desktop cams)
-        const track = stream.getVideoTracks()[0]
-        if (track) {
-          const caps = track.getCapabilities?.() as Record<string, unknown> | undefined
-          if (caps?.focusMode) {
-            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {})
-          }
+        // Request continuous autofocus directly in getUserMedia where supported.
+        // Chrome Android accepts focusMode as a video constraint; browsers that
+        // don't support it simply ignore the unknown key.
+        const videoConstraints: MediaTrackConstraints & { focusMode?: string } = {
+          facingMode: { ideal: 'environment' },
+          focusMode: 'continuous',
         }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints })
 
         streamRef.current = stream
         if (!mounted) { stream.getTracks().forEach(t => t.stop()); return }
 
         if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play()
+          const video = videoRef.current
+          video.srcObject = stream
+
+          // Apply autofocus AFTER the video starts playing — capabilities may not be
+          // populated before the track is fully active on some Android devices
+          video.onloadeddata = async () => {
+            if (!mounted) return
+            const track = stream.getVideoTracks()[0]
+            if (!track) return
+
+            // Try as a direct constraint (not in `advanced`, which browsers may silently ignore)
+            await (track.applyConstraints as (c: object) => Promise<void>)(
+              { focusMode: 'continuous' }
+            ).catch(() => {
+              // Fallback: try via advanced array
+              track.applyConstraints({
+                advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+              }).catch(() => {})
+            })
+          }
+
+          video.play()
         }
 
         if (BARCODE_DETECTOR_AVAILABLE) {

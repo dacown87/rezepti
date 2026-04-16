@@ -86,7 +86,7 @@ export async function fetchYouTube(
 /**
  * Clean VTT subtitle content to plain text.
  */
-function cleanVTT(vtt: string): string {
+export function cleanVTT(vtt: string): string {
   return vtt
     .split("\n")
     .filter((line) => {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, FlatList, TextInput, Pressable,
   ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share,
@@ -15,6 +15,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Recipe } from '@/db/schema';
 import { shareRecipePDF, shareRecipeCardsPDF } from '@/utils/pdf-export';
 import { getServerUrl } from '@/utils/server-url';
+import type { ApiRecipe } from '@/utils/api';
+import { useRecipes } from '@/hooks/useRecipes';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 const VIEW_MODE_KEY = 'recipedeck_view_mode';
 
@@ -78,24 +81,6 @@ function buildCategories(recipeList: Recipe[]): CategoryInfo[] {
     if (count > 0) result.push({ name: cat.name, icon: cat.icon, count });
   }
   return [{ name: 'Alle Rezepte', icon: '📖', count: recipeList.length }, ...result];
-}
-
-interface ApiRecipe {
-  id: number;
-  name: string;
-  emoji?: string;
-  source_url?: string;
-  image_url?: string;
-  ingredients: string;
-  steps: string;
-  tags?: string | string[];
-  category?: string;
-  servings?: string;
-  duration?: string;
-  calories?: number;
-  rating?: number;
-  notes?: string;
-  created_at?: number;
 }
 
 function apiToRecipe(r: ApiRecipe): Recipe {
@@ -247,12 +232,7 @@ function CategoryCard({ info, onPress }: { info: CategoryInfo; onPress: () => vo
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function RecipeListScreen() {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [filtered, setFiltered] = useState<Recipe[]>([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'categories'>('categories');
   const ingredientSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
@@ -263,33 +243,31 @@ export default function RecipeListScreen() {
   const [ingredientResults, setIngredientResults] = useState<Recipe[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const loadRecipes = useCallback(async () => {
-    try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/recipes`);
-      if (!res.ok) throw new Error(`Server-Fehler ${res.status}`);
-      const data = await res.json();
-      const list: ApiRecipe[] = Array.isArray(data) ? data : (data.recipes ?? []);
-      const rows = list.map(apiToRecipe);
-      setRecipes(rows);
-      setFiltered(rows);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // React Query: stale-while-revalidate, persisted to AsyncStorage
+  const { data: apiRecipes, isLoading: loading, isError, refetch } = useRecipes();
+  const recipes = useMemo(() => (apiRecipes ?? []).map(apiToRecipe), [apiRecipes]);
+  const [filtered, setFiltered] = useState<Recipe[]>([]);
 
-  // Reload when tab focused (picks up newly added recipes)
+  // Sync filtered list when recipes or search changes
+  useEffect(() => {
+    if (!search.trim()) {
+      setFiltered(recipes);
+    } else {
+      const lower = search.toLowerCase();
+      setFiltered(recipes.filter(r =>
+        r.name.toLowerCase().includes(lower) ||
+        (r.tags ?? '').toLowerCase().includes(lower)
+      ));
+    }
+  }, [recipes, search]);
+
+  // Refetch + load view mode when tab is focused
   useFocusEffect(useCallback(() => {
-    setLoading(true);
-    loadRecipes();
-    // Load persisted view mode
+    refetch();
     AsyncStorage.getItem(VIEW_MODE_KEY).then(v => {
       if (v === 'grid' || v === 'list' || v === 'categories') setViewMode(v);
     });
-  }, [loadRecipes]));
+  }, [refetch]));
 
   const toggleViewMode = async () => {
     const next = viewMode === 'list' ? 'grid' : viewMode === 'grid' ? 'categories' : 'list';
@@ -300,12 +278,6 @@ export default function RecipeListScreen() {
   const handleSearch = (q: string) => {
     setSearch(q);
     if (q.trim()) setSelectedCategory(null);
-    if (!q.trim()) { setFiltered(recipes); return; }
-    const lower = q.toLowerCase();
-    setFiltered(recipes.filter(r =>
-      r.name.toLowerCase().includes(lower) ||
-      (r.tags ?? '').toLowerCase().includes(lower)
-    ));
   };
 
   const openCardModal = () => {
@@ -349,11 +321,12 @@ export default function RecipeListScreen() {
     }
   };
 
+  const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadRecipes();
+    await refetch();
     setRefreshing(false);
-  }, [loadRecipes]);
+  }, [refetch]);
 
   const allCategories = useMemo(() => buildCategories(recipes), [recipes]);
   const categoryFiltered = useMemo(() => {
@@ -370,6 +343,7 @@ export default function RecipeListScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
+      <OfflineBanner isError={isError} />
       {/* Header */}
       <View className="px-4 pt-4 pb-2">
         <View className="flex-row items-center justify-between mb-4">
@@ -457,14 +431,14 @@ export default function RecipeListScreen() {
       )}
 
       {/* Content */}
-      {loading ? (
+      {loading && !apiRecipes ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#C84B31" />
         </View>
-      ) : error ? (
+      ) : isError && recipes.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-red-500 text-center">{error}</Text>
-          <Pressable onPress={() => { setLoading(true); loadRecipes(); }} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
+          <Text className="text-red-500 text-center">Rezepte konnten nicht geladen werden</Text>
+          <Pressable onPress={() => refetch()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
             <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
           </Pressable>
         </View>
