@@ -38,8 +38,8 @@ export interface SchemaOrgRecipe {
   prepTime?: string;
   cookTime?: string;
   recipeYield?: string;
-  recipeCategory?: string[];
-  recipeCuisine?: string[];
+  recipeCategory?: string | string[];
+  recipeCuisine?: string | string[];
   nutrition?: { calories?: string };
   author?: string | { name?: string };
   tool?: (string | { name?: string })[];

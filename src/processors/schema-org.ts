@@ -175,8 +175,8 @@ export function schemaToRecipeData(
     name: schema.name,
     duration: getDurationCategory(schema),
     tags: [
-      ...(schema.recipeCategory ?? []),
-      ...(schema.recipeCuisine ?? []),
+      ...(Array.isArray(schema.recipeCategory) ? schema.recipeCategory : schema.recipeCategory ? [schema.recipeCategory] : []),
+      ...(Array.isArray(schema.recipeCuisine) ? schema.recipeCuisine : schema.recipeCuisine ? [schema.recipeCuisine] : []),
     ],
     imageUrl: getImage(schema),
     calories: parseCalories(schema),
