@@ -59,13 +59,13 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 - `src/processors/llm.ts` — Groq API via OpenAI SDK for recipe extraction and refinement
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
 - `src/processors/whisper.ts` — Audio transcription via Groq Whisper API
-- `src/db-react.ts` — SQLite connection (better-sqlite3 + Drizzle ORM), CRUD functions for React DB
+- `src/db-react.ts` — PostgreSQL connection (postgres-js + Drizzle ORM), CRUD functions for React DB
 - `src/api-react.ts` — All `/api/v1/*` endpoints (recipes, extraction jobs, BYOK, health)
 - `src/job-manager.ts` — Job persistence for polling-based extraction
 - `src/schema.ts` — Drizzle table schema for `recipes`
 - `src/types.ts` — Core types and Zod schemas (RecipeData, ContentBundle, SchemaOrgRecipe)
 
-**Database:** Single SQLite DB at `./data/rezepti-react.db`. Legacy `rezepti.db` and `db.ts`/`db-manager.ts` have been removed.
+**Database:** PostgreSQL via Supabase. Connection via `DATABASE_URL` env var (postgres-js + Drizzle ORM). Legacy SQLite (`rezepti-react.db`, `better-sqlite3`) and `db.ts`/`db-manager.ts` have been removed.
 
 **Extraction paths** (tried in order):
 1. schema.org/Recipe JSON-LD (web only, fastest)
@@ -106,7 +106,7 @@ Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no 
 
 ## Configuration
 
-Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com). SQLite DB is created automatically at `./data/rezepti-react.db`.
+Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com) and `DATABASE_URL` (PostgreSQL connection string, e.g. from Supabase).
 
 ## Git / SSH
 

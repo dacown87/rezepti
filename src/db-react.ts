@@ -38,7 +38,7 @@ function getDb() {
   if (!_db) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL environment variable is required");
-    _client = postgres(connectionString, { max: 10, ssl: 'require', prepare: false });
+    _client = postgres(connectionString, { max: 10, ssl: 'require', prepare: false, connect_timeout: 10, idle_timeout: 30 });
     _db = drizzle(_client, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } });
   }
   return _db;

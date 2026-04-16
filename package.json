@@ -8,6 +8,7 @@
     "start": "tsx src/index.ts",
     "dev:mobile": "concurrently \"npm run dev\" \"cd mobile && npx expo start --web\"",
     "build:mobile": "cd mobile && CI=1 npx expo export --platform web --output-dir ../public",
+    "postbuild:mobile": "git checkout HEAD -- public/changelog.json",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "vitest run test/e2e",
