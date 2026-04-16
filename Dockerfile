@@ -7,7 +7,7 @@ WORKDIR /app
 # Static binary is preferred over pip - no Python overhead, smaller image
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates ffmpeg \
-    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    && curl -fsSL --retry 3 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
        -o /usr/local/bin/yt-dlp \
     && chmod +x /usr/local/bin/yt-dlp \
     && rm -rf /var/lib/apt/lists/* \
