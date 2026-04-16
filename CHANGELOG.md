@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.79] – 2026-04-16
+
+- prepare:false für Supabase Transaction Pooler (pgbouncer)
+
 ## [1.0.78] – 2026-04-16
 
 - ssl:require für Supabase-Verbindung in Production

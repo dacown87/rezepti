@@ -1,6 +1,13 @@
 {
-  "version": "1.0.78",
+  "version": "1.0.79",
   "entries": [
+    {
+      "version": "1.0.79",
+      "date": "2026-04-16",
+      "changes": [
+        "prepare:false für Supabase Transaction Pooler (pgbouncer)"
+      ]
+    },
     {
       "version": "1.0.78",
       "date": "2026-04-16",
@@ -63,6 +70,6 @@
   ],
   "lastUpdated": {
     "date": "2026-04-16",
-    "time": "09:27"
+    "time": "09:45"
   }
 }
