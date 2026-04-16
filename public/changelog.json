@@ -1,6 +1,13 @@
 {
-  "version": "1.0.74",
+  "version": "1.0.75",
   "entries": [
+    {
+      "version": "1.0.75",
+      "date": "2026-04-16",
+      "changes": [
+        "Phase 2 — SQLite durch Supabase (PostgreSQL) ersetzen"
+      ]
+    },
     {
       "version": "1.0.74",
       "date": "2026-04-15",
@@ -34,7 +41,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-04-15",
-    "time": "21:33"
+    "date": "2026-04-16",
+    "time": "07:46"
   }
 }

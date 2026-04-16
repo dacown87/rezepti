@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.75] – 2026-04-16
+
+- Phase 2 — SQLite durch Supabase (PostgreSQL) ersetzen
+
 ## [1.0.74] – 2026-04-15
 
 
