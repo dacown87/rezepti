@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.78] – 2026-04-16
+
+- ssl:require für Supabase-Verbindung in Production
+
 ## [1.0.77] – 2026-04-16
 
 - yt-dlp via pip3 statt statischem Binary
