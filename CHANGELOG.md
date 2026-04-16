@@ -6,13 +6,15 @@
 
 ## [1.0.91] – 2026-04-16
 
-
+- Planer: `?weekStart=` → `?week=` + `body.entries` statt Array-Cast; TS-Fehler (doppeltes Attribut) behoben
 
 ## [1.0.90] – 2026-04-16
 
-
+- QR-Scan → direkte Rezept-Navigation (`/recipe/<id>`); Legacy-JSON-Fallback; Planer-QR-Handler aktualisiert
 
 ## [1.0.89] – 2026-04-16
+
+- QR-PDF: width 80→400px + errorCorrectionLevel L; Karten-QR 14→18mm
 
 
 

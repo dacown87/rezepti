@@ -10,8 +10,14 @@
 - **Chefkoch tags bug** — `recipeCategory`/`recipeCuisine` als `string | string[]` typisiert, vor Spread normalisiert
 - **Connection pool** — `connect_timeout: 10, idle_timeout: 30` in `src/db-react.ts`
 
-### ⚠️ Noch zu testen
-- **QR-Scanner Autofokus auf mobilem Chrome** — BarcodeDetector-Pfad + Autofokus bitte auf echtem Android-Chrome testen
+---
+
+## Bugfixes nach Phase 9 ✅ (2026-04-16)
+
+- **QR-PDF nicht scannbar** — `width: 80→400px` + `errorCorrectionLevel: L`; QR enkodiert jetzt URL (`<serverUrl>/recipe/<id>`) statt JSON → Version 2 statt 20+, trivial scannbar
+- **QR-Scan öffnet Rezept direkt** — Scanner erkennt URL-Muster `/recipe/<id>` und navigiert direkt; Legacy-JSON-Format als Fallback
+- **Planer komplett leer** — zwei Bugs: Client sendete `?weekStart=` statt `?week=`; Server-Response `{ entries }` wurde als Array geparsed → beide Fixes in `planner.tsx`
+- **Planer TS-Fehler** — doppeltes `showsHorizontalScrollIndicator` Attribut entfernt
 
 ---
 
