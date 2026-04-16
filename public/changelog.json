@@ -1,6 +1,13 @@
 {
-  "version": "1.0.75",
+  "version": "1.0.76",
   "entries": [
+    {
+      "version": "1.0.76",
+      "date": "2026-04-16",
+      "changes": [
+        "curl --fail für yt-dlp Download im Dockerfile"
+      ]
+    },
     {
       "version": "1.0.75",
       "date": "2026-04-16",
@@ -42,6 +49,6 @@
   ],
   "lastUpdated": {
     "date": "2026-04-16",
-    "time": "07:46"
+    "time": "08:08"
   }
 }
