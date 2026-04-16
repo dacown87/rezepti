@@ -3,13 +3,10 @@ FROM node:20-slim AS base
 
 WORKDIR /app
 
-# yt-dlp (static binary) + ffmpeg for video/audio processing
-# Static binary is preferred over pip - no Python overhead, smaller image
+# yt-dlp + ffmpeg
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates ffmpeg \
-    && curl -fsSL --retry 3 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
-       -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp \
+    curl ca-certificates ffmpeg python3 python3-pip \
+    && pip3 install --no-cache-dir --break-system-packages yt-dlp \
     && rm -rf /var/lib/apt/lists/* \
     && yt-dlp --version
 
