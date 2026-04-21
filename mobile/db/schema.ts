@@ -65,8 +65,9 @@ export interface Recipe {
   ingredients: string;         // JSON-Array serialized as TEXT
   steps: string;               // JSON-Array serialized as TEXT
   transcript: string | null;
-  equipment: string | null;    // JSON-Array serialized as TEXT
-  nutrition_info: string | null; // JSON: {carbs, fat, protein}
+  equipment: string | null;         // JSON-Array serialized as TEXT
+  nutrition_info: string | null;    // JSON: {carbs, fat, protein}
+  ingredient_groups: string | null; // JSON: [{heading, items}][]
   tried: number;               // 0 | 1
   rating: number | null;       // 1–5 | null
   notes: string | null;

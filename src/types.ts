@@ -22,6 +22,7 @@ export interface ContentBundle {
   audioPath?: string;
   schemaRecipe?: SchemaOrgRecipe | null;
   equipment?: string[];
+  ingredientGroups?: { heading: string; items: string[] }[];
   isCarousel?: boolean;
   carouselCount?: number;
 }
@@ -69,6 +70,13 @@ export const RecipeDataSchema = z.object({
     .array(z.string())
     .optional()
     .describe("Benötigtes Zubehör/Geräte, z.B. Varoma, Schmetterling"),
+  ingredientGroups: z
+    .array(z.object({
+      heading: z.string(),
+      items: z.array(z.string()),
+    }))
+    .optional()
+    .describe("Gruppierte Zutaten mit Überschriften (nur wenn ≥2 Gruppen vorhanden, sonst weggelassen)"),
   nutritionInfo: z.object({
     carbs: z.string().optional(),
     fat: z.string().optional(),

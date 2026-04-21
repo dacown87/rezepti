@@ -123,6 +123,10 @@ export async function processURL(
     if (bundle.equipment && bundle.equipment.length > 0 && !recipe.equipment?.length) {
       recipe = { ...recipe, equipment: bundle.equipment };
     }
+    // Inject ingredient groups from bundle (Cookidoo HTML-scraped)
+    if (bundle.ingredientGroups && bundle.ingredientGroups.length >= 2 && !recipe.ingredientGroups?.length) {
+      recipe = { ...recipe, ingredientGroups: bundle.ingredientGroups };
+    }
 
     await emit(onEvent, {
       stage: "extracting",

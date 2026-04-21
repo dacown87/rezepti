@@ -14,8 +14,9 @@ export const recipes = pgTable("recipes", {
   ingredients: text("ingredients").notNull(), // JSON-Array
   steps:       text("steps").notNull(),       // JSON-Array
   transcript:  text("transcript"),
-  equipment:      text("equipment"),             // JSON-Array (nullable)
-  nutrition_info: text("nutrition_info"),        // JSON: {carbs, fat, protein} (nullable)
+  equipment:          text("equipment"),               // JSON-Array (nullable)
+  nutrition_info:     text("nutrition_info"),          // JSON: {carbs, fat, protein} (nullable)
+  ingredient_groups:  text("ingredient_groups"),       // JSON: [{heading, items}][] (nullable)
   tried:       boolean("tried").default(false),
   rating:      integer("rating"),   // 1–5 stars, null = unrated
   notes:       text("notes"),       // personal notes

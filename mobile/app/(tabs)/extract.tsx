@@ -162,7 +162,7 @@ export default function ExtractScreen() {
           // Server-ID als Nav-Target
           if (recipeId) navRecipeIdRef.current = recipeId;
 
-          if (recipeId && (submittedModeRef.current === 'photo' || suggestions.length > 0)) {
+          if (recipeId) {
             setImageSuggestions(suggestions);
             setRecipeIdForImage(recipeId);
             setRecipeNameForImage(status.result?.recipe?.name);

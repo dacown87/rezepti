@@ -36,6 +36,39 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
+## Phase 10 — ingredientGroups + universelle Bild-Auswahl
+
+### Phase 10a — Datenmodell & Backend-Persistenz
+- `src/types.ts`: `ingredientGroups?: { heading: string; items: string[] }[]` zu `RecipeDataSchema` hinzufügen; `ContentBundle` um `ingredientGroups?` erweitern
+- `src/schema.ts`: Spalte `ingredient_groups text` (nullable) in `recipes` table
+- DB-Migration: `npx drizzle-kit generate && npx drizzle-kit push`
+- `src/db-react.ts`:
+  - `saveRecipeToReactDb`: flat `ingredients` aus Groups ableiten wenn vorhanden; `ingredient_groups` als JSON speichern
+  - `updateRecipeInReactDb`: bei `ingredientGroups`-Update → flat `ingredients` re-ableiten + `ingredient_groups` schreiben; bei reinem `ingredients`-Update → `ingredient_groups = null`
+  - Deserialisierung: `ingredient_groups` aus DB-Row parsen und als `ingredientGroups` zurückgeben
+
+### Phase 10b — LLM-Extraktion
+- `src/processors/llm.ts`:
+  - SYSTEM_PROMPT: `ingredientGroups`-Beispiel hinzufügen; Regel: Sektionen vorhanden → nur `ingredientGroups` zurückgeben; sonst nur `ingredients`
+  - Vor `RecipeDataSchema.parse(raw)`: flat `ingredients` aus `ingredientGroups` ableiten falls LLM nur Groups lieferte
+
+### Phase 10c — Cookidoo-Gruppen-Extraktion
+- `src/fetchers/cookidoo.ts`: DOM nach `rdp-ingredient-group`/`recipe-ingredient-group` + Überschriften (`.rdp-ingredient-group__title`) walkern; `{ heading, items }[]` bauen (nur wenn ≥2 Gruppen)
+- `src/pipeline.ts`: Cookidoo-Groups aus `ContentBundle` in Recipe injizieren (wie Equipment-Injection)
+
+### Phase 10d — Anzeige & Edit-Modus (mobile/app/recipe/[id].tsx)
+- **Anzeige**: Branching-Renderer — `ingredientGroups` vorhanden → Abschnitts-Überschriften (grau, uppercase) + Items; Item mit `\n` → Hauptzeile + graue Unterzeile; Fallback auf flat `ingredients`
+- **Edit-Modus**: `editDraft` um `ingredientGroups` erweitern; Gruppen-Editor (Überschrift editierbar, Zutaten add/remove/edit pro Gruppe, Gruppe add/remove); flat mode unverändert; `handleSave`: flat ableiten vor PATCH
+- **Bild-ändern-Button**: "Bild ändern"-Pressable overlay am Hero-Bild; öffnet `<ImagePickerModal>` mit `initialQuery={recipe.name}`; bei select: PATCH `imageUrl` + reload
+
+### Phase 10e — Universelle Post-Import Bildauswahl
+- `mobile/app/(tabs)/extract.tsx` Zeile 165: Bedingung vereinfachen
+  - Von: `if (recipeId && (submittedModeRef.current === 'photo' || suggestions.length > 0))`
+  - Zu: `if (recipeId)`
+  - ImagePickerModal sucht automatisch via `initialQuery` wenn `imageSuggestions` leer ist
+
+---
+
 ## Nächste große Phase — Multi-User Login
 
 - Supabase Auth (JWT/Session), `user_id` in allen Tabellen, RLS, Auth-Middleware

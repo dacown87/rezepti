@@ -15,6 +15,7 @@ import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Recipe } from '@/db/schema';
+import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
 import { shareRecipePDF } from '@/utils/pdf-export';
 import { StepText } from '@/components/StepText';
@@ -49,6 +50,9 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
     nutrition_info: typeof (r as any).nutrition_info === 'string'
       ? (r as any).nutrition_info
       : ((r as any).nutritionInfo ? JSON.stringify((r as any).nutritionInfo) : null),
+    ingredient_groups: typeof (r as any).ingredient_groups === 'string'
+      ? (r as any).ingredient_groups
+      : ((r as any).ingredientGroups ? JSON.stringify((r as any).ingredientGroups) : null),
     transcript: null,
     tried: 0,
     pdf_created: 0,
@@ -243,7 +247,9 @@ export default function RecipeDetailScreen() {
   const [editDraft, setEditDraft] = useState<{
     name: string; emoji: string; duration: string; servings: string;
     calories: string; tags: string; ingredients: string[]; steps: string[];
+    ingredientGroups: { heading: string; items: string[] }[] | null;
   } | null>(null);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recipeId = Number(id);
@@ -306,6 +312,7 @@ export default function RecipeDetailScreen() {
   // ── Edit ───────────────────────────────────────────────────────────────────
   const startEdit = () => {
     if (!recipe) return;
+    const groups = parseJSON<{ heading: string; items: string[] }[] | null>((recipe as any).ingredient_groups ?? null, null);
     setEditDraft({
       name: recipe.name,
       emoji: recipe.emoji ?? '🍽️',
@@ -315,6 +322,7 @@ export default function RecipeDetailScreen() {
       tags: parseJSON<string[]>(recipe.tags, []).join(', '),
       ingredients: parseJSON<string[]>(recipe.ingredients, []),
       steps: parseJSON<string[]>(recipe.steps, []),
+      ingredientGroups: groups && groups.length >= 2 ? groups : null,
     });
     setIsEditing(true);
   };
@@ -323,18 +331,32 @@ export default function RecipeDetailScreen() {
     if (!recipe || !editDraft) return;
     setIsSaving(true);
     try {
-      const patch = {
+      const hasGroups = editDraft.ingredientGroups && editDraft.ingredientGroups.length >= 2;
+      const flatIngredients = hasGroups
+        ? editDraft.ingredientGroups!.flatMap(g => g.items).filter(Boolean)
+        : editDraft.ingredients.filter(Boolean);
+      const patch: Record<string, unknown> = {
         name: editDraft.name.trim(),
         emoji: editDraft.emoji.trim(),
         duration: editDraft.duration.trim(),
         servings: editDraft.servings.trim(),
         calories: editDraft.calories ? parseInt(editDraft.calories) : null,
         tags: JSON.stringify(editDraft.tags.split(',').map(t => t.trim()).filter(Boolean)),
-        ingredients: JSON.stringify(editDraft.ingredients.filter(Boolean)),
         steps: JSON.stringify(editDraft.steps.filter(Boolean)),
       };
+      if (hasGroups) {
+        patch.ingredientGroups = editDraft.ingredientGroups;
+      } else {
+        patch.ingredients = JSON.stringify(flatIngredients);
+        patch.ingredientGroups = null;
+      }
       await patchRecipe(recipeId, patch);
-      setRecipe({ ...recipe, ...patch });
+      setRecipe({
+        ...recipe,
+        ...patch,
+        ingredients: JSON.stringify(flatIngredients),
+        ingredient_groups: hasGroups ? JSON.stringify(editDraft.ingredientGroups) : null,
+      } as Recipe);
       setIsEditing(false);
       setEditDraft(null);
     } catch {
@@ -403,6 +425,7 @@ export default function RecipeDetailScreen() {
   const tags = parseJSON<string[]>(recipe.tags, []);
   const equipment = parseJSON<string[]>(recipe.equipment ?? null, []);
   const nutritionInfo = parseJSON<{ carbs?: string; fat?: string; protein?: string; fiber?: string } | null>((recipe as any).nutrition_info ?? null, null);
+  const ingredientGroups = parseJSON<{ heading: string; items: string[] }[] | null>((recipe as any).ingredient_groups ?? null, null);
   const scaledIngredients = multiplier !== 1
     ? ingredients.map(i => scaleIngredient(i, multiplier))
     : ingredients;
@@ -415,6 +438,22 @@ export default function RecipeDetailScreen() {
       )}
       {showDeleteModal && (
         <DeleteModal onConfirm={confirmDelete} onCancel={() => setShowDeleteModal(false)} />
+      )}
+
+      {showImagePicker && (
+        <ImagePickerModal
+          images={[]}
+          initialQuery={recipe.name}
+          imageCount={8}
+          onSelect={async (url) => {
+            setShowImagePicker(false);
+            try {
+              await patchRecipe(recipeId, { imageUrl: url });
+              setRecipe(r => r ? { ...r, image_url: url } : r);
+            } catch { /* ignore */ }
+          }}
+          onClose={() => setShowImagePicker(false)}
+        />
       )}
 
       {/* QR-Teilen-Modal */}
@@ -472,11 +511,20 @@ export default function RecipeDetailScreen() {
 
           {/* ── Hero-Bild ── */}
           {recipe.image_url ? (
-            <Image
-              source={{ uri: recipe.image_url }}
-              className="w-full h-52"
-              resizeMode="cover"
-            />
+            <View className="relative">
+              <Image
+                source={{ uri: recipe.image_url }}
+                className="w-full h-52"
+                resizeMode="cover"
+              />
+              <Pressable
+                onPress={() => setShowImagePicker(true)}
+                className="absolute bottom-2 right-2 bg-black/50 rounded-full px-3 py-1.5 flex-row items-center gap-1"
+              >
+                <Pencil size={12} color="#fff" />
+                <Text className="text-white text-xs">Bild ändern</Text>
+              </Pressable>
+            </View>
           ) : null}
 
           {/* ── Hero ── */}
@@ -661,28 +709,137 @@ export default function RecipeDetailScreen() {
 
             {isEditing && editDraft ? (
               <View className="px-4 pb-4">
-                {editDraft.ingredients.map((ing, i) => (
-                  <View key={i} className="flex-row items-center gap-2 mb-2">
-                    <TextInput
-                      value={ing}
-                      onChangeText={v => setEditDraft(d => {
-                        if (!d) return d;
-                        const a = [...d.ingredients]; a[i] = v;
-                        return { ...d, ingredients: a };
-                      })}
-                      className="flex-1 border border-warm-200 dark:border-warm-700 rounded-lg px-3 py-2 text-sm text-warm-700 dark:text-warm-200"
-                    />
-                    <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: d.ingredients.filter((_, j) => j !== i) })}>
-                      <X size={16} color="#ef4444" />
+                {editDraft.ingredientGroups ? (
+                  /* Grouped edit mode */
+                  <>
+                    {editDraft.ingredientGroups.map((group, gi) => (
+                      <View key={gi} className="mb-4">
+                        <View className="flex-row items-center gap-2 mb-2">
+                          <TextInput
+                            value={group.heading}
+                            onChangeText={v => setEditDraft(d => {
+                              if (!d || !d.ingredientGroups) return d;
+                              const g = [...d.ingredientGroups];
+                              g[gi] = { ...g[gi], heading: v };
+                              return { ...d, ingredientGroups: g };
+                            })}
+                            className="flex-1 border border-warm-300 dark:border-warm-600 rounded-lg px-3 py-2 text-sm font-semibold text-warm-700 dark:text-warm-200 bg-warm-50 dark:bg-espresso-900"
+                            placeholder="Gruppenname"
+                          />
+                          <Pressable onPress={() => setEditDraft(d => {
+                            if (!d || !d.ingredientGroups) return d;
+                            const g = d.ingredientGroups.filter((_, j) => j !== gi);
+                            return { ...d, ingredientGroups: g.length >= 2 ? g : null, ingredients: g.flatMap(x => x.items) };
+                          })}>
+                            <X size={16} color="#ef4444" />
+                          </Pressable>
+                        </View>
+                        {group.items.map((item, ii) => (
+                          <View key={ii} className="flex-row items-center gap-2 mb-2 pl-2">
+                            <TextInput
+                              value={item}
+                              onChangeText={v => setEditDraft(d => {
+                                if (!d || !d.ingredientGroups) return d;
+                                const g = [...d.ingredientGroups];
+                                const items = [...g[gi].items]; items[ii] = v;
+                                g[gi] = { ...g[gi], items };
+                                return { ...d, ingredientGroups: g };
+                              })}
+                              className="flex-1 border border-warm-200 dark:border-warm-700 rounded-lg px-3 py-2 text-sm text-warm-700 dark:text-warm-200"
+                            />
+                            <Pressable onPress={() => setEditDraft(d => {
+                              if (!d || !d.ingredientGroups) return d;
+                              const g = [...d.ingredientGroups];
+                              g[gi] = { ...g[gi], items: g[gi].items.filter((_, j) => j !== ii) };
+                              return { ...d, ingredientGroups: g };
+                            })}>
+                              <X size={16} color="#ef4444" />
+                            </Pressable>
+                          </View>
+                        ))}
+                        <Pressable onPress={() => setEditDraft(d => {
+                          if (!d || !d.ingredientGroups) return d;
+                          const g = [...d.ingredientGroups];
+                          g[gi] = { ...g[gi], items: [...g[gi].items, ''] };
+                          return { ...d, ingredientGroups: g };
+                        })} className="flex-row items-center gap-1 pl-2 mt-1">
+                          <Plus size={12} color="#C84B31" />
+                          <Text className="text-primary-500 text-xs">Zutat hinzufügen</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                    <Pressable onPress={() => setEditDraft(d => {
+                      if (!d) return d;
+                      const g = [...(d.ingredientGroups ?? []), { heading: 'Neue Gruppe', items: [''] }];
+                      return { ...d, ingredientGroups: g };
+                    })} className="flex-row items-center gap-1 mt-1 mb-2">
+                      <Plus size={14} color="#C84B31" />
+                      <Text className="text-primary-500 text-sm">Gruppe hinzufügen</Text>
                     </Pressable>
+                    <Pressable onPress={() => setEditDraft(d => {
+                      if (!d || !d.ingredientGroups) return d;
+                      return { ...d, ingredientGroups: null, ingredients: d.ingredientGroups.flatMap(g => g.items) };
+                    })} className="flex-row items-center gap-1">
+                      <Text className="text-warm-400 text-xs">Gruppen aufheben</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  /* Flat edit mode */
+                  <>
+                    {editDraft.ingredients.map((ing, i) => (
+                      <View key={i} className="flex-row items-center gap-2 mb-2">
+                        <TextInput
+                          value={ing}
+                          onChangeText={v => setEditDraft(d => {
+                            if (!d) return d;
+                            const a = [...d.ingredients]; a[i] = v;
+                            return { ...d, ingredients: a };
+                          })}
+                          className="flex-1 border border-warm-200 dark:border-warm-700 rounded-lg px-3 py-2 text-sm text-warm-700 dark:text-warm-200"
+                        />
+                        <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: d.ingredients.filter((_, j) => j !== i) })}>
+                          <X size={16} color="#ef4444" />
+                        </Pressable>
+                      </View>
+                    ))}
+                    <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: [...d.ingredients, ''] })} className="flex-row items-center gap-1 mt-1">
+                      <Plus size={14} color="#C84B31" />
+                      <Text className="text-primary-500 text-sm">Zutat hinzufügen</Text>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            ) : ingredientGroups && ingredientGroups.length >= 2 ? (
+              /* Grouped display */
+              <View className="px-4 pb-4">
+                {ingredientGroups.map((group, gi) => (
+                  <View key={gi} className="mb-3">
+                    <Text className="text-xs font-semibold text-warm-400 dark:text-warm-500 uppercase tracking-wider mb-2">{group.heading}</Text>
+                    {group.items.map((ing, i) => {
+                      const globalIdx = ingredientGroups.slice(0, gi).reduce((sum, g) => sum + g.items.length, 0) + i;
+                      const scaled = scaledIngredients[globalIdx] ?? ing;
+                      const nlIdx = scaled.indexOf('\n');
+                      const mainLine = nlIdx === -1 ? scaled : scaled.slice(0, nlIdx);
+                      const descLine = nlIdx === -1 ? null : scaled.slice(nlIdx + 1);
+                      const oderIdx = mainLine.indexOf(' (oder: ');
+                      const mainText = oderIdx === -1 ? mainLine : mainLine.slice(0, oderIdx);
+                      const altText  = oderIdx === -1 ? null : mainLine.slice(oderIdx + 8, -1);
+                      return (
+                        <View key={i} className="flex-row items-center py-1.5 border-b border-warm-50 dark:border-espresso-700">
+                          <Text className="text-primary-400 mr-2 text-base">•</Text>
+                          <View className="flex-1">
+                            <Text className="text-warm-700 dark:text-warm-200 text-sm">{mainText}</Text>
+                            {altText && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">↺ {altText}</Text>}
+                            {descLine && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">{descLine}</Text>}
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
                 ))}
-                <Pressable onPress={() => setEditDraft(d => d && { ...d, ingredients: [...d.ingredients, ''] })} className="flex-row items-center gap-1 mt-1">
-                  <Plus size={14} color="#C84B31" />
-                  <Text className="text-primary-500 text-sm">Zutat hinzufügen</Text>
-                </Pressable>
               </View>
             ) : (
+              /* Flat display */
               <View className="px-4 pb-4">
                 {ingredients.map((ing, i) => {
                   const hasNum = parseIngredientNumber(ing) != null;
@@ -713,11 +870,9 @@ export default function RecipeDetailScreen() {
                           <View className="flex-1">
                             {(() => {
                               const raw = scaledIngredients[i];
-                              // Split description sub-line (\n separator from cookidoo patcher)
                               const nlIdx = raw.indexOf('\n');
                               const mainLine = nlIdx === -1 ? raw : raw.slice(0, nlIdx);
                               const descLine = nlIdx === -1 ? null : raw.slice(nlIdx + 1);
-                              // Split alternative sub-line (' (oder: ' separator)
                               const oderIdx = mainLine.indexOf(' (oder: ');
                               const mainText = oderIdx === -1 ? mainLine : mainLine.slice(0, oderIdx);
                               const altText  = oderIdx === -1 ? null : mainLine.slice(oderIdx + 8, -1);

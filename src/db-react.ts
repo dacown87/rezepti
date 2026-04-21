@@ -58,6 +58,10 @@ export async function saveRecipeToReactDb(
   transcript?: string
 ): Promise<number> {
   const db = getDb();
+  const flatIngredients = recipe.ingredientGroups?.length
+    ? recipe.ingredientGroups.flatMap(g => g.items)
+    : recipe.ingredients;
+
   const rows = await db.insert(recipes).values({
     name:        recipe.name,
     emoji:       recipe.emoji,
@@ -67,10 +71,11 @@ export async function saveRecipeToReactDb(
     duration:    recipe.duration,
     calories:    recipe.calories,
     tags:        JSON.stringify(recipe.tags),
-    ingredients: JSON.stringify(recipe.ingredients),
+    ingredients: JSON.stringify(flatIngredients),
     steps:       JSON.stringify(recipe.steps),
-    equipment:      recipe.equipment     ? JSON.stringify(recipe.equipment)     : null,
-    nutrition_info: recipe.nutritionInfo ? JSON.stringify(recipe.nutritionInfo) : null,
+    equipment:         recipe.equipment        ? JSON.stringify(recipe.equipment)        : null,
+    nutrition_info:    recipe.nutritionInfo    ? JSON.stringify(recipe.nutritionInfo)    : null,
+    ingredient_groups: recipe.ingredientGroups ? JSON.stringify(recipe.ingredientGroups) : null,
     category:    detectCategory(recipe.tags, recipe.name),
     transcript,
   }).returning({ id: recipes.id });
@@ -245,8 +250,15 @@ export async function updateRecipeInReactDb(id: number, fields: Partial<RecipeDa
   if (fields.calories    !== undefined) values.calories    = fields.calories;
   if (fields.imageUrl    !== undefined) values.image_url   = fields.imageUrl;
   if (fields.tags        !== undefined) values.tags        = JSON.stringify(fields.tags);
-  if (fields.ingredients !== undefined) values.ingredients = JSON.stringify(fields.ingredients);
-  if (fields.steps       !== undefined) values.steps       = JSON.stringify(fields.steps);
+  if (fields.ingredientGroups !== undefined) {
+    const groups = fields.ingredientGroups;
+    values.ingredient_groups = groups.length > 0 ? JSON.stringify(groups) : null;
+    values.ingredients = JSON.stringify(groups.flatMap(g => g.items));
+  } else if (fields.ingredients !== undefined) {
+    values.ingredients = JSON.stringify(fields.ingredients);
+    values.ingredient_groups = null;
+  }
+  if (fields.steps !== undefined) values.steps = JSON.stringify(fields.steps);
   if ((fields as any).rating      !== undefined) values.rating      = (fields as any).rating;
   if ((fields as any).notes       !== undefined) values.notes       = (fields as any).notes;
   if ((fields as any).category    !== undefined) values.category    = (fields as any).category;
@@ -277,8 +289,9 @@ function deserialize(row: typeof recipes.$inferSelect) {
     tags:        JSON.parse(row.tags ?? "[]") as string[],
     ingredients: JSON.parse(row.ingredients) as string[],
     steps:       JSON.parse(row.steps) as string[],
-    equipment:    row.equipment     ? JSON.parse(row.equipment)     as string[]                               : undefined,
-    nutritionInfo: (row as any).nutrition_info ? JSON.parse((row as any).nutrition_info) as { carbs?: string; fat?: string; protein?: string } : undefined,
+    equipment:         row.equipment         ? JSON.parse(row.equipment)         as string[]                               : undefined,
+    nutritionInfo:     row.nutrition_info    ? JSON.parse(row.nutrition_info)    as { carbs?: string; fat?: string; protein?: string; fiber?: string } : undefined,
+    ingredientGroups:  row.ingredient_groups ? JSON.parse(row.ingredient_groups) as { heading: string; items: string[] }[] : undefined,
   };
 }
 

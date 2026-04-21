@@ -451,6 +451,23 @@ function extractEquipment($: cheerio.CheerioAPI): string[] {
   return [...items].filter(s => s.length > 0 && s.length < 80);
 }
 
+function extractIngredientGroups($: cheerio.CheerioAPI): { heading: string; items: string[] }[] | undefined {
+  const groups: { heading: string; items: string[] }[] = [];
+
+  // Cookidoo authenticated pages use rdp-ingredient-group components with a title
+  $("rdp-ingredient-group, recipe-ingredient-group").each((_, groupEl) => {
+    const heading = $(groupEl).find(".rdp-ingredient-group__title, .recipe-ingredient-group__title").first().text().trim();
+    const items: string[] = [];
+    $(groupEl).find("recipe-ingredient").each((_, ingEl) => {
+      const text = $(ingEl).text().replace(/\s+/g, " ").trim();
+      if (text) items.push(text);
+    });
+    if (items.length > 0) groups.push({ heading: heading || `Gruppe ${groups.length + 1}`, items });
+  });
+
+  return groups.length >= 2 ? groups : undefined;
+}
+
 /** Extract nutrition values from HTML that are missing from JSON-LD (e.g. Ballaststoffe / fiber) */
 function extractNutritionFromHtml($: cheerio.CheerioAPI): Record<string, string> {
   const extra: Record<string, string> = {};
@@ -524,6 +541,7 @@ export async function fetchCookidoo(url: string): Promise<ContentBundle> {
     $('meta[property="og:description"]').attr("content") ||
     "";
   const equipment = extractEquipment($);
+  const ingredientGroups = extractIngredientGroups($);
 
   return {
     url,
@@ -534,6 +552,7 @@ export async function fetchCookidoo(url: string): Promise<ContentBundle> {
     imageUrls: extractImages($, url),
     schemaRecipe,
     equipment: equipment.length > 0 ? equipment : undefined,
+    ingredientGroups,
   };
 }
 

@@ -23,6 +23,10 @@ const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Deine Aufgabe:
 6. Wähle ein passendes Emoji für das Rezept.
 7. Bestimme die Zubereitungsdauer: "kurz" (<20min), "mittel" (20-60min), "lang" (>60min).
 
+8. Falls das Rezept klar erkennbare Abschnitte hat (z.B. "Für den Teig", "Für die Soße", "Für die Füllung"):
+   Verwende STATTDESSEN "ingredientGroups" und lasse "ingredients" weg.
+   Bei nur einer Gruppe oder unklarer Aufteilung: immer "ingredients" verwenden.
+
 Antworte NUR mit folgendem JSON-Format, exakt diese Feldnamen:
 {
   "name": "Rezeptname auf Deutsch",
@@ -34,7 +38,30 @@ Antworte NUR mit folgendem JSON-Format, exakt diese Feldnamen:
   "imageUrl": "",
   "ingredients": ["200g Mehl", "2 Eier"],
   "steps": ["Schritt 1", "Schritt 2"]
+}
+
+Bei gruppierten Zutaten stattdessen:
+{
+  "name": "Rezeptname",
+  "duration": "mittel",
+  "tags": ["Kuchen"],
+  "emoji": "🎂",
+  "calories": 350,
+  "servings": "12 Stücke",
+  "imageUrl": "",
+  "ingredientGroups": [
+    { "heading": "Für den Teig", "items": ["200g Mehl", "100g Butter"] },
+    { "heading": "Für die Glasur", "items": ["150g Puderzucker", "2 EL Zitronensaft"] }
+  ],
+  "steps": ["Schritt 1", "Schritt 2"]
 }`;
+
+function normalizeGroupsToIngredients(raw: Record<string, unknown>): void {
+  const groups = raw.ingredientGroups as Array<{ heading: string; items: string[] }> | undefined;
+  if (groups?.length && !raw.ingredients) {
+    raw.ingredients = groups.flatMap(g => g.items);
+  }
+}
 
 async function chatJSON(
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -65,7 +92,7 @@ export async function extractRecipeFromText(
   if (!raw.imageUrl && existingImageUrl) {
     raw.imageUrl = existingImageUrl;
   }
-
+  normalizeGroupsToIngredients(raw);
   return RecipeDataSchema.parse(raw);
 }
 
@@ -95,7 +122,7 @@ export async function extractRecipeFromImage(
   if (!raw.imageUrl && !imageUrl.startsWith("data:")) {
     raw.imageUrl = imageUrl;
   }
-
+  normalizeGroupsToIngredients(raw);
   return RecipeDataSchema.parse(raw);
 }
 
@@ -125,7 +152,7 @@ export async function extractRecipeFromImages(
   if (!raw.imageUrl && imageUrls.length > 0) {
     raw.imageUrl = imageUrls[0];
   }
-
+  normalizeGroupsToIngredients(raw);
   return RecipeDataSchema.parse(raw);
 }
 
@@ -151,6 +178,6 @@ Rezept-Daten:\n${JSON.stringify(partial, null, 2)}`,
   if (!raw.imageUrl && partial.imageUrl) {
     raw.imageUrl = partial.imageUrl;
   }
-
+  normalizeGroupsToIngredients(raw);
   return RecipeDataSchema.parse(raw);
 }
