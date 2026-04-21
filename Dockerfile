@@ -6,7 +6,7 @@ WORKDIR /app
 # yt-dlp + ffmpeg
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates ffmpeg python3 python3-pip \
-    && pip3 install --no-cache-dir --break-system-packages yt-dlp \
+    && pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp \
     && rm -rf /var/lib/apt/lists/* \
     && yt-dlp --version
 

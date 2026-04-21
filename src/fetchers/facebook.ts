@@ -101,6 +101,7 @@ export function isFacebookVideoUrl(url: string): boolean {
     /fb\.watch\//i,
     /facebook\.com\/reel\//i,
     /facebook\.com\/stories\//i,
+    /facebook\.com\/share\/[rv]\//i, // shared reels (/share/r/) and videos (/share/v/)
   ];
   return videoPatterns.some((pattern) => pattern.test(url));
 }
@@ -218,17 +219,28 @@ async function fetchFacebookVideo(
       break;
     } catch (error: any) {
       lastError = error;
-      const errorMsg = error.message || "";
+      const errorMsg = (error.message || "") + " " + (error.stderr || "");
+
+      if (errorMsg.includes("login_required") || errorMsg.includes("Login required")) {
+        throw new Error(
+          "Facebook-Login erforderlich. Bitte Facebook-Cookies in den Einstellungen hinterlegen."
+        );
+      }
 
       if (
         errorMsg.includes("Private") ||
         errorMsg.includes("Deleted") ||
-        errorMsg.includes("login_required") ||
-        errorMsg.includes("HTTP Error 403") ||
-        errorMsg.includes("Login required")
+        errorMsg.includes("unavailable") ||
+        errorMsg.includes("HTTP Error 403")
       ) {
         throw new Error(
           "Facebook-Video ist privat, gelöscht oder nicht verfügbar"
+        );
+      }
+
+      if (errorMsg.includes("No video formats found")) {
+        throw new Error(
+          "Facebook-Reel konnte nicht abgerufen werden (yt-dlp veraltet oder Facebook API geändert)."
         );
       }
 

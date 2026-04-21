@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { jobManager } from "../job-manager.js";
 import { BYOKValidator } from "../byok-validator.js";
-import { processURL } from "../pipeline.js";
+import { processURL, toUserFriendlyError } from "../pipeline.js";
 import { extractRecipeFromImage } from "../processors/llm.js";
 import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
 import { classifyURL } from "../classifier.js";
@@ -244,7 +244,8 @@ async function processPhotoJobInBackground(jobId: string) {
 
   } catch (error) {
     console.error(`Photo job ${jobId} failed:`, error);
-    jobManager.failJob(jobId, error instanceof Error ? error.message : "Unbekannter Fehler");
+    const { message, hint } = toUserFriendlyError(error);
+    jobManager.failJob(jobId, message, hint);
   } finally {
     photoDataStore.delete(jobId);
   }

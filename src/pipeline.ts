@@ -232,7 +232,7 @@ interface UserFriendlyError {
   hint?: string;
 }
 
-function toUserFriendlyError(error: unknown): UserFriendlyError {
+export function toUserFriendlyError(error: unknown): UserFriendlyError {
   const raw = error instanceof Error ? error.message : String(error);
 
   // Groq / OpenAI rate limit (DX-4)
@@ -248,6 +248,21 @@ function toUserFriendlyError(error: unknown): UserFriendlyError {
     return {
       message: "Groq API-Key ungültig. Bitte den Key in den Einstellungen prüfen.",
       hint: "byok",
+    };
+  }
+
+  // Facebook login / cookie errors
+  if (/facebook.*login|login.*erforderlich|facebook.*cookies/i.test(raw)) {
+    return {
+      message: "Facebook-Login erforderlich. Bitte Facebook-Cookies in den Einstellungen hinterlegen.",
+      hint: "facebook-cookies",
+    };
+  }
+
+  // Facebook yt-dlp outdated / API changed
+  if (/facebook.*reel.*konnte|yt-dlp veraltet|facebook api/i.test(raw)) {
+    return {
+      message: "Facebook-Reel konnte nicht geladen werden. Das Video ist möglicherweise temporär nicht abrufbar.",
     };
   }
 
