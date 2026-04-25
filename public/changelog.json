@@ -1,6 +1,13 @@
 {
-  "version": "1.0.95",
+  "version": "1.0.96",
   "entries": [
+    {
+      "version": "1.0.96",
+      "date": "2026-04-25",
+      "changes": [
+        "onSkip-Prop in ImagePickerModal auf Rezeptdetailseite"
+      ]
+    },
     {
       "version": "1.0.95",
       "date": "2026-04-21",
@@ -149,7 +156,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-04-21",
-    "time": "13:50"
+    "date": "2026-04-25",
+    "time": "21:58"
   }
 }

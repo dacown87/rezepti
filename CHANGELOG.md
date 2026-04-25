@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.96] – 2026-04-25
+
+- onSkip-Prop in ImagePickerModal auf Rezeptdetailseite
+
 ## [1.0.95] – 2026-04-21
 
 
