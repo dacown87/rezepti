@@ -16,7 +16,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X } from 'lucide-react-native';
+import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X, UtensilsCrossed } from 'lucide-react-native';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { compressIfNeeded } from '@/utils/image-compress';
 
@@ -116,6 +116,8 @@ export default function ExtractScreen() {
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
   const [recipeIdForImage, setRecipeIdForImage] = useState<number | null>(null);
   const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
+  const [recipeImageUrl, setRecipeImageUrl] = useState<string | null>(null);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [imageCount, setImageCount] = useState(4);
   const navRecipeIdRef = useRef<number | null>(null);
 
@@ -166,6 +168,14 @@ export default function ExtractScreen() {
             setImageSuggestions(suggestions);
             setRecipeIdForImage(recipeId);
             setRecipeNameForImage(status.result?.recipe?.name);
+            try {
+              const sUrl = await getServerUrl();
+              const recipeRes = await fetch(`${sUrl}/api/v1/recipes/${recipeId}`);
+              if (recipeRes.ok) {
+                const recipeData = await recipeRes.json();
+                setRecipeImageUrl(recipeData.image_url ?? null);
+              }
+            } catch { /* ignore */ }
           } else {
             setSuccess(true);
           }
@@ -199,6 +209,8 @@ export default function ExtractScreen() {
     setImageSuggestions([]);
     setRecipeIdForImage(null);
     setRecipeNameForImage(undefined);
+    setRecipeImageUrl(null);
+    setShowImagePickerModal(false);
     submittedUrlRef.current = undefined;
     submittedModeRef.current = 'url';
     navRecipeIdRef.current = null;
@@ -358,35 +370,78 @@ export default function ExtractScreen() {
     </View>
   );
 
-  // ── Image picker modal ─────────────────────────────────────────────────────
+  // ── Bild-Review screen (nach Import) ──────────────────────────────────────
   if (recipeIdForImage) {
     return (
-      <ImagePickerModal
-        images={imageSuggestions}
-        initialQuery={recipeNameForImage}
-        imageCount={imageCount}
-        onSelect={async (url) => {
-          // Server updaten (camelCase — updateRecipeInReactDb erwartet imageUrl)
-          const serverUrl = await getServerUrl();
-          await fetch(`${serverUrl}/api/v1/recipes/${recipeIdForImage}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl: url }),
-          }).catch(() => {});
-          setImageSuggestions([]);
-          setRecipeIdForImage(null);
-          setSuccess(true);
-        }}
-        onSkip={() => {
-          setImageSuggestions([]);
-          setRecipeIdForImage(null);
-          setSuccess(true);
-        }}
-      />
+      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
+        {showImagePickerModal && (
+          <ImagePickerModal
+            images={imageSuggestions}
+            initialQuery={recipeNameForImage}
+            imageCount={imageCount}
+            onSelect={async (selectedUrl) => {
+              const sUrl = await getServerUrl();
+              await fetch(`${sUrl}/api/v1/recipes/${recipeIdForImage}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl: selectedUrl }),
+              }).catch(() => {});
+              const id = recipeIdForImage;
+              reset();
+              router.push(`/recipe/${id}` as never);
+            }}
+            onSkip={() => setShowImagePickerModal(false)}
+          />
+        )}
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-4">
+          <View className="flex-1 items-center justify-center py-10">
+            <CheckCircle size={40} color="#C84B31" />
+            <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 mt-3 mb-6 text-center">
+              Rezept gespeichert!
+            </Text>
+
+            {/* Bild-Vorschau */}
+            <View className="w-full rounded-2xl overflow-hidden mb-6 bg-warm-100 dark:bg-espresso-800" style={{ aspectRatio: 16 / 9 }}>
+              {recipeImageUrl ? (
+                <Image source={{ uri: recipeImageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              ) : (
+                <View className="flex-1 items-center justify-center gap-2">
+                  <UtensilsCrossed size={40} color="#9E8878" />
+                  <Text className="text-warm-400 dark:text-warm-500 text-sm">Kein Bild gefunden</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Aktionen */}
+            <View className="flex-row gap-3 w-full mb-4">
+              <Pressable
+                onPress={() => {
+                  const id = recipeIdForImage;
+                  reset();
+                  router.push(`/recipe/${id}` as never);
+                }}
+                className="flex-1 bg-primary-500 py-3.5 rounded-xl items-center"
+              >
+                <Text className="text-white font-semibold">Übernehmen</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowImagePickerModal(true)}
+                className="flex-1 border border-warm-200 dark:border-warm-700 bg-white dark:bg-espresso-800 py-3.5 rounded-xl items-center"
+              >
+                <Text className="text-warm-700 dark:text-warm-200 font-semibold">Bearbeiten</Text>
+              </Pressable>
+            </View>
+
+            <Pressable onPress={reset}>
+              <Text className="text-warm-400 dark:text-warm-500 text-sm">Weiteres Rezept hinzufügen</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
-  // ── Success screen ─────────────────────────────────────────────────────────
+  // ── Success screen (Fallback wenn keine recipeId) ──────────────────────────
   if (success) {
     return (
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
@@ -402,19 +457,11 @@ export default function ExtractScreen() {
             <View className="flex-row gap-3">
               <Pressable
                 onPress={() => {
-                  const id = navRecipeIdRef.current;
-                  if (id) {
-                    reset();
-                    router.push(`/recipe/${id}` as never);
-                  } else {
-                    router.push('/(tabs)' as never);
-                  }
+                  router.push('/(tabs)' as never);
                 }}
                 className="bg-primary-500 px-6 py-3 rounded-xl"
               >
-                <Text className="text-white font-semibold">
-                  {navRecipeIdRef.current ? 'Zum Rezept' : 'Zur Sammlung'}
-                </Text>
+                <Text className="text-white font-semibold">Zur Sammlung</Text>
               </Pressable>
               <Pressable
                 onPress={reset}

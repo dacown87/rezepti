@@ -510,19 +510,25 @@ export default function RecipeDetailScreen() {
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
 
           {/* ── Hero-Bild ── */}
-          {recipe.image_url ? (
+          {(recipe.image_url || isEditing) ? (
             <View className="relative">
-              <Image
-                source={{ uri: recipe.image_url }}
-                className="w-full h-52"
-                resizeMode="cover"
-              />
+              {recipe.image_url ? (
+                <Image
+                  source={{ uri: recipe.image_url }}
+                  className="w-full h-52"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-full h-52 bg-warm-100 dark:bg-espresso-800 items-center justify-center">
+                  <UtensilsCrossed size={40} color="#9E8878" />
+                </View>
+              )}
               <Pressable
                 onPress={() => setShowImagePicker(true)}
                 className="absolute bottom-2 right-2 bg-black/50 rounded-full px-3 py-1.5 flex-row items-center gap-1"
               >
                 <Pencil size={12} color="#fff" />
-                <Text className="text-white text-xs">Bild ändern</Text>
+                <Text className="text-white text-xs">{recipe.image_url ? 'Bild ändern' : 'Bild hinzufügen'}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -661,6 +667,13 @@ export default function RecipeDetailScreen() {
               >
                 {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" />}
                 <Text className="text-white font-semibold">Speichern</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowImagePicker(true)}
+                className="flex-row items-center justify-center gap-2 px-4 py-3 rounded-xl border border-warm-200 dark:border-warm-700 bg-white dark:bg-espresso-800"
+              >
+                <Pencil size={18} color="#9E8878" />
+                <Text className="text-warm-600 dark:text-warm-300">Bild</Text>
               </Pressable>
               <Pressable
                 onPress={() => { setIsEditing(false); setEditDraft(null); }}
