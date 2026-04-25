@@ -452,7 +452,7 @@ export default function RecipeDetailScreen() {
               setRecipe(r => r ? { ...r, image_url: url } : r);
             } catch { /* ignore */ }
           }}
-          onClose={() => setShowImagePicker(false)}
+          onSkip={() => setShowImagePicker(false)}
         />
       )}
 
