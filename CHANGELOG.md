@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.97] – 2026-04-25
+
+- Bild-Review nach Import + Bild-Button im Edit-Modus
+
 ## [1.0.96] – 2026-04-25
 
 - onSkip-Prop in ImagePickerModal auf Rezeptdetailseite

@@ -1,6 +1,13 @@
 {
-  "version": "1.0.96",
+  "version": "1.0.97",
   "entries": [
+    {
+      "version": "1.0.97",
+      "date": "2026-04-25",
+      "changes": [
+        "Bild-Review nach Import + Bild-Button im Edit-Modus"
+      ]
+    },
     {
       "version": "1.0.96",
       "date": "2026-04-25",
@@ -157,6 +164,6 @@
   ],
   "lastUpdated": {
     "date": "2026-04-25",
-    "time": "21:58"
+    "time": "22:08"
   }
 }
