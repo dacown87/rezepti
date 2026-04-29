@@ -102,8 +102,29 @@ function parseCalories(schema: SchemaOrgRecipe): number | undefined {
   return isNaN(num) ? undefined : num;
 }
 
+// Named HTML entities relevant for recipe text
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+  frac12: "½", frac14: "¼", frac34: "¾",
+  deg: "°", times: "×", minus: "−", ndash: "–", mdash: "—",
+  hellip: "…", laquo: "«", raquo: "»",
+};
+
+export function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&([a-zA-Z]+);/g, (match, name) => NAMED_ENTITIES[name.toLowerCase()] ?? match)
+    .replace(/&#([0-9]+);/g, (_, dec) => {
+      const cp = parseInt(dec, 10);
+      return cp >= 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : `&#${dec};`;
+    })
+    .replace(/&#[xX]([0-9a-fA-F]+);/g, (_, hex) => {
+      const cp = parseInt(hex, 16);
+      return cp >= 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : `&#x${hex};`;
+    });
+}
+
 function parseNutritionInfo(schema: SchemaOrgRecipe): { carbs?: string; fat?: string; protein?: string; fiber?: string } | undefined {
-  const n = schema.nutrition as Record<string, string> | undefined;
+  const n = schema.nutrition;
   if (!n) return undefined;
   const carbs   = n.carbohydrateContent;
   const fat     = n.fatContent;
@@ -118,20 +139,17 @@ function parseNutritionInfo(schema: SchemaOrgRecipe): { carbs?: string; fat?: st
   };
 }
 
-/** Strip HTML tags and normalize whitespace from step text. */
+/** Strip HTML tags, decode entities, normalize whitespace from step text. */
 function cleanStepText(raw: string): string {
-  return raw
-    .replace(/<[^>]+>/g, " ")          // strip all HTML tags
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/[\uE000-\uF8FF]/g, "")   // strip Private Use Area chars (Cookidoo icons like U+E003)
-    // Cookidoo Linkslauf: PUA icon between slashes collapses to // after strip above
-    // e.g. "95°C//Stufe 1" → "95°C/Linkslauf/Stufe 1"
-    .replace(/\/\/Stufe/g, "/Linkslauf/Stufe")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return decodeHtmlEntities(
+    raw
+      .replace(/<[^>]+>/g, " ")          // strip all HTML tags
+      .replace(/[\uE000-\uF8FF]/g, "")   // strip Private Use Area chars (Cookidoo icons like U+E003)
+      // Cookidoo Linkslauf: PUA icon between slashes collapses to // after strip above
+      .replace(/\/\/Stufe/g, "/Linkslauf/Stufe")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+  );
 }
 
 function extractSteps(schema: SchemaOrgRecipe): string[] {
@@ -162,7 +180,7 @@ export function schemaToRecipeData(
 ): Partial<RecipeData> | null {
   if (!schema.name) return null;
 
-  const ingredients = schema.recipeIngredient ?? [];
+  const ingredients = (schema.recipeIngredient ?? []).map(decodeHtmlEntities);
   const steps = extractSteps(schema);
 
   if (ingredients.length === 0 && steps.length === 0) return null;

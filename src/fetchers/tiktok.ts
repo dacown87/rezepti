@@ -193,11 +193,23 @@ export async function fetchTikTok(
   };
 }
 
+async function isFfmpegAvailable(): Promise<boolean> {
+  try {
+    await execFileAsync("ffmpeg", ["-version"], { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function extractTextFromVideoFrames(
   videoPath: string,
   tempDir: string
 ): Promise<string> {
-  if (!config.tiktok.ocrEnabled) {
+  if (!config.tiktok.ocrEnabled) return "";
+
+  if (!await isFfmpegAvailable()) {
+    console.log("[tiktok-ocr] ffmpeg nicht gefunden — OCR übersprungen");
     return "";
   }
 
@@ -205,7 +217,7 @@ export async function extractTextFromVideoFrames(
     const framePattern = join(tempDir, "tiktok-frame-%04d.jpg");
     await execFileAsync("ffmpeg", [
       "-i", videoPath,
-      "-vf", `fps=1,scale=1280:720`,
+      "-vf", "fps=1,scale=1280:720",
       "-q:v", "2",
       "-frames:v", String(config.tiktok.maxOcrFrames),
       framePattern,
@@ -216,34 +228,35 @@ export async function extractTextFromVideoFrames(
       .filter((f) => f.startsWith("tiktok-frame-") && /\.(jpg|jpeg)$/i.test(f))
       .sort();
 
-    if (frameFiles.length === 0) {
-      return "";
-    }
+    if (frameFiles.length === 0) return "";
 
-    const texts: string[] = [];
+    // Frames als imageUrls für die Vision-Pipeline sammeln (base64 data-URLs)
+    const imageUrls: string[] = [];
     for (const frameFile of frameFiles) {
-      const framePath = join(tempDir, frameFile);
-      const frameData = await readFile(framePath);
-      const base64Image = frameData.toString("base64");
-
-      try {
-        const { extractRecipeFromImage } = await import("../processors/llm.js");
-        const result = await extractRecipeFromImage(
-          `data:image/jpeg;base64,${base64Image}`,
-          "Extrahiere den gesamten sichtbaren Text aus diesem TikTok-Video-Screenshot. Gib nur die Zutaten und Schritte zurück."
-        );
-        if (result && result.ingredients) {
-          texts.push(...result.ingredients);
-          if (result.steps) {
-            texts.push(...result.steps);
-          }
-        }
-      } catch (error) {
-        console.warn(`OCR failed for frame ${frameFile}:`, error instanceof Error ? error.message : 'unknown');
-      }
+      const frameData = await readFile(join(tempDir, frameFile));
+      imageUrls.push(`data:image/jpeg;base64,${frameData.toString("base64")}`);
     }
 
-    return texts.join("\n");
+    // extractRecipeFromText mit erstem Frame als Bild — gibt Text zurück, kein Schema-Parsing
+    try {
+      const { extractRecipeFromText } = await import("../processors/llm.js");
+      // Alle Frame-URLs als Text-Prompt zusammenstellen — LLM sieht das erste Bild
+      const result = await extractRecipeFromText(
+        "Extrahiere alle sichtbaren Zutaten und Zubereitungsschritte aus diesem TikTok-Video-Frame. Gib alle erkannten Texte zurück.",
+        imageUrls[0]
+      );
+      // result ist RecipeData — Zutaten und Schritte als Rohtext zurückgeben
+      if (result) {
+        return [
+          ...(result.ingredients ?? []),
+          ...(result.steps ?? []),
+        ].join("\n");
+      }
+    } catch (error) {
+      console.warn("[tiktok-ocr] LLM-Aufruf fehlgeschlagen:", error instanceof Error ? error.message : "unknown");
+    }
+
+    return "";
   } catch {
     return "";
   }

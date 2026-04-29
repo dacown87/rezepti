@@ -41,7 +41,13 @@ export interface SchemaOrgRecipe {
   recipeYield?: string;
   recipeCategory?: string | string[];
   recipeCuisine?: string | string[];
-  nutrition?: { calories?: string };
+  nutrition?: {
+    calories?: string;
+    carbohydrateContent?: string;
+    fatContent?: string;
+    proteinContent?: string;
+    fiberContent?: string;
+  };
   author?: string | { name?: string };
   tool?: (string | { name?: string })[];
 }

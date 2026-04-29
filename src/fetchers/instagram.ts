@@ -118,30 +118,97 @@ async function detectCarouselAndDownload(
   throw lastError || new Error("Download failed after retries");
 }
 
-async function fetchInstagramWebScraping(url: string): Promise<ContentBundle> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    },
-  });
+const INSTAGRAM_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+};
 
-  if (!response.ok) {
-    throw new Error(`Instagram page fetch failed: ${response.status}`);
+async function fetchInstagramWebScraping(url: string): Promise<ContentBundle> {
+  let captionText = "";
+  let imageUrl = "";
+  let title = "";
+
+  const shortcode = url.match(/\/(?:p|reel)\/([A-Za-z0-9_-]+)/)?.[1];
+
+  // 1. Embed-URL — öffentlich zugänglich, zeigt volle Caption
+  if (shortcode) {
+    try {
+      const embedRes = await fetch(
+        `https://www.instagram.com/p/${shortcode}/embed/captioned/`,
+        { headers: INSTAGRAM_HEADERS }
+      );
+      if (embedRes.ok) {
+        const embedHtml = await embedRes.text();
+        const $e = cheerio.load(embedHtml);
+
+        // Mehrere Selektoren über Instagram-Embed-Versionen hinweg
+        captionText =
+          $e(".Caption").text().trim() ||
+          $e("[class*='caption']").text().trim() ||
+          $e(".C4VMK span").text().trim() ||
+          $e(".-vDIg span").text().trim() ||
+          $e(".cdkljq").text().trim() ||
+          $e("[data-testid='post-comment-root'] span").text().trim() ||
+          "";
+
+        imageUrl =
+          $e("img.EmbeddedMediaImage").attr("src") ||
+          $e("img[src*='cdninstagram']").attr("src") ||
+          $e("img[src*='fbcdn']").attr("src") ||
+          "";
+
+        // Embedded JSON aus Script-Tags extrahieren (Instagram bettet Post-Daten ein)
+        if (!captionText) {
+          $e("script").each((_, el) => {
+            const scriptText = $e(el).html() || "";
+            // window.__additionalData oder ähnliche Datenstrukturen
+            const jsonMatch = scriptText.match(/"caption"\s*:\s*"([^"]{20,})"/);
+            if (jsonMatch && jsonMatch[1].length > captionText.length) {
+              try {
+                captionText = JSON.parse(`"${jsonMatch[1]}"`);
+              } catch {
+                captionText = jsonMatch[1];
+              }
+            }
+          });
+        }
+      }
+    } catch { /* ignore */ }
   }
 
-  const html = await response.text();
-  const $ = cheerio.load(html);
+  // 2. Hauptseite für OG-Tags + eingebettetes JSON
+  try {
+    const response = await fetch(url, { headers: INSTAGRAM_HEADERS });
+    if (response.ok) {
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      title = $('meta[property="og:title"]').attr("content") || "";
+      const ogDesc = $('meta[property="og:description"]').attr("content") || "";
+      const ogImage = $('meta[property="og:image"]').attr("content") || "";
+      if (ogDesc.length > captionText.length) captionText = ogDesc;
+      if (!imageUrl && ogImage) imageUrl = ogImage;
 
-  const title = $('meta[property="og:title"]').attr("content") || "";
-  const description = $('meta[property="og:description"]').attr("content") || "";
-  const imageUrl = $('meta[property="og:image"]').attr("content") || "";
+      // Eingebettetes JSON-LD oder window._sharedData
+      if (!captionText || captionText.length < 50) {
+        $("script").each((_, el) => {
+          const scriptText = $(el).html() || "";
+          if (scriptText.includes('"edge_media_to_caption"') || scriptText.includes('"accessibility_caption"')) {
+            const match = scriptText.match(/"text"\s*:\s*"([^"]{30,})"/);
+            if (match) {
+              try { captionText = JSON.parse(`"${match[1]}"`); } catch { captionText = match[1]; }
+            }
+          }
+        });
+      }
+    }
+  } catch { /* ignore */ }
 
   return {
     url,
     type: "instagram",
     title,
-    description,
-    textContent: description,
+    description: captionText,
+    textContent: captionText,
     imageUrls: imageUrl ? [imageUrl] : [],
     schemaRecipe: null,
     isCarousel: false,

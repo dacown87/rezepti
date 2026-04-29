@@ -45,14 +45,27 @@ function findRecipeInJsonLd(data: unknown): SchemaOrgRecipe | null {
 }
 
 function extractMainText($: cheerio.CheerioAPI): string {
-  // Remove script, style, nav, footer, header elements
-  $("script, style, nav, footer, header, aside, .ad, .ads, .sidebar").remove();
+  // Remove noise: ads, comments, social widgets, nav chrome
+  $(
+    "script, style, nav, footer, header, aside, " +
+    ".ad, .ads, .sidebar, " +
+    ".advertisement, [class*='ad-'], [id*='ad-'], " +
+    ".related, .related-posts, " +
+    "[class*='comment'], .comments, #comments, " +
+    ".social-share, .share-buttons, [class*='share-'], " +
+    ".newsletter, [class*='newsletter'], " +
+    "noscript, iframe"
+  ).remove();
 
-  // Try common recipe content selectors
+  // Priority: WordPress Recipe Maker, Tasty Recipes, then schema.org, then generic
   const selectors = [
+    ".wprm-recipe-container",
+    ".tasty-recipe",
     '[itemtype*="schema.org/Recipe"]',
+    '[itemtype*="Recipe"]',
     ".recipe",
     ".recipe-content",
+    ".recipe-card",
     "#recipe",
     "article",
     "main",
@@ -63,11 +76,11 @@ function extractMainText($: cheerio.CheerioAPI): string {
   for (const sel of selectors) {
     const el = $(sel);
     if (el.length && el.text().trim().length > 100) {
-      return el.text().trim().slice(0, 10000);
+      return el.text().trim().slice(0, 6000);
     }
   }
 
-  return $("body").text().trim().slice(0, 10000);
+  return $("body").text().trim().slice(0, 6000);
 }
 
 function resolveSchemaImage(image: string | string[] | { url?: string } | { url?: string }[] | undefined): string | undefined {
@@ -89,6 +102,13 @@ function extractImages($: cheerio.CheerioAPI, baseUrl: string, schemaImage?: str
   const ogImage = $('meta[property="og:image"]').attr("content");
   if (ogImage) {
     try { images.push(new URL(ogImage, baseUrl).href); } catch { /* skip */ }
+  }
+
+  const twitterImage =
+    $('meta[name="twitter:image"]').attr("content") ||
+    $('meta[name="twitter:image:src"]').attr("content");
+  if (twitterImage) {
+    try { images.push(new URL(twitterImage, baseUrl).href); } catch { /* skip */ }
   }
 
   $("img[src], img[data-src]").each((_, el) => {

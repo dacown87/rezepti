@@ -108,7 +108,8 @@ async function fetchHTMLWithUserAgent(url: string): Promise<string> {
   return response.text();
 }
 
-export function findOriginalUrl($: cheerio.CheerioAPI): string | null {
+export function findOriginalUrl($: cheerio.CheerioAPI, html?: string): string | null {
+  // 1. DOM-Selektoren
   const selectors = [
     'a[data-test-id="pin-carousel-original-link"]',
     'a[href*="://"][rel~="noopener"]',
@@ -129,6 +130,39 @@ export function findOriginalUrl($: cheerio.CheerioAPI): string | null {
     }
   }
 
+  // 2. Pinterest-Embedded-JSON: Pinterest bettet Pin-Daten in Script-Tags ein
+  if (html) {
+    const scriptPatterns = [
+      // __PWS_DATA__ oder __PWS_INITIAL_PROPS__
+      /__PWS_(?:DATA|INITIAL_PROPS)__\s*=\s*(\{.+?\})(?:\s*;|\s*<)/s,
+      // initial-data Script-Tag
+      /<script[^>]+id=["']initial-data["'][^>]*>(\{.+?\})<\/script>/s,
+      // P.start("ResourcesController", ...) Format
+      /P\.start\("ResourcesController",\s*(\{.+?\})\s*\)/s,
+    ];
+
+    for (const pattern of scriptPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        try {
+          const data = JSON.parse(match[1]);
+          // Suche nach "link" in den Pin-Daten (rekursiv bis Tiefe 5)
+          const link = extractLinkFromJson(data, 0);
+          if (link && !link.includes("pinterest.") && link.startsWith("http")) {
+            return link;
+          }
+        } catch { /* JSON ungültig, weiter */ }
+      }
+    }
+
+    // 3. Einfacher Regex-Fallback auf "link":"https://..." im HTML
+    const linkMatch = html.match(/"link"\s*:\s*"(https?:\/\/[^"]+)"/);
+    if (linkMatch && !linkMatch[1].includes("pinterest.")) {
+      return linkMatch[1];
+    }
+  }
+
+  // 4. URL-Extraktion aus Body-Text (letzter Ausweg)
   const bodyText = $("body").text();
   const urlPattern = /https?:\/\/[^\s<>"']+(?:\/[^\s<>"']*)?/gi;
   const matches = bodyText.match(urlPattern) || [];
@@ -138,6 +172,26 @@ export function findOriginalUrl($: cheerio.CheerioAPI): string | null {
     }
   }
 
+  return null;
+}
+
+function extractLinkFromJson(obj: unknown, depth: number): string | null {
+  if (depth > 5 || !obj || typeof obj !== "object") return null;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const result = extractLinkFromJson(item, depth + 1);
+      if (result) return result;
+    }
+    return null;
+  }
+  const record = obj as Record<string, unknown>;
+  if (typeof record.link === "string" && record.link.startsWith("http") && !record.link.includes("pinterest.")) {
+    return record.link;
+  }
+  for (const value of Object.values(record)) {
+    const result = extractLinkFromJson(value, depth + 1);
+    if (result) return result;
+  }
   return null;
 }
 
@@ -366,7 +420,7 @@ export async function fetchPinterest(
 
   const { title, description, imageUrl } = extractPinMetadata($, html);
 
-  const originalUrl = findOriginalUrl($);
+  const originalUrl = findOriginalUrl($, html);
 
   if (originalUrl) {
     try {
