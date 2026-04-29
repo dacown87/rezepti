@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
+import { fetchWithCobalt, downloadFirstCobaltMedia } from "./cobalt.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -282,9 +283,23 @@ export async function fetchInstagram(
       audioPath = join(tempDir, mediaFile);
     }
   } catch (error) {
-    console.log(`yt-dlp failed, trying web scraping fallback: ${error}`);
-    const fallback = await fetchInstagramWebScraping(url);
-    return fallback;
+    console.log(`[instagram] yt-dlp failed, trying Cobalt: ${error}`);
+
+    const cobaltResult = await fetchWithCobalt(url);
+    if (cobaltResult) {
+      const cobaltAudioPath = await downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-insta");
+      const webResult = await fetchInstagramWebScraping(url);
+      return {
+        ...webResult,
+        imageUrls: [...new Set([...cobaltResult.imageUrls, ...webResult.imageUrls])].slice(0, 10),
+        audioPath: cobaltAudioPath ?? webResult.audioPath,
+        isCarousel: cobaltResult.imageUrls.length > 1,
+        carouselCount: cobaltResult.imageUrls.length > 1 ? cobaltResult.imageUrls.length : 1,
+      };
+    }
+
+    console.log("[instagram] Cobalt failed, falling back to web scraping");
+    return fetchInstagramWebScraping(url);
   }
 
   const maxImages = isCarousel ? carouselCount : 5;

@@ -5,6 +5,7 @@ import { writeFileSync, unlinkSync, existsSync, readFileSync, mkdirSync } from "
 import { join, dirname } from "node:path";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
+import { fetchWithCobalt, downloadFirstCobaltMedia } from "./cobalt.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -328,7 +329,33 @@ export async function fetchFacebook(
   try {
     return await fetchFacebookVideo(url, tempDir);
   } catch (error) {
-    console.log(`Facebook video download failed, trying OG fallback: ${error}`);
+    console.log(`[facebook] yt-dlp failed, trying Cobalt: ${error}`);
+
+    const cobaltResult = await fetchWithCobalt(url);
+    if (cobaltResult) {
+      const cobaltAudioPath = await downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-fb");
+      try {
+        const ogResult = await fetchFacebookOGFallback(url);
+        return {
+          ...ogResult,
+          imageUrls: [...new Set([...cobaltResult.imageUrls, ...ogResult.imageUrls])].slice(0, 5),
+          audioPath: cobaltAudioPath,
+        };
+      } catch {
+        return {
+          url,
+          type: "facebook",
+          title: "",
+          description: "",
+          textContent: "",
+          imageUrls: cobaltResult.imageUrls.slice(0, 5),
+          audioPath: cobaltAudioPath,
+          schemaRecipe: null,
+        };
+      }
+    }
+
+    console.log("[facebook] Cobalt failed, trying OG fallback");
     try {
       return await fetchFacebookOGFallback(url);
     } catch {

@@ -60,7 +60,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ## Phase 12 — Social Media Erweiterungen
 
 - **12a** ✅ Facebook als Quelltype: `classifier.ts`, `src/fetchers/facebook.ts` (yt-dlp + OG-Fallback + Cookie-Management), Pipeline-Case — bereits vollständig implementiert
-- **12b** ⬜ Cobalt.tools als Fallback zu yt-dlp für Instagram/TikTok/Facebook — API-Endpunkt hat sich geändert (`cobalt.tools/api/json` deprecated → `api.cobalt.tools`), erst verifizieren bevor implementieren
+- **12b** ✅ Cobalt.tools als Fallback zu yt-dlp für Instagram/TikTok/Facebook — `src/fetchers/cobalt.ts`; API `api.cobalt.tools`; `COBALT_API_URL` + `COBALT_API_KEY` in `.env`; öffentliche Instanz funktioniert ohne Key (Turnstile-Fehler werden still ignoriert)
 
 ### Backlog (interessant für später)
 - Supadata.ai API für Instagram-Transkripte (kostenloses Free-Tier)

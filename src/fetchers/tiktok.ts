@@ -4,6 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { ContentBundle } from "../types.js";
 import { config } from "../config.js";
+import { fetchWithCobalt, downloadFirstCobaltMedia } from "./cobalt.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -151,6 +152,18 @@ export async function fetchTikTok(
       }
     } catch {
       // ignore
+    }
+  }
+
+  // Cobalt fallback: when yt-dlp produced no usable media, try the Cobalt API
+  if (!audioPath && imageUrls.length === 0) {
+    console.log("[tiktok] yt-dlp produced nothing, trying Cobalt");
+    const cobaltResult = await fetchWithCobalt(url);
+    if (cobaltResult) {
+      if (cobaltResult.mediaUrls.length > 0) {
+        audioPath = await downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-tiktok");
+      }
+      imageUrls = [...imageUrls, ...cobaltResult.imageUrls];
     }
   }
 
