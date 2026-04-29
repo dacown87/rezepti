@@ -333,26 +333,27 @@ export async function fetchFacebook(
 
     const cobaltResult = await fetchWithCobalt(url);
     if (cobaltResult) {
-      const cobaltAudioPath = await downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-fb");
-      try {
-        const ogResult = await fetchFacebookOGFallback(url);
+      const [cobaltAudioPath, ogResult] = await Promise.all([
+        downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-fb"),
+        fetchFacebookOGFallback(url).catch(() => null),
+      ]);
+      if (ogResult) {
         return {
           ...ogResult,
           imageUrls: [...new Set([...cobaltResult.imageUrls, ...ogResult.imageUrls])].slice(0, 5),
           audioPath: cobaltAudioPath,
         };
-      } catch {
-        return {
-          url,
-          type: "facebook",
-          title: "",
-          description: "",
-          textContent: "",
-          imageUrls: cobaltResult.imageUrls.slice(0, 5),
-          audioPath: cobaltAudioPath,
-          schemaRecipe: null,
-        };
       }
+      return {
+        url,
+        type: "facebook",
+        title: "",
+        description: "",
+        textContent: "",
+        imageUrls: cobaltResult.imageUrls.slice(0, 5),
+        audioPath: cobaltAudioPath,
+        schemaRecipe: null,
+      };
     }
 
     console.log("[facebook] Cobalt failed, trying OG fallback");

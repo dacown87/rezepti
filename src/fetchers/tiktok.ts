@@ -163,7 +163,7 @@ export async function fetchTikTok(
       if (cobaltResult.mediaUrls.length > 0) {
         audioPath = await downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-tiktok");
       }
-      imageUrls = [...imageUrls, ...cobaltResult.imageUrls];
+      imageUrls = cobaltResult.imageUrls;
     }
   }
 

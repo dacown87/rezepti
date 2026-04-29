@@ -1,4 +1,6 @@
-import { writeFile } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+import { Readable } from "node:stream";
 import { join } from "node:path";
 import { config } from "../config.js";
 
@@ -25,10 +27,6 @@ export interface CobaltMediaResult {
   filename?: string;
 }
 
-/**
- * Call the Cobalt API to resolve a social media URL into downloadable media.
- * Returns null on any error (auth, network, unsupported URL) — always a graceful fallback.
- */
 export async function fetchWithCobalt(
   url: string,
   downloadMode: "auto" | "audio" | "mute" = "auto"
@@ -89,10 +87,7 @@ export async function fetchWithCobalt(
     };
   }
 
-  if (
-    (data.status === "redirect" || data.status === "tunnel") &&
-    data.url
-  ) {
+  if ((data.status === "redirect" || data.status === "tunnel") && data.url) {
     return { mediaUrls: [data.url], imageUrls: [], filename: data.filename };
   }
 
@@ -100,44 +95,34 @@ export async function fetchWithCobalt(
   return null;
 }
 
-/**
- * Download a media file from a Cobalt-provided URL into tempDir.
- * Returns the local file path, or null on failure.
- */
 export async function downloadCobaltMedia(
   mediaUrl: string,
   tempDir: string,
   filename: string
-): Promise<string | null> {
+): Promise<string | undefined> {
   try {
     const response = await fetch(mediaUrl, {
       headers: { "User-Agent": "Mozilla/5.0" },
       signal: AbortSignal.timeout(60_000),
     });
-    if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
+    if (!response.ok || !response.body) return undefined;
     const filePath = join(tempDir, filename);
-    await writeFile(filePath, Buffer.from(buffer));
+    await pipeline(
+      Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]),
+      createWriteStream(filePath)
+    );
     return filePath;
   } catch {
-    return null;
+    return undefined;
   }
 }
 
-function cobaltFileExt(filename?: string): string {
-  return filename?.match(/\.(mp4|m4a|webm|mp3|mov)$/i)?.[1] ?? "mp4";
-}
-
-/**
- * Download the first available media from a CobaltMediaResult.
- * Returns the local file path, or undefined if nothing to download.
- */
 export async function downloadFirstCobaltMedia(
   result: CobaltMediaResult,
   tempDir: string,
   prefix: string
 ): Promise<string | undefined> {
   if (result.mediaUrls.length === 0) return undefined;
-  const ext = cobaltFileExt(result.filename);
-  return (await downloadCobaltMedia(result.mediaUrls[0], tempDir, `${prefix}.${ext}`)) ?? undefined;
+  const ext = result.filename?.match(/\.(mp4|m4a|webm|mp3|mov)$/i)?.[1] ?? "mp4";
+  return downloadCobaltMedia(result.mediaUrls[0], tempDir, `${prefix}.${ext}`);
 }

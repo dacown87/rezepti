@@ -287,14 +287,17 @@ export async function fetchInstagram(
 
     const cobaltResult = await fetchWithCobalt(url);
     if (cobaltResult) {
-      const cobaltAudioPath = await downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-insta");
-      const webResult = await fetchInstagramWebScraping(url);
+      const [cobaltAudioPath, webResult] = await Promise.all([
+        downloadFirstCobaltMedia(cobaltResult, tempDir, "cobalt-insta"),
+        fetchInstagramWebScraping(url),
+      ]);
+      const cobaltItemCount = cobaltResult.imageUrls.length + cobaltResult.mediaUrls.length;
       return {
         ...webResult,
         imageUrls: [...new Set([...cobaltResult.imageUrls, ...webResult.imageUrls])].slice(0, 10),
         audioPath: cobaltAudioPath ?? webResult.audioPath,
-        isCarousel: cobaltResult.imageUrls.length > 1,
-        carouselCount: cobaltResult.imageUrls.length > 1 ? cobaltResult.imageUrls.length : 1,
+        isCarousel: cobaltItemCount > 1,
+        carouselCount: cobaltItemCount > 1 ? cobaltItemCount : 1,
       };
     }
 
