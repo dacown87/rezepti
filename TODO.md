@@ -57,8 +57,12 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **TikTok** ✅ ffmpeg-Verfügbarkeits-Check; OCR auf `extractRecipeFromText()` umgestellt
 - **Pinterest** ✅ `findOriginalUrl()` sucht in `__PWS_DATA__`, Script-Tags und `"link"`-Regex
 
+## Phase 12 — Social Media Erweiterungen
+
+- **12a** ✅ Facebook als Quelltype: `classifier.ts`, `src/fetchers/facebook.ts` (yt-dlp + OG-Fallback + Cookie-Management), Pipeline-Case — bereits vollständig implementiert
+- **12b** ⬜ Cobalt.tools als Fallback zu yt-dlp für Instagram/TikTok/Facebook — API-Endpunkt hat sich geändert (`cobalt.tools/api/json` deprecated → `api.cobalt.tools`), erst verifizieren bevor implementieren
+
 ### Backlog (interessant für später)
-- Cobalt.tools als yt-dlp-Fallback (API-Endpunkt `api.cobalt.tools` — öffentliche API verifizieren)
 - Supadata.ai API für Instagram-Transkripte (kostenloses Free-Tier)
 - OpenRouter als BYOK-LLM-Alternative (1B Token/Monat gratis, Llama 4 Scout, DeepSeek V3)
 - Ollama als lokaler LLM-Fallback für Self-Hosted-User
