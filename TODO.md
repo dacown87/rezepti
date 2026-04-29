@@ -36,36 +36,36 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
-## Phase 10 — ingredientGroups + universelle Bild-Auswahl
+## Phase 10 — ingredientGroups + universelle Bild-Auswahl ✅ ABGESCHLOSSEN (2026-04-25)
 
-### Phase 10a — Datenmodell & Backend-Persistenz
-- `src/types.ts`: `ingredientGroups?: { heading: string; items: string[] }[]` zu `RecipeDataSchema` hinzufügen; `ContentBundle` um `ingredientGroups?` erweitern
-- `src/schema.ts`: Spalte `ingredient_groups text` (nullable) in `recipes` table
-- DB-Migration: `npx drizzle-kit generate && npx drizzle-kit push`
-- `src/db-react.ts`:
-  - `saveRecipeToReactDb`: flat `ingredients` aus Groups ableiten wenn vorhanden; `ingredient_groups` als JSON speichern
-  - `updateRecipeInReactDb`: bei `ingredientGroups`-Update → flat `ingredients` re-ableiten + `ingredient_groups` schreiben; bei reinem `ingredients`-Update → `ingredient_groups = null`
-  - Deserialisierung: `ingredient_groups` aus DB-Row parsen und als `ingredientGroups` zurückgeben
+- **10a** — Datenmodell: `ingredientGroups` in `RecipeDataSchema` + `ContentBundle`; Spalte `ingredient_groups text` in DB; Supabase-Migration deployed; Save/Update/Deserialize in `db-react.ts`
+- **10b** — LLM: SYSTEM_PROMPT + `normalizeGroupsToIngredients` in `llm.ts`
+- **10c** — Cookidoo DOM-Extraktion + `pipeline.ts`-Injection
+- **10d** — Gruppenanzeige + Edit-Modus + „Bild ändern"-Overlay in `mobile/app/recipe/[id].tsx`
+- **10e** — Universelle Bildauswahl nach jedem Import (Bedingung vereinfacht)
+- **Bugfix** — `onSkip`-Prop in `ImagePickerModal` auf Rezeptdetailseite (`74c5413`, v1.0.95)
 
-### Phase 10b — LLM-Extraktion
-- `src/processors/llm.ts`:
-  - SYSTEM_PROMPT: `ingredientGroups`-Beispiel hinzufügen; Regel: Sektionen vorhanden → nur `ingredientGroups` zurückgeben; sonst nur `ingredients`
-  - Vor `RecipeDataSchema.parse(raw)`: flat `ingredients` aus `ingredientGroups` ableiten falls LLM nur Groups lieferte
+---
 
-### Phase 10c — Cookidoo-Gruppen-Extraktion
-- `src/fetchers/cookidoo.ts`: DOM nach `rdp-ingredient-group`/`recipe-ingredient-group` + Überschriften (`.rdp-ingredient-group__title`) walkern; `{ heading, items }[]` bauen (nur wenn ≥2 Gruppen)
-- `src/pipeline.ts`: Cookidoo-Groups aus `ContentBundle` in Recipe injizieren (wie Equipment-Injection)
+## Phase 11 + Social-Media-Fixes — ✅ ABGESCHLOSSEN (2026-04-29)
 
-### Phase 10d — Anzeige & Edit-Modus (mobile/app/recipe/[id].tsx)
-- **Anzeige**: Branching-Renderer — `ingredientGroups` vorhanden → Abschnitts-Überschriften (grau, uppercase) + Items; Item mit `\n` → Hauptzeile + graue Unterzeile; Fallback auf flat `ingredients`
-- **Edit-Modus**: `editDraft` um `ingredientGroups` erweitern; Gruppen-Editor (Überschrift editierbar, Zutaten add/remove/edit pro Gruppe, Gruppe add/remove); flat mode unverändert; `handleSave`: flat ableiten vor PATCH
-- **Bild-ändern-Button**: "Bild ändern"-Pressable overlay am Hero-Bild; öffnet `<ImagePickerModal>` mit `initialQuery={recipe.name}`; bei select: PATCH `imageUrl` + reload
+- **11a** ✅ HTML-Cleanup in `extractMainText()`: Ads/Kommentare/Social/Newsletter entfernt; WPRM + Tasty-Recipes als Priorität; 6000 Zeichen Limit
+- **11b** ✅ `parseNutritionInfo()` war bereits implementiert; `SchemaOrgRecipe.nutrition`-Typ auf alle Felder erweitert (kein Cast mehr)
+- **11c** ✅ `decodeHtmlEntities()` für named/dezimale/hex Entities; Zutaten + Schritte werden dekodiert
+- **11d** ✅ `twitter:image` als drittes Bild-Fallback mit URL-Auflösung
+- **Instagram** ✅ Web-Scraping-Fallback: mehr Selektoren + Embedded-JSON-Extraktion
+- **TikTok** ✅ ffmpeg-Verfügbarkeits-Check; OCR auf `extractRecipeFromText()` umgestellt
+- **Pinterest** ✅ `findOriginalUrl()` sucht in `__PWS_DATA__`, Script-Tags und `"link"`-Regex
 
-### Phase 10e — Universelle Post-Import Bildauswahl
-- `mobile/app/(tabs)/extract.tsx` Zeile 165: Bedingung vereinfachen
-  - Von: `if (recipeId && (submittedModeRef.current === 'photo' || suggestions.length > 0))`
-  - Zu: `if (recipeId)`
-  - ImagePickerModal sucht automatisch via `initialQuery` wenn `imageSuggestions` leer ist
+### Backlog (interessant für später)
+- Cobalt.tools als yt-dlp-Fallback (API-Endpunkt `api.cobalt.tools` — öffentliche API verifizieren)
+- Supadata.ai API für Instagram-Transkripte (kostenloses Free-Tier)
+- OpenRouter als BYOK-LLM-Alternative (1B Token/Monat gratis, Llama 4 Scout, DeepSeek V3)
+- Ollama als lokaler LLM-Fallback für Self-Hosted-User
+- Llama 4 Scout auch für Textextraktion (bereits für Vision: 1.5× günstiger — nur `.env`-Änderung)
+- Bild-Optimierung beim Import: WebP-Konvertierung + Resizing (Mealie-Pattern, braucht Sharp)
+- Vision-basierte Rezeptkarten-Erkennung via Llama 4 Scout (Pinterest-Karten, Buchseiten)
+- Rezept-Qualitäts-Scoring: automatischer Score → LLM-Refinement nur wenn Score < Threshold
 
 ---
 
