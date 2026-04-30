@@ -59,6 +59,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 - `src/processors/llm.ts` — Groq API via OpenAI SDK for recipe extraction and refinement
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
 - `src/processors/whisper.ts` — Audio transcription via Groq Whisper API
+- `src/processors/ingredient-parser.ts` — `parseIngredient(raw)` → `{amount, unit, food, note?}`; ephemeral (no DB field)
 - `src/db-react.ts` — PostgreSQL connection (postgres-js + Drizzle ORM), CRUD functions for React DB
 - `src/api-react.ts` — All `/api/v1/*` endpoints (recipes, extraction jobs, BYOK, health)
 - `src/job-manager.ts` — Job persistence for polling-based extraction
