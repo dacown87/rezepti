@@ -92,7 +92,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **13e** ✅ — `extractWildJsonLd()` in `src/fetchers/web.ts`: Script-Tags ohne korrekten type + `window.__NUXT__/__NEXT_DATA__`; `deepFindRecipe()` für beliebig verschachteltes JSON; **ReDoS-Schutz: `html.slice(0, 100_000)`**; 4 Tests in `web.test.ts`
 
 ### Welle 3 — Neue Features
-- **13g** — Freitext-Import: `POST /api/v1/extract/text` + dritter Tab in `extract.tsx` (URL > Text > Foto, Icon: `Type`); min 50 Zeichen Validation; CLAUDE.md ergänzen
+- **13g** ✅ — `POST /api/v1/extract/text`; dritter Tab in `extract.tsx` (URL · Text · Foto, Icon: `Type`); multiline TextInput mit Zeichen-Zähler; min 50 Zeichen Validation
 - **13d** — Ingredient-Parser `src/processors/ingredient-parser.ts`: `"200 g Mehl"` → `{amount, unit, food, note}`; **ephemer** (kein DB-Feld); koordinieren mit `scaling.ts`; Tests in `ingredient-parser.test.ts`
 - **13i** — Nutrition-Auto-Detection in `src/pipeline.ts`: LLM schätzt Nährwerte wenn `calories` leer; `nutritionEstimated: true` im Response; Frontend: `~` vor Werten
 
