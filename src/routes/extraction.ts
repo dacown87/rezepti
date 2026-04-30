@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { jobManager } from "../job-manager.js";
 import { BYOKValidator } from "../byok-validator.js";
 import { processURL, toUserFriendlyError } from "../pipeline.js";
-import { extractRecipeFromImage } from "../processors/llm.js";
+import { extractRecipeFromImage, extractRecipeFromText } from "../processors/llm.js";
 import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
 import { classifyURL } from "../classifier.js";
 import { saveRecipeToReactDb } from "../db-react.js";
@@ -11,6 +11,8 @@ import { searchRecipeImages } from "../utils/image-search.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
 const photoDataStore = new Map<string, string>();
+// In-memory store for free text input, keyed by jobId
+const textDataStore = new Map<string, string>();
 
 const app = new Hono();
 
@@ -248,6 +250,83 @@ async function processPhotoJobInBackground(jobId: string) {
     jobManager.failJob(jobId, message, hint);
   } finally {
     photoDataStore.delete(jobId);
+  }
+}
+
+// Free text extraction endpoint
+app.post("/api/v1/extract/text", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+
+    if (!text) {
+      return c.json({ error: "Text ist erforderlich" }, 400);
+    }
+    if (text.length < 50) {
+      return c.json({ error: "Text muss mindestens 50 Zeichen lang sein" }, 400);
+    }
+
+    const userAgent = c.req.header("User-Agent");
+    const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent);
+    textDataStore.set(job.id, text);
+
+    setTimeout(() => {
+      processTextJobInBackground(job.id).catch(console.error);
+    }, 0);
+
+    return c.json({
+      jobId: job.id,
+      status: "pending",
+      message: "Text extraction job created",
+      pollUrl: `/api/v1/extract/react/${job.id}`,
+    }, 202);
+
+  } catch (error) {
+    console.error("Error creating text extraction job:", error);
+    return c.json({ error: "Failed to create text extraction job" }, 500);
+  }
+});
+
+async function processTextJobInBackground(jobId: string) {
+  const text = textDataStore.get(jobId);
+  if (!text) {
+    jobManager.failJob(jobId, "Text-Daten nicht gefunden");
+    return;
+  }
+  try {
+    jobManager.startJob(jobId);
+    jobManager.updateJob(jobId, { progress: 20, currentStage: "extracting", message: "Rezept wird extrahiert", status: "running" });
+
+    const recipeData = await extractRecipeFromText(text);
+
+    jobManager.updateJob(jobId, { progress: 75, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
+    const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
+
+    jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
+    const recipeId = await saveRecipeToReactDb(recipeData, "text://manual");
+
+    const qualityWarnings: string[] = [];
+    if (!recipeData.ingredients || recipeData.ingredients.length === 0)
+      qualityWarnings.push("Keine Zutaten erkannt — bitte manuell ergänzen.");
+    if (!recipeData.steps || recipeData.steps.length === 0)
+      qualityWarnings.push("Keine Zubereitungsschritte erkannt — bitte manuell ergänzen.");
+    if (!recipeData.name || /^https?:\/\//i.test(recipeData.name))
+      qualityWarnings.push("Kein Rezeptname erkannt — bitte manuell eintragen.");
+
+    jobManager.completeJob(jobId, {
+      success: true,
+      recipeId,
+      recipe: recipeData,
+      imageSuggestions,
+      qualityWarnings: qualityWarnings.length ? qualityWarnings : undefined,
+    });
+
+  } catch (error) {
+    console.error(`Text job ${jobId} failed:`, error);
+    const { message, hint } = toUserFriendlyError(error);
+    jobManager.failJob(jobId, message, hint);
+  } finally {
+    textDataStore.delete(jobId);
   }
 }
 

@@ -17,7 +17,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X, UtensilsCrossed, Copy } from 'lucide-react-native';
+import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X, UtensilsCrossed, Copy, Type } from 'lucide-react-native';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { compressIfNeeded } from '@/utils/image-compress';
 
@@ -27,7 +27,7 @@ import { getServerUrl } from '@/utils/server-url';
 
 const GROQ_KEY_SECURE = 'groq_key';
 
-type Mode = 'url' | 'photo';
+type Mode = 'url' | 'text' | 'photo';
 
 const STAGES: Record<string, number> = {
   classifying: 20,
@@ -107,6 +107,7 @@ async function getGroqKey(): Promise<string | null> {
 export default function ExtractScreen() {
   const [mode, setMode] = useState<Mode>('url');
   const [url, setUrl] = useState('');
+  const [textInput, setTextInput] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -203,6 +204,7 @@ export default function ExtractScreen() {
   // ── Reset ──────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
     setUrl('');
+    setTextInput('');
     setPhotoUri(null);
     setIsLoading(false);
     setJobId(null);
@@ -245,6 +247,47 @@ export default function ExtractScreen() {
         method: 'POST',
         headers,
         body: JSON.stringify({ url: trimmed }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Server-Fehler ${res.status}`);
+      }
+
+      const data = await res.json();
+      setJobId(data.jobId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim Starten der Extraktion';
+      setError(msg);
+      setIsLoading(false);
+      setProgress(0);
+      setStage(null);
+    }
+  };
+
+  // ── Text submit ───────────────────────────────────────────────────────────
+  const handleTextSubmit = async () => {
+    const trimmed = textInput.trim();
+    if (trimmed.length < 50) return;
+
+    submittedModeRef.current = 'text';
+    setIsLoading(true);
+    setError(null);
+    setSuccess(false);
+    setProgress(10);
+    setStage('extracting');
+
+    try {
+      const serverUrl = await getServerUrl();
+      const groqKey = await getGroqKey();
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (groqKey) headers['x-groq-key'] = groqKey;
+
+      const res = await fetch(`${serverUrl}/api/v1/extract/text`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: trimmed }),
       });
 
       if (!res.ok) {
@@ -512,6 +555,8 @@ export default function ExtractScreen() {
           <Text className="text-warm-500 dark:text-warm-400 mt-1 text-sm">
             {mode === 'url'
               ? 'Füge eine URL ein — RecipeDeck extrahiert das Rezept automatisch.'
+              : mode === 'text'
+              ? 'Rezepttext direkt einfügen — z.B. kopiert aus einer Website oder einem Buch.'
               : 'Foto eines Rezepts hochladen — KI erkennt Zutaten und Schritte.'}
           </Text>
         </View>
@@ -520,23 +565,34 @@ export default function ExtractScreen() {
         <View className="flex-row bg-white dark:bg-espresso-800 rounded-2xl p-1 mb-6 border border-warm-200 dark:border-warm-700 shadow-sm">
           <Pressable
             onPress={() => switchMode('url')}
-            className={`flex-1 flex-row items-center justify-center gap-2 py-2.5 rounded-xl ${
+            className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-xl ${
               mode === 'url' ? 'bg-primary-500' : ''
             }`}
           >
-            <Globe size={16} color={mode === 'url' ? '#fff' : '#9E8878'} />
-            <Text className={`text-sm font-medium ${mode === 'url' ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
+            <Globe size={15} color={mode === 'url' ? '#fff' : '#9E8878'} />
+            <Text className={`text-xs font-medium ${mode === 'url' ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
               URL
             </Text>
           </Pressable>
           <Pressable
+            onPress={() => switchMode('text')}
+            className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-xl ${
+              mode === 'text' ? 'bg-primary-500' : ''
+            }`}
+          >
+            <Type size={15} color={mode === 'text' ? '#fff' : '#9E8878'} />
+            <Text className={`text-xs font-medium ${mode === 'text' ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
+              Text
+            </Text>
+          </Pressable>
+          <Pressable
             onPress={() => switchMode('photo')}
-            className={`flex-1 flex-row items-center justify-center gap-2 py-2.5 rounded-xl ${
+            className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-xl ${
               mode === 'photo' ? 'bg-primary-500' : ''
             }`}
           >
-            <Camera size={16} color={mode === 'photo' ? '#fff' : '#9E8878'} />
-            <Text className={`text-sm font-medium ${mode === 'photo' ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
+            <Camera size={15} color={mode === 'photo' ? '#fff' : '#9E8878'} />
+            <Text className={`text-xs font-medium ${mode === 'photo' ? 'text-white' : 'text-warm-500 dark:text-warm-400'}`}>
               Foto
             </Text>
           </Pressable>
@@ -597,6 +653,47 @@ export default function ExtractScreen() {
 
               {isLoading && <ProgressSection />}
             </View>
+          </View>
+        )}
+
+        {/* ── Text mode ── */}
+        {mode === 'text' && (
+          <View className="bg-white dark:bg-espresso-800 rounded-2xl border border-warm-200 dark:border-warm-700 shadow-sm p-4">
+            <TextInput
+              className="text-base text-warm-900 dark:text-warm-50 border border-warm-200 dark:border-warm-700 rounded-xl px-4 py-3 mb-2"
+              placeholder={"Zutaten:\n100g Mehl\n2 Eier\n...\n\nZubereitung:\n1. Mehl und Eier vermischen..."}
+              placeholderTextColor="#9E8878"
+              value={textInput}
+              onChangeText={setTextInput}
+              multiline
+              numberOfLines={10}
+              style={{ minHeight: 180, textAlignVertical: 'top' }}
+              editable={!isLoading}
+              autoCorrect={false}
+            />
+            <Text className={`text-xs mb-3 ml-1 ${
+              textInput.trim().length < 50
+                ? 'text-warm-400 dark:text-warm-500'
+                : 'text-green-600 dark:text-green-400'
+            }`}>
+              {textInput.trim().length < 50
+                ? `Mindestens 50 Zeichen (noch ${50 - textInput.trim().length})`
+                : `${textInput.trim().length} Zeichen ✓`}
+            </Text>
+            <Pressable
+              onPress={handleTextSubmit}
+              disabled={isLoading || textInput.trim().length < 50}
+              className={`py-3.5 rounded-xl items-center ${
+                isLoading || textInput.trim().length < 50 ? 'bg-primary-200' : 'bg-primary-500'
+              }`}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white font-semibold text-base">Extrahieren</Text>
+              )}
+            </Pressable>
+            {isLoading && <ProgressSection />}
           </View>
         )}
 
