@@ -57,16 +57,46 @@ function extractMainText($: cheerio.CheerioAPI): string {
     "noscript, iframe"
   ).remove();
 
-  // Priority: WordPress Recipe Maker, Tasty Recipes, then schema.org, then generic
+  // Priority: specific recipe plugins first, then generic containers, then full-page fallbacks
   const selectors = [
+    // WordPress recipe plugins
     ".wprm-recipe-container",
     ".tasty-recipe",
+    ".mv-create-card",          // Mediavine Create
+    ".mv-recipe-card",          // Mediavine alternative
+    ".recipe-card-full-width",  // Pinch of Yum / Foodie Pro
+    ".recipe-card-container",
+    ".simple-recipe-pro",
+    // Schema.org microdata containers
     '[itemtype*="schema.org/Recipe"]',
     '[itemtype*="Recipe"]',
+    // Site-specific recipe containers (RecipeClipper sources)
+    ".o-AssetRecipe",           // Food Network
+    ".recipe-detail-container",
+    ".recipe-page",
+    ".recipe-page-content",
+    ".recipe-body",
+    ".recipe-frame",
+    ".recipe-box",
+    ".recipe-wrapper",
+    ".recipe__body",
+    ".recipe__container",
+    ".recipe-main",
+    ".hrecipe",                 // old microformat
+    // Generic recipe selectors
     ".recipe",
     ".recipe-content",
     ".recipe-card",
     "#recipe",
+    "[class*='recipe-card']",
+    "[class*='recipe-block']",
+    "[class*='recipe-container']",
+    // Ingredient/step area selectors (grab surrounding context)
+    ".ingredients-instructions",
+    ".ingredients-and-instructions",
+    ".recipe-directions",
+    ".recipe-method",
+    // Broad fallbacks
     "article",
     "main",
     ".post-content",
