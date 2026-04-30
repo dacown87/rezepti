@@ -55,7 +55,11 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 **Key modules:**
 - `src/pipeline.ts` — Orchestrator that routes through the extraction workflow; always saves to React DB
 - `src/classifier.ts` — Determines URL source type (youtube/instagram/tiktok/web)
-- `src/fetchers/` — Source-specific content downloaders (web.ts uses cheerio; others use yt-dlp)
+- `src/fetchers/` — Source-specific content downloaders (yt-dlp for video; cheerio for web)
+  - `web/base.ts` — shared extraction utilities + `WebScraperPlugin` interface
+  - `web/chefkoch.ts` — domain-specific plugin (chefkoch.de CSS selectors)
+  - `web/index.ts` — plugin registry + `fetchWeb` dispatcher
+  - `web.ts` — thin re-export (keeps existing imports stable)
 - `src/processors/llm.ts` — Groq API via OpenAI SDK for recipe extraction and refinement
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
 - `src/processors/whisper.ts` — Audio transcription via Groq Whisper API
