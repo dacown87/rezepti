@@ -13,6 +13,7 @@ import {
   extractRecipeFromImage,
   extractRecipeFromImages,
   refineRecipe,
+  estimateNutrition,
 } from "./processors/llm.js";
 import { transcribeAudio } from "./processors/whisper.js";
 import { saveRecipeToReactDb } from "./db-react.js";
@@ -134,12 +135,23 @@ export async function processURL(
       data: recipe,
     });
 
-    // Step 4: Save to SQLite
+    // Step 3b: Estimate nutrition if calories are missing
+    let nutritionEstimated = false;
+    if (!recipe.calories && recipe.ingredients && recipe.ingredients.length > 0) {
+      await emit(onEvent, { stage: "extracting", message: "Nährwerte werden geschätzt..." });
+      const nutrition = await estimateNutrition(recipe.ingredients, recipe.servings).catch(() => null);
+      if (nutrition) {
+        recipe = { ...recipe, calories: nutrition.calories };
+        nutritionEstimated = true;
+      }
+    }
+
+    // Step 4: Save to DB
     await emit(onEvent, {
       stage: "exporting",
       message: "Rezept wird in Datenbank gespeichert...",
     });
-    
+
     const recipeId = await saveRecipeToReactDb(recipe, classified.url, transcript);
     
     await emit(onEvent, {
@@ -165,7 +177,13 @@ export async function processURL(
       qualityWarnings.push("Kein Rezeptname erkannt — bitte manuell eintragen.");
     }
 
-    return { success: true, recipe, recipeId, qualityWarnings: qualityWarnings.length ? qualityWarnings : undefined };
+    return {
+      success: true,
+      recipe,
+      recipeId,
+      qualityWarnings: qualityWarnings.length ? qualityWarnings : undefined,
+      nutritionEstimated: nutritionEstimated || undefined,
+    };
   } catch (error) {
     const { message, hint } = toUserFriendlyError(error);
     await emit(onEvent, { stage: "error", message });

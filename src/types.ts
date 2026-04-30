@@ -119,4 +119,5 @@ export interface PipelineResult {
   hint?: string;
   imageSuggestions?: string[];
   qualityWarnings?: string[];
+  nutritionEstimated?: boolean;
 }

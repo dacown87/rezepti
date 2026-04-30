@@ -64,6 +64,7 @@ interface JobStatus {
     error?: string;
     imageSuggestions?: string[];
     qualityWarnings?: string[];
+    nutritionEstimated?: boolean;
   };
 }
 
@@ -119,6 +120,8 @@ export default function ExtractScreen() {
   const [errorCopied, setErrorCopied] = useState(false);
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
   const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
+  const [nutritionEstimated, setNutritionEstimated] = useState(false);
+  const [estimatedCalories, setEstimatedCalories] = useState<number | null>(null);
   const [recipeIdForImage, setRecipeIdForImage] = useState<number | null>(null);
   const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
   const [recipeImageUrl, setRecipeImageUrl] = useState<string | null>(null);
@@ -167,6 +170,10 @@ export default function ExtractScreen() {
           const suggestions = status.result?.imageSuggestions ?? [];
           const recipeId = status.result?.recipeId ?? null;
           setQualityWarnings(status.result?.qualityWarnings ?? []);
+          if (status.result?.nutritionEstimated && status.result?.recipe?.calories) {
+            setNutritionEstimated(true);
+            setEstimatedCalories(status.result.recipe.calories);
+          }
           // Server-ID als Nav-Target
           if (recipeId) navRecipeIdRef.current = recipeId;
 
@@ -214,6 +221,9 @@ export default function ExtractScreen() {
     setError(null);
     setErrorHint(null);
     setImageSuggestions([]);
+    setQualityWarnings([]);
+    setNutritionEstimated(false);
+    setEstimatedCalories(null);
     setRecipeIdForImage(null);
     setRecipeNameForImage(undefined);
     setRecipeImageUrl(null);
@@ -444,9 +454,15 @@ export default function ExtractScreen() {
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-4">
           <View className="flex-1 items-center justify-center py-10" style={{ maxWidth: 520, alignSelf: 'center', width: '100%' }}>
             <CheckCircle size={40} color="#C84B31" />
-            <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 mt-3 mb-6 text-center">
+            <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 mt-3 mb-1 text-center">
               Rezept gespeichert!
             </Text>
+            {nutritionEstimated && estimatedCalories && (
+              <Text className="text-warm-400 dark:text-warm-500 text-xs text-center mb-5">
+                ~{estimatedCalories} kcal (KI-Schätzung)
+              </Text>
+            )}
+            {!nutritionEstimated && <View className="mb-5" />}
 
             {/* Bild-Vorschau */}
             <View className="w-full rounded-2xl overflow-hidden mb-6 bg-warm-100 dark:bg-espresso-800" style={{ aspectRatio: 16 / 9 }}>
@@ -499,9 +515,15 @@ export default function ExtractScreen() {
             <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 mt-4 text-center">
               Rezept gespeichert!
             </Text>
-            <Text className="text-warm-500 dark:text-warm-400 text-center mt-2 mb-6 leading-relaxed">
-              Das Rezept wurde extrahiert und gespeichert.
-            </Text>
+            {nutritionEstimated && estimatedCalories ? (
+              <Text className="text-warm-400 dark:text-warm-500 text-xs text-center mt-1 mb-5">
+                ~{estimatedCalories} kcal (KI-Schätzung)
+              </Text>
+            ) : (
+              <Text className="text-warm-500 dark:text-warm-400 text-center mt-2 mb-6 leading-relaxed">
+                Das Rezept wurde extrahiert und gespeichert.
+              </Text>
+            )}
             {qualityWarnings.length > 0 && (
               <View className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl p-4 mb-6 w-full max-w-sm">
                 <View className="flex-row items-center justify-between mb-2">

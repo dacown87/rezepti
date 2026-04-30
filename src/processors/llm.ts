@@ -181,3 +181,23 @@ Rezept-Daten:\n${JSON.stringify(partial, null, 2)}`,
   normalizeGroupsToIngredients(raw);
   return RecipeDataSchema.parse(raw);
 }
+
+export async function estimateNutrition(
+  ingredients: string[],
+  servings?: string
+): Promise<{ calories: number } | null> {
+  try {
+    const portionHint = servings ? ` (${servings})` : "";
+    const raw = await chatJSON([
+      {
+        role: "user",
+        content: `Schätze die Kalorien pro Portion${portionHint} für dieses Rezept anhand der Zutatenliste. Antworte nur mit JSON: {"calories": <Zahl>}\n\nZutaten:\n${ingredients.join("\n")}`,
+      },
+    ], config.groq.textModel) as Record<string, unknown>;
+
+    const cal = typeof raw.calories === "number" ? Math.round(raw.calories) : null;
+    return cal && cal > 0 ? { calories: cal } : null;
+  } catch {
+    return null;
+  }
+}
