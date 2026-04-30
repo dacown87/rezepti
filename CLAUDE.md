@@ -148,6 +148,8 @@ Host github.com
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
 - **After frontend changes:** Always run `npm run build:react` to update `public/`
+- **New web scraper plugin:** Add `src/fetchers/web/[domain].ts` implementing `WebScraperPlugin`, register in `PLUGINS` array in `web/index.ts`. `web.ts` stays a thin re-export — no import changes needed elsewhere.
+- **Fetcher code duplication:** Before adding utility functions to a fetcher (extractJsonLdRecipes, resolveSchemaImage, extractImages etc.), check `src/fetchers/web/base.ts` first — these are already exported there.
 
 ## Planning Documents
 
@@ -251,3 +253,4 @@ Planned features and current implementation status (as of March 2026):
 - Async/await for all async operations
 - No barrel exports; direct module imports
 - JSON arrays (tags, ingredients, steps) serialized as TEXT in SQLite
+- Obsidian Vault liegt unter `/home/patrick/Vault/` — direkt mit Write-Tool beschreiben, kein MCP `patch_content` (schlägt mit error 40080 fehl)
