@@ -1,68 +1,30 @@
 import * as cheerio from "cheerio";
 import type { ContentBundle, SchemaOrgRecipe } from "../types.js";
-
-function extractJsonLdRecipes($: cheerio.CheerioAPI): SchemaOrgRecipe | null {
-  const scripts = $('script[type="application/ld+json"]');
-  for (let i = 0; i < scripts.length; i++) {
-    try {
-      const raw = $(scripts[i]).html();
-      if (!raw) continue;
-      const json = JSON.parse(raw);
-      const found = findRecipeInJsonLd(json);
-      if (found) return found;
-    } catch {
-      // skip invalid JSON-LD
-    }
-  }
-  return null;
-}
-
-function findRecipeInJsonLd(data: unknown): SchemaOrgRecipe | null {
-  if (!data || typeof data !== "object") return null;
-
-  if (Array.isArray(data)) {
-    for (const item of data) {
-      const found = findRecipeInJsonLd(item);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  const obj = data as Record<string, unknown>;
-
-  const type = obj["@type"];
-  if (type === "Recipe" || (Array.isArray(type) && type.includes("Recipe"))) {
-    return obj as unknown as SchemaOrgRecipe;
-  }
-
-  if (obj["@graph"] && Array.isArray(obj["@graph"])) {
-    return findRecipeInJsonLd(obj["@graph"]);
-  }
-
-  return null;
-}
+import {
+  extractJsonLdRecipes,
+  resolveSchemaImage,
+  extractImages,
+} from "./web/base.js";
 
 export function parseGermanPortions(yieldText: string | undefined): string | undefined {
   if (!yieldText) return undefined;
 
-  // "für 4 Personen", "für 4 Personen (ca. 40 Stück)"
   const personMatch = yieldText.match(/für\s*(\d+)\s*Persone?n?/i);
   if (personMatch) return personMatch[1];
 
-  // "ca. 6 Stück", "etwa 8 Stück"
   const stückMatch = yieldText.match(/(?:ca\.|etwa|ca)\s*(\d+)\s*Stück/i);
   if (stückMatch) return stückMatch[1];
 
-  // "4 Portionen", "6 Stück"
   const portionMatch = yieldText.match(/(\d+)\s*(?:Portionen|Stück)/i);
   if (portionMatch) return portionMatch[1];
 
-  // Standalone number: "4"
   const numMatch = yieldText.match(/^(\d+)$/);
   if (numMatch) return numMatch[1];
 
   return yieldText;
 }
+
+export { resolveSchemaImage };
 
 function extractMainText($: cheerio.CheerioAPI): string {
   $("script, style, nav, footer, header, aside, .ad, .ads, .sidebar, .recipe-banner, .recipe-teaser").remove();
@@ -138,39 +100,6 @@ function extractChefkochSteps($: cheerio.CheerioAPI): string[] {
   }
 
   return steps;
-}
-
-export function resolveSchemaImage(image: string | string[] | { url?: string } | { url?: string }[] | undefined): string | undefined {
-  if (!image) return undefined;
-  if (typeof image === "string") return image;
-  if (Array.isArray(image)) {
-    const first = image[0];
-    if (!first) return undefined;
-    return typeof first === "string" ? first : (first as { url?: string }).url;
-  }
-  return (image as { url?: string }).url;
-}
-
-function extractImages($: cheerio.CheerioAPI, baseUrl: string, schemaImage?: string): string[] {
-  const images: string[] = [];
-
-  // Schema.org image is most reliable — prepend it
-  if (schemaImage) images.push(schemaImage);
-
-  // og:image fallback
-  const ogImage = $('meta[property="og:image"]').attr("content");
-  if (ogImage) {
-    try { images.push(new URL(ogImage, baseUrl).href); } catch { /* skip */ }
-  }
-
-  // img[src] and img[data-src] (lazy-loaded images)
-  $("img[src], img[data-src]").each((_, el) => {
-    const src = $(el).attr("src") || $(el).attr("data-src");
-    if (!src || src.startsWith("data:")) return;
-    try { images.push(new URL(src, baseUrl).href); } catch { /* skip */ }
-  });
-
-  return [...new Set(images)].slice(0, 5);
 }
 
 export async function fetchChefkoch(url: string): Promise<ContentBundle> {
