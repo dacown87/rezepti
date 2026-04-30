@@ -44,6 +44,70 @@ function findRecipeInJsonLd(data: unknown): SchemaOrgRecipe | null {
   return null;
 }
 
+function extractMicrodataRecipe($: cheerio.CheerioAPI): SchemaOrgRecipe | null {
+  const recipeEl = $('[itemtype*="schema.org/Recipe"], [itemtype*="/Recipe"]').first();
+  if (!recipeEl.length) return null;
+
+  // Single itemprop value: prefer content/datetime attrs, fall back to text
+  function getProp(prop: string): string {
+    const el = recipeEl.find(`[itemprop="${prop}"]`).first();
+    if (!el.length) return "";
+    return el.attr("content") || el.attr("datetime") || el.attr("href") || el.text().trim();
+  }
+
+  // Multiple itemprop values — skip nested microdata containers (have itemscope)
+  function getProps(prop: string): string[] {
+    return recipeEl
+      .find(`[itemprop="${prop}"]`)
+      .toArray()
+      .filter((el) => !$(el).attr("itemscope"))
+      .map((el) => {
+        const $el = $(el);
+        return $el.attr("content") || $el.attr("href") || $el.attr("src") || $el.text().trim();
+      })
+      .filter(Boolean);
+  }
+
+  const name = getProp("name");
+  if (!name) return null;
+
+  // Instructions: HowToStep containers have nested itemprop="text"
+  const instructions: string[] = [];
+  recipeEl.find('[itemprop="recipeInstructions"]').each((_, el) => {
+    const $el = $(el);
+    const nestedText = $el.find('[itemprop="text"]').first();
+    if (nestedText.length) {
+      const t = nestedText.attr("content") || nestedText.text().trim();
+      if (t) instructions.push(t);
+    } else {
+      const t = $el.attr("content") || $el.text().trim();
+      if (t) instructions.push(t);
+    }
+  });
+
+  // Image: <img src>, <meta content>, or <link href>
+  const imageEl = recipeEl.find('[itemprop="image"]').first();
+  const image = imageEl.attr("src") || imageEl.attr("content") || imageEl.attr("href");
+
+  const recipe: SchemaOrgRecipe = {
+    name,
+    description: getProp("description") || undefined,
+    image: image || undefined,
+    recipeIngredient: getProps("recipeIngredient"),
+    recipeInstructions: instructions.length ? instructions : undefined,
+    totalTime: getProp("totalTime") || undefined,
+    prepTime: getProp("prepTime") || undefined,
+    cookTime: getProp("cookTime") || undefined,
+    recipeYield: getProp("recipeYield") || undefined,
+    recipeCategory: getProp("recipeCategory") || undefined,
+    recipeCuisine: getProp("recipeCuisine") || undefined,
+  };
+
+  // Only return if we have at least name + one of ingredients/steps
+  if (!recipe.recipeIngredient?.length && !recipe.recipeInstructions?.length) return null;
+  return recipe;
+}
+
 function extractMainText($: cheerio.CheerioAPI): string {
   // Remove noise: ads, comments, social widgets, nav chrome
   $(
@@ -167,7 +231,7 @@ export async function fetchWeb(url: string): Promise<ContentBundle> {
   const html = await response.text();
   const $ = cheerio.load(html);
 
-  const schemaRecipe = extractJsonLdRecipes($);
+  const schemaRecipe = extractJsonLdRecipes($) ?? extractMicrodataRecipe($);
   const title = $("title").text().trim() || $("h1").first().text().trim();
   const description =
     $('meta[name="description"]').attr("content") ||
