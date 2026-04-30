@@ -277,6 +277,45 @@ export function toUserFriendlyError(error: unknown): UserFriendlyError {
     };
   }
 
+  // Bot-protection / access denied (403/401 from fetchWeb)
+  if (/HTTP 403|HTTP 401|access denied|bot.?schutz|cloudflare/i.test(raw)) {
+    return {
+      message: "Diese Website erlaubt kein automatisches Abrufen (Bot-Schutz aktiv).",
+      hint: "Öffne die URL direkt im Browser, kopiere den Rezepttext und füge ihn als Freitext ein.",
+    };
+  }
+
+  // Page not found
+  if (/HTTP 404|not found/i.test(raw)) {
+    return {
+      message: "Seite nicht gefunden (404). Bitte prüfe ob die URL noch gültig ist.",
+    };
+  }
+
+  // YouTube: no subtitles / transcription available
+  if (/keine.*untertitel|no.*subtitle|no.*transcript|untertitel.*nicht/i.test(raw)) {
+    return {
+      message: "Dieses YouTube-Video hat keine Untertitel. Ohne Untertitel kann kein Rezept extrahiert werden.",
+      hint: "Videos mit automatisch generierten Untertiteln funktionieren meistens besser.",
+    };
+  }
+
+  // TikTok / Instagram: private or login-required
+  if (/tiktok.*privat|privates.*video|login.*erforderlich.*tiktok/i.test(raw)) {
+    return {
+      message: "Dieses TikTok-Video ist privat und kann nicht abgerufen werden.",
+    };
+  }
+
+  // Instagram/TikTok: no recipe found (thrown in extractFromBundle)
+  if (/instagram.*tiktok.*login|instagram\/tiktok.*login/i.test(raw) ||
+      /erfordern einen login/i.test(raw)) {
+    return {
+      message: "Kein Rezept gefunden. Instagram und TikTok erfordern einen Login für vollständige Inhalte.",
+      hint: "Kopiere den Rezepttext manuell und füge ihn als Freitext ein.",
+    };
+  }
+
   // yt-dlp / video download errors
   if (/yt.?dlp|video unavailable|private video|geo.?blocked|copyright/i.test(raw)) {
     return {
@@ -298,10 +337,20 @@ export function toUserFriendlyError(error: unknown): UserFriendlyError {
     };
   }
 
-  // Generic timeout
-  if (/timeout|timed out/i.test(raw)) {
+  // No usable content (web fallback exhausted)
+  if (/kein verwertbarer inhalt|kein erkennbares rezept/i.test(raw)) {
     return {
-      message: "Zeitüberschreitung beim Abrufen der Seite. Bitte erneut versuchen.",
+      message: "Kein Rezept auf dieser Seite gefunden. Versuche eine direktere Rezept-URL oder kopiere den Text manuell.",
+    };
+  }
+
+  // Timeout with seconds if available in message
+  if (/timeout|timed out/i.test(raw)) {
+    const seconds = raw.match(/(\d+)\s*s(?:ec|econds?)?/i)?.[1];
+    return {
+      message: seconds
+        ? `Zeitüberschreitung nach ${seconds} Sekunden. Die Seite antwortet zu langsam.`
+        : "Zeitüberschreitung beim Abrufen der Seite. Bitte erneut versuchen.",
     };
   }
 
