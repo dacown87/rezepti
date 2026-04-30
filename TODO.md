@@ -79,17 +79,17 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
   - **Befund:** Bot-403 → neue Fehlerkategorie für 13c: "Website erlaubt kein Abrufen (Bot-Schutz)"
   - **Prioritätsänderung:** 13b als erste Priorität in Wave 2; 13e nachrangig
 
-### Vorarbeit (vor Wave 1)
-- **Regressions-Unit-Tests aus DB-Rezepten** — vorhandene Rezepte aus Supabase als Vitest-Fixtures: für jedes Rezept `source_url` fetchen + parsen, prüfen ob `name/ingredients/steps` noch korrekt extrahiert werden; läuft nach 13a/13b als Regressionsschutz
+### Vorarbeit ✅ ABGESCHLOSSEN (2026-04-30)
+- **Regressions-Unit-Tests aus DB-Rezepten** ✅ — `test/unit/web-regression.test.ts` + `scripts/generate-regression-fixtures.ts`; läuft mit `TEST_NETWORK=1`
 
-### Welle 1 — Sofort-Wins
-- **13a** — CSS-Selektor-Erweiterung in `src/fetchers/web.ts:extractMainText()`: 20+ Klassen aus RecipeClipper (`o-Ingredients`, `o-Method`, `recipe-directions__list`, `steps-area`, `preparationsteps`, `instructionlist`, `directionlist`, `recipemethod` u.a.)
-- **13c** — Bessere Fehlermeldungen in `src/pipeline.ts:toUserFriendlyError()`: Web ohne Schema, YouTube ohne Untertitel, TikTok privat, Timeout mit Sekunden
-- **13f** — Scraper-Validierung: Warning-Flag (`ingredients leer`, `steps leer`, `name = URL`) in Job-Result; dismissibler gelber Badge im Frontend
+### Welle 1 — Sofort-Wins ✅ ABGESCHLOSSEN (2026-04-30)
+- **13a** ✅ — CSS-Selektor-Erweiterung in `src/fetchers/web.ts:extractMainText()`: 30+ Klassen (Mediavine, Food Network, hrecipe, Wildcard-Selektoren)
+- **13c** ✅ — Fehlermeldungen in `toUserFriendlyError()`: Bot-403, HTTP 404, YouTube ohne Untertitel, TikTok privat, Instagram/TikTok kein Login, Timeout mit Sekunden
+- **13f** ✅ — `PipelineResult.qualityWarnings?: string[]`; Pipeline prüft name/ingredients/steps; dismissibler gelber Badge in `extract.tsx`
 
-### Welle 2 — Schema-Erweiterungen
-- **13b** — Microdata-Support in `src/fetchers/web.ts`: neue Funktion `extractMicrodataRecipe()` mit itemprop-Parsing via cheerio; Tests in `schema-org.test.ts`
-- **13e** — Wild-Mode in `src/fetchers/web.ts`: Script-Tags ohne korrekten type + `window.__NUXT__/__NEXT_DATA__`; **ReDoS-Schutz: `html.slice(0, 100_000)`**; Tests in `web.test.ts` (neu)
+### Welle 2 — Schema-Erweiterungen ✅ ABGESCHLOSSEN (2026-04-30)
+- **13b** ✅ — `extractMicrodataRecipe()` in `src/fetchers/web.ts`: itemprop-Parsing (HowToStep, meta/datetime attrs, img src); Fallback nach JSON-LD; 6 Tests in `test/unit/web.test.ts`
+- **13e** — Wild-Mode in `src/fetchers/web.ts`: Script-Tags ohne korrekten type + `window.__NUXT__/__NEXT_DATA__`; **ReDoS-Schutz: `html.slice(0, 100_000)`**; Tests in `web.test.ts`
 
 ### Welle 3 — Neue Features
 - **13g** — Freitext-Import: `POST /api/v1/extract/text` + dritter Tab in `extract.tsx` (URL > Text > Foto, Icon: `Type`); min 50 Zeichen Validation; CLAUDE.md ergänzen
@@ -128,8 +128,9 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
-## Test-Status (2026-04-16)
+## Test-Status (2026-04-30)
 
-- Unit Tests: 287 bestanden + 4 skipped (DB-Integration: laufen in CI mit postgres:15)
+- Unit Tests: 293 bestanden + 9 skipped (DB-Integration: laufen in CI mit postgres:15)
 - E2E Tests: skippen graceful ohne laufenden Server
+- Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
 - `npm test -- --run --exclude="test/e2e/**"`
