@@ -108,6 +108,77 @@ function extractMicrodataRecipe($: cheerio.CheerioAPI): SchemaOrgRecipe | null {
   return recipe;
 }
 
+// Deep recursive search — used for wild JSON where structure is unknown
+function deepFindRecipe(data: unknown): SchemaOrgRecipe | null {
+  if (!data || typeof data !== "object") return null;
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = deepFindRecipe(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  const obj = data as Record<string, unknown>;
+  const type = obj["@type"];
+  if (type === "Recipe" || (Array.isArray(type) && type.includes("Recipe"))) {
+    return obj as unknown as SchemaOrgRecipe;
+  }
+  for (const val of Object.values(obj)) {
+    if (val && typeof val === "object") {
+      const found = deepFindRecipe(val);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function extractWildJsonLd(html: string): SchemaOrgRecipe | null {
+  // ReDoS protection: only scan first 100 KB
+  const slice = html.slice(0, 100_000);
+
+  // Match <script> tags that are NOT type="application/ld+json"
+  // and contain Recipe-like content
+  const scriptRe = /<script(?![^>]*type=["']application\/ld\+json["'])[^>]*>([\s\S]*?)<\/script>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = scriptRe.exec(slice)) !== null) {
+    const content = match[1];
+    if (!content) continue;
+
+    // Quick pre-filter: must contain "Recipe" or "recipeIngredient"
+    if (!content.includes("Recipe") && !content.includes("recipeIngredient")) continue;
+
+    // Try __NEXT_DATA__ / __NUXT__ / __STATE__ inline JSON patterns first
+    const inlinePatterns = [
+      /window\.__NEXT_DATA__\s*=\s*(\{[\s\S]*)/,
+      /window\.__NUXT__\s*=\s*(\{[\s\S]*)/,
+      /window\.__STATE__\s*=\s*(\{[\s\S]*)/,
+    ];
+    for (const pat of inlinePatterns) {
+      const m = pat.exec(content);
+      if (!m) continue;
+      try {
+        const jsonStr = m[1].replace(/;\s*$/, "").trim();
+        const found = deepFindRecipe(JSON.parse(jsonStr));
+        if (found) return found;
+      } catch {
+        // not valid JSON at that position
+      }
+    }
+
+    // Try to parse entire script content as JSON (some sites embed bare JSON-LD
+    // without the correct type attribute)
+    try {
+      const found = deepFindRecipe(JSON.parse(content.trim()));
+      if (found) return found;
+    } catch {
+      // not valid JSON
+    }
+  }
+
+  return null;
+}
+
 function extractMainText($: cheerio.CheerioAPI): string {
   // Remove noise: ads, comments, social widgets, nav chrome
   $(
@@ -231,7 +302,7 @@ export async function fetchWeb(url: string): Promise<ContentBundle> {
   const html = await response.text();
   const $ = cheerio.load(html);
 
-  const schemaRecipe = extractJsonLdRecipes($) ?? extractMicrodataRecipe($);
+  const schemaRecipe = extractJsonLdRecipes($) ?? extractMicrodataRecipe($) ?? extractWildJsonLd(html);
   const title = $("title").text().trim() || $("h1").first().text().trim();
   const description =
     $('meta[name="description"]').attr("content") ||

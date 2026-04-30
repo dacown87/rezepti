@@ -1,6 +1,6 @@
 /**
- * Tests for src/fetchers/web.ts — Microdata extraction (13b).
- * Uses inline HTML fixtures to test extractMicrodataRecipe via fetchWeb mock.
+ * Tests for src/fetchers/web.ts — Microdata (13b) and Wild-Mode JSON-LD (13e).
+ * Uses inline HTML fixtures to test extractMicrodataRecipe / extractWildJsonLd via fetchWeb mock.
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
@@ -84,6 +84,36 @@ const NAME_ONLY_MICRODATA = `
 </body></html>
 `;
 
+// ─── Wild-Mode Fixtures (13e) ─────────────────────────────────────────────────
+
+const NEXT_DATA_RECIPE = `
+<html><head>
+<script>window.__NEXT_DATA__ = {"props":{"pageProps":{"recipe":{"@type":"Recipe","name":"Pasta Carbonara","recipeIngredient":["200g Spaghetti","100g Speck","2 Eier","50g Parmesan"],"recipeInstructions":[{"@type":"HowToStep","text":"Spaghetti kochen."},{"@type":"HowToStep","text":"Speck anbraten."},{"@type":"HowToStep","text":"Alles vermengen."}]}}}}</script>
+</head><body><h1>Pasta Carbonara</h1></body></html>
+`;
+
+const WRONG_TYPE_JSONLD = `
+<html><head>
+<script>
+{"@type":"Recipe","name":"Zwiebelsuppe","recipeIngredient":["500g Zwiebeln","1L Brühe","2 EL Butter"],"recipeInstructions":["Zwiebeln in Butter anbraten.","Brühe zugeben, 30 Minuten köcheln."]}
+</script>
+</head><body></body></html>
+`;
+
+const NUXT_RECIPE = `
+<html><head>
+<script>window.__NUXT__ = {"state":{"recipe":{"@type":"Recipe","name":"Käsefondue","recipeIngredient":["400g Gruyère","200ml Weißwein","1 Knoblauchzehe"],"recipeInstructions":["Knoblauch einreiben.","Käse reiben und mit Wein schmelzen."]}}}</script>
+</head><body></body></html>
+`;
+
+const WILD_NO_RECIPE = `
+<html><head>
+<script type="text/javascript">
+var pageData = {"title":"Kein Rezept","content":"Normaler Artikel"};
+</script>
+</head><body><h1>Kein Rezept</h1></body></html>
+`;
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("extractMicrodataRecipe (via fetchWeb)", () => {
@@ -135,6 +165,41 @@ describe("extractMicrodataRecipe (via fetchWeb)", () => {
   it("gibt null zurück wenn nur name aber keine ingredients/steps vorhanden", async () => {
     mockFetch(NAME_ONLY_MICRODATA);
     const bundle = await fetchWeb("https://example.com/recipe");
+    expect(bundle.schemaRecipe).toBeNull();
+  });
+});
+
+describe("extractWildJsonLd (via fetchWeb, 13e)", () => {
+  it("findet Rezept in window.__NEXT_DATA__", async () => {
+    mockFetch(NEXT_DATA_RECIPE);
+    const bundle = await fetchWeb("https://example.com/recipe");
+
+    expect(bundle.schemaRecipe).not.toBeNull();
+    expect(bundle.schemaRecipe?.name).toBe("Pasta Carbonara");
+    expect(bundle.schemaRecipe?.recipeIngredient).toHaveLength(4);
+  });
+
+  it("findet Rezept in script-Tag ohne korrekten type", async () => {
+    mockFetch(WRONG_TYPE_JSONLD);
+    const bundle = await fetchWeb("https://example.com/recipe");
+
+    expect(bundle.schemaRecipe).not.toBeNull();
+    expect(bundle.schemaRecipe?.name).toBe("Zwiebelsuppe");
+    expect(bundle.schemaRecipe?.recipeIngredient).toHaveLength(3);
+  });
+
+  it("findet Rezept in window.__NUXT__", async () => {
+    mockFetch(NUXT_RECIPE);
+    const bundle = await fetchWeb("https://example.com/recipe");
+
+    expect(bundle.schemaRecipe).not.toBeNull();
+    expect(bundle.schemaRecipe?.name).toBe("Käsefondue");
+    expect(bundle.schemaRecipe?.recipeIngredient).toHaveLength(3);
+  });
+
+  it("gibt null zurück wenn kein Rezept in Script-Tags", async () => {
+    mockFetch(WILD_NO_RECIPE);
+    const bundle = await fetchWeb("https://example.com/article");
     expect(bundle.schemaRecipe).toBeNull();
   });
 });
