@@ -440,7 +440,7 @@ export default function RecipeDetailScreen() {
         <DeleteModal onConfirm={confirmDelete} onCancel={() => setShowDeleteModal(false)} />
       )}
 
-      {showImagePicker && (
+      <Modal visible={showImagePicker} animationType="slide" onRequestClose={() => setShowImagePicker(false)}>
         <ImagePickerModal
           images={[]}
           initialQuery={recipe.name}
@@ -454,7 +454,7 @@ export default function RecipeDetailScreen() {
           }}
           onSkip={() => setShowImagePicker(false)}
         />
-      )}
+      </Modal>
 
       {/* QR-Teilen-Modal */}
       <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>

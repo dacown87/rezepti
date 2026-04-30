@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +17,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X, UtensilsCrossed } from 'lucide-react-native';
+import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X, UtensilsCrossed, Copy } from 'lucide-react-native';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { compressIfNeeded } from '@/utils/image-compress';
 
@@ -113,6 +114,7 @@ export default function ExtractScreen() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [errorCopied, setErrorCopied] = useState(false);
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
   const [recipeIdForImage, setRecipeIdForImage] = useState<number | null>(null);
   const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
@@ -374,7 +376,7 @@ export default function ExtractScreen() {
   if (recipeIdForImage) {
     return (
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
-        {showImagePickerModal && (
+        <Modal visible={showImagePickerModal} animationType="slide" onRequestClose={() => setShowImagePickerModal(false)}>
           <ImagePickerModal
             images={imageSuggestions}
             initialQuery={recipeNameForImage}
@@ -392,9 +394,9 @@ export default function ExtractScreen() {
             }}
             onSkip={() => setShowImagePickerModal(false)}
           />
-        )}
+        </Modal>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-4">
-          <View className="flex-1 items-center justify-center py-10">
+          <View className="flex-1 items-center justify-center py-10" style={{ maxWidth: 520, alignSelf: 'center', width: '100%' }}>
             <CheckCircle size={40} color="#C84B31" />
             <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 mt-3 mb-6 text-center">
               Rezept gespeichert!
@@ -658,9 +660,23 @@ export default function ExtractScreen() {
               <View className="flex-1">
                 <Text className="text-red-700 text-sm leading-relaxed">{error}</Text>
               </View>
-              <Pressable onPress={() => setError(null)}>
-                <X size={16} color="#dc2626" />
-              </Pressable>
+              <View className="flex-row gap-2">
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS === 'web') {
+                      navigator.clipboard?.writeText(error ?? '').then(() => {
+                        setErrorCopied(true);
+                        setTimeout(() => setErrorCopied(false), 2000);
+                      }).catch(() => {});
+                    }
+                  }}
+                >
+                  <Copy size={16} color={errorCopied ? '#16a34a' : '#dc2626'} />
+                </Pressable>
+                <Pressable onPress={() => setError(null)}>
+                  <X size={16} color="#dc2626" />
+                </Pressable>
+              </View>
             </View>
             <View className="mt-3 flex-row gap-2">
               <Pressable

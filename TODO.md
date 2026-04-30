@@ -62,6 +62,44 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **12a** ✅ Facebook als Quelltype: `classifier.ts`, `src/fetchers/facebook.ts` (yt-dlp + OG-Fallback + Cookie-Management), Pipeline-Case — bereits vollständig implementiert
 - **12b** ✅ Cobalt.tools als Fallback zu yt-dlp für Instagram/TikTok/Facebook — `src/fetchers/cobalt.ts`; API `api.cobalt.tools`; `COBALT_API_URL` + `COBALT_API_KEY` in `.env`; öffentliche Instanz funktioniert ohne Key (Turnstile-Fehler werden still ignoriert)
 
+---
+
+## Phase 13 — Import-Qualität (reviewed 2026-04-29, Plan: `docs/phase-13-reviewed.md`)
+
+> Review-Entscheidungen: 13j zuerst in Welle 4 · parsedIngredients ephemer · Sample-Test vor 13a · ReDoS-Schutz + Block-Cap eingebaut
+
+### Vorarbeit (vor 13a)
+- **Sample-Test** ✅ ABGESCHLOSSEN (2026-04-29) — 19 URLs getestet. Ergebnisse: `scripts/sample-test-analysis.md`, Rohdaten: `scripts/sample-test-results.json`
+  - **53%** JSON-LD vollständig (ohne LLM nutzbar)
+  - **26%** CSS-Fallback nötig (LLM-Extraktion aus Text)
+  - **16%** HTTP 403 (Bot-Schutz — kein Schema-Problem)
+  - **5%** Body-Fallback (lidl-kochen.de, kein strukturierter Inhalt)
+  - **Befund:** ichkoche.at hat **Microdata** (kein JSON-LD) → 13b hat klaren ROI
+  - **Befund:** Wild-Mode (13e) — 0 Kandidaten im Sample → niedrigere Priorität
+  - **Befund:** Bot-403 → neue Fehlerkategorie für 13c: "Website erlaubt kein Abrufen (Bot-Schutz)"
+  - **Prioritätsänderung:** 13b als erste Priorität in Wave 2; 13e nachrangig
+
+### Vorarbeit (vor Wave 1)
+- **Regressions-Unit-Tests aus DB-Rezepten** — vorhandene Rezepte aus Supabase als Vitest-Fixtures: für jedes Rezept `source_url` fetchen + parsen, prüfen ob `name/ingredients/steps` noch korrekt extrahiert werden; läuft nach 13a/13b als Regressionsschutz
+
+### Welle 1 — Sofort-Wins
+- **13a** — CSS-Selektor-Erweiterung in `src/fetchers/web.ts:extractMainText()`: 20+ Klassen aus RecipeClipper (`o-Ingredients`, `o-Method`, `recipe-directions__list`, `steps-area`, `preparationsteps`, `instructionlist`, `directionlist`, `recipemethod` u.a.)
+- **13c** — Bessere Fehlermeldungen in `src/pipeline.ts:toUserFriendlyError()`: Web ohne Schema, YouTube ohne Untertitel, TikTok privat, Timeout mit Sekunden
+- **13f** — Scraper-Validierung: Warning-Flag (`ingredients leer`, `steps leer`, `name = URL`) in Job-Result; dismissibler gelber Badge im Frontend
+
+### Welle 2 — Schema-Erweiterungen
+- **13b** — Microdata-Support in `src/fetchers/web.ts`: neue Funktion `extractMicrodataRecipe()` mit itemprop-Parsing via cheerio; Tests in `schema-org.test.ts`
+- **13e** — Wild-Mode in `src/fetchers/web.ts`: Script-Tags ohne korrekten type + `window.__NUXT__/__NEXT_DATA__`; **ReDoS-Schutz: `html.slice(0, 100_000)`**; Tests in `web.test.ts` (neu)
+
+### Welle 3 — Neue Features
+- **13g** — Freitext-Import: `POST /api/v1/extract/text` + dritter Tab in `extract.tsx` (URL > Text > Foto, Icon: `Type`); min 50 Zeichen Validation; CLAUDE.md ergänzen
+- **13d** — Ingredient-Parser `src/processors/ingredient-parser.ts`: `"200 g Mehl"` → `{amount, unit, food, note}`; **ephemer** (kein DB-Feld); koordinieren mit `scaling.ts`; Tests in `ingredient-parser.test.ts`
+- **13i** — Nutrition-Auto-Detection in `src/pipeline.ts`: LLM schätzt Nährwerte wenn `calories` leer; `nutritionEstimated: true` im Response; Frontend: `~` vor Werten
+
+### Welle 4 — Komplexe Features
+- **13j** ← ZUERST — Domain-spezifische Scraper-Module: `src/fetchers/web/base.ts` + `chefkoch.ts` + `index.ts`; vor Merge: `grep -r "from.*fetchers/web" src/`
+- **13h** ← NACH 13j — ML-Fallback: DOM-Block-Cap max 10; Feature-Flag `ENABLE_ML_FALLBACK=true`; nur wenn alle anderen Stufen scheitern
+
 ### Backlog (interessant für später)
 - Supadata.ai API für Instagram-Transkripte (kostenloses Free-Tier)
 - OpenRouter als BYOK-LLM-Alternative (1B Token/Monat gratis, Llama 4 Scout, DeepSeek V3)
@@ -70,6 +108,15 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - Bild-Optimierung beim Import: WebP-Konvertierung + Resizing (Mealie-Pattern, braucht Sharp)
 - Vision-basierte Rezeptkarten-Erkennung via Llama 4 Scout (Pinterest-Karten, Buchseiten)
 - Rezept-Qualitäts-Scoring: automatischer Score → LLM-Refinement nur wenn Score < Threshold
+- **Open Food Facts Barcode-API** — EAN/UPC scannen → Produktname + Nährwerte + Bild via `openfoodfacts.org/api/v2/product/{barcode}`; QR-Scanner-Erweiterung
+- **PDF-Import** — PDF hochladen → Text extrahieren (pdf-parse) → LLM → Rezept; wir haben die LLM-Pipeline schon
+- **Format-Import** — Paprika (.paprikarecipes = ZIP mit JSON), Nextcloud Cookbook (JSON-LD-Dateien) als Upload-Formate für Migrations-Usecase
+- **Bessere Bildauswahl** — mehrere Bild-Kandidaten nach Auflösung/Größe ranken statt erstes nehmen (recipe-scrapers `BEST_IMAGE_SELECTION`-Pattern)
+- **AI-Schritt-Sortierung** — LLM prüft ob Zubereitungsschritte in logischer Reihenfolge sind und sortiert ggf. um (Tandoor-Pattern)
+- **Cooklang-Import** — `.cook`-Dateien hochladen und importieren; einfaches Format, kleine aber treue Community
+- **Weitere Migrations-Formate** — Copy Me That, Pepperplate, Evernote, Cookmate als Import-Formate (über Paprika/Nextcloud hinaus, RecipeSage-Pattern)
+- **CSV-Export** — Rezept-Sammlung als Tabelle exportieren (Spreadsheets, Backup)
+- **Markdown-Export** — einzelnes Rezept als `.md`-Datei (Obsidian, Notion, etc.)
 
 ---
 

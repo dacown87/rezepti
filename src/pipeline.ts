@@ -226,6 +226,13 @@ async function extractFromBundle(
     return { recipe };
   }
 
+  if (bundle.type === "instagram" || bundle.type === "tiktok") {
+    throw new Error(
+      "Kein Rezept gefunden. Instagram/TikTok erfordern einen Login für vollständige Inhalte. " +
+      "Rezepte in den Kommentaren können nicht automatisch abgerufen werden. " +
+      "Tipp: Kopiere den Rezepttext manuell und füge ihn als Webseite ein (z.B. über ein Textdokument)."
+    );
+  }
   throw new Error(
     "Kein verwertbarer Inhalt gefunden. Die Seite enthält kein erkennbares Rezept (kein Text, Audio oder Bild)."
   );

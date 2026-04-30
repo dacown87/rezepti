@@ -1,0 +1,206 @@
+{
+  "timestamp": "2026-04-29T19:51:17.292Z",
+  "results": [
+    {
+      "url": "https://www.chefkoch.de/rezepte/2220831355433935/Philly-Cheese-Steak-Sandwich.html",
+      "domain": "chefkoch.de",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.chefkoch.de/rezepte/3336651495556382/Marinierte-Spareribs.html",
+      "domain": "chefkoch.de",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.bbcgoodfood.com/recipes/chocolate-chunk-cookies",
+      "domain": "bbcgoodfood.com",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://perfekterezepte.duasureayet.com/blitz-nudel-hackfleisch-pfanne/",
+      "domain": "perfekterezepte.duasureayet.com",
+      "status": "css-fallback",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "cssSelector": "article",
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.foodnetwork.com/recipes/food-network-kitchen/perfect-scrambled-eggs-recipe-2109020",
+      "domain": "foodnetwork.com",
+      "status": "css-fallback",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "cssSelector": "main",
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.tasteofhome.com/recipes/banana-bread/",
+      "domain": "tasteofhome.com",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.delish.com/cooking/recipe-ideas/a19636089/classic-banana-bread-recipe/",
+      "domain": "delish.com",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.spendwithpennies.com/banana-bread/",
+      "domain": "spendwithpennies.com",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://minimalistbaker.com/strawberry-chia-pudding/",
+      "domain": "minimalistbaker.com",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://minimalistbaker.com/vegan-chickpea-taco-salad/",
+      "domain": "minimalistbaker.com",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/",
+      "domain": "allrecipes.com",
+      "status": "error",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "httpStatus": 403,
+      "errorMsg": "HTTP 403"
+    },
+    {
+      "url": "https://www.simplyrecipes.com/recipes/perfect_guacamole/",
+      "domain": "simplyrecipes.com",
+      "status": "error",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "httpStatus": 403,
+      "errorMsg": "HTTP 403"
+    },
+    {
+      "url": "https://www.seriouseats.com/the-best-chocolate-chip-cookies-recipe",
+      "domain": "seriouseats.com",
+      "status": "error",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "httpStatus": 403,
+      "errorMsg": "HTTP 403"
+    },
+    {
+      "url": "https://www.ichkoche.at/baerlauchpesto-rezept-13208",
+      "domain": "ichkoche.at",
+      "status": "css-fallback",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "cssSelector": "[itemtype*=\"schema.org/Recipe\"]",
+      "httpStatus": 200,
+      "note": "has-microdata"
+    },
+    {
+      "url": "https://www.ichkoche.at/spargelcremesuppe-rezept-13355",
+      "domain": "ichkoche.at",
+      "status": "css-fallback",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "cssSelector": "[itemtype*=\"schema.org/Recipe\"]",
+      "httpStatus": 200,
+      "note": "has-microdata"
+    },
+    {
+      "url": "https://www.gutekueche.at/nudelauflauf-mit-schinken-rezept-22672",
+      "domain": "gutekueche.at",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.gutekueche.at/kraeutersuppe-rezept-12713",
+      "domain": "gutekueche.at",
+      "status": "json-ld-full",
+      "hasIngredients": true,
+      "hasSteps": true,
+      "hasName": true,
+      "hasDuration": true,
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.lecker.de/spaghetti-carbonara-73542.html",
+      "domain": "lecker.de",
+      "status": "css-fallback",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "cssSelector": "main",
+      "httpStatus": 200
+    },
+    {
+      "url": "https://www.lidl-kochen.de/rezeptwelt/spaghetti-carbonara-2841",
+      "domain": "lidl-kochen.de",
+      "status": "no-json-ld",
+      "hasIngredients": false,
+      "hasSteps": false,
+      "hasName": false,
+      "hasDuration": false,
+      "httpStatus": 200,
+      "note": "body-fallback"
+    }
+  ]
+}
