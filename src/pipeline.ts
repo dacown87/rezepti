@@ -154,7 +154,18 @@ export async function processURL(
       data: { recipe, recipeId },
     });
 
-    return { success: true, recipe, recipeId };
+    const qualityWarnings: string[] = [];
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      qualityWarnings.push("Keine Zutaten erkannt — bitte manuell ergänzen.");
+    }
+    if (!recipe.steps || recipe.steps.length === 0) {
+      qualityWarnings.push("Keine Zubereitungsschritte erkannt — bitte manuell ergänzen.");
+    }
+    if (!recipe.name || recipe.name === classified.url || /^https?:\/\//i.test(recipe.name)) {
+      qualityWarnings.push("Kein Rezeptname erkannt — bitte manuell eintragen.");
+    }
+
+    return { success: true, recipe, recipeId, qualityWarnings: qualityWarnings.length ? qualityWarnings : undefined };
   } catch (error) {
     const { message, hint } = toUserFriendlyError(error);
     await emit(onEvent, { stage: "error", message });

@@ -63,6 +63,7 @@ interface JobStatus {
     recipeId?: number;
     error?: string;
     imageSuggestions?: string[];
+    qualityWarnings?: string[];
   };
 }
 
@@ -116,6 +117,7 @@ export default function ExtractScreen() {
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [errorCopied, setErrorCopied] = useState(false);
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
+  const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
   const [recipeIdForImage, setRecipeIdForImage] = useState<number | null>(null);
   const [recipeNameForImage, setRecipeNameForImage] = useState<string | undefined>(undefined);
   const [recipeImageUrl, setRecipeImageUrl] = useState<string | null>(null);
@@ -163,6 +165,7 @@ export default function ExtractScreen() {
 
           const suggestions = status.result?.imageSuggestions ?? [];
           const recipeId = status.result?.recipeId ?? null;
+          setQualityWarnings(status.result?.qualityWarnings ?? []);
           // Server-ID als Nav-Target
           if (recipeId) navRecipeIdRef.current = recipeId;
 
@@ -453,9 +456,26 @@ export default function ExtractScreen() {
             <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 mt-4 text-center">
               Rezept gespeichert!
             </Text>
-            <Text className="text-warm-500 dark:text-warm-400 text-center mt-2 mb-8 leading-relaxed">
+            <Text className="text-warm-500 dark:text-warm-400 text-center mt-2 mb-6 leading-relaxed">
               Das Rezept wurde extrahiert und gespeichert.
             </Text>
+            {qualityWarnings.length > 0 && (
+              <View className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl p-4 mb-6 w-full max-w-sm">
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-amber-800 dark:text-amber-200 font-semibold text-sm">
+                    ⚠️ Extraktion unvollständig
+                  </Text>
+                  <Pressable onPress={() => setQualityWarnings([])}>
+                    <X size={14} color="#92400e" />
+                  </Pressable>
+                </View>
+                {qualityWarnings.map((w, i) => (
+                  <Text key={i} className="text-amber-700 dark:text-amber-300 text-xs leading-relaxed">
+                    • {w}
+                  </Text>
+                ))}
+              </View>
+            )}
             <View className="flex-row gap-3">
               <Pressable
                 onPress={() => {

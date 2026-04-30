@@ -118,4 +118,5 @@ export interface PipelineResult {
   error?: string;
   hint?: string;
   imageSuggestions?: string[];
+  qualityWarnings?: string[];
 }
