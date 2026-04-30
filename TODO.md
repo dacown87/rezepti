@@ -94,7 +94,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ### Welle 3 — Neue Features
 - **13g** ✅ — `POST /api/v1/extract/text`; dritter Tab in `extract.tsx` (URL · Text · Foto, Icon: `Type`); multiline TextInput mit Zeichen-Zähler; min 50 Zeichen Validation
 - **13d** ✅ — Ingredient-Parser `src/processors/ingredient-parser.ts`: `parseIngredient()` → `{amount, unit, food, note}`; Unicode-Brüche (½¼¾⅓...), gemischte Zahlen (1 1/2), Ranges (3-4 → note), Klammer- und Komma-notes; 23 Tests in `ingredient-parser.test.ts`
-- **13i** — Nutrition-Auto-Detection in `src/pipeline.ts`: LLM schätzt Nährwerte wenn `calories` leer; `nutritionEstimated: true` im Response; Frontend: `~` vor Werten
+- **13i** ✅ — `estimateNutrition()` in `llm.ts`; Pipeline schätzt Kalorien nach Extraktion wenn leer; `nutritionEstimated: true` im Job-Result (kein DB-Feld); Frontend: `~X kcal (KI-Schätzung)` auf Bild-Review- + Success-Screen
 
 ### Welle 4 — Komplexe Features
 - **13j** ← ZUERST — Domain-spezifische Scraper-Module: `src/fetchers/web/base.ts` + `chefkoch.ts` + `index.ts`; vor Merge: `grep -r "from.*fetchers/web" src/`
