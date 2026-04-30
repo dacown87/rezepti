@@ -87,9 +87,9 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **13c** ✅ — Fehlermeldungen in `toUserFriendlyError()`: Bot-403, HTTP 404, YouTube ohne Untertitel, TikTok privat, Instagram/TikTok kein Login, Timeout mit Sekunden
 - **13f** ✅ — `PipelineResult.qualityWarnings?: string[]`; Pipeline prüft name/ingredients/steps; dismissibler gelber Badge in `extract.tsx`
 
-### Welle 2 — Schema-Erweiterungen ✅ ABGESCHLOSSEN (2026-04-30)
+### Welle 2 — Schema-Erweiterungen ✅ ABGESCHLOSSEN (2026-04-30 / 13e: 2026-04-30)
 - **13b** ✅ — `extractMicrodataRecipe()` in `src/fetchers/web.ts`: itemprop-Parsing (HowToStep, meta/datetime attrs, img src); Fallback nach JSON-LD; 6 Tests in `test/unit/web.test.ts`
-- **13e** — Wild-Mode in `src/fetchers/web.ts`: Script-Tags ohne korrekten type + `window.__NUXT__/__NEXT_DATA__`; **ReDoS-Schutz: `html.slice(0, 100_000)`**; Tests in `web.test.ts`
+- **13e** ✅ — `extractWildJsonLd()` in `src/fetchers/web.ts`: Script-Tags ohne korrekten type + `window.__NUXT__/__NEXT_DATA__`; `deepFindRecipe()` für beliebig verschachteltes JSON; **ReDoS-Schutz: `html.slice(0, 100_000)`**; 4 Tests in `web.test.ts`
 
 ### Welle 3 — Neue Features
 - **13g** — Freitext-Import: `POST /api/v1/extract/text` + dritter Tab in `extract.tsx` (URL > Text > Foto, Icon: `Type`); min 50 Zeichen Validation; CLAUDE.md ergänzen
@@ -130,7 +130,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ## Test-Status (2026-04-30)
 
-- Unit Tests: 293 bestanden + 9 skipped (DB-Integration: laufen in CI mit postgres:15)
+- Unit Tests: 297 bestanden + 9 skipped (DB-Integration: laufen in CI mit postgres:15)
 - E2E Tests: skippen graceful ohne laufenden Server
 - Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
 - `npm test -- --run --exclude="test/e2e/**"`
