@@ -97,7 +97,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **13i** ✅ — `estimateNutrition()` in `llm.ts`; Pipeline schätzt Kalorien nach Extraktion wenn leer; `nutritionEstimated: true` im Job-Result (kein DB-Feld); Frontend: `~X kcal (KI-Schätzung)` auf Bild-Review- + Success-Screen
 
 ### Welle 4 — Komplexe Features
-- **13j** ← ZUERST — Domain-spezifische Scraper-Module: `src/fetchers/web/base.ts` + `chefkoch.ts` + `index.ts`; vor Merge: `grep -r "from.*fetchers/web" src/`
+- **13j** ✅ — Plugin-Architektur: `web/base.ts` (Utilities + `WebScraperPlugin`), `web/chefkoch.ts` (Domain-Override), `web/index.ts` (Registry + Dispatcher); `web.ts` → Re-Export; Code-Duplikation in `chefkoch.ts` eliminiert
 - **13h** ← NACH 13j — ML-Fallback: DOM-Block-Cap max 10; Feature-Flag `ENABLE_ML_FALLBACK=true`; nur wenn alle anderen Stufen scheitern
 
 ### Backlog (interessant für später)
