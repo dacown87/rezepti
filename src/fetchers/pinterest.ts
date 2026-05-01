@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { existsSync, mkdirSync, writeFileSync, unlinkSync, readFileSync } from "node:fs";
 import * as cheerio from "cheerio";
@@ -295,19 +295,23 @@ async function downloadWithYtDlp(
     await execFileAsync("yt-dlp", [
       "--write-info-json",
       "--write-thumbnail",
+      "--write-description",
       "--skip-download",
       "-o",
       join(tempDir, "pinterest_%(id)s.%(ext)s"),
       url,
     ]);
 
-    const infoJsonPath = join(tempDir, "pinterest_info.json");
-    const descPath = join(tempDir, "pinterest_description.txt");
+    const files = await readdir(tempDir);
+
+    // yt-dlp writes pinterest_<id>.info.json — not pinterest_info.json
+    const infoFile = files.find((f) => f.endsWith(".info.json"));
+    const descFile = files.find((f) => f.endsWith(".description"));
 
     let metadata: Record<string, unknown> | null = null;
-    if (existsSync(infoJsonPath)) {
+    if (infoFile) {
       try {
-        const content = await readFile(infoJsonPath, "utf-8");
+        const content = await readFile(join(tempDir, infoFile), "utf-8");
         metadata = JSON.parse(content);
       } catch {
         // ignore parse errors
@@ -315,9 +319,9 @@ async function downloadWithYtDlp(
     }
 
     let description = "";
-    if (existsSync(descPath)) {
+    if (descFile) {
       try {
-        description = await readFile(descPath, "utf-8");
+        description = await readFile(join(tempDir, descFile), "utf-8");
       } catch {
         // ignore read errors
       }
