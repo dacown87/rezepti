@@ -120,6 +120,16 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
+## Offene Punkte nach QA + Code-Review (2026-05-01)
+
+- **Frontend-Build fehlt** — `npm run build:mobile` seit Phase 13g nicht ausgeführt. Freitext-Tab (`'text'`-Modus in `mobile/app/(tabs)/extract.tsx`) fehlt im Web-Build (`public/`). Vor dem nächsten Push bauen und `public/` committen.
+- **Logo-Asset 404** — `/assets/Logo.hash.png` → 404; Datei liegt unter `/assets/public/Logo.hash.png`. Expo-Export-Pfad stimmt nicht mit Bundle-Referenz überein. Low priority, kein visueller Impact (Fallback greift).
+- **Phase-13-Plan gegenlesen** — `docs/phase-13-reviewed.md` nochmal vollständig durchlesen und Code prüfen ob alle Features korrekt implementiert wurden (insbesondere 13g Freitext-Tab im Frontend, 13h ML-Fallback, 13i Nährwert-Anzeige im Frontend).
+- **chefkoch Plugin dead code** — `web/chefkoch.ts` Plugin ist unerreichbar (Chefkoch-URLs gehen immer durch `fetchChefkoch`, nie durch `fetchWeb`). Entweder `chefkoch` als `web`-Typ klassifizieren oder Plugin entfernen.
+- **TikTok OCR doppelter LLM-Aufruf** — `extractTextFromVideoFrames()` ruft `extractRecipeFromText()` auf, das Zod-Schema-Validierung erfordert. Schlägt still fehl wenn Frame kein komplettes Rezept zeigt → API-Token verbrannt. Langfristig: einfacheren Vision-Text-Extraktions-Call verwenden.
+
+---
+
 ## Nächste große Phase — Multi-User Login
 
 - Supabase Auth (JWT/Session), `user_id` in allen Tabellen, RLS, Auth-Middleware
