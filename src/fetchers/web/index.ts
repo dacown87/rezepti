@@ -1,10 +1,13 @@
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../../types.js";
+import { config } from "../../config.js";
 import {
   extractJsonLdRecipes,
   extractMicrodataRecipe,
   extractWildJsonLd,
   extractMainText,
+  extractMainTextFull,
+  extractDomBlocks,
   resolveSchemaImage,
   extractImages,
   type WebScraperPlugin,
@@ -53,8 +56,15 @@ export async function fetchWeb(url: string): Promise<ContentBundle> {
     "";
 
   const plugin = getPlugin(url);
-  const textContent =
-    (plugin?.extractMainText?.($)) ?? extractMainText($);
+  let textContent: string;
+  const pluginText = plugin?.extractMainText?.($);
+  if (pluginText != null) {
+    textContent = pluginText;
+  } else {
+    const { text, usedBodyFallback } = extractMainTextFull($);
+    textContent =
+      usedBodyFallback && config.web.mlFallback ? extractDomBlocks($) : text;
+  }
 
   return {
     url,

@@ -25,6 +25,9 @@ export const config = {
     apiUrl: process.env.COBALT_API_URL || "https://api.cobalt.tools/",
     apiKey: process.env.COBALT_API_KEY || "",
   },
+  web: {
+    mlFallback: process.env.ENABLE_ML_FALLBACK === "true",
+  },
   port: parseInt(process.env.PORT || "3000", 10),
   jobs: {
     cleanupDays: parseInt(process.env.JOB_CLEANUP_DAYS || "7", 10),

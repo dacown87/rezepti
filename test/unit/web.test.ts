@@ -9,6 +9,7 @@ import * as cheerio from "cheerio";
 // We test the private extractMicrodataRecipe indirectly by calling fetchWeb
 // with a mocked fetch that returns known HTML.
 import { fetchWeb } from "../../src/fetchers/web.js";
+import { extractDomBlocks } from "../../src/fetchers/web/base.js";
 
 function mockFetch(html: string) {
   (global as Record<string, unknown>).fetch = vi.fn().mockResolvedValue({
@@ -201,5 +202,55 @@ describe("extractWildJsonLd (via fetchWeb, 13e)", () => {
     mockFetch(WILD_NO_RECIPE);
     const bundle = await fetchWeb("https://example.com/article");
     expect(bundle.schemaRecipe).toBeNull();
+  });
+});
+
+describe("extractDomBlocks (13h)", () => {
+  it("extrahiert relevante Blöcke mit Rezept-Keywords", () => {
+    const html = `<html><body>
+      <p>Willkommen auf meinem Blog!</p>
+      <ul><li>200 g Mehl</li><li>3 Eier</li><li>150 ml Milch</li></ul>
+      <p>Schritt 1: Alle Zutaten mischen.</p>
+      <p>Schritt 2: Den Teig backen.</p>
+      <p>Folgt mir auf Instagram!</p>
+    </body></html>`;
+    const $ = cheerio.load(html);
+    const result = extractDomBlocks($, 10);
+    expect(result).toContain("200 g Mehl");
+    expect(result).toContain("Zutaten mischen");
+    expect(result).not.toContain("Folgt mir auf Instagram");
+  });
+
+  it("respektiert den maxBlocks-Parameter", () => {
+    const items = Array.from(
+      { length: 20 },
+      (_, i) => `<li>${i + 1} g Zutat${i + 1}</li>`
+    ).join("");
+    const html = `<html><body><ul>${items}</ul></body></html>`;
+    const $ = cheerio.load(html);
+    const result = extractDomBlocks($, 5);
+    const lines = result.split("\n").filter(Boolean);
+    expect(lines.length).toBeLessThanOrEqual(5);
+  });
+
+  it("gibt leeren String zurück wenn keine relevanten Blöcke gefunden", () => {
+    const html = `<html><body><p>Willkommen auf unserem Blog!</p><p>Impressum und Datenschutz.</p></body></html>`;
+    const $ = cheerio.load(html);
+    const result = extractDomBlocks($, 10);
+    expect(result).toBe("");
+  });
+
+  it("dedupliziert überlappende Blöcke", () => {
+    const html = `<html><body>
+      <ul>
+        <li>200 g Mehl, 3 Eier, 150 ml Milch</li>
+        <li>200 g Mehl</li>
+      </ul>
+    </body></html>`;
+    const $ = cheerio.load(html);
+    const result = extractDomBlocks($, 10);
+    // "200 g Mehl" is contained in the longer item, should not appear twice
+    const count = (result.match(/200 g Mehl/g) || []).length;
+    expect(count).toBe(1);
   });
 });

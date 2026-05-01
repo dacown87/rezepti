@@ -207,18 +207,18 @@ const TEXT_SELECTORS = [
   ".entry-content",
 ];
 
-export function extractMainText($: cheerio.CheerioAPI): string {
-  $(
-    "script, style, nav, footer, header, aside, " +
-    ".ad, .ads, .sidebar, " +
-    ".advertisement, [class*='ad-'], [id*='ad-'], " +
-    ".related, .related-posts, " +
-    "[class*='comment'], .comments, #comments, " +
-    ".social-share, .share-buttons, [class*='share-'], " +
-    ".newsletter, [class*='newsletter'], " +
-    "noscript, iframe"
-  ).remove();
+const NOISE_SELECTOR =
+  "script, style, nav, footer, header, aside, " +
+  ".ad, .ads, .sidebar, " +
+  ".advertisement, [class*='ad-'], [id*='ad-'], " +
+  ".related, .related-posts, " +
+  "[class*='comment'], .comments, #comments, " +
+  ".social-share, .share-buttons, [class*='share-'], " +
+  ".newsletter, [class*='newsletter'], " +
+  "noscript, iframe";
 
+export function extractMainText($: cheerio.CheerioAPI): string {
+  $(NOISE_SELECTOR).remove();
   for (const sel of TEXT_SELECTORS) {
     const el = $(sel);
     if (el.length && el.text().trim().length > 100) {
@@ -226,6 +226,44 @@ export function extractMainText($: cheerio.CheerioAPI): string {
     }
   }
   return $("body").text().trim().slice(0, 6000);
+}
+
+export function extractMainTextFull($: cheerio.CheerioAPI): { text: string; usedBodyFallback: boolean } {
+  $(NOISE_SELECTOR).remove();
+  for (const sel of TEXT_SELECTORS) {
+    const el = $(sel);
+    if (el.length && el.text().trim().length > 100) {
+      return { text: el.text().trim().slice(0, 6000), usedBodyFallback: false };
+    }
+  }
+  return { text: $("body").text().trim().slice(0, 6000), usedBodyFallback: true };
+}
+
+const RECIPE_KEYWORDS =
+  /zutaten|ingredient|instruction|zubereitung|schritt|step|rezept|recipe|portionen|serving|kcal|kalorien|\b\d+\s*(?:g|ml|el|tl|cup|tbsp|tsp|kg)\b|backen|kochen|braten|mischen|rühren/gi;
+
+export function extractDomBlocks($: cheerio.CheerioAPI, maxBlocks = 10): string {
+  const scored: { text: string; score: number }[] = [];
+
+  $("p, li, h1, h2, h3, h4, dt, dd").each((_, el) => {
+    const text = $(el).text().trim();
+    if (text.length < 8 || text.length > 1000) return;
+    const matches = text.match(RECIPE_KEYWORDS);
+    const score = matches ? matches.length : 0;
+    if (score > 0) scored.push({ text, score });
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const result: string[] = [];
+  for (const { text } of scored) {
+    if (result.length >= maxBlocks) break;
+    if (!result.some((prev) => prev.includes(text) || text.includes(prev))) {
+      result.push(text);
+    }
+  }
+
+  return result.join("\n").slice(0, 6000);
 }
 
 export function resolveSchemaImage(
