@@ -5,7 +5,6 @@ import {
   extractJsonLdRecipes,
   extractMicrodataRecipe,
   extractWildJsonLd,
-  extractMainText,
   extractMainTextFull,
   extractDomBlocks,
   resolveSchemaImage,

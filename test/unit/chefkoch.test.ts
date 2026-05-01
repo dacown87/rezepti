@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parseGermanPortions, resolveSchemaImage } from '../../src/fetchers/chefkoch.js'
+import { parseGermanPortions } from '../../src/fetchers/chefkoch.js'
+import { resolveSchemaImage } from '../../src/fetchers/web/base.js'
 
 // ─── parseGermanPortions ─────────────────────────────────────────────────────
 

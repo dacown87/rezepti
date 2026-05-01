@@ -5,11 +5,17 @@ export interface ParsedIngredient {
   note?: string;
 }
 
-const UNICODE_FRACTIONS: Record<string, number> = {
-  '½': 0.5, '¼': 0.25, '¾': 0.75,
-  '⅓': 1 / 3, '⅔': 2 / 3,
-  '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875,
-};
+const UNICODE_FRACTIONS: Array<[RegExp, number]> = [
+  [/^(\d+)?\s*½\s*(.*)/, 0.5],
+  [/^(\d+)?\s*¼\s*(.*)/, 0.25],
+  [/^(\d+)?\s*¾\s*(.*)/, 0.75],
+  [/^(\d+)?\s*⅓\s*(.*)/, 1 / 3],
+  [/^(\d+)?\s*⅔\s*(.*)/, 2 / 3],
+  [/^(\d+)?\s*⅛\s*(.*)/, 0.125],
+  [/^(\d+)?\s*⅜\s*(.*)/, 0.375],
+  [/^(\d+)?\s*⅝\s*(.*)/, 0.625],
+  [/^(\d+)?\s*⅞\s*(.*)/, 0.875],
+];
 
 // Set of recognized German cooking units
 const UNITS = new Set([
@@ -24,8 +30,7 @@ const UNITS = new Set([
 
 function tryParseAmount(s: string): { amount: number; rest: string; rangeNote?: string } | null {
   // Unicode fraction, optionally preceded by a whole number ("1½")
-  for (const [ch, val] of Object.entries(UNICODE_FRACTIONS)) {
-    const re = new RegExp(`^(\\d+)?\\s*${ch}\\s*(.*)`);
+  for (const [re, val] of UNICODE_FRACTIONS) {
     const m = re.exec(s);
     if (m) {
       const whole = m[1] ? parseInt(m[1], 10) : 0;

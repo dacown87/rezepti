@@ -10,9 +10,8 @@
 import postgres from "postgres";
 import { writeFile } from "node:fs/promises";
 
-const DB_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:REDACTED@db.zdiqtnljdxuhinqzgcnd.supabase.co:5432/postgres";
+const DB_URL = process.env.DATABASE_URL;
+if (!DB_URL) throw new Error("DATABASE_URL environment variable is required");
 
 const sql = postgres(DB_URL);
 

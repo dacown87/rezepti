@@ -36,7 +36,7 @@ describe.skipIf(!TEST_NETWORK || fixtures.length === 0)(
     });
 
     afterAll(() => {
-      (global as Record<string, unknown>).fetch = vi.fn();
+      (global as Record<string, unknown>).fetch = undiciFetch;
     });
 
     for (const fixture of fixtures) {

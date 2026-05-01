@@ -24,8 +24,6 @@ export function parseGermanPortions(yieldText: string | undefined): string | und
   return yieldText;
 }
 
-export { resolveSchemaImage };
-
 function extractMainText($: cheerio.CheerioAPI): string {
   $("script, style, nav, footer, header, aside, .ad, .ads, .sidebar, .recipe-banner, .recipe-teaser").remove();
 

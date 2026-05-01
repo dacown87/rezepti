@@ -265,6 +265,9 @@ app.post("/api/v1/extract/text", async (c) => {
     if (text.length < 50) {
       return c.json({ error: "Text muss mindestens 50 Zeichen lang sein" }, 400);
     }
+    if (text.length > 50_000) {
+      return c.json({ error: "Text darf maximal 50.000 Zeichen lang sein" }, 400);
+    }
 
     const userAgent = c.req.header("User-Agent");
     const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent);

@@ -188,10 +188,11 @@ export async function estimateNutrition(
 ): Promise<{ calories: number } | null> {
   try {
     const portionHint = servings ? ` (${servings})` : "";
+    const ingredientText = ingredients.slice(0, 50).join("\n");
     const raw = await chatJSON([
       {
         role: "user",
-        content: `Schätze die Kalorien pro Portion${portionHint} für dieses Rezept anhand der Zutatenliste. Antworte nur mit JSON: {"calories": <Zahl>}\n\nZutaten:\n${ingredients.join("\n")}`,
+        content: `Schätze die Kalorien pro Portion${portionHint} für dieses Rezept anhand der Zutatenliste. Antworte nur mit JSON: {"calories": <Zahl>}\n\nZutaten:\n${ingredientText}`,
       },
     ], config.groq.textModel) as Record<string, unknown>;
 
