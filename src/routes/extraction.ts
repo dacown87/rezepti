@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { jobManager } from "../job-manager.js";
 import { BYOKValidator } from "../byok-validator.js";
-import { processURL, toUserFriendlyError } from "../pipeline.js";
+import { processURL, toUserFriendlyError, buildQualityWarnings } from "../pipeline.js";
 import { extractRecipeFromImage, extractRecipeFromText } from "../processors/llm.js";
 import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
 import { classifyURL } from "../classifier.js";
@@ -308,13 +308,7 @@ async function processTextJobInBackground(jobId: string) {
     jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
     const recipeId = await saveRecipeToReactDb(recipeData, "text://manual");
 
-    const qualityWarnings: string[] = [];
-    if (!recipeData.ingredients || recipeData.ingredients.length === 0)
-      qualityWarnings.push("Keine Zutaten erkannt — bitte manuell ergänzen.");
-    if (!recipeData.steps || recipeData.steps.length === 0)
-      qualityWarnings.push("Keine Zubereitungsschritte erkannt — bitte manuell ergänzen.");
-    if (!recipeData.name || /^https?:\/\//i.test(recipeData.name))
-      qualityWarnings.push("Kein Rezeptname erkannt — bitte manuell eintragen.");
+    const qualityWarnings = buildQualityWarnings(recipeData, "text://manual");
 
     jobManager.completeJob(jobId, {
       success: true,

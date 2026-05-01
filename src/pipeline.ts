@@ -27,6 +27,17 @@ import type {
 
 type EventCallback = (event: PipelineEvent) => void | Promise<void>;
 
+export function buildQualityWarnings(recipe: Partial<RecipeData>, sourceUrl?: string): string[] {
+  const warnings: string[] = [];
+  if (!recipe.ingredients || recipe.ingredients.length === 0)
+    warnings.push("Keine Zutaten erkannt — bitte manuell ergänzen.");
+  if (!recipe.steps || recipe.steps.length === 0)
+    warnings.push("Keine Zubereitungsschritte erkannt — bitte manuell ergänzen.");
+  if (!recipe.name || recipe.name === sourceUrl || /^https?:\/\//i.test(recipe.name))
+    warnings.push("Kein Rezeptname erkannt — bitte manuell eintragen.");
+  return warnings;
+}
+
 async function emit(cb: EventCallback, event: PipelineEvent) {
   await cb(event);
 }
@@ -166,16 +177,7 @@ export async function processURL(
       data: { recipe, recipeId },
     });
 
-    const qualityWarnings: string[] = [];
-    if (!recipe.ingredients || recipe.ingredients.length === 0) {
-      qualityWarnings.push("Keine Zutaten erkannt — bitte manuell ergänzen.");
-    }
-    if (!recipe.steps || recipe.steps.length === 0) {
-      qualityWarnings.push("Keine Zubereitungsschritte erkannt — bitte manuell ergänzen.");
-    }
-    if (!recipe.name || recipe.name === classified.url || /^https?:\/\//i.test(recipe.name)) {
-      qualityWarnings.push("Kein Rezeptname erkannt — bitte manuell eintragen.");
-    }
+    const qualityWarnings = buildQualityWarnings(recipe, classified.url);
 
     return {
       success: true,
