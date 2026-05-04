@@ -15,7 +15,7 @@ Rezepte aus URLs extrahieren — YouTube, Instagram, TikTok, Webseiten, Cookidoo
 - **Meal Planner** — 7-Tage-Plan mit Drag & Drop
 - **Einkaufsliste** — Multi-Rezept-Aggregation, Abhaken, Export
 - **PDF-Export** — Rezeptkarte mit QR-Code
-- **BYOK** — Bring Your Own Groq Key
+- **BYOK** — Bring Your Own Groq Key für URL-, Text-, Foto-, Audio- und Vision-Extraktion
 - **PWA** — Homescreen-Installation auf iOS/Android
 
 ---
@@ -62,7 +62,7 @@ docker compose --profile prod up
 
 | Variable | Pflicht | Beschreibung |
 |----------|---------|--------------|
-| `GROQ_API_KEY` | ✅ | Groq API-Key ([console.groq.com](https://console.groq.com)) |
+| `GROQ_API_KEY` | ✅ | Server-Fallback für Groq; einzelne Extraktionsjobs können per BYOK überschreiben |
 | `DATABASE_URL` | ✅ | Supabase PostgreSQL — **Transaction Pooler URL** (Port 6543) |
 | `SUPABASE_URL` | | Supabase Projekt-URL (für zukünftige Auth-Features) |
 | `SUPABASE_ANON_KEY` | | Supabase Anon Key |
@@ -98,12 +98,27 @@ npx drizzle-kit push
 | `/api/v1/recipes/:id` | GET/PATCH/DELETE | Einzelnes Rezept |
 | `/api/v1/extract/react` | POST | Extraktion starten (Polling) |
 | `/api/v1/extract/react/:jobId` | GET/DELETE | Job-Status / abbrechen |
+| `/api/v1/extract/text` | POST | Freitext als Rezept extrahieren (Polling, min. 50 Zeichen) |
+| `/api/v1/extract/photo` | POST | Foto-Upload als Rezept extrahieren (Multipart, Polling) |
+| `/api/v1/extract/jobs` | GET | Letzte Extraktionsjobs auflisten |
+| `/api/v1/images/search` | GET | Rezeptbilder suchen (`q`, optional `limit`) |
 | `/api/v1/keys/validate` | POST | BYOK Key validieren |
 | `/api/v1/keys` | POST | BYOK Key speichern |
 | `/api/v1/keys/:keyHash` | DELETE | BYOK Key löschen |
 | `/api/v1/health` | GET | Server + DB Status |
 | `/api/v1/planner` | GET/POST/DELETE | Meal Planner |
 | `/api/v1/shopping` | GET/POST/DELETE | Einkaufsliste |
+
+BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-Body mitgegeben werden. Der Key wird validiert, für den Job gehasht gespeichert und explizit bis zu LLM-, Whisper-, Vision-, Nutrition- und TikTok-OCR-Aufrufen weitergereicht; die Server-Umgebungsvariable bleibt unverändert.
+
+---
+
+## Weitere Dokumentation
+
+- `CLAUDE.md` — Projektstruktur, Befehle, Architektur und Agent-Konventionen
+- `TODO.md` — Aktuelle offene Punkte, QA-Befunde und Roadmap-Notizen
+- `test/README.md` — Teststruktur und lokale Testbefehle
+- `docs/TEST_STATUS.md` — Historischer Teststatus und bekannte Testlücken
 
 ---
 

@@ -71,7 +71,7 @@
 
 ## Durchgeführte Tests
 
-- ✅ `npm run build:react` — erfolgreich
-- ✅ `npx tsc --noEmit` — TypeScript fehlerfrei
-- ✅ `npm test -- --run --exclude="test/e2e/**"` — 120 Unit-Tests bestehen
-- ❌ E2E-Tests — nicht ausgeführt (Server muss laufen)
+- ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
+- ✅ `npx tsc --noEmit` — TypeScript-Check
+- ✅ `npm test -- --run` — 333 Tests bestanden, 60 skipped (Stand: 2026-05-04)
+- ℹ️ E2E-/Docker-Tests skippen graceful, wenn kein Server bzw. Container läuft
