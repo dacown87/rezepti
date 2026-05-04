@@ -27,6 +27,10 @@ import type {
 
 type EventCallback = (event: PipelineEvent) => void | Promise<void>;
 
+interface PipelineOptions {
+  apiKey?: string;
+}
+
 export function buildQualityWarnings(recipe: Partial<RecipeData>, sourceUrl?: string): string[] {
   const warnings: string[] = [];
   if (!recipe.ingredients || recipe.ingredients.length === 0)
@@ -44,7 +48,8 @@ async function emit(cb: EventCallback, event: PipelineEvent) {
 
 export async function processURL(
   rawUrl: string,
-  onEvent: EventCallback
+  onEvent: EventCallback,
+  options: PipelineOptions = {}
 ): Promise<PipelineResult> {
   const tempDir = createTempDir();
 
@@ -72,7 +77,7 @@ export async function processURL(
         bundle = await fetchInstagram(classified.url, tempDir);
         break;
       case "tiktok":
-        bundle = await fetchTikTok(classified.url, tempDir);
+        bundle = await fetchTikTok(classified.url, tempDir, { apiKey: options.apiKey });
         break;
       case "cookidoo":
         bundle = await fetchCookidoo(classified.url);
@@ -119,14 +124,14 @@ export async function processURL(
           stage: "extracting",
           message: "Rezept wird übersetzt und konvertiert...",
         });
-        recipe = await refineRecipe(partial);
+        recipe = await refineRecipe(partial, { apiKey: options.apiKey });
       } else {
-        const result = await extractFromBundle(bundle, tempDir, onEvent);
+        const result = await extractFromBundle(bundle, tempDir, onEvent, options);
         recipe = result.recipe;
         transcript = result.transcript;
       }
     } else {
-      const result = await extractFromBundle(bundle, tempDir, onEvent);
+      const result = await extractFromBundle(bundle, tempDir, onEvent, options);
       recipe = result.recipe;
       transcript = result.transcript;
     }
@@ -150,7 +155,7 @@ export async function processURL(
     let nutritionEstimated = false;
     if (!recipe.calories && recipe.ingredients && recipe.ingredients.length > 0) {
       await emit(onEvent, { stage: "extracting", message: "Nährwerte werden geschätzt..." });
-      const nutrition = await estimateNutrition(recipe.ingredients, recipe.servings).catch(() => null);
+      const nutrition = await estimateNutrition(recipe.ingredients, recipe.servings, { apiKey: options.apiKey }).catch(() => null);
       if (nutrition) {
         recipe = { ...recipe, calories: nutrition.calories };
         nutritionEstimated = true;
@@ -203,7 +208,8 @@ interface ExtractionResult {
 async function extractFromBundle(
   bundle: ContentBundle,
   tempDir: string,
-  onEvent: EventCallback
+  onEvent: EventCallback,
+  options: PipelineOptions = {}
 ): Promise<ExtractionResult> {
   const textContent =
     bundle.subtitles || bundle.textContent || bundle.description || "";
@@ -213,7 +219,7 @@ async function extractFromBundle(
       stage: "extracting",
       message: "Rezept wird aus Text extrahiert...",
     });
-    const recipe = await extractRecipeFromText(textContent, bundle.imageUrls[0]);
+    const recipe = await extractRecipeFromText(textContent, bundle.imageUrls[0], { apiKey: options.apiKey });
     return { recipe, transcript: bundle.subtitles };
   }
 
@@ -222,7 +228,7 @@ async function extractFromBundle(
       stage: "transcribing",
       message: "Audio wird transkribiert (Whisper)...",
     });
-    const transcript = await transcribeAudio(bundle.audioPath, tempDir);
+    const transcript = await transcribeAudio(bundle.audioPath, tempDir, { apiKey: options.apiKey });
     await emit(onEvent, {
       stage: "transcribing",
       message: "Transkription abgeschlossen.",
@@ -233,7 +239,7 @@ async function extractFromBundle(
         stage: "extracting",
         message: "Rezept wird aus Transkription extrahiert...",
       });
-      const recipe = await extractRecipeFromText(transcript, bundle.imageUrls[0]);
+      const recipe = await extractRecipeFromText(transcript, bundle.imageUrls[0], { apiKey: options.apiKey });
       return { recipe, transcript };
     }
   }
@@ -244,7 +250,7 @@ async function extractFromBundle(
         stage: "analyzing_image",
         message: `${bundle.imageUrls.length} Carousel-Bilder werden mit Vision-Modell analysiert...`,
       });
-      const recipe = await extractRecipeFromImages(bundle.imageUrls, bundle.description);
+      const recipe = await extractRecipeFromImages(bundle.imageUrls, bundle.description, { apiKey: options.apiKey });
       return { recipe };
     }
 
@@ -253,7 +259,7 @@ async function extractFromBundle(
       stage: "analyzing_image",
       message: "Bild wird mit Vision-Modell analysiert...",
     });
-    const recipe = await extractRecipeFromImage(imageUrl, bundle.description);
+    const recipe = await extractRecipeFromImage(imageUrl, bundle.description, { apiKey: options.apiKey });
     return { recipe };
   }
 

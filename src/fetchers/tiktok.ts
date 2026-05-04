@@ -76,7 +76,8 @@ async function fetchTikTokWithRegion(
 
 export async function fetchTikTok(
   url: string,
-  tempDir: string
+  tempDir: string,
+  options: { apiKey?: string } = {}
 ): Promise<ContentBundle> {
   let title = "";
   let description = "";
@@ -185,7 +186,7 @@ export async function fetchTikTok(
 
   let videoOcrText = "";
   if (audioPath && config.tiktok.ocrEnabled) {
-    videoOcrText = await extractTextFromVideoFrames(audioPath, tempDir);
+    videoOcrText = await extractTextFromVideoFrames(audioPath, tempDir, options);
   }
 
   const combinedText = [
@@ -217,7 +218,8 @@ async function isFfmpegAvailable(): Promise<boolean> {
 
 export async function extractTextFromVideoFrames(
   videoPath: string,
-  tempDir: string
+  tempDir: string,
+  options: { apiKey?: string } = {}
 ): Promise<string> {
   if (!config.tiktok.ocrEnabled) return "";
 
@@ -256,7 +258,8 @@ export async function extractTextFromVideoFrames(
       // Alle Frame-URLs als Text-Prompt zusammenstellen — LLM sieht das erste Bild
       const result = await extractRecipeFromText(
         "Extrahiere alle sichtbaren Zutaten und Zubereitungsschritte aus diesem TikTok-Video-Frame. Gib alle erkannten Texte zurück.",
-        imageUrls[0]
+        imageUrls[0],
+        { apiKey: options.apiKey }
       );
       // result ist RecipeData — Zutaten und Schritte als Rohtext zurückgeben
       if (result) {
