@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.98] – 2026-05-04
+
+- pass BYOK through extraction jobs
+
 ## [1.0.97] – 2026-04-25
 
 - Bild-Review nach Import + Bild-Button im Edit-Modus

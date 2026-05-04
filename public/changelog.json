@@ -1,6 +1,13 @@
 {
-  "version": "1.0.97",
+  "version": "1.0.98",
   "entries": [
+    {
+      "version": "1.0.98",
+      "date": "2026-05-04",
+      "changes": [
+        "pass BYOK through extraction jobs"
+      ]
+    },
     {
       "version": "1.0.97",
       "date": "2026-04-25",
@@ -163,7 +170,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-04-25",
-    "time": "22:08"
+    "date": "2026-05-04",
+    "time": "23:00"
   }
 }
