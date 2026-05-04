@@ -2,10 +2,16 @@ import OpenAI from "openai";
 import { config } from "../config.js";
 import { RecipeDataSchema, type RecipeData } from "../types.js";
 
-const groq = new OpenAI({
-  apiKey:  config.groq.apiKey,
-  baseURL: config.groq.baseUrl,
-});
+export interface LlmOptions {
+  apiKey?: string;
+}
+
+function createGroqClient(apiKey?: string): OpenAI {
+  return new OpenAI({
+    apiKey: apiKey || config.groq.apiKey,
+    baseURL: config.groq.baseUrl,
+  });
+}
 
 const SYSTEM_PROMPT = `Du bist ein Rezept-Extraktor. Deine Aufgabe:
 
@@ -65,8 +71,10 @@ function normalizeGroupsToIngredients(raw: Record<string, unknown>): void {
 
 async function chatJSON(
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
-  model: string
+  model: string,
+  options: LlmOptions = {}
 ): Promise<unknown> {
+  const groq = createGroqClient(options.apiKey);
   const response = await groq.chat.completions.create({
     model,
     messages,
@@ -79,7 +87,8 @@ async function chatJSON(
 
 export async function extractRecipeFromText(
   text: string,
-  existingImageUrl?: string
+  existingImageUrl?: string,
+  options: LlmOptions = {}
 ): Promise<RecipeData> {
   const raw = await chatJSON([
     { role: "system", content: SYSTEM_PROMPT },
@@ -87,7 +96,7 @@ export async function extractRecipeFromText(
       role: "user",
       content: `Extrahiere das Rezept aus folgendem Inhalt:\n\n${text.slice(0, 8000)}`,
     },
-  ], config.groq.textModel) as Record<string, unknown>;
+  ], config.groq.textModel, options) as Record<string, unknown>;
 
   if (!raw.imageUrl && existingImageUrl) {
     raw.imageUrl = existingImageUrl;
@@ -98,7 +107,8 @@ export async function extractRecipeFromText(
 
 export async function extractRecipeFromImage(
   imageUrl: string,
-  additionalText?: string
+  additionalText?: string,
+  options: LlmOptions = {}
 ): Promise<RecipeData> {
   const userContent: OpenAI.Chat.ChatCompletionContentPart[] = [
     {
@@ -116,7 +126,7 @@ export async function extractRecipeFromImage(
   const raw = await chatJSON([
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: userContent },
-  ], config.groq.visionModel) as Record<string, unknown>;
+  ], config.groq.visionModel, options) as Record<string, unknown>;
 
   // Don't use the input photo as recipe image — it's a recipe card/screenshot, not a dish photo
   if (!raw.imageUrl && !imageUrl.startsWith("data:")) {
@@ -128,7 +138,8 @@ export async function extractRecipeFromImage(
 
 export async function extractRecipeFromImages(
   imageUrls: string[],
-  additionalText?: string
+  additionalText?: string,
+  options: LlmOptions = {}
 ): Promise<RecipeData> {
   const imageParts: OpenAI.Chat.ChatCompletionContentPart[] = imageUrls.map((url) => ({
     type: "image_url" as const,
@@ -147,7 +158,7 @@ export async function extractRecipeFromImages(
   const raw = await chatJSON([
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: userContent },
-  ], config.groq.visionModel) as Record<string, unknown>;
+  ], config.groq.visionModel, options) as Record<string, unknown>;
 
   if (!raw.imageUrl && imageUrls.length > 0) {
     raw.imageUrl = imageUrls[0];
@@ -157,7 +168,8 @@ export async function extractRecipeFromImages(
 }
 
 export async function refineRecipe(
-  partial: Partial<RecipeData>
+  partial: Partial<RecipeData>,
+  options: LlmOptions = {}
 ): Promise<RecipeData> {
   const raw = await chatJSON([
     { role: "system", content: SYSTEM_PROMPT },
@@ -173,7 +185,7 @@ export async function refineRecipe(
 
 Rezept-Daten:\n${JSON.stringify(partial, null, 2)}`,
     },
-  ], config.groq.textModel) as Record<string, unknown>;
+  ], config.groq.textModel, options) as Record<string, unknown>;
 
   if (!raw.imageUrl && partial.imageUrl) {
     raw.imageUrl = partial.imageUrl;
@@ -184,7 +196,8 @@ Rezept-Daten:\n${JSON.stringify(partial, null, 2)}`,
 
 export async function estimateNutrition(
   ingredients: string[],
-  servings?: string
+  servings?: string,
+  options: LlmOptions = {}
 ): Promise<{ calories: number } | null> {
   try {
     const portionHint = servings ? ` (${servings})` : "";
@@ -194,7 +207,7 @@ export async function estimateNutrition(
         role: "user",
         content: `Schätze die Kalorien pro Portion${portionHint} für dieses Rezept anhand der Zutatenliste. Antworte nur mit JSON: {"calories": <Zahl>}\n\nZutaten:\n${ingredientText}`,
       },
-    ], config.groq.textModel) as Record<string, unknown>;
+    ], config.groq.textModel, options) as Record<string, unknown>;
 
     const cal = typeof raw.calories === "number" ? Math.round(raw.calories) : null;
     return cal && cal > 0 ? { calories: cal } : null;

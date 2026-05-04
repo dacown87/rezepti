@@ -129,13 +129,15 @@ async function fetchInstagramWebScraping(url: string): Promise<ContentBundle> {
   let imageUrl = "";
   let title = "";
 
-  const shortcode = url.match(/\/(?:p|reel)\/([A-Za-z0-9_-]+)/)?.[1];
+  const shortcodeMatch = url.match(/\/(p|reel)\/([A-Za-z0-9_-]+)/);
+  const shortcodeKind = shortcodeMatch?.[1];
+  const shortcode = shortcodeMatch?.[2];
 
   // 1. Embed-URL — öffentlich zugänglich, zeigt volle Caption
   if (shortcode) {
     try {
       const embedRes = await fetch(
-        `https://www.instagram.com/p/${shortcode}/embed/captioned/`,
+        `https://www.instagram.com/${shortcodeKind}/${shortcode}/embed/captioned/`,
         { headers: INSTAGRAM_HEADERS }
       );
       if (embedRes.ok) {

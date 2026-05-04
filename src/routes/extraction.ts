@@ -16,10 +16,28 @@ const textDataStore = new Map<string, string>();
 
 const app = new Hono();
 
+function getApiKeyFromRequest(c: { req: { header: (name: string) => string | undefined } }, body?: Record<string, unknown>): string | undefined {
+  const headerKey = c.req.header("x-groq-key")?.trim();
+  if (headerKey) return headerKey;
+  const bodyKey = typeof body?.apiKey === "string" ? body.apiKey.trim() : "";
+  return bodyKey || undefined;
+}
+
+async function validateOptionalApiKey(apiKey: string | undefined): Promise<string | undefined> {
+  if (!apiKey) return undefined;
+  const validation = await BYOKValidator.validateKey(apiKey);
+  if (!validation.valid) {
+    throw new Error(`Invalid API key: ${validation.reason}`);
+  }
+  return BYOKValidator.hashKey(apiKey);
+}
+
 // Start a new recipe extraction job
 app.post("/api/v1/extract/react", async (c) => {
   try {
-    const { url, apiKey } = await c.req.json();
+    const body = await c.req.json() as Record<string, unknown>;
+    const url = typeof body.url === "string" ? body.url : "";
+    const apiKey = getApiKeyFromRequest(c, body);
 
     if (!url) {
       return c.json({ error: "URL is required" }, 400);
@@ -54,15 +72,13 @@ app.post("/api/v1/extract/react", async (c) => {
     }
 
     let apiKeyHash: string | undefined;
-    if (apiKey) {
-      const validation = await BYOKValidator.validateKey(apiKey);
-      if (!validation.valid) {
-        return c.json({
-          error: "Invalid API key",
-          details: validation.reason
-        }, 400);
-      }
-      apiKeyHash = BYOKValidator.hashKey(apiKey);
+    try {
+      apiKeyHash = await validateOptionalApiKey(apiKey);
+    } catch (error) {
+      return c.json({
+        error: "Invalid API key",
+        details: error instanceof Error ? error.message.replace(/^Invalid API key: /, "") : "Unknown validation error"
+      }, 400);
     }
 
     const userAgent = c.req.header("User-Agent");
@@ -176,6 +192,7 @@ app.post("/api/v1/extract/photo", async (c) => {
   try {
     const formData = await c.req.formData();
     const file = formData.get("file") as File | null;
+    const apiKey = getApiKeyFromRequest(c);
 
     if (!file) return c.json({ error: "Keine Datei angegeben" }, 400);
 
@@ -189,16 +206,28 @@ app.post("/api/v1/extract/photo", async (c) => {
       return c.json({ error: "Datei zu groß. Maximum: 10 MB" }, 400);
     }
 
+    let apiKeyHash: string | undefined;
+    try {
+      apiKeyHash = await validateOptionalApiKey(apiKey);
+    } catch (error) {
+      return c.json({
+        error: "Invalid API key",
+        details: error instanceof Error ? error.message.replace(/^Invalid API key: /, "") : "Unknown validation error"
+      }, 400);
+    }
+
     const buffer = await file.arrayBuffer();
     const base64 = Buffer.from(buffer).toString("base64");
     const dataUrl = `data:${file.type};base64,${base64}`;
 
     const userAgent = c.req.header("User-Agent");
-    const job = jobManager.createJob(`photo://${file.name || "upload"}`, userAgent);
+    const job = apiKeyHash
+      ? jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, apiKeyHash)
+      : jobManager.createJob(`photo://${file.name || "upload"}`, userAgent);
     photoDataStore.set(job.id, dataUrl);
 
     setTimeout(() => {
-      processPhotoJobInBackground(job.id).catch(console.error);
+      processPhotoJobInBackground(job.id, apiKey).catch(console.error);
     }, 0);
 
     return c.json({
@@ -214,7 +243,7 @@ app.post("/api/v1/extract/photo", async (c) => {
   }
 });
 
-async function processPhotoJobInBackground(jobId: string) {
+async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
   const dataUrl = photoDataStore.get(jobId);
   if (!dataUrl) {
     jobManager.failJob(jobId, "Foto-Daten nicht gefunden");
@@ -229,7 +258,7 @@ async function processPhotoJobInBackground(jobId: string) {
       status: "running",
     });
 
-    const recipeData = await extractRecipeFromImage(dataUrl);
+    const recipeData = await extractRecipeFromImage(dataUrl, undefined, { apiKey });
 
     jobManager.updateJob(jobId, { progress: 75, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
     const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
@@ -258,6 +287,7 @@ app.post("/api/v1/extract/text", async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}));
     const text = typeof body.text === "string" ? body.text.trim() : "";
+    const apiKey = getApiKeyFromRequest(c, body);
 
     if (!text) {
       return c.json({ error: "Text ist erforderlich" }, 400);
@@ -269,12 +299,22 @@ app.post("/api/v1/extract/text", async (c) => {
       return c.json({ error: "Text darf maximal 50.000 Zeichen lang sein" }, 400);
     }
 
+    let apiKeyHash: string | undefined;
+    try {
+      apiKeyHash = await validateOptionalApiKey(apiKey);
+    } catch (error) {
+      return c.json({
+        error: "Invalid API key",
+        details: error instanceof Error ? error.message.replace(/^Invalid API key: /, "") : "Unknown validation error"
+      }, 400);
+    }
+
     const userAgent = c.req.header("User-Agent");
-    const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent);
+    const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent, apiKeyHash);
     textDataStore.set(job.id, text);
 
     setTimeout(() => {
-      processTextJobInBackground(job.id).catch(console.error);
+      processTextJobInBackground(job.id, apiKey).catch(console.error);
     }, 0);
 
     return c.json({
@@ -290,7 +330,7 @@ app.post("/api/v1/extract/text", async (c) => {
   }
 });
 
-async function processTextJobInBackground(jobId: string) {
+async function processTextJobInBackground(jobId: string, apiKey?: string) {
   const text = textDataStore.get(jobId);
   if (!text) {
     jobManager.failJob(jobId, "Text-Daten nicht gefunden");
@@ -300,7 +340,7 @@ async function processTextJobInBackground(jobId: string) {
     jobManager.startJob(jobId);
     jobManager.updateJob(jobId, { progress: 20, currentStage: "extracting", message: "Rezept wird extrahiert", status: "running" });
 
-    const recipeData = await extractRecipeFromText(text);
+    const recipeData = await extractRecipeFromText(text, undefined, { apiKey });
 
     jobManager.updateJob(jobId, { progress: 75, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
     const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
@@ -368,13 +408,8 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
       });
     };
 
-    const originalApiKey = process.env.GROQ_API_KEY;
-    if (userApiKey) {
-      process.env.GROQ_API_KEY = userApiKey;
-    }
-
     try {
-      const result = await processURL(job.url, onEvent);
+      const result = await processURL(job.url, onEvent, { apiKey: userApiKey });
 
       if (result.success) {
         jobManager.completeJob(jobId, result);
@@ -383,9 +418,7 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
       }
 
     } finally {
-      if (userApiKey) {
-        process.env.GROQ_API_KEY = originalApiKey;
-      }
+      // Per-job API keys are passed explicitly into LLM clients; server env remains unchanged.
     }
 
   } catch (error) {

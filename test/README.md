@@ -47,17 +47,17 @@ test/
 ## Running Tests
 
 ```bash
-# Unit tests only (no server needed)
-npm test -- --run --exclude="test/e2e/**"
+# Unit tests only
+npm run test:unit
 
 # All unit tests
 npm run test:unit
 
-# E2E tests (requires running server)
+# E2E tests (skip gracefully when the required server/container is absent)
 npm run test:e2e
 
 # All tests
-npm run test:all
+npm test -- --run
 ```
 
 ### Local Script
@@ -88,7 +88,8 @@ npm run test:all
 npm run dev
 
 # Database errors
-ls -la data/
+echo "$DATABASE_URL"
+npx drizzle-kit push
 
 # Verbose output
 npx vitest run --reporter=verbose
@@ -97,5 +98,5 @@ npx vitest run --reporter=verbose
 npx vitest run test/e2e/react-api.test.ts
 
 # Inspect database
-sqlite3 data/rezepti-react.db "SELECT * FROM recipes;"
+npx drizzle-kit studio
 ```

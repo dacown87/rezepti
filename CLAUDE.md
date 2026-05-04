@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, Instagram, TikTok, web pages) and saves them to a local SQLite database. Recipes are processed and output in German. It uses Groq API (Llama models) for extraction/translation, with fallback paths through schema.org parsing, audio transcription, and vision models.
+Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, Instagram, TikTok, web pages), free text, and photo uploads, then saves them to Supabase PostgreSQL. Recipes are processed and output in German. It uses Groq API (Llama models) for extraction/translation, with fallback paths through schema.org parsing, audio transcription, and vision models.
 
 ## Commands
 
 - `npm run dev` — Start dev server with hot reload (tsx watch)
 - `npm start` — Start production server
-- `npm run dev:react` — React dev server (Vite)
-- `npm run build:react` — React production build
+- `npm run dev:mobile` — API server + Expo web dev server
+- `npm run build:mobile` — Export Expo web app into `public/`
 - `npm test` — Run tests (Vitest)
 - `npx tsc` — Type-check (noEmit, strict mode)
 
@@ -28,7 +28,7 @@ Test suite: Vitest for unit/e2e tests.
 **Stages:** `base` (Node 20 + yt-dlp + Build-Tools) → `builder` (tsc) → `frontend-builder` (Vite build) → `production` (node dist/index.js) + `dev` (tsx watch)
 
 **Volumes:**
-- `./data:/app/data` — SQLite-Persistenz
+- `./data:/app/data` — local runtime data such as cookies and export artifacts
 - `./src:/app/src` — Hot-Reload für Server-Code (nur Dev-Modus)
 - `./public:/app/public` — Hot-Reload für Frontend (nur Dev-Modus)
 
@@ -46,23 +46,23 @@ Test suite: Vitest for unit/e2e tests.
 
 ## Architecture
 
-**Request flow:** HTTP request → Pipeline → Classifier → Fetcher → Processor → SQLite save
+**Request flow:** HTTP request → Pipeline → Classifier → Fetcher → Processor → Supabase PostgreSQL save
 
 The server (`src/index.ts`) serves the React app and mounts the React API router.
 
 **Pipeline stages**: classifying → fetching → transcribing → analyzing_image → extracting → exporting → done/error
 
 **Key modules:**
-- `src/pipeline.ts` — Orchestrator that routes through the extraction workflow; always saves to React DB
+- `src/pipeline.ts` — Orchestrator that routes through the extraction workflow; saves to Supabase-backed React DB and accepts per-job LLM options
 - `src/classifier.ts` — Determines URL source type (youtube/instagram/tiktok/web)
 - `src/fetchers/` — Source-specific content downloaders (yt-dlp for video; cheerio for web)
   - `web/base.ts` — shared extraction utilities + `WebScraperPlugin` interface
   - `web/chefkoch.ts` — domain-specific plugin (chefkoch.de CSS selectors)
   - `web/index.ts` — plugin registry + `fetchWeb` dispatcher
   - `web.ts` — thin re-export (keeps existing imports stable)
-- `src/processors/llm.ts` — Groq API via OpenAI SDK for recipe extraction and refinement
+- `src/processors/llm.ts` — Groq API via OpenAI SDK for recipe extraction, refinement, image analysis, and nutrition estimates; creates clients per call so BYOK jobs do not mutate server env
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
-- `src/processors/whisper.ts` — Audio transcription via Groq Whisper API
+- `src/processors/whisper.ts` — Audio transcription via Groq Whisper API; supports per-job BYOK
 - `src/processors/ingredient-parser.ts` — `parseIngredient(raw)` → `{amount, unit, food, note?}`; ephemeral (no DB field)
 - `src/db-react.ts` — PostgreSQL connection (postgres-js + Drizzle ORM), CRUD functions for React DB
 - `src/api-react.ts` — All `/api/v1/*` endpoints (recipes, extraction jobs, BYOK, health)
@@ -93,8 +93,11 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/keys` | POST | Store API key |
 | `/api/v1/keys/:keyHash` | DELETE | Remove API key |
 | `/api/v1/health` | GET | Server + DB status |
+| `/api/v1/images/search` | GET | Search recipe image suggestions |
 | `/api/v1/cookidoo/status` | GET | Cookidoo connection status |
 | `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials |
+
+BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated, stored only as a hash on the job, and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths.
 
 **Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
 - `ExtractionPage` — URL input, job polling, progress display
@@ -147,7 +150,7 @@ Host github.com
 
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
-- **After frontend changes:** Always run `npm run build:react` to update `public/`
+- **After frontend changes:** Always run `npm run build:mobile` to update `public/`
 - **New web scraper plugin:** Add `src/fetchers/web/[domain].ts` implementing `WebScraperPlugin`, register in `PLUGINS` array in `web/index.ts`. `web.ts` stays a thin re-export — no import changes needed elsewhere.
 - **Fetcher code duplication:** Before adding utility functions to a fetcher (extractJsonLdRecipes, resolveSchemaImage, extractImages etc.), check `src/fetchers/web/base.ts` first — these are already exported there.
 
@@ -252,5 +255,5 @@ Planned features and current implementation status (as of March 2026):
 - Zod schema (`RecipeDataSchema` in `types.ts`) validates all recipe output at runtime
 - Async/await for all async operations
 - No barrel exports; direct module imports
-- JSON arrays (tags, ingredients, steps) serialized as TEXT in SQLite
-- Obsidian Vault liegt unter `/home/patrick/Vault/` — direkt mit Write-Tool beschreiben, kein MCP `patch_content` (schlägt mit error 40080 fehl)
+- JSON arrays (tags, ingredients, steps) are stored in PostgreSQL columns through Drizzle helpers in `src/db-react.ts`
+- Obsidian Vault liegt unter `/home/patrick/Vault/`. Local REST API PATCH works when targeting the exact heading from the document map; nested headings use `::`.
