@@ -98,7 +98,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ### Welle 4 — Komplexe Features
 - **13j** ✅ — Plugin-Architektur: `web/base.ts` (Utilities + `WebScraperPlugin`), `web/chefkoch.ts` (Domain-Override), `web/index.ts` (Registry + Dispatcher); `web.ts` → Re-Export; Code-Duplikation in `chefkoch.ts` eliminiert
-- **13h** ← NACH 13j — ML-Fallback: DOM-Block-Cap max 10; Feature-Flag `ENABLE_ML_FALLBACK=true`; nur wenn alle anderen Stufen scheitern
+- **13h** ✅ — ML-Fallback: `extractDomBlocks()` mit DOM-Block-Cap max 10; Feature-Flag `ENABLE_ML_FALLBACK=true`; nur aktiv bei Body-Fallback; Tests in `test/unit/web.test.ts`
 
 ### Backlog (interessant für später)
 - Supadata.ai API für Instagram-Transkripte (kostenloses Free-Tier)
@@ -122,11 +122,17 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ## Offene Punkte nach QA + Code-Review (2026-05-01)
 
-- **Frontend-Build fehlt** — `npm run build:mobile` seit Phase 13g nicht ausgeführt. Freitext-Tab (`'text'`-Modus in `mobile/app/(tabs)/extract.tsx`) fehlt im Web-Build (`public/`). Vor dem nächsten Push bauen und `public/` committen.
-- **Logo-Asset 404** — `/assets/Logo.hash.png` → 404; Datei liegt unter `/assets/public/Logo.hash.png`. Expo-Export-Pfad stimmt nicht mit Bundle-Referenz überein. Low priority, kein visueller Impact (Fallback greift).
-- **Phase-13-Plan gegenlesen** — `docs/phase-13-reviewed.md` nochmal vollständig durchlesen und Code prüfen ob alle Features korrekt implementiert wurden (insbesondere 13g Freitext-Tab im Frontend, 13h ML-Fallback, 13i Nährwert-Anzeige im Frontend).
-- **chefkoch Plugin dead code** — `web/chefkoch.ts` Plugin ist unerreichbar (Chefkoch-URLs gehen immer durch `fetchChefkoch`, nie durch `fetchWeb`). Entweder `chefkoch` als `web`-Typ klassifizieren oder Plugin entfernen.
-- **TikTok OCR doppelter LLM-Aufruf** — `extractTextFromVideoFrames()` ruft `extractRecipeFromText()` auf, das Zod-Schema-Validierung erfordert. Schlägt still fehl wenn Frame kein komplettes Rezept zeigt → API-Token verbrannt. Langfristig: einfacheren Vision-Text-Extraktions-Call verwenden.
+- **Cleanup-Plan:** `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md`
+- **Stand 2026-05-06:** Code-Punkte 3, 4, 5, 6, 7, 8, 9 und 12 sind im Workspace umgesetzt; Punkt 13 wurde als separater manueller Supabase-Ops-Schritt gegen die konfigurierte `rezepti-dev`-Datenbank ausgefuehrt.
+- **Punkt 13 Ergebnis:** Vorab-Pruefung fuer `recipes.id = 36` ergab bereits keinen Datensatz mehr; `meal_plan` und `shopping_list` standen ebenfalls auf `0`. Der transaktionale Delete lief damit als verifizierter No-Op, die Nachpruefung blieb bei `0/0/0`.
+
+### Erledigte/veraltete QA-Punkte (geprüft 2026-05-05)
+
+- **Frontend-Build fehlt** — überholt: `npm run build:mobile` wurde laut `docs/TEST_STATUS.md` am 2026-05-04 erfolgreich ausgeführt; `public/` enthält den Expo-Web-Build inklusive `extract.html`.
+- **Phase-13-Plan gegenlesen** — erledigt: 13g Freitext-Tab, 13h ML-Fallback und 13i Nährwert-Anzeige sind im Code vorhanden; Restpunkte bleiben separat als Chefkoch-Plugin-Dead-Code und TikTok-OCR-Optimierung stehen.
+- **Logo-Asset 404** — im Workspace behoben: enger `/assets/Logo*.png`-Fallback, vorhandene hashed Assets bleiben direkt erreichbar, fremde fehlende Assets liefern weiter 404.
+- **chefkoch Plugin dead code** — im Workspace behoben: unerreichbares Plugin entfernt, Chefkoch bleibt dedizierter Fetcher-Pfad.
+- **TikTok OCR doppelter LLM-Aufruf** — im Workspace behoben: Plaintext-Vision-Helper statt Recipe-Schema-Extraktion fuer OCR-Frames.
 
 ---
 
@@ -138,9 +144,11 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
-## Test-Status (2026-04-30)
+## Test-Status (2026-05-05)
 
-- Unit Tests: 320 bestanden + 9 skipped (DB-Integration: laufen in CI mit postgres:15)
+- Unit Tests: 365 bestanden + 12 skipped
+- Cleanup-Fokus: Planner-Routes, Shopping-Client-Vertrag, PDF-Helper, Native-PDF-Wiring, Static Assets, TikTok-OCR gruen
+- DB-Integration: weiter unter `TEST_DATABASE_URL`, im lokalen Default-Lauf geskippt
 - E2E Tests: skippen graceful ohne laufenden Server
 - Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
 - `npm test -- --run --exclude="test/e2e/**"`

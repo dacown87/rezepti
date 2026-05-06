@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { ContentBundle } from "../types.js";
 import { config } from "../config.js";
 import { fetchWithCobalt, downloadFirstCobaltMedia } from "./cobalt.js";
+import { extractVisibleTextFromImages } from "../processors/llm.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -241,33 +242,19 @@ export async function extractTextFromVideoFrames(
     const files = await readdir(tempDir);
     const frameFiles = files
       .filter((f) => f.startsWith("tiktok-frame-") && /\.(jpg|jpeg)$/i.test(f))
-      .sort();
+      .sort()
+      .slice(0, config.tiktok.maxOcrFrames);
 
     if (frameFiles.length === 0) return "";
 
-    // Frames als imageUrls für die Vision-Pipeline sammeln (base64 data-URLs)
     const imageUrls: string[] = [];
     for (const frameFile of frameFiles) {
       const frameData = await readFile(join(tempDir, frameFile));
       imageUrls.push(`data:image/jpeg;base64,${frameData.toString("base64")}`);
     }
 
-    // extractRecipeFromText mit erstem Frame als Bild — gibt Text zurück, kein Schema-Parsing
     try {
-      const { extractRecipeFromText } = await import("../processors/llm.js");
-      // Alle Frame-URLs als Text-Prompt zusammenstellen — LLM sieht das erste Bild
-      const result = await extractRecipeFromText(
-        "Extrahiere alle sichtbaren Zutaten und Zubereitungsschritte aus diesem TikTok-Video-Frame. Gib alle erkannten Texte zurück.",
-        imageUrls[0],
-        { apiKey: options.apiKey }
-      );
-      // result ist RecipeData — Zutaten und Schritte als Rohtext zurückgeben
-      if (result) {
-        return [
-          ...(result.ingredients ?? []),
-          ...(result.steps ?? []),
-        ].join("\n");
-      }
+      return await extractVisibleTextFromImages(imageUrls, { apiKey: options.apiKey });
     } catch (error) {
       console.warn("[tiktok-ocr] LLM-Aufruf fehlgeschlagen:", error instanceof Error ? error.message : "unknown");
     }

@@ -4,10 +4,11 @@ import { compress } from "hono/compress";
 import { serve } from "@hono/node-server";
 import { readFileSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
+import type { Context } from "hono";
 import { config } from "./config.js";
 import reactApi from "./api-react.js";
 
-const app = new Hono();
+export const app = new Hono();
 
 // Gzip/Brotli compression for all responses
 app.use(compress());
@@ -47,7 +48,7 @@ const IMMUTABLE = "public, max-age=31536000, immutable";
 
 function isHashedAsset(filePath: string): boolean {
   // Expo web output: _expo/static/js/web/entry-<hash>.js etc.
-  return /[_-][a-f0-9]{8,}\./.test(filePath);
+  return /[._-][a-f0-9]{8,}\./.test(filePath);
 }
 
 app.get("/", (c) => {
@@ -59,7 +60,11 @@ app.get("/", (c) => {
 });
 
 // Serve all static files from public/ (assets, icons, etc.)
-function servePublicFile(c: any, filePath: string) {
+function shouldUseLogoFallback(filePath: string): boolean {
+  return /^assets\/Logo[^/]*\.png$/i.test(filePath);
+}
+
+function servePublicFile(c: Context, filePath: string) {
   const fullPath = join(import.meta.dirname, "..", "public", filePath);
   const ext = extname(fullPath);
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
@@ -73,7 +78,20 @@ function servePublicFile(c: any, filePath: string) {
 }
 
 app.get("/public/*", (c) => servePublicFile(c, c.req.path.replace("/public/", "")));
-app.get("/assets/*", (c) => servePublicFile(c, c.req.path.slice(1)));
+app.get("/assets/*", (c) => {
+  const filePath = c.req.path.slice(1);
+  const fullPath = join(import.meta.dirname, "..", "public", filePath);
+
+  try {
+    statSync(fullPath);
+  } catch {
+    if (shouldUseLogoFallback(filePath)) {
+      return servePublicFile(c, "Logo.png");
+    }
+  }
+
+  return servePublicFile(c, filePath);
+});
 app.get("/vite.svg", (c) => servePublicFile(c, "vite.svg"));
 app.get("/Logo.png", (c) => servePublicFile(c, "Logo.png"));
 app.get("/changelog.json", (c) => {
@@ -130,6 +148,8 @@ app.get("*", (c) => {
 });
 
 // Start server
-const port = config.port;
-console.log(`Rezepti läuft auf http://localhost:${port}`);
-serve({ fetch: app.fetch, port });
+if (!process.env.VITEST) {
+  const port = config.port;
+  console.log(`Rezepti läuft auf http://localhost:${port}`);
+  serve({ fetch: app.fetch, port });
+}

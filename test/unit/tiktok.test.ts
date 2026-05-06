@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 
 // Setup mocks before importing
 const mockExecFile = vi.fn()
 const mockReaddir = vi.fn()
 const mockReadFile = vi.fn()
-const mockExtractRecipeFromImage = vi.fn()
+const mockExtractVisibleTextFromImages = vi.fn()
 
 vi.mock('node:child_process', () => ({
   execFile: mockExecFile,
@@ -26,7 +26,7 @@ vi.mock('../../src/config.js', () => ({
 }))
 
 vi.mock('../../src/processors/llm.js', () => ({
-  extractRecipeFromImage: mockExtractRecipeFromImage,
+  extractVisibleTextFromImages: mockExtractVisibleTextFromImages,
 }))
 
 // Now import the module under test
@@ -35,6 +35,10 @@ const { extractHashtags, prioritizeComments, extractTextFromVideoFrames } = awai
 const TIKTOK_REGIONS = ["de", "us", "fr", "uk", "ca", "au"]
 
 describe('tiktok-fetcher', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   describe('extractHashtags', () => {
     it('extracts single hashtag', () => {
       expect(extractHashtags('Rezept für #pasta')).toEqual(['#pasta'])
@@ -193,14 +197,76 @@ describe('tiktok-fetcher', () => {
   })
 
   describe('extractTextFromVideoFrames', () => {
-    // Note: The OCR function uses dynamic imports which are hard to mock in unit tests.
-    // The function is tested via integration tests (E2E) where the full pipeline runs.
-    // Key behaviors tested:
-    // - Returns empty string on ffmpeg failure (try/catch wrapper)
-    // - Returns empty string when OCR is disabled in config
-    // - Extracts frames via ffmpeg, processes with vision model, aggregates text
     it('function is exported and callable', () => {
       expect(typeof extractTextFromVideoFrames).toBe('function')
+    })
+
+    it('sends all extracted frames to the plaintext vision helper once', async () => {
+      mockExecFile.mockImplementation((_command, _args, optionsOrCallback, maybeCallback) => {
+        const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback
+        callback(null, { stdout: '', stderr: '' })
+      })
+      mockReaddir.mockResolvedValue([
+        'tiktok-frame-0003.jpg',
+        'tiktok-frame-0001.jpg',
+        'tiktok-frame-0002.jpeg',
+      ])
+      mockReadFile
+        .mockResolvedValueOnce(Buffer.from('frame-1'))
+        .mockResolvedValueOnce(Buffer.from('frame-2'))
+        .mockResolvedValueOnce(Buffer.from('frame-3'))
+      mockExtractVisibleTextFromImages.mockResolvedValue('200 g Mehl\n2 Eier')
+
+      const result = await extractTextFromVideoFrames('/tmp/video.mp4', '/tmp/tiktok', { apiKey: 'user-key' })
+
+      expect(result).toBe('200 g Mehl\n2 Eier')
+      expect(mockExtractVisibleTextFromImages).toHaveBeenCalledTimes(1)
+      expect(mockExtractVisibleTextFromImages).toHaveBeenCalledWith([
+        `data:image/jpeg;base64,${Buffer.from('frame-1').toString('base64')}`,
+        `data:image/jpeg;base64,${Buffer.from('frame-2').toString('base64')}`,
+        `data:image/jpeg;base64,${Buffer.from('frame-3').toString('base64')}`,
+      ], { apiKey: 'user-key' })
+    })
+
+    it('returns empty string when ffmpeg is unavailable', async () => {
+      mockExecFile.mockImplementation((_command, _args, optionsOrCallback, maybeCallback) => {
+        const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback
+        callback(new Error('ffmpeg not found'))
+      })
+
+      const result = await extractTextFromVideoFrames('/tmp/video.mp4', '/tmp/tiktok')
+
+      expect(result).toBe('')
+      expect(mockReaddir).not.toHaveBeenCalled()
+      expect(mockExtractVisibleTextFromImages).not.toHaveBeenCalled()
+    })
+
+    it('returns empty string when no frames were extracted', async () => {
+      mockExecFile.mockImplementation((_command, _args, optionsOrCallback, maybeCallback) => {
+        const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback
+        callback(null, { stdout: '', stderr: '' })
+      })
+      mockReaddir.mockResolvedValue(['tiktok.info.json'])
+
+      const result = await extractTextFromVideoFrames('/tmp/video.mp4', '/tmp/tiktok')
+
+      expect(result).toBe('')
+      expect(mockExtractVisibleTextFromImages).not.toHaveBeenCalled()
+    })
+
+    it('returns empty string when the plaintext vision helper fails', async () => {
+      mockExecFile.mockImplementation((_command, _args, optionsOrCallback, maybeCallback) => {
+        const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback
+        callback(null, { stdout: '', stderr: '' })
+      })
+      mockReaddir.mockResolvedValue(['tiktok-frame-0001.jpg'])
+      mockReadFile.mockResolvedValue(Buffer.from('frame-1'))
+      mockExtractVisibleTextFromImages.mockRejectedValue(new Error('vision failed'))
+
+      const result = await extractTextFromVideoFrames('/tmp/video.mp4', '/tmp/tiktok')
+
+      expect(result).toBe('')
+      expect(mockExtractVisibleTextFromImages).toHaveBeenCalledTimes(1)
     })
   })
 })

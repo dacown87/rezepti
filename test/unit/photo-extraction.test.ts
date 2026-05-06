@@ -25,7 +25,15 @@ vi.mock('../../src/job-manager.js', () => ({
 }))
 
 vi.mock('../../src/processors/llm.js', () => ({
-  extractRecipeFromImage: vi.fn(),
+  extractRecipeFromImage: vi.fn().mockResolvedValue({
+    name: 'Foto-Testrezept',
+    duration: 'kurz',
+    tags: [],
+    emoji: '🍽️',
+    ingredients: ['1 Testzutat'],
+    steps: ['Testen.'],
+  }),
+  extractRecipeFromText: vi.fn(),
 }))
 
 vi.mock('../../src/db-react.js', () => ({
@@ -34,6 +42,11 @@ vi.mock('../../src/db-react.js', () => ({
 
 vi.mock('../../src/pipeline.js', () => ({
   processURL: vi.fn(),
+  toUserFriendlyError: vi.fn((error: unknown) => ({
+    message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+    hint: undefined,
+  })),
+  buildQualityWarnings: vi.fn(() => []),
 }))
 
 vi.mock('../../src/classifier.js', () => ({
@@ -42,6 +55,10 @@ vi.mock('../../src/classifier.js', () => ({
 
 vi.mock('../../src/middleware/facebook-rate-limit.js', () => ({
   checkFacebookRateLimit: vi.fn().mockReturnValue({ allowed: true }),
+}))
+
+vi.mock('../../src/utils/image-search.js', () => ({
+  searchRecipeImages: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('../../src/byok-validator.js', () => ({

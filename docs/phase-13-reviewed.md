@@ -99,18 +99,20 @@
 
 ### Welle 4 — Komplexe Features (je ≥8h)
 
-**13j — Domain-spezifische Scraper-Module** ← ZUERST
+**13j — Domain-spezifische Scraper-Module** ✅ IMPLEMENTIERT
 - `src/fetchers/web/base.ts` — abstrakte Klasse
 - `src/fetchers/web/chefkoch.ts` — Domain-Override
 - `src/fetchers/web/index.ts` — Domain-Mapping
 - `src/fetchers/web.ts` → schlanker Dispatcher
 - Vor Merge: `grep -r "from.*fetchers/web" src/` — alle Import-Pfade prüfen
 
-**13h — ML-Fallback für Web-Scraping** ← NACH 13j
+**13h — ML-Fallback für Web-Scraping** ✅ IMPLEMENTIERT
 - Erst nach 13j in Plugin-Architektur integrieren
 - **DOM-Block-Cap: max 10 Blöcke** (Kostenschutz)
 - Feature-Flag: `ENABLE_ML_FALLBACK=true` in `.env`
 - Trigger: nur wenn extractMainText() Body-Fallback produziert (kein Selektor traf)
+- Code: `src/fetchers/web/index.ts`, `src/fetchers/web/base.ts`, `src/config.ts`
+- Tests: `test/unit/web.test.ts` (`extractDomBlocks (13h)`)
 
 ---
 
@@ -144,3 +146,11 @@ Nach jeder Welle:
 | 13h ML-Fallback | LLM-Kosten-Explosion | Mittel | Block-Cap max 10 |
 | 13i Nutrition | Falsche Schätzung | Mittel | `estimated: true` zwingend |
 | 13j Refactoring | Broken Imports | Hoch | grep vor Merge |
+
+---
+
+## Nachlauf Cleanup (2026-05-05)
+
+- Chefkoch-Dead-Code aus der generischen Web-Registry entfernt; Chefkoch bleibt nur noch dedizierter Fetcher-Pfad.
+- TikTok-OCR nutzt jetzt einen Plaintext-Vision-Helper ueber mehrere Frames statt Rezept-Schema-Extraktion.
+- Die dazugehoerigen Unit-Tests fuer Chefkoch-Routing und TikTok-OCR-Fehlerfaelle sind im Workspace gruen.

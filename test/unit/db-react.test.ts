@@ -112,9 +112,33 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       updateRecipeInReactDb,
       deleteRecipeFromReactDb,
       getAllRecipesFromReactDb,
+      addToShoppingList,
+      getShoppingList,
+      toggleShoppingItem,
+      deleteShoppingItem,
+      clearCheckedItems,
+      addToDictionary,
+      deleteDictionaryEntry,
+      findCanonicalBySimilarity,
+      searchRecipesByIngredientsAdvanced,
     } = await import('../../src/db-react.js')
 
-    db = { saveRecipeToReactDb, getRecipeByIdFromReactDb, updateRecipeInReactDb, deleteRecipeFromReactDb, getAllRecipesFromReactDb }
+    db = {
+      saveRecipeToReactDb,
+      getRecipeByIdFromReactDb,
+      updateRecipeInReactDb,
+      deleteRecipeFromReactDb,
+      getAllRecipesFromReactDb,
+      addToShoppingList,
+      getShoppingList,
+      toggleShoppingItem,
+      deleteShoppingItem,
+      clearCheckedItems,
+      addToDictionary,
+      deleteDictionaryEntry,
+      findCanonicalBySimilarity,
+      searchRecipesByIngredientsAdvanced,
+    }
   })
 
   afterAll(async () => {
@@ -194,5 +218,101 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
   it('returns false when deleting non-existent recipe', async () => {
     const deleted = await db.deleteRecipeFromReactDb(999999999)
     expect(deleted).toBe(false)
+  })
+
+  it('supports shopping CRUD and checked clear', async () => {
+    const marker = `__test__ shopping ${Date.now()}`
+    const created = await db.addToShoppingList(null, marker, '2', 'Stück')
+    expect(created.id).toBeGreaterThan(0)
+
+    let items = await db.getShoppingList()
+    let item = items.find((candidate: { id: number }) => candidate.id === created.id)
+    expect(item).toMatchObject({
+      recipe_id: null,
+      canonical_name: marker,
+      quantity: '2',
+      unit: 'Stück',
+      checked: false,
+    })
+
+    expect(await db.toggleShoppingItem(created.id)).toBe(true)
+    items = await db.getShoppingList()
+    item = items.find((candidate: { id: number }) => candidate.id === created.id)
+    expect(item?.checked).toBe(true)
+
+    await db.clearCheckedItems()
+    items = await db.getShoppingList()
+    expect(items.some((candidate: { id: number }) => candidate.id === created.id)).toBe(false)
+  })
+
+  it('supports dictionary alias and fuzzy matching', async () => {
+    const marker = Date.now()
+    const canonicalName = `__test__ Tomate ${marker}`
+    const alias = `__test__ Paradeiser ${marker}`
+    const created = await db.addToDictionary(canonicalName, [alias])
+
+    try {
+      const aliasMatch = await db.findCanonicalBySimilarity(alias)
+      expect(aliasMatch).toMatchObject({ id: created.id, canonical_name: canonicalName })
+
+      const fuzzyMatch = await db.findCanonicalBySimilarity(alias.replace('Paradeiser', 'Paradeisr'))
+      expect(fuzzyMatch).toMatchObject({ id: created.id, canonical_name: canonicalName })
+    } finally {
+      await db.deleteDictionaryEntry(created.id)
+    }
+  })
+
+  it('supports OR, AND, and threshold ingredient search', async () => {
+    const marker = Date.now()
+    const pastaId = await db.saveRecipeToReactDb(
+      {
+        name: `__test__ Search Pasta ${marker}`,
+        duration: 'kurz',
+        tags: ['test'],
+        emoji: '🧪',
+        ingredients: ['200g Tomaten', '150g Nudeln'],
+        steps: ['Kochen.'],
+      },
+      `https://example.com/search-pasta-${marker}`
+    )
+    const soupId = await db.saveRecipeToReactDb(
+      {
+        name: `__test__ Search Suppe ${marker}`,
+        duration: 'kurz',
+        tags: ['test'],
+        emoji: '🧪',
+        ingredients: ['300g Tomaten'],
+        steps: ['Kochen.'],
+      },
+      `https://example.com/search-soup-${marker}`
+    )
+
+    try {
+      const orResults = await db.searchRecipesByIngredientsAdvanced({
+        ingredients: ['tomaten', 'nudeln'],
+        match: 'or',
+      })
+      expect(orResults.map((result: { recipe: { id: number } }) => result.recipe.id)).toEqual(
+        expect.arrayContaining([pastaId, soupId])
+      )
+
+      const andResults = await db.searchRecipesByIngredientsAdvanced({
+        ingredients: ['tomaten', 'nudeln'],
+        match: 'and',
+      })
+      expect(andResults.map((result: { recipe: { id: number } }) => result.recipe.id)).toContain(pastaId)
+      expect(andResults.map((result: { recipe: { id: number } }) => result.recipe.id)).not.toContain(soupId)
+
+      const thresholdResults = await db.searchRecipesByIngredientsAdvanced({
+        ingredients: ['tomaten', 'nudeln'],
+        match: 'or',
+        threshold: 100,
+      })
+      expect(thresholdResults.map((result: { recipe: { id: number } }) => result.recipe.id)).toContain(pastaId)
+      expect(thresholdResults.map((result: { recipe: { id: number } }) => result.recipe.id)).not.toContain(soupId)
+    } finally {
+      await db.deleteRecipeFromReactDb(pastaId)
+      await db.deleteRecipeFromReactDb(soupId)
+    }
   })
 })

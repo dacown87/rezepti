@@ -342,6 +342,7 @@ export async function addToDictionary(canonicalName: string, aliases: string[] =
   return rows[0];
 }
 
+
 export async function findCanonicalBySimilarity(name: string) {
   const db = getDb();
   const entries = await db.select().from(ingredientDictionary);

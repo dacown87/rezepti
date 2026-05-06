@@ -17,27 +17,47 @@ app.get("/api/v1/recipes", async (c) => {
     const ingredientsParam = c.req.query("ingredients");
     const matchParam = c.req.query("match") as "and" | "or" | undefined;
     const thresholdParam = c.req.query("threshold");
+    const limitParam = c.req.query("limit");
 
     if (ingredientsParam && ingredientsParam.length > 500) {
       return c.json({ error: "ingredients param too long" }, 400);
     }
 
-    const ingredients = ingredientsParam
+    const hasIngredientFilter = ingredientsParam !== undefined;
+    const ingredients = hasIngredientFilter
       ? ingredientsParam.split(",").map(i => i.trim()).filter(i => i).slice(0, 20)
       : [];
 
+    if (hasIngredientFilter && ingredients.length === 0) {
+      return c.json({ error: "ingredients query param required" }, 400);
+    }
+
+    if (matchParam && matchParam !== "and" && matchParam !== "or") {
+      return c.json({ error: "match must be 'and' or 'or'" }, 400);
+    }
+
     if (ingredients.length > 0) {
       const match = matchParam === "and" ? "and" : "or";
-      const threshold = thresholdParam ? Math.max(0, Math.min(100, parseInt(thresholdParam, 10))) : 0;
+      const threshold = thresholdParam === undefined ? 0 : Number(thresholdParam);
+      if (!Number.isInteger(threshold) || threshold < 0 || threshold > 100) {
+        return c.json({ error: "threshold must be an integer between 0 and 100" }, 400);
+      }
+
+      const limit = limitParam === undefined ? 50 : Number(limitParam);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+        return c.json({ error: "limit must be an integer between 1 and 100" }, 400);
+      }
 
       const results = await searchRecipesByIngredientsAdvanced({ ingredients, match, threshold });
+      const limitedResults = results.slice(0, limit);
 
       return c.json({
-        recipes: results.map(r => r.recipe),
-        match_scores: results.map(r => r.matchScore),
-        missing_ingredients: results.map(r => r.missingIngredients),
+        recipes: limitedResults.map(r => r.recipe),
+        match_scores: limitedResults.map(r => r.matchScore),
+        missing_ingredients: limitedResults.map(r => r.missingIngredients),
         match_mode: match,
         threshold,
+        limit,
       });
     }
 

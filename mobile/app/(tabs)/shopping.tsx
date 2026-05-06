@@ -126,7 +126,7 @@ export default function ShoppingScreen() {
     await fetch(`${url}/api/v1/shopping`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ canonicalName: name }),
+      body: JSON.stringify({ canonicalName: name, recipeId: null }),
     });
     await load();
   };

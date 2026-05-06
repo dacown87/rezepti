@@ -12,6 +12,7 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 - `npm start` — Start production server
 - `npm run dev:mobile` — API server + Expo web dev server
 - `npm run build:mobile` — Export Expo web app into `public/`
+- `npm run build:mobile:docker` — Expo web export command ohne Git-Abhaengigkeit
 - `npm test` — Run tests (Vitest)
 - `npx tsc` — Type-check (noEmit, strict mode)
 
@@ -19,13 +20,15 @@ Test suite: Vitest for unit/e2e tests.
 
 ## Docker
 
-- `docker compose up` — Dev-Modus starten (tsx watch, src/ + public/ als Volume, Änderungen sofort live)
-- `docker compose --profile prod up` — Production-Modus (pulled `dacown/rezepti:latest` von Docker Hub)
+- `docker compose up rezepti` — Dev-Modus starten (tsx watch, src/ + public/ als Volume, Änderungen sofort live)
+- `docker compose up --build rezepti` — Dev-Image neu bauen und starten
+- `docker compose --profile react-prod up rezepti-react-prod` — Production-Modus lokal aus dem aktuellen `Dockerfile` bauen
+- `docker compose --profile prod up rezepti-prod` — Production-Modus mit `dacown/rezepti:latest` von Docker Hub
 - `docker compose down` — Container stoppen
 
 **Image:** `dacown/rezepti:latest` auf Docker Hub — wird automatisch via GitHub Actions gebaut und gepusht bei jedem Merge auf `main`.
 
-**Stages:** `base` (Node 20 + yt-dlp + Build-Tools) → `builder` (tsc) → `frontend-builder` (Vite build) → `production` (node dist/index.js) + `dev` (tsx watch)
+**Stages:** `base` (Node 20 + yt-dlp + ffmpeg) → `builder` (tsc) → `web-builder` (Expo Web Export aus `mobile/`) → `production` (node dist/index.js) + `dev` (tsx watch)
 
 **Volumes:**
 - `./data:/app/data` — local runtime data such as cookies and export artifacts
@@ -57,8 +60,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 - `src/classifier.ts` — Determines URL source type (youtube/instagram/tiktok/web)
 - `src/fetchers/` — Source-specific content downloaders (yt-dlp for video; cheerio for web)
   - `web/base.ts` — shared extraction utilities + `WebScraperPlugin` interface
-  - `web/chefkoch.ts` — domain-specific plugin (chefkoch.de CSS selectors)
-  - `web/index.ts` — plugin registry + `fetchWeb` dispatcher
+  - `web/index.ts` — generic `fetchWeb` dispatcher; Chefkoch ist hier nicht mehr registriert
   - `web.ts` — thin re-export (keeps existing imports stable)
 - `src/processors/llm.ts` — Groq API via OpenAI SDK for recipe extraction, refinement, image analysis, and nutrition estimates; creates clients per call so BYOK jobs do not mutate server env
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
@@ -150,8 +152,8 @@ Host github.com
 
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
-- **After frontend changes:** Always run `npm run build:mobile` to update `public/`
-- **New web scraper plugin:** Add `src/fetchers/web/[domain].ts` implementing `WebScraperPlugin`, register in `PLUGINS` array in `web/index.ts`. `web.ts` stays a thin re-export — no import changes needed elsewhere.
+- **After frontend changes:** Bei Bedarf zuerst `cd mobile && npm ci`, dann `npm run build:mobile` zum Aktualisieren von `public/`
+- **New web scraper plugin:** The plugin registry (`PLUGINS` array) was removed in the May 2026 cleanup. The `WebScraperPlugin` interface still exists in `src/fetchers/web/base.ts`. To add a new domain-specific scraper, re-add the plugin registry in `web/index.ts` and implement the interface in `src/fetchers/web/[domain].ts`. Chefkoch bleibt dedizierter Fetcher in `pipeline.ts`.
 - **Fetcher code duplication:** Before adding utility functions to a fetcher (extractJsonLdRecipes, resolveSchemaImage, extractImages etc.), check `src/fetchers/web/base.ts` first — these are already exported there.
 
 ## Planning Documents
@@ -236,8 +238,8 @@ Planned features and current implementation status (as of March 2026):
 - `npm test -- --run --exclude="test/e2e/**"` — run only unit tests
 - `npm test` — all tests (E2E tests fail if server not running)
 
-**Test Status (2026-03-28):**
-- Unit Tests: 226 bestanden
+**Test Status (2026-05-05):**
+- Unit Tests: 365 bestanden, 12 skipped
 - E2E Tests: 40 bestanden
 - Cookidoo Credentials: 21 Unit-Tests bestanden
 

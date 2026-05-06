@@ -205,6 +205,28 @@ describe("extractWildJsonLd (via fetchWeb, 13e)", () => {
   });
 });
 
+describe("fetchWeb Chefkoch plugin removal", () => {
+  it("does not use the old Chefkoch web plugin selectors", async () => {
+    mockFetch(`
+      <html><body>
+        <main>
+          Generic Rezepttext mit Zutaten und Zubereitung, der lang genug fuer
+          die generische Web-Extraktion ist. Dieser Text soll verwendet werden,
+          weil Chefkoch ueber den dedizierten Fetcher laeuft.
+        </main>
+        <div class="ds-ingredients">
+          PLUGIN_ONLY_MARKER 100 g alter Plugin-Pfad
+        </div>
+      </body></html>
+    `);
+
+    const bundle = await fetchWeb("https://www.chefkoch.de/rezepte/123456/test.html");
+
+    expect(bundle.textContent).toContain("Generic Rezepttext");
+    expect(bundle.textContent).not.toContain("PLUGIN_ONLY_MARKER");
+  });
+});
+
 describe("extractDomBlocks (13h)", () => {
   it("extrahiert relevante Blöcke mit Rezept-Keywords", () => {
     const html = `<html><body>

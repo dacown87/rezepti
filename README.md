@@ -43,18 +43,29 @@ cp .env.example .env
 ### Dev-Modus (Hot Reload)
 
 ```bash
-docker compose up
+docker compose up rezepti
 ```
 
 → [http://localhost:3000](http://localhost:3000)
 
 Änderungen in `src/` und `public/` sind sofort sichtbar.
 
-### Production-Modus (Docker Hub Image)
+### Production-Modus
 
 ```bash
-docker compose --profile prod up
+docker compose --profile react-prod up rezepti-react-prod
 ```
+
+Der Production-Build nutzt den aktuellen `Dockerfile`-Target `production` und baut den Expo-Web-Export im Container.
+
+### Frontend-Build lokal
+
+```bash
+cd mobile && npm ci
+npm run build:mobile
+```
+
+Der lokale Expo-Web-Build braucht eigene `mobile/node_modules`. Im Docker-Build passiert das im `web-builder` automatisch.
 
 ---
 
@@ -108,6 +119,8 @@ npx drizzle-kit push
 | `/api/v1/health` | GET | Server + DB Status |
 | `/api/v1/planner` | GET/POST/DELETE | Meal Planner |
 | `/api/v1/shopping` | GET/POST/DELETE | Einkaufsliste |
+| `/api/v1/dictionary` | GET/POST | Zutaten-Wörterbuch |
+| `/api/v1/dictionary/match` | GET | Kanonischen Zutatennamen matchen |
 
 BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-Body mitgegeben werden. Der Key wird validiert, für den Job gehasht gespeichert und explizit bis zu LLM-, Whisper-, Vision-, Nutrition- und TikTok-OCR-Aufrufen weitergereicht; die Server-Umgebungsvariable bleibt unverändert.
 
@@ -119,6 +132,7 @@ BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-B
 - `TODO.md` — Aktuelle offene Punkte, QA-Befunde und Roadmap-Notizen
 - `test/README.md` — Teststruktur und lokale Testbefehle
 - `docs/TEST_STATUS.md` — Historischer Teststatus und bekannte Testlücken
+- `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md` — Cleanup-Plan und finaler Review-Stand
 
 ---
 
@@ -155,5 +169,6 @@ git push → main
 | 15 | React Native / Expo Web Migration | ✅ |
 | SB-1 | Mobile: expo-sqlite entfernt → Server-API | ✅ |
 | SB-2 | Server: SQLite → Supabase PostgreSQL | ✅ |
+| Cleanup | Chefkoch/TikTok/Assets/Tests/PDF/Docker | ✅ im Workspace |
 | — | Multi-User Login (Supabase Auth) | 🔜 |
 | — | Rezept-Sharing via Link | 🔜 |

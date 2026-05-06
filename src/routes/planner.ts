@@ -30,7 +30,21 @@ app.get("/api/v1/shopping", async (c) => {
 
 app.post("/api/v1/shopping", async (c) => {
   try {
-    const { recipeId, canonicalName, quantity, unit } = await c.req.json();
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const { recipeId, canonicalName, quantity, unit } = body as {
+      recipeId?: number | null;
+      canonicalName?: string;
+      quantity?: string;
+      unit?: string;
+    };
+
+    if (recipeId !== undefined && recipeId !== null && !Number.isInteger(recipeId)) {
+      return c.json({ error: "recipeId must be an integer or null" }, 400);
+    }
 
     if (!canonicalName) {
       return c.json({ error: "canonicalName is required" }, 400);
@@ -108,10 +122,22 @@ app.get("/api/v1/dictionary", async (c) => {
 
 app.post("/api/v1/dictionary", async (c) => {
   try {
-    const { canonicalName, aliases } = await c.req.json();
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const { canonicalName, aliases } = body as {
+      canonicalName?: string;
+      aliases?: string[];
+    };
 
     if (!canonicalName) {
       return c.json({ error: "canonicalName is required" }, 400);
+    }
+
+    if (aliases !== undefined && (!Array.isArray(aliases) || aliases.some(alias => typeof alias !== "string"))) {
+      return c.json({ error: "aliases must be an array of strings" }, 400);
     }
 
     const result = await addToDictionary(canonicalName, aliases ?? []);
@@ -124,8 +150,9 @@ app.post("/api/v1/dictionary", async (c) => {
 
 app.get("/api/v1/dictionary/match", async (c) => {
   try {
-    const name = c.req.query("name");
+    const name = c.req.query("name")?.trim();
     if (!name) return c.json({ error: "name query param required" }, 400);
+    if (name.length > 200) return c.json({ error: "name query param too long" }, 400);
 
     const match = await findCanonicalBySimilarity(name);
     return c.json({ match });
