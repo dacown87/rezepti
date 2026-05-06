@@ -238,8 +238,8 @@ Planned features and current implementation status (as of March 2026):
 - `npm test -- --run --exclude="test/e2e/**"` — run only unit tests
 - `npm test` — all tests (E2E tests fail if server not running)
 
-**Test Status (2026-05-05):**
-- Unit Tests: 365 bestanden, 12 skipped
+**Test Status (2026-05-06):**
+- Unit Tests: 366 bestanden, 12 skipped
 - E2E Tests: 40 bestanden
 - Cookidoo Credentials: 21 Unit-Tests bestanden
 
@@ -248,7 +248,13 @@ Planned features and current implementation status (as of March 2026):
 |------|-------|-------|
 | scaling.ts | 100% | parseServingsNumber, scaleIngredient, splitIngredient |
 | ingredient-dictionary.ts | 100% | all 7 matching paths |
-| Shopping API | CRUD roundtrip | GET/POST/DELETE |
+| Shopping API | CRUD + Negativfälle | planner-routes.test.ts |
+| Dictionary API | POST/match + Validierung | planner-routes.test.ts |
+| Ingredient Search | OR/AND/threshold/limit | recipes-routes.test.ts |
+| PDF Helpers | alle Exports | pdf-export-helpers.test.ts |
+| Static Assets | hashed/fallback/404 | static-assets.test.ts |
+| TikTok OCR | plaintext helper, Fehlerfälle | tiktok.test.ts |
+| Chefkoch Routing | classifyURL + dedizierter Fetcher | pipeline-chefkoch.test.ts |
 
 ## Conventions
 

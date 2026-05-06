@@ -123,7 +123,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ## Offene Punkte nach QA + Code-Review (2026-05-01)
 
 - **Cleanup-Plan:** `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md`
-- **Stand 2026-05-06:** Code-Punkte 3, 4, 5, 6, 7, 8, 9 und 12 sind im Workspace umgesetzt; Punkt 13 wurde als separater manueller Supabase-Ops-Schritt gegen die konfigurierte `rezepti-dev`-Datenbank ausgefuehrt.
+- **Stand 2026-05-06:** Code-Punkte 3, 4, 5, 6, 7, 8, 9 und 12 committed (5617a12); Punkt 13 wurde als separater manueller Supabase-Ops-Schritt gegen die konfigurierte `rezepti-dev`-Datenbank ausgefuehrt.
 - **Punkt 13 Ergebnis:** Vorab-Pruefung fuer `recipes.id = 36` ergab bereits keinen Datensatz mehr; `meal_plan` und `shopping_list` standen ebenfalls auf `0`. Der transaktionale Delete lief damit als verifizierter No-Op, die Nachpruefung blieb bei `0/0/0`.
 
 ### Erledigte/veraltete QA-Punkte (geprüft 2026-05-05)
@@ -144,10 +144,10 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
-## Test-Status (2026-05-05)
+## Test-Status (2026-05-06)
 
-- Unit Tests: 365 bestanden + 12 skipped
-- Cleanup-Fokus: Planner-Routes, Shopping-Client-Vertrag, PDF-Helper, Native-PDF-Wiring, Static Assets, TikTok-OCR gruen
+- Unit Tests: 366 bestanden + 12 skipped
+- Cleanup-Commit (5617a12): Planner-Routes, Shopping-Vertrag, PDF-Helper, Native-PDF-Wiring, Static Assets, TikTok-OCR, Chefkoch-Routing — alle grün
 - DB-Integration: weiter unter `TEST_DATABASE_URL`, im lokalen Default-Lauf geskippt
 - E2E Tests: skippen graceful ohne laufenden Server
 - Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
