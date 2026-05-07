@@ -50,6 +50,10 @@ app.post("/api/v1/shopping", async (c) => {
       return c.json({ error: "canonicalName is required" }, 400);
     }
 
+    if (canonicalName.length > 500) {
+      return c.json({ error: "canonicalName too long (max 500 chars)" }, 400);
+    }
+
     const result = await addToShoppingList(recipeId ?? null, canonicalName, quantity, unit);
     return c.json({ success: true, id: result.id }, 201);
   } catch (error) {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, Pressable, ActivityIndicator,
   RefreshControl, TextInput, Share, Modal,
@@ -6,7 +6,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { ShoppingListItem } from '@/db/schema';
 import { getServerUrl } from '@/utils/server-url';
@@ -16,7 +15,7 @@ import { getServerUrl } from '@/utils/server-url';
 async function fetchItems(): Promise<ShoppingListItem[]> {
   const url = await getServerUrl();
   const res = await fetch(`${url}/api/v1/shopping`);
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`Shopping fetch failed (${res.status})`);
   const data = await res.json();
   const raw: Array<Record<string, unknown>> = data.items ?? data ?? [];
   return raw.map(r => ({
@@ -32,38 +31,36 @@ async function fetchItems(): Promise<ShoppingListItem[]> {
 
 async function toggleItem(id: number): Promise<void> {
   const url = await getServerUrl();
-  await fetch(`${url}/api/v1/shopping/${id}`, { method: 'PATCH' });
+  const res = await fetch(`${url}/api/v1/shopping/${id}`, { method: 'PATCH' });
+  if (!res.ok) throw new Error(`Shopping toggle failed (${res.status})`);
 }
 
 async function deleteItem(id: number): Promise<void> {
   const url = await getServerUrl();
-  await fetch(`${url}/api/v1/shopping/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${url}/api/v1/shopping/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Shopping delete failed (${res.status})`);
 }
 
 async function clearChecked(): Promise<void> {
   const url = await getServerUrl();
-  await fetch(`${url}/api/v1/shopping/checked`, { method: 'DELETE' });
+  const res = await fetch(`${url}/api/v1/shopping/checked`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Shopping clear checked failed (${res.status})`);
 }
 
 async function clearAll(): Promise<void> {
   const url = await getServerUrl();
-  await fetch(`${url}/api/v1/shopping/all`, { method: 'DELETE' });
+  const res = await fetch(`${url}/api/v1/shopping/all`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Shopping clear all failed (${res.status})`);
 }
 
-export async function addIngredients(
-  ingredients: string[],
-  recipeId?: number
-): Promise<void> {
+async function addManualItem(name: string): Promise<void> {
   const url = await getServerUrl();
-  await Promise.all(
-    ingredients.map(ing =>
-      fetch(`${url}/api/v1/shopping`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canonicalName: ing, recipeId: recipeId ?? null }),
-      })
-    )
-  );
+  const res = await fetch(`${url}/api/v1/shopping`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ canonicalName: name, recipeId: null }),
+  });
+  if (!res.ok) throw new Error(`Shopping add failed (${res.status})`);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -71,13 +68,21 @@ export async function addIngredients(
 export default function ShoppingScreen() {
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [newItem, setNewItem] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [retryAction, setRetryAction] = useState<null | (() => Promise<void>)>(null);
+  const [retryingMutation, setRetryingMutation] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadError(null);
       setItems(await fetchItems());
+    } catch (error) {
+      setItems((prev) => (prev.length === 0 ? [] : prev));
+      setLoadError(error instanceof Error ? error.message : 'Shopping fetch failed');
     } finally {
       setLoading(false);
     }
@@ -95,56 +100,144 @@ export default function ShoppingScreen() {
     setRefreshing(false);
   };
 
+  const clearMutationError = () => {
+    setMutationError(null);
+    setRetryAction(null);
+  };
+
+  const handleMutationError = (message: string, retry: () => Promise<void>) => {
+    setMutationError(message);
+    setRetryAction(() => retry);
+  };
+
+  const runRetryAction = async () => {
+    if (!retryAction) return;
+    try {
+      setRetryingMutation(true);
+      setMutationError(null);
+      await retryAction();
+      setRetryAction(null);
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Erneuter Versuch fehlgeschlagen');
+    } finally {
+      setRetryingMutation(false);
+    }
+  };
+
   const handleToggle = async (item: ShoppingListItem) => {
+    clearMutationError();
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: i.checked ? 0 : 1 } : i));
-    await toggleItem(item.id);
+    try {
+      await toggleItem(item.id);
+    } catch {
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
+      handleMutationError(
+        'Status konnte nicht aktualisiert werden.',
+        async () => handleToggle(item),
+      );
+    }
   };
 
   const handleDelete = async (id: number) => {
+    clearMutationError();
+    const previousItems = items;
     setItems(prev => prev.filter(i => i.id !== id));
-    await deleteItem(id);
+    try {
+      await deleteItem(id);
+    } catch {
+      setItems(previousItems);
+      handleMutationError(
+        'Artikel konnte nicht gelöscht werden.',
+        async () => handleDelete(id),
+      );
+    }
   };
 
   const handleClearChecked = async () => {
-    await clearChecked();
-    await load();
+    clearMutationError();
+    try {
+      await clearChecked();
+      await load();
+    } catch {
+      handleMutationError(
+        'Erledigte Einträge konnten nicht entfernt werden.',
+        async () => handleClearChecked(),
+      );
+    }
   };
 
   const handleClearAll = () => setShowClearModal(true);
 
   const confirmClearAll = async () => {
     setShowClearModal(false);
-    await clearAll();
-    await load();
+    clearMutationError();
+    try {
+      await clearAll();
+      await load();
+    } catch {
+      handleMutationError(
+        'Einkaufsliste konnte nicht geleert werden.',
+        async () => confirmClearAll(),
+      );
+    }
   };
 
   const handleAddManual = async () => {
     const name = newItem.trim();
     if (!name) return;
+    clearMutationError();
     setNewItem('');
-    const url = await getServerUrl();
-    await fetch(`${url}/api/v1/shopping`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ canonicalName: name, recipeId: null }),
-    });
-    await load();
+    try {
+      await addManualItem(name);
+      await load();
+    } catch {
+      setNewItem(name);
+      handleMutationError(
+        'Artikel konnte nicht hinzugefügt werden.',
+        async () => {
+          await addManualItem(name);
+          await load();
+        },
+      );
+    }
   };
 
   const handleCopy = async () => {
-    const unchecked = items.filter(i => !i.checked).map(i => `• ${i.canonical_name}`);
-    const checked = items.filter(i => i.checked).map(i => `✓ ${i.canonical_name}`);
+    const unchecked = uncheckedItems.map(i => `• ${i.canonical_name}`);
+    const checked = checkedItems.map(i => `✓ ${i.canonical_name}`);
     const text = [...unchecked, ...(checked.length ? ['', '--- Erledigt ---', ...checked] : [])].join('\n');
     try { await Share.share({ message: text }); } catch { /* ignore */ }
   };
 
-  const unchecked = items.filter(i => !i.checked);
-  const checked = items.filter(i => i.checked);
+  const { uncheckedItems, checkedItems, orderedItems } = useMemo(() => {
+    const unchecked: ShoppingListItem[] = [];
+    const checked: ShoppingListItem[] = [];
+    for (const item of items) {
+      if (item.checked) checked.push(item);
+      else unchecked.push(item);
+    }
+    return {
+      uncheckedItems: unchecked,
+      checkedItems: checked,
+      orderedItems: [...unchecked, ...checked],
+    };
+  }, [items]);
 
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center">
         <ActivityIndicator size="large" color="#C84B31" />
+      </SafeAreaView>
+    );
+  }
+
+  if (loadError && items.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center px-8">
+        <Text className="text-red-500 text-center">Einkaufsliste konnte nicht geladen werden</Text>
+        <Pressable onPress={() => load()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
+          <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -164,7 +257,7 @@ export default function ShoppingScreen() {
                 <Pressable onPress={handleCopy} className="p-2 bg-white dark:bg-espresso-800 rounded-xl border border-warm-200 dark:border-warm-700">
                   <Share2 size={16} color="#9E8878" />
                 </Pressable>
-                {checked.length > 0 && (
+                {checkedItems.length > 0 && (
                   <Pressable onPress={handleClearChecked} className="p-2 bg-white dark:bg-espresso-800 rounded-xl border border-warm-200 dark:border-warm-700">
                     <Check size={16} color="#C84B31" />
                   </Pressable>
@@ -176,6 +269,28 @@ export default function ShoppingScreen() {
             )}
           </View>
         </View>
+
+        {mutationError && (
+          <View className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+            <Text className="text-sm text-red-700">{mutationError}</Text>
+            <View className="mt-2 flex-row gap-2">
+              {retryAction && (
+                <Pressable
+                  onPress={runRetryAction}
+                  disabled={retryingMutation}
+                  className={`rounded-lg px-3 py-1.5 ${retryingMutation ? 'bg-red-200' : 'bg-red-600'}`}
+                >
+                  <Text className="text-xs font-medium text-white">
+                    {retryingMutation ? 'Wird versucht…' : 'Erneut versuchen'}
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable onPress={clearMutationError} className="rounded-lg bg-red-100 px-3 py-1.5">
+                <Text className="text-xs font-medium text-red-700">Schließen</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Manuell hinzufügen */}
         <View className="flex-row gap-2">
@@ -207,15 +322,19 @@ export default function ShoppingScreen() {
         </View>
       ) : (
         <FlatList
-          data={[...unchecked, ...checked]}
+          data={orderedItems}
           keyExtractor={item => String(item.id)}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={{ padding: 16, paddingTop: 4 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           renderItem={({ item, index }) => {
-            const isFirstChecked = !!item.checked && unchecked.length > 0 && index === unchecked.length;
+            const isFirstChecked = !!item.checked && uncheckedItems.length > 0 && index === uncheckedItems.length;
             return (
               <>
-                {isFirstChecked && checked.length > 0 && (
+                {isFirstChecked && checkedItems.length > 0 && (
                   <Text className="text-xs text-warm-500 dark:text-warm-400 uppercase tracking-wider mb-2 mt-3">Erledigt</Text>
                 )}
                 <Pressable

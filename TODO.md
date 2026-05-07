@@ -152,3 +152,48 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - E2E Tests: skippen graceful ohne laufenden Server
 - Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
 - `npm test -- --run --exclude="test/e2e/**"`
+## Aktueller Fokus — Mobile Testing & Performance (2026-05-07)
+
+- [x] Mobile Release Gate + CI-Job stabil (`mobile:typecheck`, `build:web`, `test:unit`)
+- [x] Phase-2 Reliability-Basis (Hooks/Contracts/QueryClient) steht
+- [x] UI-Fallback-Tests für Recipe List, Shopping und Recipe Detail ergänzt
+- [x] Shopping-Screen: sichtbarer Error + Retry statt stillem Empty-State bei API-Fehler
+- [x] UI-naher End-to-End-Workflow-Test `list -> detail -> shopping` (screennah, interaktionsgetrieben)
+- [x] Planner-/Shopping-Recovery weiter ausgebaut: Planner-Load-Retry sichtbar, Shopping-Refresh hält gecachte Items nutzbar
+- [x] Query-Cache-Recovery gehärtet: korruptes AsyncStorage-Persist wird verworfen statt den App-Start zu kippen
+- [x] `addIngredients` in testbaren Service mit bounded concurrency verschoben (`mobile/utils/shopping-service.ts`)
+- [x] Phase-4 Slice 1: Recipe-List-Derived-Data entkoppelt (`mobile/utils/recipe-list-screen-data.ts`, `useDeferredValue`, stabilere `FlatList`-Configs)
+- [x] Phase-4 Slice 1: deterministischer 300-1000-Rezepte-Fixture-Harness (`mobile/test/fixtures/recipe-performance-fixture.ts`)
+- [x] Phase-4 Slice 1: Shopping-/Recipe-Detail-Hotspots reduziert (vorbereitete Anzeige-Daten, weniger wiederholte Ableitungen)
+- [x] Phase 2 Restlücken final geschlossen: Planner-Mutationsstates (`add/remove pending`) und sichtbare Rescue-Pfade
+- [x] Phase 3 Code-Härtung abgeschlossen: echter Chrome im CI, History-/Readiness-Auswertung und cache-basierte Run-Historie aktiv
+- [x] Review-Bugfixes Phase 1–3 gefixt (2026-05-07): `canonicalName`-Length-Limit, `planner.tsx`-Fehlerbehandlung, `query-client`-cleanup-guard, Lighthouse-API-Mock (LCP ~25s→~1s), LCP/CLS-Budget-Checks in `validate-status.mjs`
+- [ ] Phase 3 empirisch abschließen: ausgehend von `runs=1/10` noch weitere vollständige echte CI-Runs sammeln, bis `artifacts/performance/readiness.json` auf `ready=true` kippt
+- [ ] Phase 4 naechster Schritt erst danach: Planner-Hotspot oder dokumentierter Backend/Search-Follow-up auf Basis der neuen Fixture-Schicht
+- [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv)
+- [x] Coverage-Thresholds schrittweise anheben (Start-Gate 1% -> ratcheting via `COVERAGE_RATCHET_MIN`)
+- [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)
+- [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI-Pinning), Expo SDK 55, React 19.2, React Native 0.83
+- [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` 18/18 gruen, `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
+
+## Dependency-Update-Status (2026-05-07)
+
+### Patch-safe (jetzt updatebar; innerhalb `wanted`)
+
+- Root: `@types/node`, `dotenv`, `drizzle-orm`, `hono`, `openai`, `typescript`, `vite`, `zod`, `@hono/node-server` (v1.x)
+- Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `lucide-react-native`, `react`, `react-dom`, `react-native` (0.83.x), `react-native-reanimated`, `react-native-svg`, `react-test-renderer`
+- **Umsetzung 2026-05-07:** Root-Updates vollstaendig eingespielt. Mobile-Patch-Updates fuer `@tanstack/*` und `lucide-react-native` bleiben aktiv; die SDK-gebundenen Pakete `react`, `react-dom`, `react-native` und `react-native-svg` wurden bewusst auf Expo-Expected zurueckgesetzt (`19.2.0`, `19.2.0`, `0.83.6`, `15.15.3`). `react-test-renderer` wurde dazu passend wieder auf `19.2.0` ausgerichtet.
+- **Peer-/SDK-Blocker:** `react-native-reanimated@4.3.0` verlangt `react-native-worklets@0.8.x`; `expo install react-native-reanimated react-native-worklets` unter SDK 55 hat keine Aenderung vorgenommen (weiter `reanimated@4.2.1`, `worklets@0.7.4`).
+- **Aktueller Compatibility-Status (`expo-doctor`):** wieder `18/18` Checks gruen.
+- **Build-Fix:** `mobile/assets/images/favicon.png` war inhaltlich eine ICO-Datei mit falscher `.png`-Endung und blockierte `expo export` mit `Unsupported MIME type: image/x-icon`; Asset wurde durch eine echte PNG-Datei ersetzt, `npm run mobile:build:web` laeuft wieder erfolgreich.
+
+### SDK-gebunden (nur mit Expo-Kompatibilitätscheck)
+
+- `react`, `react-dom`, `react-native` sowie `react-native-*` Kernpakete nur im Rahmen der Expo-SDK-Kompatibilität aktualisieren (`expo install`/`expo-doctor` als Gate)
+- Alle `expo*` Pakete bleiben SDK-geführt und werden nicht separat "hochgezogen"
+- `expo-doctor` ist Teil des CI-Release-Gates; SDK-/Asset-/Config-Drift blockiert damit nicht mehr nur lokal, sondern auch im Mobile-Job.
+
+### Major / später (bewusst vertagt)
+
+- Root: `@hono/node-server` 1 -> 2, `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `@vitest/ui` 3 -> 4
+- Mobile: `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `tailwindcss` 3 -> 4, `typescript` 5 -> 6, `react-native` 0.83 -> 0.85, `@react-native-async-storage/async-storage` 2 -> 3, `react-native-worklets` 0.7 -> 0.8

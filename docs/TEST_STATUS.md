@@ -72,6 +72,53 @@
 ## Durchgeführte Tests
 
 - ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
-- ✅ `npx tsc --noEmit` — TypeScript-Check
-- ✅ `npm test -- --run` — 333 Tests bestanden, 60 skipped (Stand: 2026-05-04)
+- ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
+- ✅ `npm test -- --run test/unit` — **370 Tests bestanden, 12 skipped** (Stand: 2026-05-07)
+- ✅ `npm --prefix mobile run test:unit` — **71 Tests bestanden** (Stand: 2026-05-07)
 - ℹ️ E2E-/Docker-Tests skippen graceful, wenn kein Server bzw. Container läuft
+
+---
+
+## Mobile / Expo Status (2026-05-07)
+
+- ✅ `cd mobile && CI=1 npx expo-doctor` — `18/18` Checks bestanden
+- ✅ `npm run mobile:typecheck` — erfolgreich
+- ✅ `npm run test:mobile` — `71/71` Tests bestanden
+- ✅ `npm run mobile:build:web` — erfolgreicher Expo-Web-Export nach `public/`
+- ✅ Phase-2-Reliability weiter gehaertet:
+  - Planner zeigt jetzt sichtbaren Ladefehler mit Retry/Close bei fehlgeschlagenem Wochen-Load
+  - Planner-Mutationen zeigen jetzt sichtbare Pending-/Retry-Zustaende fuer Add/Remove, inklusive direktem Retry ohne zweiten Confirm-Dialog beim Remove-Pfad
+  - Shopping behaelt gecachte Items bei fehlgeschlagenem Refresh sichtbar
+  - Persistierter React-Query-Cache heilt bei korruptem AsyncStorage-Eintrag selbst
+  - `addIngredients` liegt als testbarer Service mit bounded concurrency in `mobile/utils/shopping-service.ts`
+- ✅ Phase-3-Haertung aktiviert:
+  - `performance-audit` richtet Chrome im CI jetzt deterministisch fuer Lighthouse ein
+  - `perf:validate` schreibt `artifacts/performance/history.json` und `artifacts/performance/readiness.json`
+  - Phase 3 ist damit im Code-/CI-Setup abgeschlossen; aktuelle lokale Readiness-Auswertung: `ready=false`, `runs=1/10`, `warningRate=0.0000`, `fullCoverage=true`
+  - offener Rest: weitere echte CI-Laeufe sammeln, bis `artifacts/performance/readiness.json` auf `ready=true` kippt
+- ✅ Review-Bugfixes (2026-05-07):
+  - `mobile/utils/query-client.ts` — `AsyncStorage.removeItem` in eigenem try/catch abgesichert
+  - `mobile/app/(tabs)/planner.tsx` — redundanter innerer Block entfernt, `.catch()` fuer `loadAllRecipes()` im RecipePickerModal, try/catch + Fehler-UI fuer QR-Recipe-Link-Pfad
+  - `src/routes/planner.ts` — `canonicalName` Length-Limit (max 500 Zeichen)
+  - `scripts/performance/lighthouse-runner.mjs` — API-Mock im statischen Server: `/api/*` → leere JSON-Antworten; LCP misst jetzt echten Empty-State statt API-Timeout (~25s → ~1-2s)
+  - `scripts/performance/baseline.json` — LCP/CLS-Budgets ergaenzt (initial 5s, tighten nach 10+ CI-Runs)
+  - `scripts/performance/validate-status.mjs` — LCP- und CLS-Budget-Checks pro Route/Viewport implementiert
+
+### Phase-4 Slice: React Performance (2026-05-07)
+
+- ✅ Recipe-List-Derivationslogik aus dem Renderpfad gezogen:
+  - `mobile/utils/recipe-list-screen-data.ts`
+  - deferred search / deferred ingredient input in `mobile/app/(tabs)/index.tsx`
+- ✅ Deterministischer Large-Fixture-Harness fuer 300-1000 Rezepte:
+  - `mobile/test/fixtures/recipe-performance-fixture.ts`
+  - `mobile/test/recipe-list-screen-data.test.ts`
+- ✅ Low-risk Render-Hotspots in Shopping und Recipe Detail reduziert:
+  - weniger wiederholte Ableitungen in `mobile/app/(tabs)/shopping.tsx`
+  - vorberechnete Anzeige-/QR-Daten in `mobile/app/recipe/[id].tsx`
+- ✅ Verifiziert mit fokussierten Mobile-Tests und kompletter Mobile-Suite
+
+### Hinweise
+
+- `react`, `react-dom`, `react-native` und `react-native-svg` wurden nach einem Patch-Update-Versuch wieder auf den Expo-SDK-55-Erwartungsstand zurueckgesetzt.
+- `react-native-reanimated` bleibt auf `4.2.1`, weil `4.3.0` unter SDK 55 `react-native-worklets@0.8.x` verlangen wuerde.
+- Ein Build-Blocker wurde behoben: `mobile/assets/images/favicon.png` war zuvor inhaltlich eine ICO-Datei mit falscher `.png`-Endung.

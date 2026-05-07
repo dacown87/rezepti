@@ -3,31 +3,14 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, desc } from "drizzle-orm";
 import { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } from "./schema.js";
 import type { RecipeData } from "./types.js";
-import { extractIngredientName, isSimilar } from "./ingredient-dictionary.js";
+import { isSimilar } from "./ingredient-dictionary.js";
+import {
+  CATEGORY_KEYWORDS,
+  detectCategory,
+  evaluateIngredientSearch,
+} from "./ingredient-category-domain.js";
 
-// ── Category auto-assignment ──────────────────────────────────────────────────
-export const CATEGORY_KEYWORDS: Array<{ category: string; keywords: string[] }> = [
-  { category: 'Auflauf',         keywords: ['auflauf', 'gratin', 'lasagne', 'überbacken'] },
-  { category: 'Nudelgericht',    keywords: ['pasta', 'nudeln', 'spaghetti', 'penne', 'tagliatelle'] },
-  { category: 'Fleischgericht',  keywords: ['fleisch', 'steak', 'schnitzel', 'hackfleisch', 'braten', 'gulasch'] },
-  { category: 'Geflügel',        keywords: ['hähnchen', 'hühnchen', 'pute', 'geflügel'] },
-  { category: 'Fischgericht',    keywords: ['fisch', 'lachs', 'thunfisch', 'shrimps', 'garnele', 'meeresfrüchte'] },
-  { category: 'Suppe',           keywords: ['suppe', 'eintopf', 'brühe', 'cremesuppe', 'minestrone'] },
-  { category: 'Salat',           keywords: ['salat'] },
-  { category: 'Gebäck & Kuchen', keywords: ['kuchen', 'gebäck', 'muffin', 'torte', 'backen', 'kekse', 'brot'] },
-  { category: 'Frühstück',       keywords: ['frühstück', 'pancake', 'pfannkuchen', 'porridge', 'müsli', 'granola'] },
-  { category: 'Snack',           keywords: ['snack', 'vorspeise', 'fingerfood', 'dip', 'toast'] },
-  { category: 'Vegetarisch',     keywords: ['vegetarisch', 'vegan'] },
-  { category: 'Asiatisch',       keywords: ['asiatisch', 'wok', 'curry', 'sushi', 'ramen', 'thai', 'dim sum'] },
-];
-
-export function detectCategory(tags: string[], name: string): string | null {
-  const text = [...tags, name].join(' ').toLowerCase();
-  for (const { category, keywords } of CATEGORY_KEYWORDS) {
-    if (keywords.some(kw => text.includes(kw))) return category;
-  }
-  return null;
-}
+export { CATEGORY_KEYWORDS, detectCategory };
 
 // ── DB connection (lazy singleton) ────────────────────────────────────────────
 
@@ -169,28 +152,11 @@ export async function searchRecipesByIngredientsAdvanced(
   const results: RecipeSearchResult[] = [];
 
   for (const recipe of allRecipes) {
-    const matchedIngredients: string[] = [];
-    const missingIngredients: string[] = [...searchTerms];
-
-    for (const ingredient of recipe.ingredients) {
-      const ingredientName = extractIngredientName(ingredient).toLowerCase();
-      const ingredientLower = ingredient.toLowerCase();
-      for (const term of searchTerms) {
-        if (matchedIngredients.includes(term)) continue;
-        const substringMatch = ingredientLower.includes(term);
-        const fuzzyMatch = isSimilar(ingredientName, term) ||
-                           ingredientName.includes(term) ||
-                           term.includes(ingredientName);
-        if (substringMatch || fuzzyMatch) {
-          matchedIngredients.push(term);
-          missingIngredients.splice(missingIngredients.indexOf(term), 1);
-        }
-      }
-    }
-
-    const matchScore = searchTerms.length > 0
-      ? Math.round((matchedIngredients.length / searchTerms.length) * 100)
-      : 0;
+    const {
+      matchedIngredients,
+      missingIngredients,
+      matchScore,
+    } = evaluateIngredientSearch(recipe.ingredients, searchTerms);
 
     const matches =
       match === "and"

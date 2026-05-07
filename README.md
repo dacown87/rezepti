@@ -67,6 +67,8 @@ npm run build:mobile
 
 Der lokale Expo-Web-Build braucht eigene `mobile/node_modules`. Im Docker-Build passiert das im `web-builder` automatisch.
 
+Nach Aenderungen an Expo-/React-Native-Abhaengigkeiten sollte zusaetzlich `cd mobile && CI=1 npx expo-doctor` gruen laufen. Fuer den aktuellen SDK-55-Stand sind insbesondere `react 19.2.0`, `react-dom 19.2.0`, `react-native 0.83.6` und `react-native-svg 15.15.3` der erwartete Zustand.
+
 ---
 
 ## Konfiguration (`.env`)

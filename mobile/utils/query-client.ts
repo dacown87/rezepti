@@ -2,6 +2,8 @@ import { QueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 
+export const QUERY_CACHE_STORAGE_KEY = 'recipedeck-query-cache';
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -16,8 +18,22 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const asyncStoragePersister = createAsyncStoragePersister({
+const baseAsyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: 'recipedeck-query-cache',
+  key: QUERY_CACHE_STORAGE_KEY,
   throttleTime: 1000,
 });
+
+export const asyncStoragePersister = {
+  ...baseAsyncStoragePersister,
+  restoreClient: async () => {
+    try {
+      return await baseAsyncStoragePersister.restoreClient();
+    } catch {
+      try {
+        await AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY);
+      } catch { /* ignore cleanup failure */ }
+      return undefined;
+    }
+  },
+};

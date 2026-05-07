@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-05-07T00:00:00.000Z",
+  "bundle": {
+    "limits": {
+      "maxFiles": 70,
+      "maxJsBytes": 5200000,
+      "maxCssBytes": 30000,
+      "maxLargestJsAssetBytes": 4800000
+    }
+  },
+  "lighthouse": {
+    "mobile-375x812": {
+      "/":         { "lcpMs": 5000, "cls": 0.25 },
+      "/shopping": { "lcpMs": 5000, "cls": 0.25 },
+      "/recipe/1": { "lcpMs": 5500, "cls": 0.25 }
+    }
+  },
+  "notes": [
+    "Warn-only on PR/push; strict only after complete multi-run baselines are stable.",
+    "Initial hardening tracks JS-heavy signals first because exported HTML aliases inflate total/html counts.",
+    "Tune limits downward as optimizations land to enforce gradual improvement.",
+    "Lighthouse limits apply to mobile-375x812 viewport only (primary user device class).",
+    "lcpMs: initial generous budget (5s) set after API-mock fix landed. Tighten after 10+ stable CI runs.",
+    "Plan target: lcpMs <= 3000 for /, 3200 for /shopping, 3400 for /recipe/1 (see Phase 3 acceptance criteria)."
+  ]
+}

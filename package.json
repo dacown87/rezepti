@@ -3,6 +3,10 @@
   "version": "1.0.98",
   "description": "Rezept-Extraktor mit SQLite-Export",
   "type": "module",
+  "engines": {
+    "node": ">=24.15.0 <25",
+    "npm": ">=11"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
@@ -13,12 +17,16 @@
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:build:web": "npm --prefix mobile run build:web",
     "test:mobile": "npm --prefix mobile run test:unit",
+    "test:mobile:coverage": "npm --prefix mobile run test:coverage",
     "mobile:release-gate": "npm --prefix mobile ci && npm --prefix mobile run typecheck && npm run build:mobile && npm --prefix mobile run test:unit",
     "perf:bundle": "node scripts/performance/bundle-report.mjs",
     "perf:lighthouse:doctor": "node scripts/performance/lighthouse-doctor.mjs",
     "perf:lighthouse": "node scripts/performance/lighthouse-runner.mjs",
     "perf:validate": "node scripts/performance/validate-status.mjs",
+    "perf:validate:warn": "PERF_ENFORCEMENT_LEVEL=warn node scripts/performance/validate-status.mjs",
+    "perf:validate:strict": "PERF_ENFORCEMENT_LEVEL=strict node scripts/performance/validate-status.mjs",
     "perf:audit": "npm run build:mobile && npm run perf:bundle && npm run perf:lighthouse",
+    "test:coverage": "vitest run test/unit --coverage",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "vitest run test/e2e",
@@ -44,31 +52,32 @@
     "docker:backup": "mkdir -p backups && tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/"
   },
   "dependencies": {
-    "@hono/node-server": "^1.14.0",
+    "@hono/node-server": "^1.19.14",
     "cheerio": "^1.0.0",
-    "dotenv": "^17.3.1",
-    "drizzle-orm": "^0.45.1",
-    "hono": "^4.7.0",
-    "openai": "^6.32.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.18",
+    "openai": "^6.36.0",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.2.0",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.6.0",
     "@types/qrcode": "^1.5.6",
+    "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
-    "happy-dom": "^20.8.8",
-    "jsdom": "^29.0.1",
-    "lighthouse": "^12.8.2",
+    "happy-dom": "^20.9.0",
+    "jsdom": "^29.1.1",
+    "lighthouse": "^13.2.0",
     "supabase": "^2.98.2",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.8",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.11",
     "vitest": "^3.2.4"
   }
 }

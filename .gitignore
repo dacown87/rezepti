@@ -11,6 +11,7 @@ screensshots/
 .gstack/
 .opencode/
 .playwright-mcp/
+.expo/
 FilesWorking/
 test/RecipePicture/
 frontend/dist/

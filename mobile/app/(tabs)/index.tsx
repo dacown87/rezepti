@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { startTransition, useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, Pressable,
   ActivityIndicator, RefreshControl, Image, Modal, ScrollView, Share,
@@ -18,105 +18,45 @@ import { getServerUrl } from '@/utils/server-url';
 import type { ApiRecipe } from '@/utils/api';
 import { useRecipes } from '@/hooks/useRecipes';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { apiToRecipe } from '@/utils/recipe-mapper';
+import {
+  buildIngredientResultRows,
+  buildRecipeCategoryCounts,
+  buildRecipeListItemData,
+  filterRecipeListItemsByCategory,
+  filterRecipeListItemsBySearch,
+  parseIngredientTerms,
+  type IngredientResultRow,
+  type RecipeCategoryCount,
+  type RecipeListItemData,
+} from '@/utils/recipe-list-screen-data';
 
 const VIEW_MODE_KEY = 'recipedeck_view_mode';
 
-// mirrors src/ingredient-dictionary.ts — mobile cannot import from backend
-const UNIT_RE_MOB = /\b(g|kg|ml|l|el|tl|tsp|tbsp|prise|stk|stück|pack|päckchen|dose|n)\b/i;
-function extractIngName(full: string): string {
-  const numMatch = full.match(/^(\d+(?:[.,]\d+)?)(.*)/)
-  const rest = numMatch ? numMatch[2].trim() : full.trim();
-  const unitMatch = rest.match(UNIT_RE_MOB);
-  if (unitMatch) {
-    const after = rest.slice(unitMatch.index! + unitMatch[0].length).trim();
-    if (after) return after;
-  }
-  return rest || full.trim();
-}
-function isSimilarMob(a: string, b: string): boolean {
-  const al = a.toLowerCase(), bl = b.toLowerCase();
-  if (al.length === 0) return bl.length === 0;
-  const m: number[][] = Array.from({ length: bl.length + 1 }, (_, i) => [i]);
-  for (let j = 0; j <= al.length; j++) m[0][j] = j;
-  for (let i = 1; i <= bl.length; i++)
-    for (let j = 1; j <= al.length; j++)
-      m[i][j] = bl[i-1] === al[j-1] ? m[i-1][j-1] :
-        1 + Math.min(m[i-1][j-1], m[i][j-1], m[i-1][j]);
-  const dist = m[bl.length][al.length];
-  return dist <= Math.max(1, Math.floor(0.3 * Math.max(al.length, bl.length)));
-}
-function matchesIngredient(ing: string, term: string): boolean {
-  const ingLower = ing.toLowerCase();
-  const ingName = extractIngName(ing).toLowerCase();
-  return ingLower.includes(term) || isSimilarMob(ingName, term) ||
-         ingName.includes(term) || term.includes(ingName);
-}
+const CATEGORY_ICONS: Record<string, string> = {
+  Auflauf: '🥘',
+  Nudelgericht: '🍝',
+  Fleischgericht: '🥩',
+  Geflügel: '🍗',
+  Fischgericht: '🐟',
+  Suppe: '🍲',
+  Salat: '🥗',
+  'Gebäck & Kuchen': '🍰',
+  Frühstück: '🥐',
+  Snack: '🧆',
+  Vegetarisch: '🌱',
+  Asiatisch: '🍜',
+};
 
-// mirrors src/db-react.ts CATEGORY_KEYWORDS — mobile cannot import from backend
-const PREDEFINED_CATEGORIES: Array<{ name: string; icon: string; keywords: string[] }> = [
-  { name: 'Auflauf',         icon: '🥘', keywords: ['auflauf', 'gratin', 'lasagne', 'überbacken'] },
-  { name: 'Nudelgericht',    icon: '🍝', keywords: ['pasta', 'nudeln', 'spaghetti', 'penne', 'tagliatelle'] },
-  { name: 'Fleischgericht',  icon: '🥩', keywords: ['fleisch', 'steak', 'schnitzel', 'hackfleisch', 'braten', 'gulasch'] },
-  { name: 'Geflügel',        icon: '🍗', keywords: ['hähnchen', 'hühnchen', 'pute', 'geflügel'] },
-  { name: 'Fischgericht',    icon: '🐟', keywords: ['fisch', 'lachs', 'thunfisch', 'shrimps', 'garnele', 'meeresfrüchte'] },
-  { name: 'Suppe',           icon: '🍲', keywords: ['suppe', 'eintopf', 'brühe', 'cremesuppe', 'minestrone'] },
-  { name: 'Salat',           icon: '🥗', keywords: ['salat'] },
-  { name: 'Gebäck & Kuchen', icon: '🍰', keywords: ['kuchen', 'gebäck', 'muffin', 'torte', 'backen', 'kekse', 'brot'] },
-  { name: 'Frühstück',       icon: '🥐', keywords: ['frühstück', 'pancake', 'pfannkuchen', 'porridge', 'müsli', 'granola'] },
-  { name: 'Snack',           icon: '🧆', keywords: ['snack', 'vorspeise', 'fingerfood', 'dip', 'toast'] },
-  { name: 'Vegetarisch',     icon: '🌱', keywords: ['vegetarisch', 'vegan'] },
-  { name: 'Asiatisch',       icon: '🍜', keywords: ['asiatisch', 'wok', 'curry', 'sushi', 'ramen', 'thai', 'dim sum'] },
-];
+interface CategoryInfo extends RecipeCategoryCount { icon: string }
 
-interface CategoryInfo { name: string; icon: string; count: number }
-function buildCategories(recipeList: Recipe[]): CategoryInfo[] {
-  const result: CategoryInfo[] = [];
-  for (const cat of PREDEFINED_CATEGORIES) {
-    const count = recipeList.filter(r =>
-      r.category === cat.name ||
-      (!r.category && cat.keywords.some(kw =>
-        [...parseJSON<string[]>(r.tags, []), r.name].join(' ').toLowerCase().includes(kw)
-      ))
-    ).length;
-    if (count > 0) result.push({ name: cat.name, icon: cat.icon, count });
-  }
-  return [{ name: 'Alle Rezepte', icon: '📖', count: recipeList.length }, ...result];
-}
-
-function apiToRecipe(r: ApiRecipe): Recipe {
-  return {
-    id: r.id,
-    name: r.name,
-    emoji: r.emoji ?? null,
-    source_url: r.source_url ?? null,
-    image_url: r.image_url ?? null,
-    ingredients: typeof r.ingredients === 'string' ? r.ingredients : JSON.stringify(r.ingredients ?? []),
-    steps: typeof r.steps === 'string' ? r.steps : JSON.stringify(r.steps ?? []),
-    tags: Array.isArray(r.tags) ? JSON.stringify(r.tags) : (r.tags ?? null),
-    category: r.category ?? null,
-    servings: r.servings ?? null,
-    duration: r.duration ?? null,
-    calories: r.calories ?? null,
-    rating: r.rating ?? null,
-    notes: r.notes ?? null,
-    transcript: null,
-    equipment: null,
-    nutrition_info: null,
-    tried: 0,
-    pdf_created: 0,
-    created_at: null,
-  };
-}
-
-function parseJSON<T>(json: string | null, fallback: T): T {
-  if (!json) return fallback;
-  try { return JSON.parse(json) as T; } catch { return fallback; }
+function getCategoryIcon(category: string): string {
+  return CATEGORY_ICONS[category] ?? '🍽️';
 }
 
 // ─── List Card ────────────────────────────────────────────────────────────────
 
-function ListCard({ recipe }: { recipe: Recipe }) {
-  const tags = parseJSON<string[]>(recipe.tags, []);
+function ListCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
   return (
     <Pressable
       onPress={() => router.push(`/recipe/${recipe.id}`)}
@@ -164,8 +104,7 @@ function ListCard({ recipe }: { recipe: Recipe }) {
 
 // ─── Grid Card ────────────────────────────────────────────────────────────────
 
-function GridCard({ recipe }: { recipe: Recipe }) {
-  const tags = parseJSON<string[]>(recipe.tags, []);
+function GridCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
   return (
     <Pressable
       onPress={() => router.push(`/recipe/${recipe.id}`)}
@@ -242,24 +181,16 @@ export default function RecipeListScreen() {
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredientResults, setIngredientResults] = useState<Recipe[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search);
+  const deferredIngredientInput = useDeferredValue(ingredientInput);
 
   // React Query: stale-while-revalidate, persisted to AsyncStorage
   const { data: apiRecipes, isLoading: loading, isError, refetch } = useRecipes();
   const recipes = useMemo(() => (apiRecipes ?? []).map(apiToRecipe), [apiRecipes]);
-  const [filtered, setFiltered] = useState<Recipe[]>([]);
-
-  // Sync filtered list when recipes or search changes
-  useEffect(() => {
-    if (!search.trim()) {
-      setFiltered(recipes);
-    } else {
-      const lower = search.toLowerCase();
-      setFiltered(recipes.filter(r =>
-        r.name.toLowerCase().includes(lower) ||
-        (r.tags ?? '').toLowerCase().includes(lower)
-      ));
-    }
-  }, [recipes, search]);
+  const recipeEntries = useMemo<RecipeListItemData[]>(
+    () => buildRecipeListItemData(recipes),
+    [recipes],
+  );
 
   // Refetch + load view mode when tab is focused
   useFocusEffect(useCallback(() => {
@@ -304,7 +235,9 @@ export default function RecipeListScreen() {
         if (!res.ok) return;
         const data = await res.json();
         const list: ApiRecipe[] = Array.isArray(data.recipes) ? data.recipes : [];
-        setIngredientResults(list.map(apiToRecipe));
+        startTransition(() => {
+          setIngredientResults(list.map(apiToRecipe));
+        });
       } catch { /* ignore network errors */ }
     }, 300);
   };
@@ -328,18 +261,66 @@ export default function RecipeListScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  const allCategories = useMemo(() => buildCategories(recipes), [recipes]);
-  const categoryFiltered = useMemo(() => {
-    if (!selectedCategory) return filtered;
-    const cat = PREDEFINED_CATEGORIES.find(c => c.name === selectedCategory);
-    if (!cat) return filtered;
-    return filtered.filter(r =>
-      r.category === cat.name ||
-      (!r.category && cat.keywords.some(kw =>
-        [...parseJSON<string[]>(r.tags, []), r.name].join(' ').toLowerCase().includes(kw)
-      ))
-    );
-  }, [filtered, selectedCategory]);
+  const filteredEntries = useMemo(
+    () => filterRecipeListItemsBySearch(recipeEntries, deferredSearch),
+    [recipeEntries, deferredSearch],
+  );
+
+  const allCategories = useMemo(
+    () => buildRecipeCategoryCounts(recipeEntries).map((category) => ({
+      ...category,
+      icon: category.name === 'Alle Rezepte' ? '📖' : getCategoryIcon(category.name),
+    })),
+    [recipeEntries],
+  );
+  const categoryFilteredEntries = useMemo(
+    () => filterRecipeListItemsByCategory(filteredEntries, selectedCategory),
+    [filteredEntries, selectedCategory],
+  );
+  const ingredientResultTerms = useMemo(
+    () => parseIngredientTerms(deferredIngredientInput),
+    [deferredIngredientInput],
+  );
+  const ingredientResultEntries = useMemo(
+    () => buildIngredientResultRows(ingredientResults, ingredientResultTerms),
+    [ingredientResults, ingredientResultTerms],
+  );
+  const renderCategoryItem = useCallback(({ item }: { item: CategoryInfo }) => (
+    <CategoryCard info={item} onPress={() => {
+      if (item.name === 'Alle Rezepte') {
+        setSelectedCategory(null);
+        setViewMode('list');
+        AsyncStorage.setItem(VIEW_MODE_KEY, 'list');
+      } else {
+        setSelectedCategory(item.name);
+        setViewMode('list');
+        AsyncStorage.setItem(VIEW_MODE_KEY, 'list');
+      }
+    }} />
+  ), []);
+  const renderGridItem = useCallback(
+    ({ item }: { item: RecipeListItemData }) => <GridCard recipe={item.recipe} tags={item.tags} />,
+    [],
+  );
+  const renderListItem = useCallback(
+    ({ item }: { item: RecipeListItemData }) => <ListCard recipe={item.recipe} tags={item.tags} />,
+    [],
+  );
+  const renderIngredientSearchItem = useCallback(
+    ({ item }: { item: IngredientResultRow }) => (
+      <Pressable
+        onPress={() => { setShowIngredientSearch(false); router.push(`/recipe/${item.recipe.id}`); }}
+        className="flex-row items-center bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 px-4 py-3"
+      >
+        <Text className="text-3xl mr-3">{item.recipe.emoji ?? '🍽️'}</Text>
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50" numberOfLines={1}>{item.recipe.name}</Text>
+          <Text className="text-xs text-primary-500 mt-0.5">{item.matchedCount} von {ingredientResultTerms.length} Zutaten</Text>
+        </View>
+      </Pressable>
+    ),
+    [ingredientResultTerms.length],
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
@@ -425,7 +406,7 @@ export default function RecipeListScreen() {
           </Pressable>
           <Text className="text-warm-500 text-sm">/</Text>
           <Text className="text-warm-900 dark:text-warm-50 text-sm font-semibold">
-            {PREDEFINED_CATEGORIES.find(c => c.name === selectedCategory)?.icon ?? '🍽️'} {selectedCategory}
+            {getCategoryIcon(selectedCategory)} {selectedCategory}
           </Text>
         </View>
       )}
@@ -448,46 +429,43 @@ export default function RecipeListScreen() {
           keyExtractor={(item) => item.name}
           numColumns={2}
           key="categories"
-          renderItem={({ item }) => (
-            <CategoryCard info={item} onPress={() => {
-              if (item.name === 'Alle Rezepte') {
-                setSelectedCategory(null);
-                setFiltered(recipes);
-                setViewMode('list');
-                AsyncStorage.setItem(VIEW_MODE_KEY, 'list');
-              } else {
-                setSelectedCategory(item.name);
-                setViewMode('list');
-                AsyncStorage.setItem(VIEW_MODE_KEY, 'list');
-              }
-            }} />
-          )}
+          renderItem={renderCategoryItem}
           contentContainerStyle={{ padding: 8 }}
           columnWrapperStyle={{ gap: 0 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search="" />}
+          initialNumToRender={8}
+          windowSize={5}
         />
       ) : viewMode === 'grid' ? (
         <FlatList
-          data={categoryFiltered}
-          keyExtractor={(item) => String(item.id)}
+          data={categoryFilteredEntries}
+          keyExtractor={(item) => String(item.recipe.id)}
           numColumns={2}
           key="list-grid"
-          renderItem={({ item }) => <GridCard recipe={item} />}
+          renderItem={renderGridItem}
           contentContainerStyle={{ padding: 12, paddingTop: 8 }}
           columnWrapperStyle={{ gap: 0 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search={search} />}
+          initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
         />
       ) : (
         <FlatList
-          data={categoryFiltered}
-          keyExtractor={(item) => String(item.id)}
+          data={categoryFilteredEntries}
+          keyExtractor={(item) => String(item.recipe.id)}
           key="list-list"
-          renderItem={({ item }) => <ListCard recipe={item} />}
+          renderItem={renderListItem}
           contentContainerStyle={{ padding: 16, paddingTop: 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search={search} />}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
         />
       )}
       {/* ── Zutaten-Suche Modal ── */}
@@ -524,26 +502,10 @@ export default function RecipeListScreen() {
           </View>
 
           <FlatList
-            data={ingredientResults}
-            keyExtractor={item => String(item.id)}
+            data={ingredientResultEntries}
+            keyExtractor={(item) => String(item.recipe.id)}
             contentContainerStyle={{ padding: 16 }}
-            renderItem={({ item }) => {
-              const terms = ingredientInput.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-              const ings = parseJSON<string[]>(item.ingredients, []);
-              const matched = terms.filter(t => ings.some(ing => matchesIngredient(ing, t))).length;
-              return (
-                <Pressable
-                  onPress={() => { setShowIngredientSearch(false); router.push(`/recipe/${item.id}`); }}
-                  className="flex-row items-center bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 px-4 py-3"
-                >
-                  <Text className="text-3xl mr-3">{item.emoji ?? '🍽️'}</Text>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50" numberOfLines={1}>{item.name}</Text>
-                    <Text className="text-xs text-primary-500 mt-0.5">{matched} von {terms.length} Zutaten</Text>
-                  </View>
-                </Pressable>
-              );
-            }}
+            renderItem={renderIngredientSearchItem}
             ListEmptyComponent={
               ingredientInput ? (
                 <View className="items-center py-16">
@@ -556,6 +518,10 @@ export default function RecipeListScreen() {
                 </View>
               )
             }
+            initialNumToRender={10}
+            maxToRenderPerBatch={8}
+            windowSize={6}
+            removeClippedSubviews
           />
         </SafeAreaView>
       </Modal>
