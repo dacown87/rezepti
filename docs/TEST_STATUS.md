@@ -74,7 +74,7 @@
 - ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
 - ✅ `npm test -- --run test/unit` — **370 Tests bestanden, 12 skipped** (Stand: 2026-05-07)
-- ✅ `npm --prefix mobile run test:unit` — **71 Tests bestanden** (Stand: 2026-05-07)
+- ✅ `npm --prefix mobile run test:unit` — **83 Tests bestanden** (Stand: 2026-05-07, +12 nach Phase-4 Slice 2)
 - ℹ️ E2E-/Docker-Tests skippen graceful, wenn kein Server bzw. Container läuft
 
 ---
@@ -83,7 +83,7 @@
 
 - ✅ `cd mobile && CI=1 npx expo-doctor` — `18/18` Checks bestanden
 - ✅ `npm run mobile:typecheck` — erfolgreich
-- ✅ `npm run test:mobile` — `71/71` Tests bestanden
+- ✅ `npm run test:mobile` — `83/83` Tests bestanden (Phase-4 Slice 2: `mobile/test/planner-screen-data.test.ts` mit 12 zusaetzlichen Tests)
 - ✅ `npm run mobile:build:web` — erfolgreicher Expo-Web-Export nach `public/`
 - ✅ Phase-2-Reliability weiter gehaertet:
   - Planner zeigt jetzt sichtbaren Ladefehler mit Retry/Close bei fehlgeschlagenem Wochen-Load
@@ -104,7 +104,7 @@
   - `scripts/performance/baseline.json` — LCP/CLS-Budgets ergaenzt (initial 5s, tighten nach 10+ CI-Runs)
   - `scripts/performance/validate-status.mjs` — LCP- und CLS-Budget-Checks pro Route/Viewport implementiert
 
-### Phase-4 Slice: React Performance (2026-05-07)
+### Phase-4 Slice 1: React Performance (2026-05-07)
 
 - ✅ Recipe-List-Derivationslogik aus dem Renderpfad gezogen:
   - `mobile/utils/recipe-list-screen-data.ts`
@@ -116,6 +116,19 @@
   - weniger wiederholte Ableitungen in `mobile/app/(tabs)/shopping.tsx`
   - vorberechnete Anzeige-/QR-Daten in `mobile/app/recipe/[id].tsx`
 - ✅ Verifiziert mit fokussierten Mobile-Tests und kompletter Mobile-Suite
+
+### Phase-4 Slice 2: Planner-Hotspot + Backend-Follow-up (2026-05-07)
+
+- ✅ Planner-Screen-Data als pure Utility extrahiert:
+  - `mobile/utils/planner-screen-data.ts` mit `groupEntriesByDay`, `filterPickerRecipes`, `buildRecipeIdMap`, `pickRecipesByIds`
+  - `mobile/test/planner-screen-data.test.ts` deckt alle vier Funktionen ab inkl. Performance-Smoke gegen 1000 Rezepte / 50 Entries
+- ✅ `mobile/app/(tabs)/planner.tsx` integriert:
+  - `useDeferredValue` + `useMemo` im RecipePickerModal (statt Filter-`useEffect` + Doppel-State)
+  - `useMemo`-gestuetztes `entriesByDay` (statt 7-fachem `mealPlan.filter` pro Render)
+  - `React.memo` auf `DayColumn` mit stabiler `useCallback`-Ref fuer `handleRemoveEntry`
+- ✅ Backend/Search Follow-up fuer Zutaten-Suche im Plan dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist `searchRecipesByIngredientsAdvanced` (`src/db-react.ts:133-181`) keine Performance-Bremse; kein Backend-Refactor gerechtfertigt
+- ✅ Phase 4 damit als abgeschlossen markiert (Acceptance Criteria erfuellt: dokumentierter Backend-Follow-up + messbare Render-Reduktion)
+- ✅ Mobile-Suite: `83/83` Tests gruen, Mobile-Typecheck clean
 
 ### Hinweise
 

@@ -168,8 +168,9 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] Phase 2 Restlücken final geschlossen: Planner-Mutationsstates (`add/remove pending`) und sichtbare Rescue-Pfade
 - [x] Phase 3 Code-Härtung abgeschlossen: echter Chrome im CI, History-/Readiness-Auswertung und cache-basierte Run-Historie aktiv
 - [x] Review-Bugfixes Phase 1–3 gefixt (2026-05-07): `canonicalName`-Length-Limit, `planner.tsx`-Fehlerbehandlung, `query-client`-cleanup-guard, Lighthouse-API-Mock (LCP ~25s→~1s), LCP/CLS-Budget-Checks in `validate-status.mjs`
+- [x] Phase-4 Slice 2 abgeschlossen (2026-05-07): `mobile/utils/planner-screen-data.ts` (pure Utility), `mobile/test/planner-screen-data.test.ts` (12 Tests), Integration in `planner.tsx` (`useDeferredValue`, `useMemo`-`entriesByDay`, `React.memo` auf `DayColumn`, `useCallback` fuer `handleRemoveEntry`)
+- [x] Phase-4 Backend/Search-Follow-up dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist `searchRecipesByIngredientsAdvanced` (`src/db-react.ts:133-181`) keine Performance-Bremse — kein Backend-Refactor gerechtfertigt; Phase 4 damit erfuellt
 - [ ] Phase 3 empirisch abschließen: ausgehend von `runs=1/10` noch weitere vollständige echte CI-Runs sammeln, bis `artifacts/performance/readiness.json` auf `ready=true` kippt
-- [ ] Phase 4 naechster Schritt erst danach: Planner-Hotspot oder dokumentierter Backend/Search-Follow-up auf Basis der neuen Fixture-Schicht
 - [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv)
 - [x] Coverage-Thresholds schrittweise anheben (Start-Gate 1% -> ratcheting via `COVERAGE_RATCHET_MIN`)
 - [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)

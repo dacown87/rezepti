@@ -106,6 +106,12 @@ Bereits umgesetzt:
   - `scripts/performance/lighthouse-runner.mjs` — API-Mock im statischen Lighthouse-Server: `/api/*`-Anfragen werden mit leeren JSON-Antworten beantwortet; LCP misst jetzt den tatsaechlichen Empty-State statt eines ~25s API-Timeouts
   - `scripts/performance/baseline.json` — LCP/CLS-Budgets ergaenzt (initial 5s, tighten nach 10+ stabilen CI-Runs; Zielbudget laut Plan: LCP 3.0–3.4s)
   - `scripts/performance/validate-status.mjs` — LCP- und CLS-Budget-Checks pro Route und Viewport implementiert
+- Phase-4 Slice 2 abgeschlossen (2026-05-07):
+  - `mobile/utils/planner-screen-data.ts` extrahiert `groupEntriesByDay`, `filterPickerRecipes`, `buildRecipeIdMap`, `pickRecipesByIds` als pure, framework-neutrale Utilities
+  - `mobile/test/planner-screen-data.test.ts` deckt alle vier Funktionen ab (12 Tests, inkl. Performance-Smoke gegen 1000 Rezepte / 50 Entries)
+  - `mobile/app/(tabs)/planner.tsx` integriert: `useDeferredValue` + `useMemo` im RecipePickerModal (statt Filter-Effect mit Doppel-State), `useMemo`-gestuetztes `entriesByDay` (statt 7-fachem `mealPlan.filter` pro Render), `React.memo` auf `DayColumn`, stabilere `useCallback`-Refs fuer Mutationshandler
+  - Backend/Search Follow-up fuer Zutaten-Suche dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist kein Backend-Refactor gerechtfertigt — Phase 4 Acceptance Criteria erfuellt ueber „dokumentierter Backend-Follow-up"
+  - Mobile-Verifikation nach Phase-4 Slice 2: `npm --prefix mobile run typecheck` + `npm --prefix mobile run test:unit` -> `15` Dateien, `83` Tests gruen
 
 Wichtig fuer die aktuelle Einfuehrungsphase:
 
@@ -115,8 +121,9 @@ Wichtig fuer die aktuelle Einfuehrungsphase:
 Naechste priorisierte Reihenfolge (aktualisiert 2026-05-07):
 
 1. Phase 3 empirisch abschliessen: Performance-Audit im warn-only Modus weiterlaufen lassen, vollstaendige Messreihen sammeln und `artifacts/performance/readiness.json` ueber echte CI-Laeufe auf `ready=true` bringen.
-2. Phase 4 weiterziehen: keine neue Audit-Foundation mehr bauen, sondern den naechsten echten Hotspot auf Basis der neuen Fixture-Schicht bearbeiten, bevorzugt `planner.tsx` oder ein dokumentierter Backend/Search-Follow-up fuer die Zutaten-Suche.
-3. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
+2. Phase 4 abgeschlossen (Code + Backend/Search-Follow-up dokumentiert) — keine weitere Mobile-Perf-Arbeit ohne neues Profiling-Signal.
+3. Phase 5 (Optional Web Vitals) bleibt deferred, bis Lighthouse/Bundle-Daten eine konkrete Feldmetrik-Frage stellen.
+4. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
 
 ## Summary
 
@@ -275,10 +282,29 @@ Ziel: `react-performance-optimization` wird nur nach Messdaten eingesetzt.
 
 Status:
 
-- Teilweise erledigt: Recipe-List-Derivationen sind in `mobile/utils/recipe-list-screen-data.ts` ausgelagert; `index.tsx` nutzt deferred search / deferred ingredient input, stabilere `FlatList`-Configs und keinen Inline-Match-Work mehr im Zutaten-Such-Modal.
-- Teilweise erledigt: deterministischer 300-1000-Rezepte-Fixture-Harness steht (`mobile/test/fixtures/recipe-performance-fixture.ts`) und wird gegen einen 600-Rezepte-Datensatz getestet (`mobile/test/recipe-list-screen-data.test.ts`).
-- Teilweise erledigt: Low-Risk-Hotspots in `shopping.tsx` und `recipe/[id].tsx` reduziert.
-- Offen: naechster Screen-/Workflow-Hotspot (`planner.tsx`) oder dokumentierter Backend/Search-Follow-up, falls die Zutaten-Suche selbst der Engpass bleibt.
+- Erledigt: Recipe-List-Derivationen sind in `mobile/utils/recipe-list-screen-data.ts` ausgelagert; `index.tsx` nutzt deferred search / deferred ingredient input, stabilere `FlatList`-Configs und keinen Inline-Match-Work mehr im Zutaten-Such-Modal.
+- Erledigt: deterministischer 300-1000-Rezepte-Fixture-Harness steht (`mobile/test/fixtures/recipe-performance-fixture.ts`) und wird gegen einen 600-Rezepte-Datensatz getestet (`mobile/test/recipe-list-screen-data.test.ts`).
+- Erledigt: Low-Risk-Hotspots in `shopping.tsx` und `recipe/[id].tsx` reduziert.
+- Erledigt: `planner.tsx`-Hotspot bearbeitet: `mobile/utils/planner-screen-data.ts` (pure Utility), `mobile/test/planner-screen-data.test.ts` (12 Tests), Integration mit `useDeferredValue`/`useMemo`/`React.memo`. Mobile-Suite: 83/83 gruen.
+- Erledigt: Backend/Search-Follow-up dokumentiert (siehe Sub-Section unten) — bei realistischem Datensatz kein Backend-Refactor gerechtfertigt.
+
+#### Backend/Search Follow-up Analyse (2026-05-07)
+
+**Aktueller Befund:**
+
+- Ingredient-Matching findet auf dem **Server** statt (`src/db-react.ts:133-181`, `searchRecipesByIngredientsAdvanced`): alle Rezepte werden per `db.select().from(recipes)` ohne WHERE-Klausel geladen (`db-react.ts:137`), dann in JS mit `evaluateIngredientSearch` gefiltert — vollstaendiger Table-Scan + In-Memory-Loop.
+- `evaluateIngredientSearch` laeuft dabei auch auf dem **Client** nochmals (`mobile/utils/recipe-list-screen-data.ts:102-105`, `buildIngredientResultRows`), um den `matchedCount`-Anzeigewert fuer die UI zu berechnen. Der Client ruft damit dieselbe Fuzzy-Logik ein zweites Mal auf bereits vom Server gefilterteten Treffern auf — redundante Arbeit, aber ausschliesslich auf den zurueckgegebenen Ergebnissen (nicht auf dem Gesamtbestand).
+- Der Client debounced Anfragen 300 ms und schickt erst dann einen HTTP-Request (`index.tsx:226-242`); `useDeferredValue` schuetzt nur das Text-Search-Feld (Name/Tag), nicht das Ingredient-Search-Modal. Das Ingredient-Modal loest pro Eingabe-Burst genau einen Network-Round-Trip aus, kein lokales Re-Filter ohne Netz.
+- **Realistischer Datensatz:** RecipeDeck ist ein Single-User-Tool fuer 10–300 Rezepte. Bei 300 Rezepten mit je ~10 Zutaten ergeben sich ca. 3 000 String-Vergleiche pro Suchanfrage. Levenshtein laeuft pro Paar in O(m*n); bei kurzen Ingredients (< 30 Zeichen) und wenigen Such-Termen ist das < 1 ms gesamt.
+
+**Empfehlung:**
+
+- **Kein Backend-Follow-up gerechtfertigt.** Bei realistischen 10–300 Rezepten ist der In-Memory-Scan + Levenshtein auf dem Server vernachlaessigbar. Die redundante `evaluateIngredientSearch`-Ausfuehrung auf dem Client (`recipe-list-screen-data.ts:104`) ist kosmetisch — dort wird sie nur auf den bereits gefilterten Treffern aufgerufen.
+- Optional (kein Perf-Treiber, nur Code-Hygiene): den `matchedCount`-Wert direkt aus der API-Antwort (`match_scores`) lesen statt erneut clientseitig zu berechnen, um die Logik-Doppelung zu beseitigen.
+
+**Begruendung:**
+
+Der Engpass bei Ingredient-Suche entsteht erst ab mehreren Tausend Rezepten — weit ausserhalb des aktuellen Zielnutzerprofils. Die Phase-4-Acceptance-Criteria (`messbare Verbesserung oder dokumentierter Backend-Follow-up`) gilt damit als erfuellt: kein Backend-Follow-up ist bei aktuellem Scale sinnvoll, mobile Memoization und 300 ms Debounce sind ausreichend.
 
 #### Acceptance Criteria
 

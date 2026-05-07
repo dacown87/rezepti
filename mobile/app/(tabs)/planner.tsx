@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useDeferredValue, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,12 @@ import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull }
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/utils/shopping-service';
 import { getServerUrl } from '@/utils/server-url';
+import {
+  buildRecipeIdMap,
+  filterPickerRecipes,
+  groupEntriesByDay,
+  pickRecipesByIds,
+} from '@/utils/planner-screen-data';
 
 // ─── Server API helpers ───────────────────────────────────────────────────────
 
@@ -102,7 +108,6 @@ function RecipePickerModal({
   onSelect: (recipeId: number) => void;
 }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [filtered, setFiltered] = useState<Recipe[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -110,16 +115,16 @@ function RecipePickerModal({
     if (!visible) return;
     setLoading(true);
     loadAllRecipes()
-      .then(rows => { setRecipes(rows); setFiltered(rows); })
+      .then(rows => { setRecipes(rows); })
       .catch(() => { /* stay empty, loading stops in finally */ })
       .finally(() => setLoading(false));
   }, [visible]);
 
-  useEffect(() => {
-    if (!search.trim()) { setFiltered(recipes); return; }
-    const q = search.toLowerCase();
-    setFiltered(recipes.filter(r => r.name.toLowerCase().includes(q)));
-  }, [search, recipes]);
+  const deferredSearch = useDeferredValue(search);
+  const filtered = useMemo(
+    () => filterPickerRecipes(recipes, deferredSearch),
+    [recipes, deferredSearch],
+  );
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -257,7 +262,7 @@ function QRScannerModal({
 
 // ─── Day Column ──────────────────────────────────────────────────────────────
 
-function DayColumn({
+const DayColumn = React.memo(function DayColumn({
   dayIndex,
   monday,
   entries,
@@ -318,7 +323,7 @@ function DayColumn({
       </Pressable>
     </View>
   );
-}
+});
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -353,13 +358,7 @@ export default function PlannerScreen() {
       }
 
       const all = await loadAllRecipes();
-      const map = new Map(all.map(r => [r.id, r]));
-      const filtered = usedIds.reduce((acc, id) => {
-        const r = map.get(id);
-        if (r) acc.set(id, r);
-        return acc;
-      }, new Map<number, Recipe>());
-      setRecipes(filtered);
+      setRecipes(pickRecipesByIds(all, usedIds));
       clearPlannerError();
     } catch {
       handlePlannerActionError(
@@ -419,7 +418,7 @@ export default function PlannerScreen() {
     clearPlannerError();
     try {
       const allRecipes = await loadAllRecipes();
-      const recipeMap = new Map(allRecipes.map(r => [r.id, r]));
+      const recipeMap = buildRecipeIdMap(allRecipes);
       const ids = [...new Set(mealPlan.map(e => e.recipe_id))];
       const ingredients: string[] = [];
       for (const id of ids) {
@@ -562,7 +561,7 @@ export default function PlannerScreen() {
     }
   };
 
-  const handleRemoveEntry = async (entryId: number) => {
+  const handleRemoveEntry = useCallback(async (entryId: number) => {
     if (plannerMutationPending) return;
     Alert.alert('Entfernen', 'Rezept aus dem Planer entfernen?', [
       { text: 'Abbrechen', style: 'cancel' },
@@ -572,7 +571,10 @@ export default function PlannerScreen() {
         onPress: async () => retryRemoveEntry(entryId),
       },
     ]);
-  };
+  // retryRemoveEntry is defined in the same render scope; the Alert callback
+  // captures it by closure at the time the Alert is shown, which is correct.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plannerMutationPending]);
 
   const weekLabel = (() => {
     const end = new Date(monday);
@@ -581,6 +583,8 @@ export default function PlannerScreen() {
   })();
 
   const isCurrentWeek = monday.getTime() === getMondayOf(new Date()).getTime();
+
+  const entriesByDay = useMemo(() => groupEntriesByDay(mealPlan), [mealPlan]);
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
@@ -653,21 +657,18 @@ export default function PlannerScreen() {
           showsHorizontalScrollIndicator={Platform.OS === 'web'}
           contentContainerStyle={{ padding: 16, paddingTop: 8, ...(Platform.OS === 'web' ? { minWidth: '100%' } : { flexGrow: 1 }) }}
         >
-          {DAYS_FULL.map((dayName, dayIndex) => {
-            const dayEntries = mealPlan.filter(e => e.day_of_week === dayIndex);
-            return (
-              <DayColumn
-                key={dayIndex}
-                dayIndex={dayIndex}
-                monday={monday}
-                entries={dayEntries}
-                recipes={recipes}
-                onAdd={setMethodDay}
-                onRemove={handleRemoveEntry}
-                mutationPending={plannerMutationPending}
-              />
-            );
-          })}
+          {DAYS_FULL.map((_dayName, dayIndex) => (
+            <DayColumn
+              key={dayIndex}
+              dayIndex={dayIndex}
+              monday={monday}
+              entries={entriesByDay.get(dayIndex) ?? []}
+              recipes={recipes}
+              onAdd={setMethodDay}
+              onRemove={handleRemoveEntry}
+              mutationPending={plannerMutationPending}
+            />
+          ))}
         </ScrollView>
       )}
 
