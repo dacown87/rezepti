@@ -17,3 +17,10 @@ test/RecipePicture/
 frontend/dist/
 frontend/node_modules/
 public/sw.js.map
+
+# Performance audit artifacts: only persist history + readiness (CI caches these too)
+artifacts/*
+!artifacts/performance/
+artifacts/performance/*
+!artifacts/performance/history.json
+!artifacts/performance/readiness.json

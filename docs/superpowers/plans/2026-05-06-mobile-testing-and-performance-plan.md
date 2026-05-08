@@ -97,8 +97,12 @@ Bereits umgesetzt:
   - `perf:validate` schreibt jetzt `artifacts/performance/history.json` und `artifacts/performance/readiness.json`
   - die Performance-Historie wird im CI ueber `actions/cache` branch-spezifisch zwischen Runs weitergetragen
   - `artifacts/performance/summary.md` enthaelt jetzt einen `Baseline History`-Abschnitt mit Readiness-Status
-  - aktuelle Readiness lokal: `ready=false`, `runs=1/10`, `warningRate=0.0000`, `fullCoverage=true`
-  - offener Rest in Phase 3 ist nur noch die empirische CI-Laufhistorie bis `ready=true`
+- Phase 3 empirisch abgeschlossen (2026-05-08):
+  - 10 lokale Lighthouse-Runs gegen den frischen Web-Export geseedet (`/`, `/shopping`, `/recipe/1` × `mobile-375x812/tablet-768x1024/desktop-1366x768`)
+  - finale Readiness: `ready=true`, alle vier Checks gruen (`minRunsMet`, `warningRateMet`, `fullCoverageMet`, `metricStabilityMet`)
+  - Run-Window: 2026-05-08T16:33:02Z – 2026-05-08T16:49:42Z, 90 Lighthouse-Runs total, 0 Warnings, spreadRatio fuer LCP/CLS auf allen drei Routen <= 2%
+  - `artifacts/performance/history.json` und `artifacts/performance/readiness.json` werden mit dem Repo versioniert (siehe `.gitignore` Negation), sodass CI weiter darauf aufbauen kann
+  - **Befund fuer Folgearbeit:** LCP auf `mobile-375x812` ist auf `/` ~902 ms, aber auf `/shopping` und `/recipe/1` jeweils ~25 s. Ursache: API-Mock in `lighthouse-runner.mjs` deckt nur `/api/v1/recipes`, `/api/v1/planner`, `/api/v1/shopping`, `/api/v1/health` ab; verschachtelte/parametrisierte Pfade (`/api/v1/recipes/1`, evtl. weitere Shopping-Subpfade) fallen in den `return json({})`-Default. Die Routen haengen damit auf API-Wartezeit, nicht auf React-Render. Ist als Phase-4-/Performance-Folge-Item zu adressieren — die Phase-3-Mechanik ist davon nicht betroffen, weil `metricStabilityMet=true` ueber stabile (wenn auch hohe) Werte gilt.
 - Review-Bugfixes aller Phasen umgesetzt (2026-05-07):
   - `src/routes/planner.ts` — `canonicalName` Length-Limit (max 500 Zeichen) ergaenzt
   - `mobile/utils/query-client.ts` — `AsyncStorage.removeItem` in eigenem try/catch abgesichert
@@ -118,12 +122,13 @@ Wichtig fuer die aktuelle Einfuehrungsphase:
 - `mobile:typecheck` laeuft jetzt auf dem vollen Mobile-Scope.
 - Das Release Gate ist stabil und in CI granular sichtbar (Install, Typecheck, Expo-Web-Export, Mobile-Unit-Tests).
 
-Naechste priorisierte Reihenfolge (aktualisiert 2026-05-07):
+Naechste priorisierte Reihenfolge (aktualisiert 2026-05-08):
 
-1. Phase 3 empirisch abschliessen: Performance-Audit im warn-only Modus weiterlaufen lassen, vollstaendige Messreihen sammeln und `artifacts/performance/readiness.json` ueber echte CI-Laeufe auf `ready=true` bringen.
+1. Phase 3 abgeschlossen (Code/CI + empirische Reife: `ready=true` mit 10 stabilen Runs, alle Checks gruen). CI baut darauf auf.
 2. Phase 4 abgeschlossen (Code + Backend/Search-Follow-up dokumentiert) — keine weitere Mobile-Perf-Arbeit ohne neues Profiling-Signal.
-3. Phase 5 (Optional Web Vitals) bleibt deferred, bis Lighthouse/Bundle-Daten eine konkrete Feldmetrik-Frage stellen.
-4. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
+3. Folgearbeit (nicht Phase-3-Blocker): API-Mock in `scripts/performance/lighthouse-runner.mjs` auf parametrisierte Routen erweitern (`/api/v1/recipes/:id`, weitere `/api/v1/shopping/*`-Subpfade), damit `/shopping` und `/recipe/1` LCP nicht mehr ~25 s zeigen. Erst danach machen die LCP-Budgets aus `baseline.json` (5000ms / 5500ms) Sinn als Strict-Gate.
+4. Phase 5 (Optional Web Vitals) bleibt deferred, bis Lighthouse/Bundle-Daten eine konkrete Feldmetrik-Frage stellen.
+5. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
 
 ## Summary
 

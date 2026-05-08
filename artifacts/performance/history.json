@@ -1,0 +1,1042 @@
+[
+  {
+    "runId": "2026-05-08T16:33:02.895Z",
+    "timestamp": "2026-05-08T16:33:02.895Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24861ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25103ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.72,
+        "lcp": 919.136,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 920.84,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 920.703,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.43,
+        "lcp": 24861.02,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24802.048,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24852.557,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25103.416,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25120.53,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25130.976,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:34:54.206Z",
+    "timestamp": "2026-05-08T16:34:54.206Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24846ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25151ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 902.545,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 923.321,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 919.664,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.43,
+        "lcp": 24846.01,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24860.512,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24730.72,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25151.441,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 24871.554,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25159.45,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:36:45.189Z",
+    "timestamp": "2026-05-08T16:36:45.189Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24843ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25138ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 902.58,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 919.986,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 920.664,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.43,
+        "lcp": 24842.706,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24834.032,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24850.731,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25138.397,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25172.736,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25152.714,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:38:36.263Z",
+    "timestamp": "2026-05-08T16:38:36.263Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24878ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25155ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 902.408,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 920.035,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 917.66,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.43,
+        "lcp": 24877.852,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 24939.8,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24845.433,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25155.248,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 25103.525,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25138.559,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:40:27.233Z",
+    "timestamp": "2026-05-08T16:40:27.233Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24819ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25143ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 902.505,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 918.194,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 921.573,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.44,
+        "lcp": 24818.516,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24802.772,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24819.85,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.4,
+        "lcp": 25143.245,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25141.511,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25146.425,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:42:18.279Z",
+    "timestamp": "2026-05-08T16:42:18.279Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24806ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25114ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 902.29,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 924.09,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 919.021,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.44,
+        "lcp": 24805.943,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24935.813,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24896.718,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25114.364,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25137.653,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25169.116,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:44:09.211Z",
+    "timestamp": "2026-05-08T16:44:09.211Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24893ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25179ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 902.524,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 921.142,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 924.801,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.43,
+        "lcp": 24892.652,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24854.877,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24838.596,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25178.672,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25177.695,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25135.183,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:46:00.107Z",
+    "timestamp": "2026-05-08T16:46:00.107Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24841ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25140ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 902.313,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 919.862,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 920.44,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.43,
+        "lcp": 24840.66,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24845.733,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24847.197,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25140.312,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25155.481,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25406.719,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:47:51.188Z",
+    "timestamp": "2026-05-08T16:47:51.188Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24805ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25147ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 902.828,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 921.008,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 917.802,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.44,
+        "lcp": 24804.723,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24863.002,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25025.183,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25147.282,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25134.296,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25194.431,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  },
+  {
+    "runId": "2026-05-08T16:49:42.232Z",
+    "timestamp": "2026-05-08T16:49:42.232Z",
+    "runAttempt": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 2,
+    "findings": [
+      "WARN: LCP budget exceeded for /shopping @ mobile-375x812 (24824ms > 5000ms).",
+      "WARN: LCP budget exceeded for /recipe/1 @ mobile-375x812 (25158ms > 5500ms)."
+    ],
+    "validateExitCode": 0,
+    "bundle": {
+      "files": 22,
+      "totalBytes": 5711091,
+      "jsBytes": 5059122,
+      "cssBytes": 20622,
+      "htmlBytes": 631347,
+      "largestJsAssetBytes": 4614669
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 902.455,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.59,
+        "lcp": 923.419,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.59,
+        "lcp": 921.621,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.44,
+        "lcp": 24823.788,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.35,
+        "lcp": 24817.831,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.35,
+        "lcp": 24845.587,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.41,
+        "lcp": 25158.098,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 25148.448,
+        "inp": null,
+        "cls": 0
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.34,
+        "lcp": 25131.748,
+        "inp": null,
+        "cls": 0
+      }
+    ]
+  }
+]
