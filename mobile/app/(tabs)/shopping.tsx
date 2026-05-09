@@ -223,15 +223,7 @@ export default function ShoppingScreen() {
     };
   }, [items]);
 
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center">
-        <ActivityIndicator size="large" color="#C84B31" />
-      </SafeAreaView>
-    );
-  }
-
-  if (loadError && items.length === 0) {
+  if (loadError && items.length === 0 && !loading) {
     return (
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center px-8">
         <Text className="text-red-500 text-center">Einkaufsliste konnte nicht geladen werden</Text>
@@ -244,7 +236,7 @@ export default function ShoppingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
-      {/* Header */}
+      {/* Header — always visible, auch während des Ladens */}
       <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-2">
@@ -252,7 +244,7 @@ export default function ShoppingScreen() {
             <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">Einkaufsliste</Text>
           </View>
           <View className="flex-row gap-2">
-            {items.length > 0 && (
+            {!loading && items.length > 0 && (
               <>
                 <Pressable onPress={handleCopy} className="p-2 bg-white dark:bg-espresso-800 rounded-xl border border-warm-200 dark:border-warm-700">
                   <Share2 size={16} color="#9E8878" />
@@ -266,6 +258,9 @@ export default function ShoppingScreen() {
                   <Trash2 size={16} color="#ef4444" />
                 </Pressable>
               </>
+            )}
+            {loading && (
+              <ActivityIndicator size="small" color="#C84B31" />
             )}
           </View>
         </View>
@@ -313,7 +308,23 @@ export default function ShoppingScreen() {
         </View>
       </View>
 
-      {items.length === 0 ? (
+      {loading ? (
+        /* Skeleton-Platzhalter — sichtbarer Struktur-Shell vor dem ersten Daten-Frame */
+        <View className="px-4 pt-2" testID="shopping-skeleton">
+          {[72, 56, 80, 64, 48, 72, 56].map((width, i) => (
+            <View
+              key={i}
+              className="bg-white dark:bg-espresso-800 rounded-xl mb-2 px-4 py-3 border border-warm-200 dark:border-warm-700 flex-row items-center"
+            >
+              <View className="w-6 h-6 rounded-full border-2 border-warm-200 dark:border-warm-600 mr-3" />
+              <View
+                className="h-3 rounded-full bg-warm-200 dark:bg-espresso-700"
+                style={{ width: `${width}%` }}
+              />
+            </View>
+          ))}
+        </View>
+      ) : items.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
           <ShoppingCart size={48} color="#d1d5db" />
           <Text className="text-warm-500 dark:text-warm-400 text-center mt-4">

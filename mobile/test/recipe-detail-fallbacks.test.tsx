@@ -118,6 +118,32 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
   });
 
+  it('shows header shell and skeleton content immediately before data arrives', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+
+    const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
+    let tree: ReturnType<typeof TestRenderer.create>;
+    await act(async () => {
+      tree = TestRenderer.create(React.createElement(RecipeDetailScreen));
+    });
+
+    // Back button in header must be present immediately (structural shell)
+    const backPressables = tree!.root.findAll(
+      (node: ReactTestInstance) =>
+        String(node.type) === 'Pressable' &&
+        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
+        node.findAll((c: ReactTestInstance) => String(c.type) === 'Icon').length > 0
+    );
+    expect(backPressables.length).toBeGreaterThan(0);
+
+    // Skeleton placeholder container must be present
+    const skeleton = tree!.root.findAll(
+      (node: ReactTestInstance) =>
+        (node.props as { testID?: string }).testID === 'recipe-skeleton'
+    );
+    expect(skeleton.length).toBeGreaterThan(0);
+  });
+
   it('shows loading fallback while detail request is still pending', async () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
 

@@ -81,6 +81,31 @@ describe('ShoppingScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', fetchMock);
   });
 
+  it('shows header and skeleton shell immediately before data arrives', async () => {
+    // fetch never resolves → component stays in loading state
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+
+    const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
+    let tree: ReturnType<typeof TestRenderer.create>;
+    await act(async () => {
+      tree = TestRenderer.create(React.createElement(ShoppingScreen));
+    });
+
+    // Header text must be visible immediately
+    const headerText = tree!.root.findAll(
+      (node: { type: unknown; children: unknown[] }) =>
+        node.type === 'Text' && node.children.includes('Einkaufsliste')
+    );
+    expect(headerText.length).toBeGreaterThan(0);
+
+    // Skeleton placeholder container must be present
+    const skeleton = tree!.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        (node.props as { testID?: string }).testID === 'shopping-skeleton'
+    );
+    expect(skeleton.length).toBeGreaterThan(0);
+  });
+
   it('shows error fallback and supports retry when shopping fetch fails', async () => {
     const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
     let tree: ReturnType<typeof TestRenderer.create>;

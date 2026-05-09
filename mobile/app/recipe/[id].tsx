@@ -417,8 +417,35 @@ export default function RecipeDetailScreen() {
   // ──────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center">
-        <ActivityIndicator size="large" color="#C84B31" />
+      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
+        {/* Header-Shell — sofort sichtbar, LCP-Anker */}
+        <View className="flex-row items-center px-4 py-3 bg-white dark:bg-espresso-800 border-b border-warm-200 dark:border-warm-700">
+          <Pressable onPress={() => router.back()} className="mr-3 p-1">
+            <ArrowLeft size={22} color="#374151" />
+          </Pressable>
+          <View className="flex-1 h-4 rounded-full bg-warm-200 dark:bg-espresso-700" />
+          <ActivityIndicator size="small" color="#C84B31" style={{ marginLeft: 8 }} />
+        </View>
+        {/* Skeleton-Inhalt */}
+        <View className="px-4 pt-5" testID="recipe-skeleton">
+          {/* Titel-Placeholder */}
+          <View className="items-center mb-4">
+            <View className="w-16 h-16 rounded-full bg-warm-200 dark:bg-espresso-700 mb-3" />
+            <View className="h-5 rounded-full bg-warm-200 dark:bg-espresso-700 w-3/4 mb-2" />
+            <View className="h-4 rounded-full bg-warm-200 dark:bg-espresso-700 w-1/2" />
+          </View>
+          {/* Meta-Zeile */}
+          <View className="flex-row gap-3 mb-5">
+            {[1, 2, 3].map(i => (
+              <View key={i} className="flex-1 h-8 rounded-xl bg-warm-200 dark:bg-espresso-700" />
+            ))}
+          </View>
+          {/* Zutaten-Placeholder */}
+          <View className="h-4 rounded-full bg-warm-200 dark:bg-espresso-700 w-1/3 mb-3" />
+          {[80, 65, 72, 58, 68].map((width, i) => (
+            <View key={i} className="h-3 rounded-full bg-warm-200 dark:bg-espresso-700 mb-2" style={{ width: `${width}%` }} />
+          ))}
+        </View>
       </SafeAreaView>
     );
   }

@@ -116,6 +116,18 @@ Bereits umgesetzt:
   - `mobile/app/(tabs)/planner.tsx` integriert: `useDeferredValue` + `useMemo` im RecipePickerModal (statt Filter-Effect mit Doppel-State), `useMemo`-gestuetztes `entriesByDay` (statt 7-fachem `mealPlan.filter` pro Render), `React.memo` auf `DayColumn`, stabilere `useCallback`-Refs fuer Mutationshandler
   - Backend/Search Follow-up fuer Zutaten-Suche dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist kein Backend-Refactor gerechtfertigt — Phase 4 Acceptance Criteria erfuellt ueber „dokumentierter Backend-Follow-up"
   - Mobile-Verifikation nach Phase-4 Slice 2: `npm --prefix mobile run typecheck` + `npm --prefix mobile run test:unit` -> `15` Dateien, `83` Tests gruen
+- Phase-4b Spinner-zu-Skelett-Refactor umgesetzt (2026-05-09):
+  - **Ziel:** struktureller Content-Shell ab erstem React-Frame sichtbar, damit Lighthouse ein LCP-Element fruehzeitig messen kann
+  - **Methode (b) Minimal-Refactor** fuer beide Screens:
+    - `mobile/app/(tabs)/shopping.tsx`: Vollbild-`ActivityIndicator` entfernt; stattdessen Header mit "Einkaufsliste"-Text + kleiner Spinner im Header + 7 Skeleton-Listenzeilen (`testID="shopping-skeleton"`) ab erstem Frame. Error-Fallback prueft jetzt `!loading` als Bedingung.
+    - `mobile/app/recipe/[id].tsx`: Vollbild-`ActivityIndicator` entfernt; stattdessen Header-Shell mit Zurueck-Button + Titelplatzhalter + kleiner Spinner + Skeleton-Inhaltsbereich (`testID="recipe-skeleton"` mit Emoji-Kreis, Titelzeile, Meta-Zeile, 5 Zutatenzeilen)
+  - Neue Tests: `mobile/test/shopping-screen-fallbacks.test.tsx` und `mobile/test/recipe-detail-fallbacks.test.tsx` pruefen jeweils: Header-Text und Skeleton-Container sind vor dem ersten API-Response sichtbar
+  - Mobile-Verifikation: `npm --prefix mobile run typecheck` + `npm --prefix mobile run test:unit` -> `15` Dateien, `85` Tests gruen
+  - **LCP-Befund (lokal gemessen 2026-05-09):**
+    - Vorher: `/shopping` 24824 ms, `/recipe/1` 25158 ms, `/` 902 ms (Quelle: `artifacts/performance/lighthouse/summary.json`, Run 2026-05-08)
+    - Nachher (neue Build-Hashes, gleiche Lighthouse-Messung): `/shopping` 25162 ms, `/recipe/1` 25415 ms, `/` 904 ms
+    - **Erklaerung:** Lighthouse Simulate-Throttling misst den Browser-Paint-Zeitpunkt des LCP-Elements. FCP = 902 ms (statisches Expo-HTML), LCP = 25s weil das LCP-Element (grosser Text/Bild) erst nach React-JS-Hydration gerendert wird. Die ~4.6 MB Entry-Bundle unter 4× CPU-Throttling benoetigt ~25s zum Parsen/Ausfuehren — unabhaengig davon, ob nach Ausfuehrung ein Spinner oder Skelett erscheint. Der Skelett-Refactor verbessert die **wahrgenommene Performance** auf echten Geraeten signifikant (Content ist sichtbar sobald React laeuft, statt erst nach API-Antwort), aendert aber den Lighthouse-Simulate-Wert nicht, weil React selbst erst nach der Bundle-Ausfuehrung rendern kann.
+    - **Naechster Schritt fuer Lighthouse-LCP:** Bundle-Splitting / Lazy-Loading der nicht-kritischen Screens (z.B. Cook-Modus, Edit-Modus, PDF-Export nur bei Bedarf laden) wuerde die Entry-Bundle-Groesse reduzieren und damit die JS-Hydration unter Throttling beschleunigen.
 
 Wichtig fuer die aktuelle Einfuehrungsphase:
 
