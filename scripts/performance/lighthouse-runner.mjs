@@ -195,6 +195,69 @@ function machineReadableSkip(reason) {
   return `PERF_LIGHTHOUSE_SKIP_REASON=${reason}`;
 }
 
+/**
+ * Pure route-matching function — returns the mock response body for a given
+ * API pathname, or null if no explicit route matches (caller uses fallback).
+ *
+ * Exported (as a comment-level contract) so that the vitest test file can
+ * import and exercise it directly without starting an HTTP server.
+ *
+ * Route priority (first match wins):
+ *  1. Exact-collection routes  — /api/v1/recipes, /api/v1/shopping, ...
+ *  2. Named sub-collection routes — /api/v1/shopping/checked, /api/v1/shopping/all
+ *  3. Parametrised single-item routes — /api/v1/recipes/:id, /api/v1/shopping/:id
+ *  4. null → caller writes json({}) fallback
+ */
+export function matchApiRoute(pathname) {
+  // ── Collection routes ──────────────────────────────────────────────────────
+  if (/^\/api\/v1\/recipes($|\?)/.test(pathname)) return [];
+  if (/^\/api\/v1\/planner($|\?)/.test(pathname)) return [];
+  if (/^\/api\/v1\/shopping($|\?)/.test(pathname)) return { items: [] };
+  if (/^\/api\/v1\/health($|\?)/.test(pathname)) return { status: 'ok' };
+
+  // ── Named shopping sub-paths (must come before /:id catch-all) ────────────
+  // DELETE /api/v1/shopping/checked  — clear checked items
+  // DELETE /api/v1/shopping/all      — clear all items
+  if (/^\/api\/v1\/shopping\/(checked|all)(\/|$|\?)/.test(pathname)) return { ok: true };
+
+  // ── Parametrised single-item routes ───────────────────────────────────────
+  // GET /api/v1/recipes/:id — recipe detail screen fetches this on mount.
+  // The mock must include all fields that normalizeRecipe() accesses so the
+  // screen renders the "not found" or empty-state UI immediately instead of
+  // waiting for a timeout.
+  if (/^\/api\/v1\/recipes\/[^/]+(\/|$|\?)/.test(pathname)) {
+    return {
+      id: 0,
+      name: '',
+      emoji: null,
+      source_url: null,
+      image_url: null,
+      ingredients: '[]',
+      steps: '[]',
+      tags: null,
+      servings: null,
+      duration: null,
+      calories: null,
+      rating: null,
+      notes: null,
+      category: null,
+      equipment: null,
+      nutrition_info: null,
+      ingredient_groups: null,
+      transcript: null,
+      tried: 0,
+      pdf_created: 0,
+      created_at: null,
+    };
+  }
+
+  // GET/PATCH/DELETE /api/v1/shopping/:id — toggle / delete single item
+  if (/^\/api\/v1\/shopping\/[^/]+(\/|$|\?)/.test(pathname)) return { ok: true };
+
+  // No explicit match — caller writes fallback json({})
+  return null;
+}
+
 function handleApiMock(pathname, res) {
   // Return minimal empty-state responses so the React app renders its
   // empty-state UI fast instead of waiting for a real API that isn't running.
@@ -204,11 +267,8 @@ function handleApiMock(pathname, res) {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': Buffer.byteLength(payload) });
     res.end(payload);
   };
-  if (/^\/api\/v1\/recipes($|\?)/.test(pathname)) return json([]);
-  if (/^\/api\/v1\/planner($|\?)/.test(pathname)) return json([]);
-  if (/^\/api\/v1\/shopping($|\?)/.test(pathname)) return json({ items: [] });
-  if (/^\/api\/v1\/health($|\?)/.test(pathname)) return json({ status: 'ok' });
-  return json({});
+  const matched = matchApiRoute(pathname);
+  return json(matched !== null ? matched : {});
 }
 
 async function startStaticServer() {
