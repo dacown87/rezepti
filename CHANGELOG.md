@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.99] – 2026-05-12
+
+
+
 ## [1.0.98] – 2026-05-04
 
 - pass BYOK through extraction jobs
