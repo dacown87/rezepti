@@ -12,6 +12,7 @@ screensshots/
 .opencode/
 .playwright-mcp/
 .expo/
+.claude/worktrees/
 FilesWorking/
 test/RecipePicture/
 frontend/dist/
