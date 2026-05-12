@@ -1,7 +1,7 @@
 # Project Learnings — RecipeDeck (rezepti)
 
 Auto-aggregierte Befunde aus gstack-Sessions. Quelle: `~/.gstack/projects/dacown87-rezepti/learnings.jsonl`.
-Stand: 2026-05-12 — 39 Eintraege.
+Stand: 2026-05-12 — 40 Eintraege.
 
 Format: `[key] (confidence/10, datum)` + Insight + ggf. Files.
 Aktualisieren via `/learn` (zeigt aktuelle), neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` u.a. ergaenzt.
@@ -172,6 +172,11 @@ Regex `Personen?` means `Persone` + optional `n` — matches `Persone` and `Pers
 
 yt-dlp PyInstaller static binary from GitHub Releases fails with exit 127 in `node:20-slim` — missing glibc deps. Use `pip3 install yt-dlp` instead. Also: `curl` without `--fail` silently downloads HTML error pages as binaries.
 *Files:* `Dockerfile`
+
+#### squash-merge-deletes-changelog-json-breaks-docker (10/10, 2026-05-12)
+
+`Dockerfile:51` macht `COPY public/changelog.json ./public/changelog.json` direkt aus dem Build-Context. Wenn ein Feature-Branch `public/changelog.json` nicht enthaelt (typisch bei Phase-4c-Builds, wo `public/` neu gebaut wurde), loescht der Squash-Merge die Datei auf `main`. Erster `docker-build`-Workflow auf dem Squash-Commit failed dann mit `failed to calculate checksum ... "/public/changelog.json": not found` (siehe Run `25745137805` am 2026-05-12). Selbstheilend: der `changelog-update.yml`-Workflow committet danach den naechsten Version-Bump (`v1.0.99`, Commit `3276daf`), der die Datei wieder anlegt; der zweite Docker-Build laeuft auf diesem Commit gruen. Folge: jeder Squash-Merge eines Branches ohne `public/changelog.json` kostet einen roten Docker-Build und einen verzoegerten Northflank-Deploy. Dauerhafter Fix: `Dockerfile:51` entfernen und `changelog.json` aus dem `web-builder`-Stage oder einem separaten Step ziehen, oder `public/changelog.json` aus dem `mobile`-Build-Output ausschliessen.
+*Files:* `Dockerfile`, `.github/workflows/changelog-update.yml`, `.github/workflows/docker-build.yml`
 
 ---
 
