@@ -12,7 +12,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build:web": "CI=1 expo export --platform web --output-dir ../public",
+    "build:web": "node ../scripts/mobile/expo-export-web.mjs --output-dir ../public",
     "test:unit": "vitest run -c vitest.config.ts",
     "test:coverage": "vitest run -c vitest.config.ts --coverage",
     "test:watch": "vitest -c vitest.config.ts"

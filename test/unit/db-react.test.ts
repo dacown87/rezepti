@@ -268,6 +268,9 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
 
       const fuzzyMatch = await db.findCanonicalBySimilarity(alias.replace('Paradeiser', 'Paradeisr'))
       expect(fuzzyMatch).toMatchObject({ id: created.id, canonical_name: canonicalName })
+
+      expect(await db.deleteDictionaryEntry(created.id)).toBe(true)
+      expect(await db.findCanonicalBySimilarity(alias)).toBeNull()
     } finally {
       await db.deleteDictionaryEntry(created.id)
     }

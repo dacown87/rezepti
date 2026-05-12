@@ -327,6 +327,11 @@ export async function addToDictionary(canonicalName: string, aliases: string[] =
   return rows[0];
 }
 
+export async function deleteDictionaryEntry(id: number): Promise<boolean> {
+  const db = getDb();
+  const rows = await db.delete(ingredientDictionary).where(eq(ingredientDictionary.id, id)).returning({ id: ingredientDictionary.id });
+  return rows.length > 0;
+}
 
 export async function findCanonicalBySimilarity(name: string) {
   const db = getDb();

@@ -23,7 +23,7 @@ describe('validate-status performance budgets', () => {
       }),
     ).toBe('123-attempt-2-2026-05-11T00:00:00.000Z');
     expect(createPerformanceRunId({ explicitRunId: 'manual-seed-1' })).toBe('manual-seed-1');
-    expect(createPerformanceRunId({ statusGeneratedAt: '2026-05-11T00:00:01.000Z' })).toBe(
+    expect(createPerformanceRunId({ githubRunId: null, statusGeneratedAt: '2026-05-11T00:00:01.000Z' })).toBe(
       '2026-05-11T00:00:01.000Z',
     );
   });
