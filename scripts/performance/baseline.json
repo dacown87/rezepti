@@ -1,26 +1,34 @@
 {
-  "generatedAt": "2026-05-07T00:00:00.000Z",
+  "generatedAt": "2026-05-12T06:22:57.561Z",
   "bundle": {
     "limits": {
       "maxFiles": 70,
       "maxJsBytes": 5200000,
+      "maxGzipJsBytes": 1140411,
       "maxCssBytes": 30000,
-      "maxLargestJsAssetBytes": 4800000
+      "maxLargestJsAssetBytes": 4572427
     }
   },
   "lighthouse": {
-    "mobile-375x812": {
-      "/":         { "lcpMs": 5000, "cls": 0.25 },
-      "/shopping": { "lcpMs": 5000, "cls": 0.25 },
-      "/recipe/1": { "lcpMs": 5500, "cls": 0.25 }
+    "methods": {
+      "simulate": {
+        "mobile-375x812": {
+          "/":         { "lcpMs": 1200, "cls": 0.02, "jsExecutionMs": 2295 },
+          "/shopping": { "lcpMs": 1100, "cls": 0.02, "jsExecutionMs": 2042 },
+          "/recipe/1": { "lcpMs": 1300, "cls": 0.02, "jsExecutionMs": 2372 }
+        }
+      }
     }
   },
   "notes": [
     "Warn-only on PR/push; strict only after complete multi-run baselines are stable.",
     "Initial hardening tracks JS-heavy signals first because exported HTML aliases inflate total/html counts.",
     "Tune limits downward as optimizations land to enforce gradual improvement.",
-    "Lighthouse limits apply to mobile-375x812 viewport only (primary user device class).",
-    "lcpMs: initial generous budget (5s) set after API-mock fix landed. Tighten after 10+ stable CI runs.",
+    "Lighthouse limits currently apply to mobile-375x812 under methods.simulate (primary user device class).",
+    "Budget suggestions generated from 10 complete simulate/mobile-375x812 runs on 2026-05-12.",
+    "Bundle maxGzipJsBytes and maxLargestJsAssetBytes use p95 * 1.10 suggestions; maxJsBytes stays at the existing tighter 5.2 MB budget.",
+    "The / route had one cold-run LCP outlier at 22378ms; the 24616ms suggestion was not adopted because warm runs cluster near 903ms.",
+    "jsExecutionMs uses Lighthouse bootup-time when available and is persisted into history for future method-aware comparisons.",
     "Plan target: lcpMs <= 3000 for /, 3200 for /shopping, 3400 for /recipe/1 (see Phase 3 acceptance criteria)."
   ]
 }

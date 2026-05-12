@@ -13,6 +13,11 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 - `npm run dev:mobile` — API server + Expo web dev server
 - `npm run build:mobile` — Export Expo web app into `public/`
 - `npm run build:mobile:docker` — Expo web export command ohne Git-Abhaengigkeit
+- `npm run perf:bundle` — Analyze the current `public/` Expo export, including raw/gzip JS totals
+- `npm run perf:lighthouse:compare` — Run Lighthouse with `simulate` and `devtools`, then write p50/p75 comparison artifacts
+- `npm run perf:validate` — Validate Lighthouse/bundle status against warn-only budgets and update performance history/readiness
+- `npm run perf:stability:seed` — Seed 10 real Lighthouse/validate runs for Strict-Hardening without directly editing history
+- `npm run perf:budget:suggest` — Compute p50/p75/p95 and p95+10% budget suggestions from method-marked complete history runs
 - `npm test` — Run tests (Vitest)
 - `npx tsc` — Type-check (noEmit, strict mode)
 
@@ -152,7 +157,9 @@ Host github.com
 
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
-- **After frontend changes:** Bei Bedarf zuerst `cd mobile && npm ci`, dann `npm run build:mobile` zum Aktualisieren von `public/`
+- **After frontend changes:** Bei Bedarf zuerst `npm --prefix mobile ci`, dann `npm run build:mobile` zum Aktualisieren von `public/`. Der Expo-Export kann nach erfolgreichem `Exported: ../public` lokal haengen; nicht mehrfach parallel starten.
+- **After performance-sensitive mobile changes:** `npm run perf:bundle`, bei LCP-/Shell-/Routing-Aenderungen zusaetzlich `npm run perf:lighthouse:compare` und `npm run perf:validate`. Phase 4c ist abgeschlossen: `mobile/app/+html.tsx` liefert eine route-aware statische App-Shell, damit `/shopping` und `/recipe/*` vor Expo-Web-Hydration einen stabilen LCP-Kandidaten haben.
+- **Strict performance hardening:** Fuer die 10er-Messreihe `npm run perf:stability:seed` verwenden. Das Script editiert `history.json` nicht selbst; nur `perf:validate` schreibt echte Run-Eintraege. Danach `npm run perf:budget:suggest` ausfuehren und Vorschlaege pruefen. Der erste manuelle `strict`-Probe-Run ist erst freigegeben, wenn `artifacts/performance/observation.json` `strictProbeEligible=true` meldet: dafuer brauchen wir `5` aufeinanderfolgende gruene CI-Warn-Runs, eine verifizierte Warm-up-Sequenz in `stability-seed.json` und `readiness.ready=true`. Schedule sowie PR-/Push-Runs bleiben bis zu einer spaeteren Policy-Aenderung warn-only.
 - **New web scraper plugin:** The plugin registry (`PLUGINS` array) was removed in the May 2026 cleanup. The `WebScraperPlugin` interface still exists in `src/fetchers/web/base.ts`. To add a new domain-specific scraper, re-add the plugin registry in `web/index.ts` and implement the interface in `src/fetchers/web/[domain].ts`. Chefkoch bleibt dedizierter Fetcher in `pipeline.ts`.
 - **Fetcher code duplication:** Before adding utility functions to a fetcher (extractJsonLdRecipes, resolveSchemaImage, extractImages etc.), check `src/fetchers/web/base.ts` first — these are already exported there.
 
@@ -163,7 +170,9 @@ Host github.com
 - **Autoplan-Review:** `~/.claude/plans/joyful-kindling-anchor.md` — Vollständiger Projektstand-Review (2026-04-09) mit offenen Punkten
 - **Codemaps:** `docs/CODEMAPS/` — Architecture, Backend, Fetchers, Database, Frontend
 - **TODO:** `TODO.md` — Aktuelle Aufgaben und offene Bugs
-- **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions (35 Eintraege, Stand 2026-05-08). Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
+- **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions (36 Eintraege, Stand 2026-05-11). Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
+- **Performance Analysis:** `docs/performance/throttling-analysis.md` — Phase-4c Throttling-Vergleich, App-Shell-LCP-Fix, Bundle-Gzip-Zahlen und Strict-Gate-Regeln.
+- **Strict Probe Runbook:** `docs/performance/strict-probe-runbook.md` — operative Freigabe fuer den ersten manuellen `perf_enforcement=strict`-Probe-Run.
 
 ## Cleanup (March 2026) ✅
 

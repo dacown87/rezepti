@@ -61,13 +61,33 @@ Der Production-Build nutzt den aktuellen `Dockerfile`-Target `production` und ba
 ### Frontend-Build lokal
 
 ```bash
-cd mobile && npm ci
 npm run build:mobile
 ```
 
-Der lokale Expo-Web-Build braucht eigene `mobile/node_modules`. Im Docker-Build passiert das im `web-builder` automatisch.
+Der lokale Expo-Web-Build braucht eigene `mobile/node_modules` (`npm --prefix mobile ci`). Im Docker-Build passiert das im `web-builder` automatisch. Der Expo-Export schreibt `Exported: ../public`, kann lokal aber am Ende haengen; fuer wiederholte Performance-Iterationen den Export einmal laufen lassen und danach nur `perf:bundle`/`perf:lighthouse` ausfuehren.
 
 Nach Aenderungen an Expo-/React-Native-Abhaengigkeiten sollte zusaetzlich `cd mobile && CI=1 npx expo-doctor` gruen laufen. Fuer den aktuellen SDK-55-Stand sind insbesondere `react 19.2.0`, `react-dom 19.2.0`, `react-native 0.83.6` und `react-native-svg 15.15.3` der erwartete Zustand.
+
+### Mobile Release Gate & Performance
+
+```bash
+npm --prefix mobile run typecheck
+npm --prefix mobile run test:unit
+npm run test:unit
+npm run perf:bundle
+npm run perf:lighthouse:compare
+npm run perf:validate
+npm run perf:stability:seed
+npm run perf:budget:suggest
+```
+
+`perf:lighthouse:compare` misst die statische Expo-Web-Ausgabe mit `simulate` und `devtools` Throttling und schreibt `artifacts/performance/throttling-comparison.json`. Phase 4c ist abgeschlossen: die statische App-Shell in `mobile/app/+html.tsx` senkt die mobilen p50-LCP-Werte fuer `/shopping` und `/recipe/1` von ~25s auf ~0.9-1.45s.
+
+Strict-Hardening: `perf:stability:seed` automatisiert die 10 echten Runs, ohne `history.json` direkt zu editieren; pro Messung schreibt nur `perf:validate` die History. Der Seed fuehrt jetzt standardmaessig einen verworfenen Warm-up-`perf:lighthouse`-Lauf vor `lighthouse-1` aus, damit ein einzelner Cold-Run-Ausreisser nicht das gemessene 10er-Fenster vergiftet. Danach berechnet `perf:budget:suggest` Budget-Vorschlaege aus methodenmarkierten vollstaendigen Runs (`p95 * 1.10`).
+
+Die Freigabe fuer den ersten manuellen `strict`-Probe-Run ist jetzt explizit operationalisiert: `artifacts/performance/observation.json` muss `strictProbeEligible=true` melden. Das setzt `5` aufeinanderfolgende gruene CI-Warn-Runs, eine verifizierte `stability-seed.json` mit `bundle -> warmup -> lighthouse-1..10 -> validate-1..10` und `readiness.ready=true` voraus. PR-/Push-/Schedule-Runs bleiben bis dahin bewusst warn-only; `strict` ist weiterhin nur fuer einen manuellen Probe-Dispatch gedacht.
+
+Aktueller Stand 2026-05-12: Die 10er-Serie fuer `simulate`/`mobile-375x812` ist nicht-sandboxiert erfolgreich gelaufen (`fullCoverage=true`), `perf:budget:suggest` hat ein vollstaendiges `10/10`-Window ausgewertet, und `scripts/performance/baseline.json` wurde geschaerft. Ein einzelner `/`-Cold-Run-LCP-Ausreisser von 22378 ms wurde bewusst nicht als Budget uebernommen; die warmen `/`-Runs liegen bei ~903 ms.
 
 ---
 
@@ -134,6 +154,8 @@ BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-B
 - `TODO.md` — Aktuelle offene Punkte, QA-Befunde und Roadmap-Notizen
 - `test/README.md` — Teststruktur und lokale Testbefehle
 - `docs/TEST_STATUS.md` — Historischer Teststatus und bekannte Testlücken
+- `docs/performance/throttling-analysis.md` — Phase-4c Throttling-Vergleich, App-Shell-LCP-Fix und Budget-Hardening-Regeln
+- `docs/performance/strict-probe-runbook.md` — operative Checkliste fuer die 5-Run-Beobachtung und den ersten manuellen `strict`-Probe-Run
 - `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md` — Cleanup-Plan und finaler Review-Stand
 
 ---

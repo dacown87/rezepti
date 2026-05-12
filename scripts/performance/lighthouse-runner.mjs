@@ -4,6 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 const PUBLIC_DIR = path.resolve('public');
 const PERF_OUT_DIR = path.resolve('artifacts/performance');
@@ -16,6 +17,17 @@ const PORT = Number(process.env.PERF_LIGHTHOUSE_PORT || 4173);
 const MAX_RETRIES = Math.max(0, Number(process.env.PERF_LIGHTHOUSE_RETRIES || 1));
 const RETRY_DELAY_MS = Math.max(0, Number(process.env.PERF_LIGHTHOUSE_RETRY_DELAY_MS || 1500));
 const LIGHTHOUSE_TIMEOUT_MS = Math.max(30_000, Number(process.env.PERF_LIGHTHOUSE_TIMEOUT_MS || 180_000));
+export const VALID_LIGHTHOUSE_THROTTLING_METHODS = ['simulate', 'devtools'];
+
+export function normalizeLighthouseThrottling(value = process.env.LIGHTHOUSE_THROTTLING) {
+  const method = value || 'simulate';
+  if (!VALID_LIGHTHOUSE_THROTTLING_METHODS.includes(method)) {
+    throw new Error(`Invalid LIGHTHOUSE_THROTTLING: ${method}. Must be 'simulate' or 'devtools'.`);
+  }
+  return method;
+}
+
+const LIGHTHOUSE_THROTTLING = normalizeLighthouseThrottling();
 let activePort = 0;
 const require = createRequire(import.meta.url);
 
@@ -358,12 +370,12 @@ function reportBasename(route, viewportId) {
   return path.join(OUT_DIR, `${safeRoute}-${viewportId}`);
 }
 
-async function runLighthouse(url, route, viewport, logBuffer) {
+async function runLighthouse(url, route, viewport, throttlingMethod, logBuffer) {
   const launch = await resolveLighthouseLaunch();
   if (!launch) {
     logBuffer.push(logLine('WARN: Lighthouse CLI not found. Skipping Lighthouse (warn-only).'));
     logBuffer.push(logLine(machineReadableSkip('missing-lighthouse-cli')));
-    return { ok: false, skipped: true, reason: 'missing-lighthouse-cli', route, viewport: viewport.id };
+    return { ok: false, skipped: true, reason: 'missing-lighthouse-cli', route, viewport: viewport.id, throttlingMethod };
   }
 
   const outputBase = reportBasename(route, viewport.id);
@@ -371,7 +383,7 @@ async function runLighthouse(url, route, viewport, logBuffer) {
   if (!chromePath) {
     logBuffer.push(logLine('WARN: Chrome/Chromium executable not found. Skipping Lighthouse (warn-only).'));
     logBuffer.push(logLine(machineReadableSkip('missing-chrome')));
-    return { ok: false, skipped: true, reason: 'missing-chrome', route, viewport: viewport.id };
+    return { ok: false, skipped: true, reason: 'missing-chrome', route, viewport: viewport.id, throttlingMethod };
   }
 
   const args = [
@@ -384,7 +396,7 @@ async function runLighthouse(url, route, viewport, logBuffer) {
     `--output-path=${outputBase}`,
     `--chrome-path=${chromePath}`,
     '--chrome-flags=--headless=new --no-sandbox --disable-dev-shm-usage',
-    '--throttling-method=simulate',
+    `--throttling-method=${throttlingMethod}`,
     `--form-factor=${viewport.mobile ? 'mobile' : 'desktop'}`,
     `--screenEmulation.mobile=${viewport.mobile}`,
     `--screenEmulation.width=${viewport.width}`,
@@ -469,6 +481,7 @@ async function runLighthouse(url, route, viewport, logBuffer) {
       reason: 'lighthouse-run-failed',
       route,
       viewport: viewport.id,
+      throttlingMethod,
       exitCode: run.code,
       attempts: attempts.length,
       timedOut: run.timedOut,
@@ -477,7 +490,7 @@ async function runLighthouse(url, route, viewport, logBuffer) {
 
   const jsonPath = `${outputBase}.report.json`;
   const htmlPath = `${outputBase}.report.html`;
-  return { ok: true, route, viewport: viewport.id, jsonPath, htmlPath, attempts: attempts.length };
+  return { ok: true, route, viewport: viewport.id, jsonPath, htmlPath, attempts: attempts.length, throttlingMethod };
 }
 
 async function main() {
@@ -487,6 +500,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     mode: 'warn-only',
     lighthouse: 'running',
+    throttlingMethod: LIGHTHOUSE_THROTTLING,
     tool: 'lighthouse-runner',
   });
 
@@ -500,6 +514,7 @@ async function main() {
       lighthouse: 'skipped',
       skippedReason: 'missing-public-dir',
       skippedReasonCode: 'missing-public-dir',
+      throttlingMethod: LIGHTHOUSE_THROTTLING,
       tool: 'lighthouse-runner',
     });
     return;
@@ -527,6 +542,7 @@ async function main() {
         generatedAt: new Date().toISOString(),
         outputDir: OUT_DIR,
         routeMap: [],
+        throttlingMethod: LIGHTHOUSE_THROTTLING,
         viewports: VIEWPORTS,
         results: [],
         warnOnly: true,
@@ -539,6 +555,7 @@ async function main() {
         lighthouse: 'skipped',
         skippedReason: summary.skippedReason,
         skippedReasonCode: summary.skippedReason,
+        throttlingMethod: LIGHTHOUSE_THROTTLING,
         tool: 'lighthouse-runner',
       });
       console.warn('WARN: Lighthouse skipped (warn-only). See artifacts/performance/lighthouse/lighthouse-run.log');
@@ -580,6 +597,7 @@ async function main() {
         route: routeInfo.requested,
         viewport: viewport.id,
         attempts: 0,
+        throttlingMethod: LIGHTHOUSE_THROTTLING,
       });
     }
   }
@@ -590,8 +608,12 @@ async function main() {
       .map((entry) => entry.requested);
     const url = `${baseUrl}${target}`;
     for (const viewport of VIEWPORTS) {
-      logBuffer.push(logLine(`Running Lighthouse: [${requestedRoutes.join(', ')}] -> ${target} @ ${viewport.id}`));
-      const result = await runLighthouse(url, target, viewport, logBuffer);
+      logBuffer.push(
+        logLine(
+          `Running Lighthouse: [${requestedRoutes.join(', ')}] -> ${target} @ ${viewport.id} (throttling=${LIGHTHOUSE_THROTTLING})`,
+        ),
+      );
+      const result = await runLighthouse(url, target, viewport, LIGHTHOUSE_THROTTLING, logBuffer);
       results.push({ requestedRoutes, resolvedRoute: target, ...result });
     }
   }
@@ -606,6 +628,7 @@ async function main() {
     outputDir: OUT_DIR,
     routeMap,
     uniqueAuditedRoutes,
+    throttlingMethod: LIGHTHOUSE_THROTTLING,
     viewports: VIEWPORTS,
     results,
     warnOnly: true,
@@ -625,6 +648,7 @@ async function main() {
     successfulRuns: successCount,
     warningRuns: warnCount,
     skippedReasonCode: successCount > 0 ? null : (results.find((r) => r.reason)?.reason || null),
+    throttlingMethod: LIGHTHOUSE_THROTTLING,
     tool: 'lighthouse-runner',
   });
 
@@ -632,7 +656,11 @@ async function main() {
   logLine(`Artifacts: ${OUT_DIR}`);
 }
 
-main().catch(async (error) => {
+export async function runLighthouseRunner() {
+  return main();
+}
+
+async function handleMainError(error) {
   await mkdir(OUT_DIR, { recursive: true });
   const details = `WARN: Lighthouse automation crashed unexpectedly (warn-only).\n${String(error)}\n`;
   await writeFile(LOG_FILE, details, 'utf8');
@@ -641,7 +669,12 @@ main().catch(async (error) => {
     mode: 'warn-only',
     lighthouse: 'error',
     error: String(error),
+    throttlingMethod: LIGHTHOUSE_THROTTLING,
     tool: 'lighthouse-runner',
   });
   console.warn(details.trim());
-});
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(handleMainError);
+}

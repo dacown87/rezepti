@@ -2,6 +2,8 @@ import { access, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promi
 import { constants as fsConstants } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 const PUBLIC_DIR = path.resolve('public');
 const OUT_DIR = path.resolve('artifacts/performance');
@@ -42,6 +44,108 @@ function formatDelta(bytes) {
   return `${sign}${formatKb(Math.abs(bytes))}`;
 }
 
+export function createBundleRow({ filePath, content, type, hash }) {
+  const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
+  return {
+    path: filePath,
+    bytes: buffer.byteLength,
+    gzipBytes: gzipSync(buffer).byteLength,
+    hash: hash || createHash('sha1').update(buffer).digest('hex'),
+    type,
+  };
+}
+
+export function buildBundleReport(rows, baseline = null, generatedAt = new Date().toISOString()) {
+  const sortedRows = [...rows].sort((a, b) => b.bytes - a.bytes);
+  const top10 = sortedRows.slice(0, 10);
+  const uniqueRows = [];
+  const duplicateGroups = [];
+  const seenHashes = new Set();
+
+  for (const row of sortedRows) {
+    if (seenHashes.has(row.hash)) continue;
+    seenHashes.add(row.hash);
+    const aliases = sortedRows
+      .filter((candidate) => candidate.hash === row.hash)
+      .map((candidate) => candidate.path);
+    uniqueRows.push({
+      path: row.path,
+      bytes: row.bytes,
+      gzipBytes: Number(row.gzipBytes || 0),
+      type: row.type,
+      aliases,
+      aliasCount: aliases.length,
+    });
+    if (aliases.length > 1) {
+      duplicateGroups.push({
+        path: row.path,
+        bytes: row.bytes,
+        gzipBytes: Number(row.gzipBytes || 0),
+        type: row.type,
+        aliases,
+        aliasCount: aliases.length,
+      });
+    }
+  }
+
+  const totals = {
+    files: sortedRows.length,
+    totalBytes: sortedRows.reduce((sum, row) => sum + Number(row.bytes || 0), 0),
+    jsBytes: sortedRows.filter((row) => row.type === 'js').reduce((sum, row) => sum + Number(row.bytes || 0), 0),
+    cssBytes: sortedRows.filter((row) => row.type === 'css').reduce((sum, row) => sum + Number(row.bytes || 0), 0),
+    htmlBytes: sortedRows.filter((row) => row.type === 'html').reduce((sum, row) => sum + Number(row.bytes || 0), 0),
+    gzipJsBytes: sortedRows
+      .filter((row) => row.type === 'js')
+      .reduce((sum, row) => sum + Number(row.gzipBytes || 0), 0),
+  };
+  const largestJsAsset = sortedRows.find((row) => row.type === 'js') || null;
+  const limits = baseline?.bundle?.limits || {};
+  const baselineChecks = [
+    ['files', Number(totals.files || 0), Number(limits.maxFiles || 0)],
+    ['jsBytes', Number(totals.jsBytes || 0), Number(limits.maxJsBytes || 0)],
+    ['gzipJsBytes', Number(totals.gzipJsBytes || 0), Number(limits.maxGzipJsBytes || 0)],
+    ['cssBytes', Number(totals.cssBytes || 0), Number(limits.maxCssBytes || 0)],
+    ['largestJsAssetBytes', Number(largestJsAsset?.bytes || 0), Number(limits.maxLargestJsAssetBytes || 0)],
+  ]
+    .filter(([, , limit]) => limit > 0)
+    .map(([key, value, limit]) => ({
+      key,
+      value,
+      limit,
+      delta: value - limit,
+      status: value > limit ? 'over' : 'within',
+    }));
+
+  return {
+    generatedAt,
+    totals,
+    largestJsAsset,
+    top10,
+    top10Unique: uniqueRows.slice(0, 10),
+    duplicateGroups,
+    baseline: baseline
+      ? {
+          path: path.relative(process.cwd(), BASELINE_PATH),
+          checks: baselineChecks,
+        }
+      : null,
+  };
+}
+
+export function createMissingPublicReport(generatedAt = new Date().toISOString()) {
+  return {
+    generatedAt,
+    warnOnly: true,
+    skippedReason: 'missing-public-dir',
+    totals: { files: 0, totalBytes: 0, jsBytes: 0, cssBytes: 0, htmlBytes: 0, gzipJsBytes: 0 },
+    largestJsAsset: null,
+    top10: [],
+    top10Unique: [],
+    duplicateGroups: [],
+    baseline: null,
+  };
+}
+
 async function readJsonIfExists(filePath) {
   if (!(await exists(filePath))) return null;
   return JSON.parse(await readFile(filePath, 'utf8'));
@@ -52,13 +156,7 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
   if (!(await exists(PUBLIC_DIR))) {
-    const report = {
-      generatedAt: new Date().toISOString(),
-      warnOnly: true,
-      skippedReason: 'missing-public-dir',
-      totals: { files: 0, totalBytes: 0, jsBytes: 0, cssBytes: 0, htmlBytes: 0 },
-      top10: [],
-    };
+    const report = createMissingPublicReport();
     await writeFile(
       path.join(BUNDLE_DIR, 'bundle-report.json'),
       `${JSON.stringify(report, null, 2)}\n`,
@@ -80,85 +178,19 @@ async function main() {
 
   const rows = [];
   for (const file of relevant) {
-    const s = await stat(file);
     const content = await readFile(file);
-    const hash = createHash('sha1').update(content).digest('hex');
-    rows.push({
-      path: path.relative(process.cwd(), file),
-      bytes: s.size,
-      hash,
-      type: path.extname(file).slice(1),
-    });
+    const s = await stat(file);
+    rows.push(
+      createBundleRow({
+        filePath: path.relative(process.cwd(), file),
+        content,
+        type: path.extname(file).slice(1),
+        hash: createHash('sha1').update(content).digest('hex'),
+      }),
+    );
   }
-
-  rows.sort((a, b) => b.bytes - a.bytes);
-  const top10 = rows.slice(0, 10);
-  const uniqueRows = [];
-  const duplicateGroups = [];
-  const seenHashes = new Set();
-
-  for (const row of rows) {
-    if (seenHashes.has(row.hash)) continue;
-    seenHashes.add(row.hash);
-    const aliases = rows.filter((candidate) => candidate.hash === row.hash).map((candidate) => candidate.path);
-    uniqueRows.push({
-      path: row.path,
-      bytes: row.bytes,
-      type: row.type,
-      aliases,
-      aliasCount: aliases.length,
-    });
-    if (aliases.length > 1) {
-      duplicateGroups.push({
-        path: row.path,
-        bytes: row.bytes,
-        type: row.type,
-        aliases,
-        aliasCount: aliases.length,
-      });
-    }
-  }
-
-  const top10Unique = uniqueRows.slice(0, 10);
-  const totals = {
-    files: rows.length,
-    totalBytes: rows.reduce((sum, row) => sum + row.bytes, 0),
-    jsBytes: rows.filter((r) => r.path.endsWith('.js')).reduce((sum, row) => sum + row.bytes, 0),
-    cssBytes: rows.filter((r) => r.path.endsWith('.css')).reduce((sum, row) => sum + row.bytes, 0),
-    htmlBytes: rows.filter((r) => r.path.endsWith('.html')).reduce((sum, row) => sum + row.bytes, 0),
-  };
-  const largestJsAsset = rows.find((row) => row.path.endsWith('.js')) || null;
   const baseline = await readJsonIfExists(BASELINE_PATH);
-  const limits = baseline?.bundle?.limits || {};
-  const baselineChecks = [
-    ['files', Number(totals.files || 0), Number(limits.maxFiles || 0)],
-    ['jsBytes', Number(totals.jsBytes || 0), Number(limits.maxJsBytes || 0)],
-    ['cssBytes', Number(totals.cssBytes || 0), Number(limits.maxCssBytes || 0)],
-    ['largestJsAssetBytes', Number(largestJsAsset?.bytes || 0), Number(limits.maxLargestJsAssetBytes || 0)],
-  ]
-    .filter(([, , limit]) => limit > 0)
-    .map(([key, value, limit]) => ({
-      key,
-      value,
-      limit,
-      delta: value - limit,
-      status: value > limit ? 'over' : 'within',
-    }));
-
-  const report = {
-    generatedAt: new Date().toISOString(),
-    totals,
-    largestJsAsset,
-    top10,
-    top10Unique,
-    duplicateGroups,
-    baseline: baseline
-      ? {
-          path: path.relative(process.cwd(), BASELINE_PATH),
-          checks: baselineChecks,
-        }
-      : null,
-  };
+  const report = buildBundleReport(rows, baseline);
 
   await writeFile(
     path.join(BUNDLE_DIR, 'bundle-report.json'),
@@ -172,35 +204,36 @@ async function main() {
     `Generated: ${report.generatedAt}`,
     '',
     '## Bundle Totals',
-    `- Files: ${totals.files}`,
-    `- Total size: ${formatKb(totals.totalBytes)}`,
-    `- JS: ${formatKb(totals.jsBytes)}`,
-    `- CSS: ${formatKb(totals.cssBytes)}`,
-    `- HTML: ${formatKb(totals.htmlBytes)}`,
+    `- Files: ${report.totals.files}`,
+    `- Total size: ${formatKb(report.totals.totalBytes)}`,
+    `- JS: ${formatKb(report.totals.jsBytes)}`,
+    `- JS (gzip): ${formatKb(report.totals.gzipJsBytes)}`,
+    `- CSS: ${formatKb(report.totals.cssBytes)}`,
+    `- HTML: ${formatKb(report.totals.htmlBytes)}`,
     '',
     '## Budget Signals',
-    largestJsAsset
-      ? `- Largest JS asset: ${largestJsAsset.path} (${formatKb(largestJsAsset.bytes)})`
+    report.largestJsAsset
+      ? `- Largest JS asset: ${report.largestJsAsset.path} (${formatKb(report.largestJsAsset.bytes)}, gzip ${formatKb(report.largestJsAsset.gzipBytes)})`
       : '- Largest JS asset: none',
-    ...baselineChecks.length
-      ? baselineChecks.map(
+    ...report.baseline?.checks?.length
+      ? report.baseline.checks.map(
           (check) =>
             `- ${check.key}: ${check.status === 'over' ? 'WARN' : 'OK'} (${formatKb(check.value)} vs ${formatKb(check.limit)}, ${formatDelta(check.delta)})`,
         )
       : ['- No active bundle baseline limits found.'],
     '',
     '## Top 10 Largest Assets',
-    ...top10.map((row, index) => `${index + 1}. ${row.path} — ${formatKb(row.bytes)}`),
+    ...report.top10.map((row, index) => `${index + 1}. ${row.path} — ${formatKb(row.bytes)}`),
     '',
     '## Top 10 Largest Unique Assets',
-    ...top10Unique.map((row, index) => {
+    ...report.top10Unique.map((row, index) => {
       const aliasInfo = row.aliasCount > 1 ? ` (${row.aliasCount} aliases)` : '';
       return `${index + 1}. ${row.path} — ${formatKb(row.bytes)}${aliasInfo}`;
     }),
     '',
     '## Duplicate Asset Groups',
-    ...(duplicateGroups.length > 0
-      ? duplicateGroups.slice(0, 10).map(
+    ...(report.duplicateGroups.length > 0
+      ? report.duplicateGroups.slice(0, 10).map(
           (group, index) =>
             `${index + 1}. ${group.path} — ${formatKb(group.bytes)} duplicated across ${group.aliasCount} paths`,
         )
@@ -213,7 +246,12 @@ async function main() {
   console.log(`Summary written to ${SUMMARY_PATH}`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isCliEntry =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isCliEntry) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
