@@ -24,3 +24,4 @@ artifacts/*
 artifacts/performance/*
 !artifacts/performance/history.json
 !artifacts/performance/readiness.json
+!artifacts/performance/stability-seed.json

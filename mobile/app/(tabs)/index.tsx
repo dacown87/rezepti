@@ -13,7 +13,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Recipe } from '@/db/schema';
-import { shareRecipePDF, shareRecipeCardsPDF } from '@/utils/pdf-export';
 import { getServerUrl } from '@/utils/server-url';
 import type { ApiRecipe } from '@/utils/api';
 import { useRecipes } from '@/hooks/useRecipes';
@@ -248,7 +247,8 @@ export default function RecipeListScreen() {
     setExporting(true);
     try {
       const toExport = recipes.filter(r => selectedIds.has(r.id));
-      await shareRecipeCardsPDF(toExport as Parameters<typeof shareRecipeCardsPDF>[0]);
+      const { shareRecipeCardsPDF } = await import('@/utils/pdf-export');
+      await shareRecipeCardsPDF(toExport);
     } catch { /* ignore */ } finally {
       setExporting(false);
     }

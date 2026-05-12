@@ -38,6 +38,7 @@ Alle Bedingungen muessen gleichzeitig erfuellt sein:
    - `strictProbeEligible=true`
    - `runs.consecutiveGreenRuns >= 5`
 4. Die 5 CI-Runs muessen echte Warn-Mode-Runs sein, keine lokalen Seeds
+5. GitHub-Reruns erhoehen den Zaehler nicht; es zaehlen nur eigenstaendige Workflow-Runs mit neuer `github.run_id`
 
 ## Green Run Definition
 
@@ -108,4 +109,3 @@ Wenn der Probe-Run rot ist:
 - kein zweiter `strict`-Run im Reflex
 - zuerst Artefakte sichern
 - Ursache als Budget-, Flake- oder Infrastrukturproblem klassifizieren
-

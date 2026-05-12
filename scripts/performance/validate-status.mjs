@@ -465,9 +465,9 @@ export function evaluateStrictObservation({
   const orderedHistory = [...(Array.isArray(history) ? history : [])]
     .filter((entry) => entry && typeof entry === 'object')
     .sort((left, right) => String(left.timestamp || '').localeCompare(String(right.timestamp || '')));
-  const ciWarnRuns = orderedHistory.filter(
+  const ciWarnRuns = collapseObservationRuns(orderedHistory.filter(
     (run) => getRunSource(run) === 'ci' && String(run.enforcementLevel || '') === 'warn',
-  );
+  ));
   const recentCiWarnRuns = ciWarnRuns.slice(-requiredGreenRuns);
   const recentStatuses = recentCiWarnRuns.map((run) => ({
     runId: run.runId,
@@ -536,6 +536,37 @@ export function evaluateStrictObservation({
       readiness?.ready === true &&
       seedVerification.ready === true,
   };
+}
+
+export function collapseObservationRuns(runs) {
+  const orderedRuns = [...(Array.isArray(runs) ? runs : [])]
+    .filter((run) => run && typeof run === 'object')
+    .sort((left, right) => String(left.timestamp || '').localeCompare(String(right.timestamp || '')));
+  const byGithubRunId = new Map();
+  const passthroughRuns = [];
+
+  for (const run of orderedRuns) {
+    const githubRunId = run.githubRunId ? String(run.githubRunId) : null;
+    if (!githubRunId) {
+      passthroughRuns.push(run);
+      continue;
+    }
+
+    const previous = byGithubRunId.get(githubRunId);
+    const previousAttempt = Number(previous?.runAttempt || 0);
+    const nextAttempt = Number(run.runAttempt || 0);
+    if (
+      !previous ||
+      nextAttempt > previousAttempt ||
+      (nextAttempt === previousAttempt && String(run.timestamp || '') >= String(previous.timestamp || ''))
+    ) {
+      byGithubRunId.set(githubRunId, run);
+    }
+  }
+
+  return [...passthroughRuns, ...byGithubRunId.values()].sort(
+    (left, right) => String(left.timestamp || '').localeCompare(String(right.timestamp || '')),
+  );
 }
 
 function renderHistorySection(readiness) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  collapseObservationRuns,
   createPerformanceRunId,
   evaluateStabilitySeedVerification,
   evaluateStrictObservation,
@@ -213,5 +214,100 @@ describe('validate-status performance budgets', () => {
     expect(observation.runs.consecutiveGreenRuns).toBe(5);
     expect(observation.strictProbeEligible).toBe(true);
     expect(observation.blockers).toEqual([]);
+  });
+
+  it('collapses reruns so only the latest attempt of one GitHub run counts toward observation', () => {
+    const runs = [
+      {
+        runId: '25732620530-attempt-1-a',
+        timestamp: '2026-05-12T08:00:00.000Z',
+        source: 'ci',
+        githubRunId: '25732620530',
+        runAttempt: '1',
+        enforcementLevel: 'warn',
+        mode: 'warn-only',
+        lighthouse: 'failed',
+        throttlingMethod: 'simulate',
+        expectedRuns: 9,
+        successfulRuns: 8,
+        warningRuns: 1,
+        unavailableRouteCount: 0,
+        findingsCount: 1,
+        budgetPass: false,
+        validateExitCode: 0,
+      },
+      {
+        runId: '25732620530-attempt-2-b',
+        timestamp: '2026-05-12T08:10:00.000Z',
+        source: 'ci',
+        githubRunId: '25732620530',
+        runAttempt: '2',
+        enforcementLevel: 'warn',
+        mode: 'warn-only',
+        lighthouse: 'ok',
+        throttlingMethod: 'simulate',
+        expectedRuns: 9,
+        successfulRuns: 9,
+        warningRuns: 0,
+        unavailableRouteCount: 0,
+        findingsCount: 0,
+        budgetPass: true,
+        validateExitCode: 0,
+      },
+      ...Array.from({ length: 4 }, (_, index) => ({
+        runId: `2573262053${index + 1}-attempt-1`,
+        timestamp: `2026-05-12T09:0${index}:00.000Z`,
+        source: 'ci',
+        githubRunId: `2573262053${index + 1}`,
+        runAttempt: '1',
+        enforcementLevel: 'warn',
+        mode: 'warn-only',
+        lighthouse: 'ok',
+        throttlingMethod: 'simulate',
+        expectedRuns: 9,
+        successfulRuns: 9,
+        warningRuns: 0,
+        unavailableRouteCount: 0,
+        findingsCount: 0,
+        budgetPass: true,
+        validateExitCode: 0,
+      })),
+    ];
+
+    expect(collapseObservationRuns(runs)).toHaveLength(5);
+
+    const observation = evaluateStrictObservation({
+      history: runs,
+      readiness: {
+        ready: true,
+        checks: { metricStabilityMet: true },
+        window: { runs: 10, lastTimestamp: '2026-05-12T09:03:00.000Z' },
+      },
+      stabilitySeed: {
+        status: 'ok',
+        config: { runs: 10, method: 'simulate', runBundle: true, runWarmup: true },
+        verification: {
+          orderOk: true,
+          sequenceComplete: true,
+          bundlePresent: true,
+          warmupPresent: true,
+          historyWritesOnlyValidate: true,
+          expectedHistoryWrites: 10,
+          actualHistoryWrites: 10,
+          historyWritesMatchExpected: true,
+          warmupHistoryWriteDetected: false,
+        },
+      },
+      requiredGreenRuns: 5,
+      expectedRuns: 9,
+      method: 'simulate',
+      requiredStabilityRuns: 10,
+    });
+
+    expect(observation.runs.ciWarnRuns).toBe(5);
+    expect(observation.runs.consecutiveGreenRuns).toBe(5);
+    expect(observation.runs.recentRunIds).toContain('25732620530-attempt-2-b');
+    expect(observation.runs.recentRunIds).not.toContain('25732620530-attempt-1-a');
+    expect(observation.strictProbeEligible).toBe(true);
   });
 });

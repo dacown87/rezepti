@@ -17,7 +17,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Recipe } from '@/db/schema';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
-import { shareRecipePDF } from '@/utils/pdf-export';
 import { StepText } from '@/components/StepText';
 import { addIngredients } from '@/utils/shopping-service';
 import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
@@ -399,7 +398,10 @@ export default function RecipeDetailScreen() {
   // ── PDF ────────────────────────────────────────────────────────────────────
   const handlePDF = async () => {
     if (!recipe) return;
-    try { await shareRecipePDF(recipe as Parameters<typeof shareRecipePDF>[0]); }
+    try {
+      const { shareRecipePDF } = await import('@/utils/pdf-export');
+      await shareRecipePDF(recipe);
+    }
     catch { /* ignore */ }
   };
 

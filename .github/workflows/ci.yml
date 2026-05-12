@@ -183,10 +183,9 @@ jobs:
           path: |
             artifacts/performance/history.json
             artifacts/performance/readiness.json
-          key: performance-history-${{ github.ref_name }}-${{ github.run_id }}
+          key: performance-history-v2-${{ github.ref_name }}-${{ github.run_id }}
           restore-keys: |
-            performance-history-${{ github.ref_name }}-
-            performance-history-
+            performance-history-v2-${{ github.ref_name }}-
 
       - name: Setup Chrome for Lighthouse
         uses: browser-actions/setup-chrome@v1
@@ -231,7 +230,7 @@ jobs:
           path: |
             artifacts/performance/history.json
             artifacts/performance/readiness.json
-          key: performance-history-${{ github.ref_name }}-${{ github.run_id }}
+          key: performance-history-v2-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Upload performance artifacts
         if: always()
