@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useDeferredValue, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,18 +19,23 @@ import ScannerCamera from '@/components/ScannerCamera';
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr';
 
 import type { Recipe, MealPlanEntry } from '@/db/schema';
-import { addIngredients } from '@/app/(tabs)/shopping';
+import { addIngredients } from '@/utils/shopping-service';
 import { getServerUrl } from '@/utils/server-url';
+import {
+  buildRecipeIdMap,
+  filterPickerRecipes,
+  groupEntriesByDay,
+  pickRecipesByIds,
+} from '@/utils/planner-screen-data';
 
 // ─── Server API helpers ───────────────────────────────────────────────────────
 
 async function loadAllRecipes(): Promise<Recipe[]> {
-  {
-    const serverUrl = await getServerUrl();
-    const res = await fetch(`${serverUrl}/api/v1/recipes`);
-    if (!res.ok) return [];
-    const data: Array<Record<string, unknown>> = await res.json();
-    return data.map(r => ({
+  const serverUrl = await getServerUrl();
+  const res = await fetch(`${serverUrl}/api/v1/recipes`);
+  if (!res.ok) return [];
+  const data: Array<Record<string, unknown>> = await res.json();
+  return data.map(r => ({
       id: Number(r.id),
       name: String(r.name),
       emoji: (r.emoji as string | null) ?? null,
@@ -47,12 +52,12 @@ async function loadAllRecipes(): Promise<Recipe[]> {
       notes: (r.notes as string | null) ?? null,
       equipment: null,
       nutrition_info: null,
+      ingredient_groups: null,
       transcript: null,
       tried: 0,
       pdf_created: 0,
       created_at: null,
     }));
-  }
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -103,7 +108,6 @@ function RecipePickerModal({
   onSelect: (recipeId: number) => void;
 }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [filtered, setFiltered] = useState<Recipe[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -111,15 +115,16 @@ function RecipePickerModal({
     if (!visible) return;
     setLoading(true);
     loadAllRecipes()
-      .then(rows => { setRecipes(rows); setFiltered(rows); })
+      .then(rows => { setRecipes(rows); })
+      .catch(() => { /* stay empty, loading stops in finally */ })
       .finally(() => setLoading(false));
   }, [visible]);
 
-  useEffect(() => {
-    if (!search.trim()) { setFiltered(recipes); return; }
-    const q = search.toLowerCase();
-    setFiltered(recipes.filter(r => r.name.toLowerCase().includes(q)));
-  }, [search, recipes]);
+  const deferredSearch = useDeferredValue(search);
+  const filtered = useMemo(
+    () => filterPickerRecipes(recipes, deferredSearch),
+    [recipes, deferredSearch],
+  );
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -257,13 +262,14 @@ function QRScannerModal({
 
 // ─── Day Column ──────────────────────────────────────────────────────────────
 
-function DayColumn({
+const DayColumn = React.memo(function DayColumn({
   dayIndex,
   monday,
   entries,
   recipes,
   onAdd,
   onRemove,
+  mutationPending,
 }: {
   dayIndex: number;
   monday: Date;
@@ -271,6 +277,7 @@ function DayColumn({
   recipes: Map<number, Recipe>;
   onAdd: (dayIndex: number) => void;
   onRemove: (entryId: number) => void;
+  mutationPending: boolean;
 }) {
   const today = isToday(monday, dayIndex);
   const dateLabel = formatDateLabel(monday, dayIndex);
@@ -298,7 +305,7 @@ function DayColumn({
               <Text className="flex-1 text-xs text-warm-700 dark:text-warm-200 leading-4" numberOfLines={2}>
                 {recipe?.name ?? `Rezept #${entry.recipe_id}`}
               </Text>
-              <Pressable onPress={() => onRemove(entry.id)} hitSlop={8}>
+              <Pressable onPress={() => onRemove(entry.id)} hitSlop={8} disabled={mutationPending}>
                 <Trash2 size={12} color="#d1d5db" />
               </Pressable>
             </View>
@@ -309,13 +316,14 @@ function DayColumn({
       {/* Add button */}
       <Pressable
         onPress={() => onAdd(dayIndex)}
-        className="mx-2 mb-2 py-2 rounded-xl border border-dashed border-warm-200 dark:border-warm-700 items-center"
+        disabled={mutationPending}
+        className={`mx-2 mb-2 py-2 rounded-xl border border-dashed items-center ${mutationPending ? 'border-warm-100 dark:border-warm-800 opacity-50' : 'border-warm-200 dark:border-warm-700'}`}
       >
         <Plus size={14} color="#9E8878" />
       </Pressable>
     </View>
   );
-}
+});
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -324,6 +332,10 @@ export default function PlannerScreen() {
   const [mealPlan, setMealPlan] = useState<MealPlanEntry[]>([]);
   const [recipes, setRecipes] = useState<Map<number, Recipe>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [plannerError, setPlannerError] = useState<string | null>(null);
+  const [retryPlannerAction, setRetryPlannerAction] = useState<null | (() => Promise<void>)>(null);
+  const [retryingPlannerAction, setRetryingPlannerAction] = useState(false);
+  const [plannerMutationPending, setPlannerMutationPending] = useState(false);
   const [methodDay, setMethodDay] = useState<number | null>(null);   // Auswahl-Modal
   const [pickerDay, setPickerDay] = useState<number | null>(null);   // Rezept-Picker
   const [qrDay, setQrDay] = useState<number | null>(null);           // QR-Scanner
@@ -331,28 +343,37 @@ export default function PlannerScreen() {
   const weekStart = Math.floor(monday.getTime() / 1000);
 
   const loadData = useCallback(async () => {
-    const serverUrl = await getServerUrl();
-    const res = await fetch(`${serverUrl}/api/v1/planner?week=${weekStart}`);
-    const body = res.ok ? await res.json() : {};
-    const entries: MealPlanEntry[] = Array.isArray(body) ? body : (body.entries ?? []);
-    setMealPlan(entries);
+    try {
+      const serverUrl = await getServerUrl();
+      const res = await fetch(`${serverUrl}/api/v1/planner?week=${weekStart}`);
+      const body = res.ok ? await res.json() : {};
+      const entries: MealPlanEntry[] = Array.isArray(body) ? body : (body.entries ?? []);
+      setMealPlan(entries);
 
-    const usedIds = [...new Set(entries.map(e => e.recipe_id))];
-    if (usedIds.length === 0) { setRecipes(new Map()); return; }
+      const usedIds = [...new Set(entries.map(e => e.recipe_id))];
+      if (usedIds.length === 0) {
+        setRecipes(new Map());
+        clearPlannerError();
+        return;
+      }
 
-    const all = await loadAllRecipes();
-    const map = new Map(all.map(r => [r.id, r]));
-    const filtered = usedIds.reduce((acc, id) => {
-      const r = map.get(id);
-      if (r) acc.set(id, r);
-      return acc;
-    }, new Map<number, Recipe>());
-    setRecipes(filtered);
+      const all = await loadAllRecipes();
+      setRecipes(pickRecipesByIds(all, usedIds));
+      clearPlannerError();
+    } catch {
+      handlePlannerActionError(
+        'Wochenplan konnte nicht geladen werden.',
+        async () => loadData(),
+      );
+      throw new Error('Wochenplan konnte nicht geladen werden.');
+    }
   }, [weekStart]);
 
   useEffect(() => {
     setLoading(true);
-    loadData().finally(() => setLoading(false));
+    loadData()
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   }, [loadData]);
 
   const goToPrevWeek = () => {
@@ -369,21 +390,53 @@ export default function PlannerScreen() {
 
   const goToCurrentWeek = () => setMonday(getMondayOf(new Date()));
 
-  const handleAddWeekToShopping = async () => {
-    const allRecipes = await loadAllRecipes();
-    const recipeMap = new Map(allRecipes.map(r => [r.id, r]));
-    const ids = [...new Set(mealPlan.map(e => e.recipe_id))];
-    const ingredients: string[] = [];
-    for (const id of ids) {
-      const r = recipeMap.get(id);
-      if (r) {
-        const ings = parseJSON<string[]>(r.ingredients, []);
-        ingredients.push(...ings);
-      }
+  const clearPlannerError = () => {
+    setPlannerError(null);
+    setRetryPlannerAction(null);
+  };
+
+  const handlePlannerActionError = (message: string, retry: () => Promise<void>) => {
+    setPlannerError(message);
+    setRetryPlannerAction(() => retry);
+  };
+
+  const runRetryPlannerAction = async () => {
+    if (!retryPlannerAction) return;
+    try {
+      setRetryingPlannerAction(true);
+      await retryPlannerAction();
+      setPlannerError(null);
+      setRetryPlannerAction(null);
+    } catch (error) {
+      setPlannerError(error instanceof Error ? error.message : 'Erneuter Versuch fehlgeschlagen');
+    } finally {
+      setRetryingPlannerAction(false);
     }
-    if (ingredients.length === 0) return;
-    await addIngredients(ingredients);
-    router.navigate('/(tabs)/shopping' as never);
+  };
+
+  const handleAddWeekToShopping = async () => {
+    clearPlannerError();
+    try {
+      const allRecipes = await loadAllRecipes();
+      const recipeMap = buildRecipeIdMap(allRecipes);
+      const ids = [...new Set(mealPlan.map(e => e.recipe_id))];
+      const ingredients: string[] = [];
+      for (const id of ids) {
+        const r = recipeMap.get(id);
+        if (r) {
+          const ings = parseJSON<string[]>(r.ingredients, []);
+          ingredients.push(...ings);
+        }
+      }
+      if (ingredients.length === 0) return;
+      await addIngredients(ingredients);
+      router.navigate('/(tabs)/shopping' as never);
+    } catch {
+      handlePlannerActionError(
+        'Einkaufsliste konnte nicht erstellt werden.',
+        async () => handleAddWeekToShopping(),
+      );
+    }
   };
 
   const handleQRScanned = async (value: string) => {
@@ -396,13 +449,30 @@ export default function PlannerScreen() {
     if (urlMatch) {
       const recipeId = parseInt(urlMatch[1], 10);
       if (targetDay !== null) {
-        await fetch(`${serverUrl}/api/v1/planner`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
-        });
-        await loadData();
-        Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
+        try {
+          const res = await fetch(`${serverUrl}/api/v1/planner`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
+          });
+          if (!res.ok) throw new Error(`Planner POST failed (${res.status})`);
+          await loadData();
+          Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
+        } catch {
+          handlePlannerActionError(
+            'Rezept konnte nicht zum Wochenplan hinzugefügt werden.',
+            async () => {
+              const res2 = await fetch(`${serverUrl}/api/v1/planner`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
+              });
+              if (!res2.ok) throw new Error(`Planner POST failed (${res2.status})`);
+              await loadData();
+              Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
+            },
+          );
+        }
       }
       return;
     }
@@ -449,31 +519,62 @@ export default function PlannerScreen() {
     Alert.alert('Importiert', `"${data.name}" wurde importiert und zum Planer hinzugefügt.`);
   };
 
-  const handleAddRecipe = async (recipeId: number) => {
-    if (pickerDay === null) return;
-    const serverUrl = await getServerUrl();
-    await fetch(`${serverUrl}/api/v1/planner`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipeId, dayOfWeek: pickerDay, weekStart }),
-    });
-    await loadData();
+  const handleAddRecipe = async (recipeId: number, dayOverride?: number) => {
+    const targetDay = dayOverride ?? pickerDay;
+    if (targetDay === null || plannerMutationPending) return;
+    clearPlannerError();
+    setPlannerMutationPending(true);
+    try {
+      const serverUrl = await getServerUrl();
+      const res = await fetch(`${serverUrl}/api/v1/planner`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
+      });
+      if (!res.ok) throw new Error('Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
+      await loadData();
+    } catch {
+      handlePlannerActionError(
+        'Rezept konnte nicht zum Wochenplan hinzugefügt werden.',
+        async () => handleAddRecipe(recipeId, targetDay),
+      );
+    } finally {
+      setPlannerMutationPending(false);
+    }
   };
 
-  const handleRemoveEntry = async (entryId: number) => {
+  const retryRemoveEntry = async (entryId: number) => {
+    clearPlannerError();
+    setPlannerMutationPending(true);
+    try {
+      const serverUrl = await getServerUrl();
+      const res = await fetch(`${serverUrl}/api/v1/planner/${entryId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Rezept konnte nicht entfernt werden.');
+      await loadData();
+    } catch {
+      handlePlannerActionError(
+        'Rezept konnte nicht entfernt werden.',
+        async () => retryRemoveEntry(entryId),
+      );
+    } finally {
+      setPlannerMutationPending(false);
+    }
+  };
+
+  const handleRemoveEntry = useCallback(async (entryId: number) => {
+    if (plannerMutationPending) return;
     Alert.alert('Entfernen', 'Rezept aus dem Planer entfernen?', [
       { text: 'Abbrechen', style: 'cancel' },
       {
         text: 'Entfernen',
         style: 'destructive',
-        onPress: async () => {
-          const serverUrl = await getServerUrl();
-          await fetch(`${serverUrl}/api/v1/planner/${entryId}`, { method: 'DELETE' });
-          await loadData();
-        },
+        onPress: async () => retryRemoveEntry(entryId),
       },
     ]);
-  };
+  // retryRemoveEntry is defined in the same render scope; the Alert callback
+  // captures it by closure at the time the Alert is shown, which is correct.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plannerMutationPending]);
 
   const weekLabel = (() => {
     const end = new Date(monday);
@@ -482,6 +583,8 @@ export default function PlannerScreen() {
   })();
 
   const isCurrentWeek = monday.getTime() === getMondayOf(new Date()).getTime();
+
+  const entriesByDay = useMemo(() => groupEntriesByDay(mealPlan), [mealPlan]);
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
@@ -516,6 +619,31 @@ export default function PlannerScreen() {
             <ChevronRight size={18} color="#9E8878" />
           </Pressable>
         </View>
+
+        {plannerError && (
+          <View className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+            <Text className="text-sm text-red-700">{plannerError}</Text>
+            <View className="mt-2 flex-row gap-2">
+              {retryPlannerAction && (
+                <Pressable
+                  onPress={runRetryPlannerAction}
+                  disabled={retryingPlannerAction}
+                  className={`rounded-lg px-3 py-1.5 ${retryingPlannerAction ? 'bg-red-200' : 'bg-red-600'}`}
+                >
+                  <Text className="text-xs font-medium text-white">
+                    {retryingPlannerAction ? 'Wird versucht…' : 'Erneut versuchen'}
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable onPress={clearPlannerError} className="rounded-lg bg-red-100 px-3 py-1.5">
+                <Text className="text-xs font-medium text-red-700">Schließen</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+        {plannerMutationPending && (
+          <Text className="mt-2 text-xs text-warm-500 dark:text-warm-400">Änderung wird gespeichert…</Text>
+        )}
       </View>
 
       {/* Day columns */}
@@ -529,20 +657,18 @@ export default function PlannerScreen() {
           showsHorizontalScrollIndicator={Platform.OS === 'web'}
           contentContainerStyle={{ padding: 16, paddingTop: 8, ...(Platform.OS === 'web' ? { minWidth: '100%' } : { flexGrow: 1 }) }}
         >
-          {DAYS_FULL.map((dayName, dayIndex) => {
-            const dayEntries = mealPlan.filter(e => e.day_of_week === dayIndex);
-            return (
-              <DayColumn
-                key={dayIndex}
-                dayIndex={dayIndex}
-                monday={monday}
-                entries={dayEntries}
-                recipes={recipes}
-                onAdd={setMethodDay}
-                onRemove={handleRemoveEntry}
-              />
-            );
-          })}
+          {DAYS_FULL.map((_dayName, dayIndex) => (
+            <DayColumn
+              key={dayIndex}
+              dayIndex={dayIndex}
+              monday={monday}
+              entries={entriesByDay.get(dayIndex) ?? []}
+              recipes={recipes}
+              onAdd={setMethodDay}
+              onRemove={handleRemoveEntry}
+              mutationPending={plannerMutationPending}
+            />
+          ))}
         </ScrollView>
       )}
 

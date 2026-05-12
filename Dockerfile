@@ -27,6 +27,17 @@ COPY src/ ./src/
 # Falls tsc hier scheitert, zuerst 'npx tsc --noEmit' lokal prüfen.
 RUN npx tsc
 
+# ─── web-builder ──────────────────────────────────────────────────────────────
+FROM node:20-slim AS web-builder
+
+WORKDIR /app
+
+COPY mobile/package*.json ./mobile/
+RUN cd mobile && npm ci
+
+COPY mobile/ ./mobile/
+RUN cd mobile && CI=1 npx expo export --platform web --output-dir ../public
+
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production
 
@@ -36,12 +47,13 @@ COPY .npmrc package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
-COPY public/ ./public/
+COPY --from=web-builder /app/public ./public
+COPY public/changelog.json ./public/changelog.json
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
+    CMD curl -f http://localhost:3000/api/v1/health || exit 1
 
 CMD ["node", "dist/index.js"]
 

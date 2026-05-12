@@ -193,8 +193,8 @@ describe('JobManager', () => {
     })
 
     it('should calculate job duration from timestamps', () => {
-      const startTime = Date.now() - 60000
-      const endTime = Date.now()
+      const startTime = 1_700_000_000_000
+      const endTime = startTime + 60000
       const duration = endTime - startTime
 
       expect(duration).toBe(60000)

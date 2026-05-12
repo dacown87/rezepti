@@ -3,16 +3,14 @@ import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import type { Recipe } from '@/db/schema'
 import { getServerUrl } from '@/utils/server-url'
-
-function parseJSON<T>(json: string | null, fallback: T): T {
-  if (!json) return fallback
-  try { return JSON.parse(json) as T } catch { return fallback }
-}
-
-// jsPDF (Helvetica) kann keine Unicode-Emojis rendern → entfernen
-function stripEmoji(str: string): string {
-  return str.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}\u{FE00}-\u{FEFF}\u{1F900}-\u{1FAFF}]/gu, '').trim()
-}
+import {
+  buildRecipeQrUrl,
+  formatRecipeSourceText,
+  parsePDFJson,
+  PDF_QR_OPTIONS,
+  recipePdfFilename,
+  stripPdfUnsupportedCharacters,
+} from '@/utils/pdf-export-helpers'
 
 async function fetchImageAsBase64(url: string, serverUrl: string): Promise<string | null> {
   try {
@@ -42,9 +40,9 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   const contentWidth = pageWidth - margin * 2
   let y = margin
 
-  const ingredients = parseJSON<string[]>(recipe.ingredients, [])
-  const steps = parseJSON<string[]>(recipe.steps, [])
-  const tags = parseJSON<string[]>(recipe.tags, [])
+  const ingredients = parsePDFJson<string[]>(recipe.ingredients, [])
+  const steps = parsePDFJson<string[]>(recipe.steps, [])
+  const tags = parsePDFJson<string[]>(recipe.tags, [])
 
   // Bild via Proxy (CORS-frei)
   if (recipe.image_url) {
@@ -60,7 +58,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 30, 30)
-  doc.text(stripEmoji(recipe.name), margin, y)
+  doc.text(stripPdfUnsupportedCharacters(recipe.name), margin, y)
   y += 9
 
   // Meta
@@ -82,10 +80,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'italic')
     doc.setTextColor(120, 120, 120)
-    const datum = recipe.created_at
-      ? new Date(recipe.created_at * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      : null
-    const urlText = `Quelle: ${recipe.source_url}${datum ? `  (${datum})` : ''}`
+    const urlText = formatRecipeSourceText(recipe.source_url, recipe.created_at) ?? ''
     const urlLines = doc.splitTextToSize(urlText, contentWidth)
     doc.text(urlLines, margin, y)
     y += urlLines.length * 4 + 2
@@ -114,7 +109,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   for (const ing of ingredients) {
-    const lines = doc.splitTextToSize(`- ${stripEmoji(ing)}`, contentWidth)
+    const lines = doc.splitTextToSize(`- ${stripPdfUnsupportedCharacters(ing)}`, contentWidth)
     for (const line of lines) {
       if (y > pageHeight - 25) { doc.addPage(); y = margin }
       doc.text(line, margin, y)
@@ -133,7 +128,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   for (let i = 0; i < steps.length; i++) {
-    const lines = doc.splitTextToSize(`${i + 1}. ${stripEmoji(steps[i])}`, contentWidth)
+    const lines = doc.splitTextToSize(`${i + 1}. ${stripPdfUnsupportedCharacters(steps[i])}`, contentWidth)
     for (const line of lines) {
       if (y > pageHeight - 25) { doc.addPage(); y = margin }
       doc.text(line, margin, y)
@@ -152,7 +147,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     y += 6
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    const noteLines = doc.splitTextToSize(stripEmoji(recipe.notes), contentWidth)
+    const noteLines = doc.splitTextToSize(stripPdfUnsupportedCharacters(recipe.notes), contentWidth)
     for (const line of noteLines) {
       if (y > pageHeight - 25) { doc.addPage(); y = margin }
       doc.text(line, margin, y)
@@ -165,8 +160,8 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     try {
       y += 8
       if (y > pageHeight - 45) { doc.addPage(); y = margin }
-      const qrValue = `${serverUrl}/recipe/${recipe.id}`
-      const qrDataUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+      const qrValue = buildRecipeQrUrl(serverUrl, recipe.id)
+      const qrDataUrl = await QRCode.toDataURL(qrValue, PDF_QR_OPTIONS)
       doc.addImage(qrDataUrl, 'PNG', margin, y, 28, 28)
       doc.setFontSize(8)
       doc.setTextColor(120, 120, 120)
@@ -183,7 +178,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
     doc.text(`RecipeDeck | Seite ${i} von ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
   }
 
-  doc.save(`${stripEmoji(recipe.name).replace(/[^a-z0-9äöüÄÖÜ]/gi, '_').replace(/_+/g, '_')}.pdf`)
+  doc.save(recipePdfFilename(recipe.name))
 }
 
 export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
@@ -210,7 +205,7 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
     doc.setDrawColor(229, 231, 235)
     doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD')
 
-    const tags = parseJSON<string[]>(recipe.tags, [])
+    const tags = parsePDFJson<string[]>(recipe.tags, [])
     const pad = 3
 
     // Bild laden (wenn vorhanden)
@@ -224,14 +219,19 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
     } else {
       // Emoji als Platzhalter
       doc.setFontSize(20)
-      doc.text(recipe.emoji ?? '🍽', x + cardW / 2, y + imgAreaH / 2 + 4, { align: 'center' })
+      doc.text(
+        stripPdfUnsupportedCharacters(recipe.emoji ?? '🍽') || 'Recipe',
+        x + cardW / 2,
+        y + imgAreaH / 2 + 4,
+        { align: 'center' }
+      )
     }
 
     // Name
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(17, 24, 39)
-    const nameLines = doc.splitTextToSize(stripEmoji(recipe.name), cardW - pad * 2)
+    const nameLines = doc.splitTextToSize(stripPdfUnsupportedCharacters(recipe.name), cardW - pad * 2)
     doc.text(nameLines.slice(0, 2), x + pad, y + imgAreaH + pad + 4)
 
     // Meta
@@ -260,8 +260,8 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
     // QR Code — direkte Navigations-URL
     if (recipe.id) {
       try {
-        const qrValue = `${serverUrl}/recipe/${recipe.id}`
-        const qrUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+        const qrValue = buildRecipeQrUrl(serverUrl, recipe.id)
+        const qrUrl = await QRCode.toDataURL(qrValue, PDF_QR_OPTIONS)
         const qrSize = 18
         doc.addImage(qrUrl, 'PNG', x + cardW - pad - qrSize, y + cardH - pad - qrSize, qrSize, qrSize)
       } catch { /* ignore */ }

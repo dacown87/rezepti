@@ -43,18 +43,51 @@ cp .env.example .env
 ### Dev-Modus (Hot Reload)
 
 ```bash
-docker compose up
+docker compose up rezepti
 ```
 
 → [http://localhost:3000](http://localhost:3000)
 
 Änderungen in `src/` und `public/` sind sofort sichtbar.
 
-### Production-Modus (Docker Hub Image)
+### Production-Modus
 
 ```bash
-docker compose --profile prod up
+docker compose --profile react-prod up rezepti-react-prod
 ```
+
+Der Production-Build nutzt den aktuellen `Dockerfile`-Target `production` und baut den Expo-Web-Export im Container.
+
+### Frontend-Build lokal
+
+```bash
+npm run build:mobile
+```
+
+Der lokale Expo-Web-Build braucht eigene `mobile/node_modules` (`npm --prefix mobile ci`). Im Docker-Build passiert das im `web-builder` automatisch. Der Expo-Export schreibt `Exported: ../public`, kann lokal aber am Ende haengen; fuer wiederholte Performance-Iterationen den Export einmal laufen lassen und danach nur `perf:bundle`/`perf:lighthouse` ausfuehren.
+
+Nach Aenderungen an Expo-/React-Native-Abhaengigkeiten sollte zusaetzlich `cd mobile && CI=1 npx expo-doctor` gruen laufen. Fuer den aktuellen SDK-55-Stand sind insbesondere `react 19.2.0`, `react-dom 19.2.0`, `react-native 0.83.6` und `react-native-svg 15.15.3` der erwartete Zustand.
+
+### Mobile Release Gate & Performance
+
+```bash
+npm --prefix mobile run typecheck
+npm --prefix mobile run test:unit
+npm run test:unit
+npm run perf:bundle
+npm run perf:lighthouse:compare
+npm run perf:validate
+npm run perf:stability:seed
+npm run perf:budget:suggest
+```
+
+`perf:lighthouse:compare` misst die statische Expo-Web-Ausgabe mit `simulate` und `devtools` Throttling und schreibt `artifacts/performance/throttling-comparison.json`. Phase 4c ist abgeschlossen: die statische App-Shell in `mobile/app/+html.tsx` senkt die mobilen p50-LCP-Werte fuer `/shopping` und `/recipe/1` von ~25s auf ~0.9-1.45s.
+
+Strict-Hardening: `perf:stability:seed` automatisiert die 10 echten Runs, ohne `history.json` direkt zu editieren; pro Messung schreibt nur `perf:validate` die History. Der Seed fuehrt jetzt standardmaessig einen verworfenen Warm-up-`perf:lighthouse`-Lauf vor `lighthouse-1` aus, damit ein einzelner Cold-Run-Ausreisser nicht das gemessene 10er-Fenster vergiftet. Danach berechnet `perf:budget:suggest` Budget-Vorschlaege aus methodenmarkierten vollstaendigen Runs (`p95 * 1.10`).
+
+Die Freigabe fuer den ersten manuellen `strict`-Probe-Run ist jetzt explizit operationalisiert: `artifacts/performance/observation.json` muss `strictProbeEligible=true` melden. Das setzt `5` aufeinanderfolgende gruene CI-Warn-Runs, eine verifizierte `stability-seed.json` mit `bundle -> warmup -> lighthouse-1..10 -> validate-1..10` und `readiness.ready=true` voraus. PR-/Push-/Schedule-Runs bleiben bis dahin bewusst warn-only; `strict` ist weiterhin nur fuer einen manuellen Probe-Dispatch gedacht.
+
+Aktueller Stand 2026-05-12: Die 10er-Serie fuer `simulate`/`mobile-375x812` ist nicht-sandboxiert erfolgreich gelaufen (`fullCoverage=true`), `perf:budget:suggest` hat ein vollstaendiges `10/10`-Window ausgewertet, und `scripts/performance/baseline.json` wurde geschaerft. Ein einzelner `/`-Cold-Run-LCP-Ausreisser von 22378 ms wurde bewusst nicht als Budget uebernommen; die warmen `/`-Runs liegen bei ~903 ms.
 
 ---
 
@@ -108,6 +141,8 @@ npx drizzle-kit push
 | `/api/v1/health` | GET | Server + DB Status |
 | `/api/v1/planner` | GET/POST/DELETE | Meal Planner |
 | `/api/v1/shopping` | GET/POST/DELETE | Einkaufsliste |
+| `/api/v1/dictionary` | GET/POST | Zutaten-Wörterbuch |
+| `/api/v1/dictionary/match` | GET | Kanonischen Zutatennamen matchen |
 
 BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-Body mitgegeben werden. Der Key wird validiert, für den Job gehasht gespeichert und explizit bis zu LLM-, Whisper-, Vision-, Nutrition- und TikTok-OCR-Aufrufen weitergereicht; die Server-Umgebungsvariable bleibt unverändert.
 
@@ -119,6 +154,9 @@ BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-B
 - `TODO.md` — Aktuelle offene Punkte, QA-Befunde und Roadmap-Notizen
 - `test/README.md` — Teststruktur und lokale Testbefehle
 - `docs/TEST_STATUS.md` — Historischer Teststatus und bekannte Testlücken
+- `docs/performance/throttling-analysis.md` — Phase-4c Throttling-Vergleich, App-Shell-LCP-Fix und Budget-Hardening-Regeln
+- `docs/performance/strict-probe-runbook.md` — operative Checkliste fuer die 5-Run-Beobachtung und den ersten manuellen `strict`-Probe-Run
+- `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md` — Cleanup-Plan und finaler Review-Stand
 
 ---
 
@@ -155,5 +193,6 @@ git push → main
 | 15 | React Native / Expo Web Migration | ✅ |
 | SB-1 | Mobile: expo-sqlite entfernt → Server-API | ✅ |
 | SB-2 | Server: SQLite → Supabase PostgreSQL | ✅ |
+| Cleanup | Chefkoch/TikTok/Assets/Tests/PDF/Docker | ✅ im Workspace |
 | — | Multi-User Login (Supabase Auth) | 🔜 |
 | — | Rezept-Sharing via Link | 🔜 |

@@ -5,6 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      perf_enforcement:
+        description: 'Performance enforcement mode for this run'
+        required: false
+        default: 'warn'
+        type: choice
+        options:
+          - 'warn'
+          - 'strict'
+  schedule:
+    - cron: '0 2 * * *'
 
 jobs:
   test:
@@ -35,8 +47,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.15.0'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -49,9 +62,180 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Run unit tests
-        run: npm test -- --run --exclude="test/e2e/**"
+      - name: Run unit coverage
+        run: npm run test:coverage
+
+      - name: Upload root coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-root
+          path: artifacts/coverage/root/**
+          if-no-files-found: error
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rezepti_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+      GROQ_API_KEY: test-placeholder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push schema to test DB
+        run: npx drizzle-kit push --force
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
 
       - name: Run E2E tests
         run: npm test -- --run test/e2e/
-        continue-on-error: true
+
+  mobile-release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm --prefix mobile ci
+
+      - name: Run Expo Doctor
+        run: CI=1 npx expo-doctor
+        working-directory: mobile
+
+      - name: Mobile typecheck
+        run: npm --prefix mobile run typecheck
+
+      - name: Build mobile web export
+        run: npm --prefix mobile run build:web
+
+      - name: Run mobile coverage
+        run: npm --prefix mobile run test:coverage
+
+      - name: Upload mobile coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-mobile
+          path: artifacts/coverage/mobile/**
+          if-no-files-found: error
+
+  performance-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install mobile dependencies
+        run: npm --prefix mobile ci
+
+      - name: Restore performance history cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            artifacts/performance/history.json
+            artifacts/performance/readiness.json
+          key: performance-history-v4-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            performance-history-v4-${{ github.ref_name }}-
+
+      - name: Setup Chrome for Lighthouse
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Diagnose Lighthouse environment
+        run: npm run perf:lighthouse:doctor
+
+      - name: Enforce browser readiness (explicit strict dispatch)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.perf_enforcement == 'strict' }}
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            google-chrome --version
+            exit 0
+          fi
+          if command -v google-chrome-stable >/dev/null 2>&1; then
+            google-chrome-stable --version
+            exit 0
+          fi
+          if command -v chromium-browser >/dev/null 2>&1; then
+            chromium-browser --version
+            exit 0
+          fi
+          if command -v chromium >/dev/null 2>&1; then
+            chromium --version
+            exit 0
+          fi
+          echo "No Chrome/Chromium executable found for enforce run."
+          exit 1
+
+      - name: Run performance audit
+        run: npm run perf:audit
+
+      - name: Validate performance status (warn by default; strict on explicit dispatch)
+        run: npm run perf:validate
+        env:
+          PERF_ENFORCEMENT_LEVEL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.perf_enforcement == 'strict' && 'strict' || 'warn' }}
+
+      - name: Save performance history cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            artifacts/performance/history.json
+            artifacts/performance/readiness.json
+          key: performance-history-v4-${{ github.ref_name }}-${{ github.run_id }}
+
+      - name: Upload performance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-artifacts
+          path: artifacts/performance/**
+          if-no-files-found: warn

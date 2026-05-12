@@ -1,0 +1,136 @@
+{
+  "generatedAt": "2026-05-12T08:32:22.648Z",
+  "criteria": {
+    "minRuns": 10,
+    "maxWarningRate": 0.1,
+    "requireFullCoverage": true,
+    "requireMetricStability": true,
+    "metricSpreadLimit": 0.1,
+    "targetViewport": "mobile-375x812",
+    "targetRoutes": [
+      "/",
+      "/shopping",
+      "/recipe/1"
+    ]
+  },
+  "window": {
+    "runs": 10,
+    "firstTimestamp": "2026-05-12T08:15:13.419Z",
+    "lastTimestamp": "2026-05-12T08:31:51.367Z",
+    "runIds": [
+      "2026-05-12T08:15:13.419Z",
+      "2026-05-12T08:17:03.644Z",
+      "2026-05-12T08:18:54.309Z",
+      "2026-05-12T08:20:46.739Z",
+      "2026-05-12T08:22:37.689Z",
+      "2026-05-12T08:24:28.763Z",
+      "2026-05-12T08:26:19.749Z",
+      "2026-05-12T08:28:10.486Z",
+      "2026-05-12T08:30:01.175Z",
+      "2026-05-12T08:31:51.367Z"
+    ]
+  },
+  "stats": {
+    "totalWarnings": 0,
+    "totalExecuted": 90,
+    "warningRate": 0,
+    "fullCoverageCount": 10,
+    "consecutiveCompleteRuns": 20
+  },
+  "checks": {
+    "minRunsMet": true,
+    "warningRateMet": true,
+    "fullCoverageMet": true,
+    "metricStabilityMet": true
+  },
+  "metrics": [
+    {
+      "route": "/",
+      "viewport": "mobile-375x812",
+      "missing": false,
+      "checks": [
+        {
+          "metric": "lcp",
+          "available": true,
+          "min": 902.191,
+          "max": 904.062,
+          "median": 903.288,
+          "spreadRatio": 0.0021,
+          "stable": true
+        },
+        {
+          "metric": "inp",
+          "available": false
+        },
+        {
+          "metric": "cls",
+          "available": true,
+          "min": 0,
+          "max": 0,
+          "median": 0,
+          "spreadRatio": 0,
+          "stable": true
+        }
+      ]
+    },
+    {
+      "route": "/shopping",
+      "viewport": "mobile-375x812",
+      "missing": false,
+      "checks": [
+        {
+          "metric": "lcp",
+          "available": true,
+          "min": 901.622,
+          "max": 902.122,
+          "median": 901.9095,
+          "spreadRatio": 0.0006,
+          "stable": true
+        },
+        {
+          "metric": "inp",
+          "available": false
+        },
+        {
+          "metric": "cls",
+          "available": true,
+          "min": 0,
+          "max": 0,
+          "median": 0,
+          "spreadRatio": 0,
+          "stable": true
+        }
+      ]
+    },
+    {
+      "route": "/recipe/1",
+      "viewport": "mobile-375x812",
+      "missing": false,
+      "checks": [
+        {
+          "metric": "lcp",
+          "available": true,
+          "min": 1051.466,
+          "max": 1051.82,
+          "median": 1051.65,
+          "spreadRatio": 0.0003,
+          "stable": true
+        },
+        {
+          "metric": "inp",
+          "available": false
+        },
+        {
+          "metric": "cls",
+          "available": true,
+          "min": 0,
+          "max": 0,
+          "median": 0,
+          "spreadRatio": 0,
+          "stable": true
+        }
+      ]
+    }
+  ],
+  "ready": true
+}

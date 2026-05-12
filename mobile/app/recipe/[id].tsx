@@ -17,17 +17,32 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Recipe } from '@/db/schema';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
-import { shareRecipePDF } from '@/utils/pdf-export';
 import { StepText } from '@/components/StepText';
-import { addIngredients } from '@/app/(tabs)/shopping';
+import { addIngredients } from '@/utils/shopping-service';
 import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
 import { getServerUrl } from '@/utils/server-url';
+import { buildRecipeEditPatchPayload, type RecipeEditDraft } from '@/utils/recipe-mapper';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function parseJSON<T>(json: string | null, fallback: T): T {
   if (!json) return fallback;
   try { return JSON.parse(json) as T; } catch { return fallback; }
+}
+
+type NutritionInfo = { carbs?: string; fat?: string; protein?: string; fiber?: string };
+type IngredientDisplayParts = { mainText: string; altText: string | null; descLine: string | null };
+
+function splitIngredientDisplay(raw: string): IngredientDisplayParts {
+  const nlIdx = raw.indexOf('\n');
+  const mainLine = nlIdx === -1 ? raw : raw.slice(0, nlIdx);
+  const descLine = nlIdx === -1 ? null : raw.slice(nlIdx + 1);
+  const oderIdx = mainLine.indexOf(' (oder: ');
+  return {
+    mainText: oderIdx === -1 ? mainLine : mainLine.slice(0, oderIdx),
+    altText: oderIdx === -1 ? null : mainLine.slice(oderIdx + 8, -1),
+    descLine,
+  };
 }
 
 function normalizeRecipe(r: Record<string, unknown>): Recipe {
@@ -234,6 +249,7 @@ export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'not_found' | 'request_failed' | null>(null);
   const [multiplier, setMultiplier] = useState(1);
   const [rating, setRating] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
@@ -244,11 +260,7 @@ export default function RecipeDetailScreen() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [editingIngredientIdx, setEditingIngredientIdx] = useState<number | null>(null);
   const [editingIngredientValue, setEditingIngredientValue] = useState('');
-  const [editDraft, setEditDraft] = useState<{
-    name: string; emoji: string; duration: string; servings: string;
-    calories: string; tags: string; ingredients: string[]; steps: string[];
-    ingredientGroups: { heading: string; items: string[] }[] | null;
-  } | null>(null);
+  const [editDraft, setEditDraft] = useState<RecipeEditDraft | null>(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
 
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -256,16 +268,29 @@ export default function RecipeDetailScreen() {
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const loadRecipe = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setRecipe(null);
+      setLoadError('not_found');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setLoadError(null);
     try {
       const serverUrl = await getServerUrl();
       const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`);
-      const row: Recipe | null = res.ok ? normalizeRecipe(await res.json()) : null;
-      if (row) {
-        setRecipe(row);
-        setRating(row.rating != null ? Number(row.rating) : null);
-        setNotes(row.notes ?? '');
+      if (!res.ok) {
+        setRecipe(null);
+        setLoadError(res.status === 404 ? 'not_found' : 'request_failed');
+        return;
       }
+      const row = normalizeRecipe(await res.json());
+      setRecipe(row);
+      setRating(row.rating != null ? Number(row.rating) : null);
+      setNotes(row.notes ?? '');
+    } catch {
+      setRecipe(null);
+      setLoadError('request_failed');
     } finally {
       setLoading(false);
     }
@@ -331,31 +356,19 @@ export default function RecipeDetailScreen() {
     if (!recipe || !editDraft) return;
     setIsSaving(true);
     try {
-      const hasGroups = editDraft.ingredientGroups && editDraft.ingredientGroups.length >= 2;
-      const flatIngredients = hasGroups
-        ? editDraft.ingredientGroups!.flatMap(g => g.items).filter(Boolean)
-        : editDraft.ingredients.filter(Boolean);
-      const patch: Record<string, unknown> = {
-        name: editDraft.name.trim(),
-        emoji: editDraft.emoji.trim(),
-        duration: editDraft.duration.trim(),
-        servings: editDraft.servings.trim(),
-        calories: editDraft.calories ? parseInt(editDraft.calories) : null,
-        tags: JSON.stringify(editDraft.tags.split(',').map(t => t.trim()).filter(Boolean)),
-        steps: JSON.stringify(editDraft.steps.filter(Boolean)),
-      };
-      if (hasGroups) {
-        patch.ingredientGroups = editDraft.ingredientGroups;
-      } else {
-        patch.ingredients = JSON.stringify(flatIngredients);
-        patch.ingredientGroups = null;
-      }
+      const { patch, flatIngredients, ingredientGroups } = buildRecipeEditPatchPayload(editDraft);
       await patchRecipe(recipeId, patch);
       setRecipe({
         ...recipe,
-        ...patch,
+        name: patch.name,
+        emoji: patch.emoji,
+        duration: patch.duration,
+        servings: patch.servings,
+        calories: patch.calories,
+        tags: JSON.stringify(patch.tags),
+        steps: JSON.stringify(patch.steps),
         ingredients: JSON.stringify(flatIngredients),
-        ingredient_groups: hasGroups ? JSON.stringify(editDraft.ingredientGroups) : null,
+        ingredient_groups: ingredientGroups ? JSON.stringify(ingredientGroups) : null,
       } as Recipe);
       setIsEditing(false);
       setEditDraft(null);
@@ -385,7 +398,10 @@ export default function RecipeDetailScreen() {
   // ── PDF ────────────────────────────────────────────────────────────────────
   const handlePDF = async () => {
     if (!recipe) return;
-    try { await shareRecipePDF(recipe as Parameters<typeof shareRecipePDF>[0]); }
+    try {
+      const { shareRecipePDF } = await import('@/utils/pdf-export');
+      await shareRecipePDF(recipe);
+    }
     catch { /* ignore */ }
   };
 
@@ -403,13 +419,54 @@ export default function RecipeDetailScreen() {
   // ──────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center">
-        <ActivityIndicator size="large" color="#C84B31" />
+      <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
+        {/* Header-Shell — sofort sichtbar, LCP-Anker */}
+        <View className="flex-row items-center px-4 py-3 bg-white dark:bg-espresso-800 border-b border-warm-200 dark:border-warm-700">
+          <Pressable onPress={() => router.back()} className="mr-3 p-1">
+            <ArrowLeft size={22} color="#374151" />
+          </Pressable>
+          <View className="flex-1 h-4 rounded-full bg-warm-200 dark:bg-espresso-700" />
+          <ActivityIndicator size="small" color="#C84B31" style={{ marginLeft: 8 }} />
+        </View>
+        {/* Skeleton-Inhalt */}
+        <View className="px-4 pt-5" testID="recipe-skeleton">
+          {/* Titel-Placeholder */}
+          <View className="items-center mb-4">
+            <View className="w-16 h-16 rounded-full bg-warm-200 dark:bg-espresso-700 mb-3" />
+            <View className="h-5 rounded-full bg-warm-200 dark:bg-espresso-700 w-3/4 mb-2" />
+            <View className="h-4 rounded-full bg-warm-200 dark:bg-espresso-700 w-1/2" />
+          </View>
+          {/* Meta-Zeile */}
+          <View className="flex-row gap-3 mb-5">
+            {[1, 2, 3].map(i => (
+              <View key={i} className="flex-1 h-8 rounded-xl bg-warm-200 dark:bg-espresso-700" />
+            ))}
+          </View>
+          {/* Zutaten-Placeholder */}
+          <View className="h-4 rounded-full bg-warm-200 dark:bg-espresso-700 w-1/3 mb-3" />
+          {[80, 65, 72, 58, 68].map((width, i) => (
+            <View key={i} className="h-3 rounded-full bg-warm-200 dark:bg-espresso-700 mb-2" style={{ width: `${width}%` }} />
+          ))}
+        </View>
       </SafeAreaView>
     );
   }
 
   if (!recipe) {
+    if (loadError === 'request_failed') {
+      return (
+        <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center px-8">
+          <Text className="text-red-500 text-center">Rezept konnte nicht geladen werden.</Text>
+          <Text className="text-warm-500 dark:text-warm-400 text-center mt-2">
+            Bitte Verbindung prüfen und erneut versuchen.
+          </Text>
+          <Pressable onPress={loadRecipe} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
+            <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
+          </Pressable>
+        </SafeAreaView>
+      );
+    }
+
     return (
       <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center px-8">
         <Text className="text-warm-500 dark:text-warm-400 text-center">Rezept nicht gefunden.</Text>
@@ -424,12 +481,29 @@ export default function RecipeDetailScreen() {
   const steps = parseJSON<string[]>(recipe.steps, []);
   const tags = parseJSON<string[]>(recipe.tags, []);
   const equipment = parseJSON<string[]>(recipe.equipment ?? null, []);
-  const nutritionInfo = parseJSON<{ carbs?: string; fat?: string; protein?: string; fiber?: string } | null>((recipe as any).nutrition_info ?? null, null);
+  const nutritionInfo = parseJSON<NutritionInfo | null>((recipe as any).nutrition_info ?? null, null);
   const ingredientGroups = parseJSON<{ heading: string; items: string[] }[] | null>((recipe as any).ingredient_groups ?? null, null);
-  const scaledIngredients = multiplier !== 1
-    ? ingredients.map(i => scaleIngredient(i, multiplier))
-    : ingredients;
+  const scaledIngredients = multiplier !== 1 ? ingredients.map(i => scaleIngredient(i, multiplier)) : ingredients;
+  const scaledIngredientDisplay = scaledIngredients.map(splitIngredientDisplay);
+  let ingredientOffset = 0;
+  const ingredientGroupStartIndices = ingredientGroups?.map((group) => {
+    const start = ingredientOffset;
+    ingredientOffset += group.items.length;
+    return start;
+  }) ?? [];
   const scaledServings = Math.round(parseServingsNumber(recipe.servings) * multiplier);
+  const qrData = showQrModal
+    ? encodeRecipeToCompactJSON({
+      name: recipe.name,
+      emoji: recipe.emoji ?? '',
+      ingredients,
+      steps,
+      tags,
+      rating: recipe.rating ?? undefined,
+      servings: recipe.servings ?? undefined,
+      duration: recipe.duration ?? undefined,
+    })
+    : null;
 
   return (
     <>
@@ -462,23 +536,11 @@ export default function RecipeDetailScreen() {
           <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full items-center">
             <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-1">{recipe.emoji ?? '🍽️'} {recipe.name}</Text>
             <Text className="text-xs text-warm-500 dark:text-warm-400 mb-5 text-center">QR-Code scannen um das Rezept{'\n'}in RecipeDeck zu importieren</Text>
-            {(() => {
-              const qrData = encodeRecipeToCompactJSON({
-                name: recipe.name,
-                emoji: recipe.emoji ?? '',
-                ingredients,
-                steps,
-                tags,
-                rating: recipe.rating ?? undefined,
-                servings: recipe.servings ?? undefined,
-                duration: recipe.duration ?? undefined,
-              });
-              return qrData ? (
-                <QRCodeSVG value={qrData} size={200} color="#111827" backgroundColor="#ffffff" />
-              ) : (
-                <Text className="text-warm-500 dark:text-warm-400 text-sm">Rezept zu groß für QR-Code</Text>
-              );
-            })()}
+            {qrData ? (
+              <QRCodeSVG value={qrData} size={200} color="#111827" backgroundColor="#ffffff" />
+            ) : (
+              <Text className="text-warm-500 dark:text-warm-400 text-sm">Rezept zu groß für QR-Code</Text>
+            )}
             <View className="flex-row gap-3 mt-6 w-full">
               <Pressable onPress={handleShareText} className="flex-1 py-3 rounded-xl bg-primary-500 items-center">
                 <Text className="text-white text-sm font-semibold">Teilen</Text>
@@ -829,21 +891,15 @@ export default function RecipeDetailScreen() {
                   <View key={gi} className="mb-3">
                     <Text className="text-xs font-semibold text-warm-400 dark:text-warm-500 uppercase tracking-wider mb-2">{group.heading}</Text>
                     {group.items.map((ing, i) => {
-                      const globalIdx = ingredientGroups.slice(0, gi).reduce((sum, g) => sum + g.items.length, 0) + i;
-                      const scaled = scaledIngredients[globalIdx] ?? ing;
-                      const nlIdx = scaled.indexOf('\n');
-                      const mainLine = nlIdx === -1 ? scaled : scaled.slice(0, nlIdx);
-                      const descLine = nlIdx === -1 ? null : scaled.slice(nlIdx + 1);
-                      const oderIdx = mainLine.indexOf(' (oder: ');
-                      const mainText = oderIdx === -1 ? mainLine : mainLine.slice(0, oderIdx);
-                      const altText  = oderIdx === -1 ? null : mainLine.slice(oderIdx + 8, -1);
+                      const globalIdx = (ingredientGroupStartIndices[gi] ?? 0) + i;
+                      const display = scaledIngredientDisplay[globalIdx] ?? splitIngredientDisplay(ing);
                       return (
                         <View key={i} className="flex-row items-center py-1.5 border-b border-warm-50 dark:border-espresso-700">
                           <Text className="text-primary-400 mr-2 text-base">•</Text>
                           <View className="flex-1">
-                            <Text className="text-warm-700 dark:text-warm-200 text-sm">{mainText}</Text>
-                            {altText && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">↺ {altText}</Text>}
-                            {descLine && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">{descLine}</Text>}
+                            <Text className="text-warm-700 dark:text-warm-200 text-sm">{display.mainText}</Text>
+                            {display.altText && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">↺ {display.altText}</Text>}
+                            {display.descLine && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">{display.descLine}</Text>}
                           </View>
                         </View>
                       );
@@ -857,6 +913,7 @@ export default function RecipeDetailScreen() {
                 {ingredients.map((ing, i) => {
                   const hasNum = parseIngredientNumber(ing) != null;
                   const isEditingThis = editingIngredientIdx === i;
+                  const display = scaledIngredientDisplay[i];
                   return (
                     <View key={i} className="flex-row items-center py-2 border-b border-warm-100">
                       <Text className="text-primary-400 mr-2 text-base">•</Text>
@@ -881,22 +938,9 @@ export default function RecipeDetailScreen() {
                       ) : (
                         <>
                           <View className="flex-1">
-                            {(() => {
-                              const raw = scaledIngredients[i];
-                              const nlIdx = raw.indexOf('\n');
-                              const mainLine = nlIdx === -1 ? raw : raw.slice(0, nlIdx);
-                              const descLine = nlIdx === -1 ? null : raw.slice(nlIdx + 1);
-                              const oderIdx = mainLine.indexOf(' (oder: ');
-                              const mainText = oderIdx === -1 ? mainLine : mainLine.slice(0, oderIdx);
-                              const altText  = oderIdx === -1 ? null : mainLine.slice(oderIdx + 8, -1);
-                              return (
-                                <>
-                                  <Text className="text-warm-700 dark:text-warm-200 text-sm">{mainText}</Text>
-                                  {altText && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">↺ {altText}</Text>}
-                                  {descLine && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">{descLine}</Text>}
-                                </>
-                              );
-                            })()}
+                            <Text className="text-warm-700 dark:text-warm-200 text-sm">{display?.mainText ?? ing}</Text>
+                            {display?.altText && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">↺ {display.altText}</Text>}
+                            {display?.descLine && <Text className="text-warm-500 dark:text-warm-400 text-xs mt-0.5">{display.descLine}</Text>}
                           </View>
                           {hasNum && (
                             <Pressable onPress={() => startIngredientEdit(i, ingredients)} className="p-1">

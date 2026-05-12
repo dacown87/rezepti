@@ -6,6 +6,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform, Alert } from 'react-native'
 import type { Recipe } from '@/db/schema'
 import { getServerUrl } from '@/utils/server-url'
+import {
+  buildRecipeQrUrl,
+  escapePdfHtml,
+  formatRecipeSourceText,
+  parsePDFJson,
+  PDF_QR_OPTIONS,
+  recipePdfFilename,
+} from '@/utils/pdf-export-helpers'
 
 const DOWNLOADS_URI_KEY = 'pdf_downloads_dir_uri'
 
@@ -61,15 +69,10 @@ async function deliverPDF(uri: string, filename: string, dialogTitle: string): P
   }
 }
 
-function parseJSON<T>(json: string | null, fallback: T): T {
-  if (!json) return fallback
-  try { return JSON.parse(json) as T } catch { return fallback }
-}
-
 async function buildHTMLTemplate(recipe: Recipe, serverUrl: string): Promise<string> {
-  const ingredients = parseJSON<string[]>(recipe.ingredients, [])
-  const steps = parseJSON<string[]>(recipe.steps, [])
-  const tags = parseJSON<string[]>(recipe.tags, [])
+  const ingredients = parsePDFJson<string[]>(recipe.ingredients, [])
+  const steps = parsePDFJson<string[]>(recipe.steps, [])
+  const tags = parsePDFJson<string[]>(recipe.tags, [])
   const emoji = recipe.emoji ?? '🍽️'
 
   // QR-Code enkodiert direkte Navigations-URL
@@ -77,8 +80,8 @@ async function buildHTMLTemplate(recipe: Recipe, serverUrl: string): Promise<str
   if (recipe.id) {
     try {
       const QRCode = await import('qrcode')
-      const qrValue = `${serverUrl}/recipe/${recipe.id}`
-      const dataUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+      const qrValue = buildRecipeQrUrl(serverUrl, recipe.id)
+      const dataUrl = await QRCode.toDataURL(qrValue, PDF_QR_OPTIONS)
       qrImgTag = `<div class="qr-block"><img src="${dataUrl}" class="qr-img" /><p class="qr-label">In RecipeDeck öffnen</p></div>`
     } catch { /* ignore */ }
   }
@@ -89,23 +92,24 @@ async function buildHTMLTemplate(recipe: Recipe, serverUrl: string): Promise<str
   if (recipe.calories) metaParts.push(`${recipe.calories} kcal`)
 
   const ingredientsHTML = ingredients
-    .map(ing => `<li>${escapeHtml(ing)}</li>`)
+    .map(ing => `<li>${escapePdfHtml(ing)}</li>`)
     .join('\n')
 
   const stepsHTML = steps
-    .map((step, i) => `<li><span class="step-num">${i + 1}</span>${escapeHtml(step)}</li>`)
+    .map((step, i) => `<li><span class="step-num">${i + 1}</span>${escapePdfHtml(step)}</li>`)
     .join('\n')
 
   const tagsHTML = tags.length > 0
-    ? `<div class="tags">${tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`
+    ? `<div class="tags">${tags.map(t => `<span class="tag">${escapePdfHtml(t)}</span>`).join('')}</div>`
     : ''
 
   const notesHTML = recipe.notes
-    ? `<div class="section"><h2>Notizen</h2><p class="notes">${escapeHtml(recipe.notes)}</p></div>`
+    ? `<div class="section"><h2>Notizen</h2><p class="notes">${escapePdfHtml(recipe.notes)}</p></div>`
     : ''
 
-  const sourceHTML = recipe.source_url
-    ? `<p class="source">Quelle: ${escapeHtml(recipe.source_url)}</p>`
+  const sourceText = formatRecipeSourceText(recipe.source_url, recipe.created_at)
+  const sourceHTML = sourceText
+    ? `<p class="source">${escapePdfHtml(sourceText)}</p>`
     : ''
 
 
@@ -140,9 +144,9 @@ async function buildHTMLTemplate(recipe: Recipe, serverUrl: string): Promise<str
 </style>
 </head>
 <body>
-  <span class="emoji">${emoji}</span>
-  <h1>${escapeHtml(recipe.name)}</h1>
-  ${metaParts.length > 0 ? `<p class="meta">${escapeHtml(metaParts.join(' · '))}</p>` : ''}
+  <span class="emoji">${escapePdfHtml(emoji)}</span>
+  <h1>${escapePdfHtml(recipe.name)}</h1>
+  ${metaParts.length > 0 ? `<p class="meta">${escapePdfHtml(metaParts.join(' · '))}</p>` : ''}
   ${tagsHTML}
   ${sourceHTML}
   <hr>
@@ -166,14 +170,6 @@ async function buildHTMLTemplate(recipe: Recipe, serverUrl: string): Promise<str
 </html>`
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
 /**
  * Rendert das Rezept als PDF und öffnet den nativen Share/Print-Dialog.
  * Wirft bei Fehler — Aufrufer muss catch.
@@ -183,7 +179,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
   const html = await buildHTMLTemplate(recipe, serverUrl)
 
   const { uri } = await Print.printToFileAsync({ html, base64: false })
-  const filename = `${recipe.name.replace(/[^a-z0-9äöüÄÖÜ]/gi, '_').replace(/_+/g, '_')}.pdf`
+  const filename = recipePdfFilename(recipe.name)
   await deliverPDF(uri, filename, `${recipe.emoji ?? ''} ${recipe.name}`)
 }
 
@@ -217,8 +213,8 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
   for (const recipe of recipes) {
     if (recipe.id == null) continue
     try {
-      const qrValue = `${serverUrl}/recipe/${recipe.id}`
-      const dataUrl = await QRCode.toDataURL(qrValue, { width: 400, margin: 1, errorCorrectionLevel: 'L' })
+      const qrValue = buildRecipeQrUrl(serverUrl, recipe.id)
+      const dataUrl = await QRCode.toDataURL(qrValue, PDF_QR_OPTIONS)
       qrMap.set(recipe.id, dataUrl)
     } catch { /* ignore */ }
   }
@@ -230,7 +226,7 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
   }
 
   function buildCard(recipe: Recipe): string {
-    const tags = parseJSON<string[]>(recipe.tags, [])
+    const tags = parsePDFJson<string[]>(recipe.tags, [])
     const tagStr = tags.slice(0, 3).join(' · ')
     const emoji = recipe.emoji ?? '🍽️'
     const meta: string[] = []
@@ -239,8 +235,8 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
 
     // Bild: echte URL (expo-print lädt direkt) oder Emoji-Platzhalter
     const imgAreaHTML = recipe.image_url
-      ? `<img src="${escapeHtml(recipe.image_url)}" class="card-real-img" />`
-      : `<div class="card-emoji">${escapeHtml(emoji)}</div>`
+      ? `<img src="${escapePdfHtml(recipe.image_url)}" class="card-real-img" />`
+      : `<div class="card-emoji">${escapePdfHtml(emoji)}</div>`
 
     const qrUrl = recipe.id != null ? qrMap.get(recipe.id) : undefined
     const qrHTML = qrUrl ? `<img src="${qrUrl}" class="card-qr" />` : ''
@@ -249,10 +245,10 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
       <div class="card">
         <div class="card-img-area">${imgAreaHTML}</div>
         <div class="card-body">
-          <div class="card-title">${escapeHtml(recipe.name)}</div>
-          ${meta.length ? `<div class="card-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
+          <div class="card-title">${escapePdfHtml(recipe.name)}</div>
+          ${meta.length ? `<div class="card-meta">${escapePdfHtml(meta.join(' · '))}</div>` : ''}
           <div class="card-bottom">
-            <div class="card-tags">${escapeHtml(tagStr)}</div>
+            <div class="card-tags">${escapePdfHtml(tagStr)}</div>
             ${qrHTML}
           </div>
         </div>

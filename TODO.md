@@ -98,7 +98,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ### Welle 4 — Komplexe Features
 - **13j** ✅ — Plugin-Architektur: `web/base.ts` (Utilities + `WebScraperPlugin`), `web/chefkoch.ts` (Domain-Override), `web/index.ts` (Registry + Dispatcher); `web.ts` → Re-Export; Code-Duplikation in `chefkoch.ts` eliminiert
-- **13h** ← NACH 13j — ML-Fallback: DOM-Block-Cap max 10; Feature-Flag `ENABLE_ML_FALLBACK=true`; nur wenn alle anderen Stufen scheitern
+- **13h** ✅ — ML-Fallback: `extractDomBlocks()` mit DOM-Block-Cap max 10; Feature-Flag `ENABLE_ML_FALLBACK=true`; nur aktiv bei Body-Fallback; Tests in `test/unit/web.test.ts`
 
 ### Backlog (interessant für später)
 - Supadata.ai API für Instagram-Transkripte (kostenloses Free-Tier)
@@ -117,16 +117,24 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **Weitere Migrations-Formate** — Copy Me That, Pepperplate, Evernote, Cookmate als Import-Formate (über Paprika/Nextcloud hinaus, RecipeSage-Pattern)
 - **CSV-Export** — Rezept-Sammlung als Tabelle exportieren (Spreadsheets, Backup)
 - **Markdown-Export** — einzelnes Rezept als `.md`-Datei (Obsidian, Notion, etc.)
+- **Phase 5 Trigger praezisieren (deferred)** — Web Vitals bleiben ausdruecklich **nicht** Teil des Performance-Strict-Gates. Phase 4c liefert jetzt Lab-Daten; ein sinnvoller Trigger waere nur noch: Feldmetrik starten, wenn CI-/Lab-Daten und echte Nutzerberichte auseinanderlaufen oder `simulate`/`devtools` nach 10 stabilen Runs wieder stark divergieren. Aktuell kein Blocker.
+- **Code-Hygiene: `mobile/app/recipe/[id].tsx` (1092 Zeilen) modularisieren** — `CookModal` (line 127-225), `DeleteModal` (line 104-126), `StarRow`, `normalizeRecipe`, `parseJSON`, `splitIngredientDisplay` in eigene Dateien unter `mobile/components/recipe/` ziehen. Pattern existiert bereits (`ImagePickerModal.tsx`, 160 Zeilen, eigene Datei). Vorteil: Wartbarkeit und Test-Granularitaet. Nach Phase 4c ist das kein Performance-Blocker mehr, weil Outcome Z den LCP geloest hat.
 
 ---
 
 ## Offene Punkte nach QA + Code-Review (2026-05-01)
 
-- **Frontend-Build fehlt** — `npm run build:mobile` seit Phase 13g nicht ausgeführt. Freitext-Tab (`'text'`-Modus in `mobile/app/(tabs)/extract.tsx`) fehlt im Web-Build (`public/`). Vor dem nächsten Push bauen und `public/` committen.
-- **Logo-Asset 404** — `/assets/Logo.hash.png` → 404; Datei liegt unter `/assets/public/Logo.hash.png`. Expo-Export-Pfad stimmt nicht mit Bundle-Referenz überein. Low priority, kein visueller Impact (Fallback greift).
-- **Phase-13-Plan gegenlesen** — `docs/phase-13-reviewed.md` nochmal vollständig durchlesen und Code prüfen ob alle Features korrekt implementiert wurden (insbesondere 13g Freitext-Tab im Frontend, 13h ML-Fallback, 13i Nährwert-Anzeige im Frontend).
-- **chefkoch Plugin dead code** — `web/chefkoch.ts` Plugin ist unerreichbar (Chefkoch-URLs gehen immer durch `fetchChefkoch`, nie durch `fetchWeb`). Entweder `chefkoch` als `web`-Typ klassifizieren oder Plugin entfernen.
-- **TikTok OCR doppelter LLM-Aufruf** — `extractTextFromVideoFrames()` ruft `extractRecipeFromText()` auf, das Zod-Schema-Validierung erfordert. Schlägt still fehl wenn Frame kein komplettes Rezept zeigt → API-Token verbrannt. Langfristig: einfacheren Vision-Text-Extraktions-Call verwenden.
+- **Cleanup-Plan:** `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md`
+- **Stand 2026-05-06:** Code-Punkte 3, 4, 5, 6, 7, 8, 9 und 12 committed (5617a12); Punkt 13 wurde als separater manueller Supabase-Ops-Schritt gegen die konfigurierte `rezepti-dev`-Datenbank ausgefuehrt.
+- **Punkt 13 Ergebnis:** Vorab-Pruefung fuer `recipes.id = 36` ergab bereits keinen Datensatz mehr; `meal_plan` und `shopping_list` standen ebenfalls auf `0`. Der transaktionale Delete lief damit als verifizierter No-Op, die Nachpruefung blieb bei `0/0/0`.
+
+### Erledigte/veraltete QA-Punkte (geprüft 2026-05-05)
+
+- **Frontend-Build fehlt** — überholt: `npm run build:mobile` wurde laut `docs/TEST_STATUS.md` am 2026-05-04 erfolgreich ausgeführt; `public/` enthält den Expo-Web-Build inklusive `extract.html`.
+- **Phase-13-Plan gegenlesen** — erledigt: 13g Freitext-Tab, 13h ML-Fallback und 13i Nährwert-Anzeige sind im Code vorhanden; Restpunkte bleiben separat als Chefkoch-Plugin-Dead-Code und TikTok-OCR-Optimierung stehen.
+- **Logo-Asset 404** — im Workspace behoben: enger `/assets/Logo*.png`-Fallback, vorhandene hashed Assets bleiben direkt erreichbar, fremde fehlende Assets liefern weiter 404.
+- **chefkoch Plugin dead code** — im Workspace behoben: unerreichbares Plugin entfernt, Chefkoch bleibt dedizierter Fetcher-Pfad.
+- **TikTok OCR doppelter LLM-Aufruf** — im Workspace behoben: Plaintext-Vision-Helper statt Recipe-Schema-Extraktion fuer OCR-Frames.
 
 ---
 
@@ -138,9 +146,62 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
-## Test-Status (2026-04-30)
+## Test-Status (2026-05-06)
 
-- Unit Tests: 320 bestanden + 9 skipped (DB-Integration: laufen in CI mit postgres:15)
+- Unit Tests: 366 bestanden + 12 skipped
+- Cleanup-Commit (5617a12): Planner-Routes, Shopping-Vertrag, PDF-Helper, Native-PDF-Wiring, Static Assets, TikTok-OCR, Chefkoch-Routing — alle grün
+- DB-Integration: weiter unter `TEST_DATABASE_URL`, im lokalen Default-Lauf geskippt
 - E2E Tests: skippen graceful ohne laufenden Server
 - Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
 - `npm test -- --run --exclude="test/e2e/**"`
+## Aktueller Fokus — Mobile Testing & Performance (2026-05-07)
+
+- [x] Mobile Release Gate + CI-Job stabil (`mobile:typecheck`, `build:web`, `test:unit`)
+- [x] Phase-2 Reliability-Basis (Hooks/Contracts/QueryClient) steht
+- [x] UI-Fallback-Tests für Recipe List, Shopping und Recipe Detail ergänzt
+- [x] Shopping-Screen: sichtbarer Error + Retry statt stillem Empty-State bei API-Fehler
+- [x] UI-naher End-to-End-Workflow-Test `list -> detail -> shopping` (screennah, interaktionsgetrieben)
+- [x] Planner-/Shopping-Recovery weiter ausgebaut: Planner-Load-Retry sichtbar, Shopping-Refresh hält gecachte Items nutzbar
+- [x] Query-Cache-Recovery gehärtet: korruptes AsyncStorage-Persist wird verworfen statt den App-Start zu kippen
+- [x] `addIngredients` in testbaren Service mit bounded concurrency verschoben (`mobile/utils/shopping-service.ts`)
+- [x] Phase-4 Slice 1: Recipe-List-Derived-Data entkoppelt (`mobile/utils/recipe-list-screen-data.ts`, `useDeferredValue`, stabilere `FlatList`-Configs)
+- [x] Phase-4 Slice 1: deterministischer 300-1000-Rezepte-Fixture-Harness (`mobile/test/fixtures/recipe-performance-fixture.ts`)
+- [x] Phase-4 Slice 1: Shopping-/Recipe-Detail-Hotspots reduziert (vorbereitete Anzeige-Daten, weniger wiederholte Ableitungen)
+- [x] Phase 2 Restlücken final geschlossen: Planner-Mutationsstates (`add/remove pending`) und sichtbare Rescue-Pfade
+- [x] Phase 3 Code-Härtung abgeschlossen: echter Chrome im CI, History-/Readiness-Auswertung und cache-basierte Run-Historie aktiv
+- [x] Review-Bugfixes Phase 1–3 gefixt (2026-05-07): `canonicalName`-Length-Limit, `planner.tsx`-Fehlerbehandlung, `query-client`-cleanup-guard, Lighthouse-API-Mock fuer parametrisierte Pfade, LCP/CLS-Budget-Checks in `validate-status.mjs`
+- [x] Phase-4 Slice 2 abgeschlossen (2026-05-07): `mobile/utils/planner-screen-data.ts` (pure Utility), `mobile/test/planner-screen-data.test.ts` (12 Tests), Integration in `planner.tsx` (`useDeferredValue`, `useMemo`-`entriesByDay`, `React.memo` auf `DayColumn`, `useCallback` fuer `handleRemoveEntry`)
+- [x] Phase-4 Backend/Search-Follow-up dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist `searchRecipesByIngredientsAdvanced` (`src/db-react.ts:133-181`) keine Performance-Bremse — kein Backend-Refactor gerechtfertigt; Phase 4 damit erfuellt
+- [x] Phase 3 empirisch abgeschlossen (2026-05-08): 10 lokale Runs geseedet, `artifacts/performance/readiness.json` auf `ready=true` mit allen 4 Checks gruen (`minRunsMet`, `warningRateMet`, `fullCoverageMet`, `metricStabilityMet`). LCP-Spread <= 2% pro Route. `history.json` + `readiness.json` jetzt versioniert (siehe `.gitignore`).
+- [x] Folgearbeit API-Mock erledigt (Commit `3c2c7fd`, 2026-05-09): `matchApiRoute()` extrahiert, `/api/v1/recipes/:id` + `/api/v1/shopping/:id|checked|all` abgedeckt, 17 Unit-Tests. Mock antwortet korrekt — aber LCP-Befund war tiefer (siehe naechster Punkt).
+- [x] Phase-4b Spinner-zu-Skelett-Refactor erledigt (Commit `04ca16e`, 2026-05-09): `shopping.tsx` + `recipe/[id].tsx` rendern Header-Shell + Skelett-Container ab erstem React-Frame. Real-Device-UX verbessert; Lighthouse-LCP unveraendert (~25 s) — Bottleneck ist Bundle-Hydration, nicht Render-Pattern.
+- [x] **Phase 4c — Throttling Validation + One Optimization Slice** abgeschlossen (2026-05-11): `LIGHTHOUSE_THROTTLING=simulate|devtools`, `perf:lighthouse:compare`, `throttling-comparison.json`, methodenfaehige Budgets, gzip-JS-Metriken und JS-Ausfuehrungszeit-Budget umgesetzt. Outcome Y als Bundle-Slice erledigt (PDF-Export lazy-loaded); Outcome Z als finaler LCP-Fix validiert (`mobile/app/+html.tsx` rendert route-aware statische App-Shell). Mobile p50 LCP nach Vergleich: `/` 903/1450 ms, `/shopping` 902/1448 ms, `/recipe/1` 1052/1414 ms (`simulate`/`devtools`). Kanonisch: `docs/performance/throttling-analysis.md` und `docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`.
+- [x] **Performance Strict-Hardening Tooling-Slice (2026-05-11):** `perf:stability:seed` automatisiert die 10 echten Runs, `validate-status` schreibt eindeutige methodenmarkierte History-Eintraege, `perf:budget:suggest` berechnet Budget-Vorschlaege aus vollstaendigen Runs (`p95 * 1.10`). Fokussierte Tests gruen.
+- [ ] **Performance Strict-Probe freigeben:** `performance-audit` in CI bei `warn` belassen, `5` aufeinanderfolgende gruene CI-Warn-Runs sammeln, danach einen frischen `npm run perf:stability:seed` als Warm-up-Nachweis verifizieren. Erst wenn `artifacts/performance/observation.json` `strictProbeEligible=true` meldet, ist ein einzelner manueller `workflow_dispatch` mit `perf_enforcement=strict` als Probe erlaubt.
+- [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv)
+- [x] Coverage-Thresholds schrittweise anheben (Start-Gate 1% -> ratcheting via `COVERAGE_RATCHET_MIN`)
+- [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)
+- [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI-Pinning), Expo SDK 55, React 19.2, React Native 0.83
+- [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` 18/18 gruen, `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
+
+## Dependency-Update-Status (2026-05-07)
+
+### Patch-safe (jetzt updatebar; innerhalb `wanted`)
+
+- Root: `@types/node`, `dotenv`, `drizzle-orm`, `hono`, `openai`, `typescript`, `vite`, `zod`, `@hono/node-server` (v1.x)
+- Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `lucide-react-native`, `react`, `react-dom`, `react-native` (0.83.x), `react-native-reanimated`, `react-native-svg`, `react-test-renderer`
+- **Umsetzung 2026-05-07:** Root-Updates vollstaendig eingespielt. Mobile-Patch-Updates fuer `@tanstack/*` und `lucide-react-native` bleiben aktiv; die SDK-gebundenen Pakete `react`, `react-dom`, `react-native` und `react-native-svg` wurden bewusst auf Expo-Expected zurueckgesetzt (`19.2.0`, `19.2.0`, `0.83.6`, `15.15.3`). `react-test-renderer` wurde dazu passend wieder auf `19.2.0` ausgerichtet.
+- **Peer-/SDK-Blocker:** `react-native-reanimated@4.3.0` verlangt `react-native-worklets@0.8.x`; `expo install react-native-reanimated react-native-worklets` unter SDK 55 hat keine Aenderung vorgenommen (weiter `reanimated@4.2.1`, `worklets@0.7.4`).
+- **Aktueller Compatibility-Status (`expo-doctor`):** wieder `18/18` Checks gruen.
+- **Build-Fix:** `mobile/assets/images/favicon.png` war inhaltlich eine ICO-Datei mit falscher `.png`-Endung und blockierte `expo export` mit `Unsupported MIME type: image/x-icon`; Asset wurde durch eine echte PNG-Datei ersetzt, `npm run mobile:build:web` laeuft wieder erfolgreich.
+
+### SDK-gebunden (nur mit Expo-Kompatibilitätscheck)
+
+- `react`, `react-dom`, `react-native` sowie `react-native-*` Kernpakete nur im Rahmen der Expo-SDK-Kompatibilität aktualisieren (`expo install`/`expo-doctor` als Gate)
+- Alle `expo*` Pakete bleiben SDK-geführt und werden nicht separat "hochgezogen"
+- `expo-doctor` ist Teil des CI-Release-Gates; SDK-/Asset-/Config-Drift blockiert damit nicht mehr nur lokal, sondern auch im Mobile-Job.
+
+### Major / später (bewusst vertagt)
+
+- Root: `@hono/node-server` 1 -> 2, `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `@vitest/ui` 3 -> 4
+- Mobile: `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `tailwindcss` 3 -> 4, `typescript` 5 -> 6, `react-native` 0.83 -> 0.85, `@react-native-async-storage/async-storage` 2 -> 3, `react-native-worklets` 0.7 -> 0.8

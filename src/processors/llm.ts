@@ -85,6 +85,50 @@ async function chatJSON(
   return JSON.parse(response.choices[0].message.content ?? "{}");
 }
 
+async function chatText(
+  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+  model: string,
+  options: LlmOptions = {}
+): Promise<string> {
+  const groq = createGroqClient(options.apiKey);
+  const response = await groq.chat.completions.create({
+    model,
+    messages,
+    temperature: 0.1,
+    max_tokens: 2048,
+  });
+  return (response.choices[0].message.content ?? "").trim();
+}
+
+export async function extractVisibleTextFromImages(
+  imageUrls: string[],
+  options: LlmOptions = {}
+): Promise<string> {
+  if (imageUrls.length === 0) return "";
+
+  const imageParts: OpenAI.Chat.ChatCompletionContentPart[] = imageUrls.map((url) => ({
+    type: "image_url" as const,
+    image_url: { url },
+  }));
+
+  const prompt: OpenAI.Chat.ChatCompletionContentPart = {
+    type: "text",
+    text:
+      "Lies den sichtbaren Text aus diesen TikTok-Frames ab. " +
+      "Gib nur den erkannten Text zurück, ohne JSON, ohne Rezeptstruktur und ohne Erklärungen. " +
+      "Wenn kein lesbarer Text sichtbar ist, antworte mit einem leeren String.",
+  };
+
+  return chatText([
+    {
+      role: "system",
+      content:
+        "Du bist ein OCR-Assistent. Du extrahierst ausschließlich sichtbaren Text aus Bildern und gibst Plaintext zurück.",
+    },
+    { role: "user", content: [...imageParts, prompt] },
+  ], config.groq.visionModel, options);
+}
+
 export async function extractRecipeFromText(
   text: string,
   existingImageUrl?: string,

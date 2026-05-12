@@ -9,22 +9,7 @@ import {
   extractDomBlocks,
   resolveSchemaImage,
   extractImages,
-  type WebScraperPlugin,
 } from "./base.js";
-import { chefkochPlugin } from "./chefkoch.js";
-
-// ─── Plugin registry ──────────────────────────────────────────────────────────
-
-const PLUGINS: WebScraperPlugin[] = [chefkochPlugin];
-
-function getPlugin(url: string): WebScraperPlugin | null {
-  try {
-    const hostname = new URL(url).hostname.replace(/^www\./, "");
-    return PLUGINS.find((p) => hostname === p.hostname || hostname.endsWith(`.${p.hostname}`)) ?? null;
-  } catch {
-    return null;
-  }
-}
 
 // ─── fetchWeb ─────────────────────────────────────────────────────────────────
 
@@ -54,16 +39,9 @@ export async function fetchWeb(url: string): Promise<ContentBundle> {
     $('meta[property="og:description"]').attr("content") ||
     "";
 
-  const plugin = getPlugin(url);
-  let textContent: string;
-  const pluginText = plugin?.extractMainText?.($);
-  if (pluginText != null) {
-    textContent = pluginText;
-  } else {
-    const { text, usedBodyFallback } = extractMainTextFull($);
-    textContent =
-      usedBodyFallback && config.web.mlFallback ? extractDomBlocks($) : text;
-  }
+  const { text, usedBodyFallback } = extractMainTextFull($);
+  const textContent =
+    usedBodyFallback && config.web.mlFallback ? extractDomBlocks($) : text;
 
   return {
     url,

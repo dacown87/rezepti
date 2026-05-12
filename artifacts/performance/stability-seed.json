@@ -1,0 +1,361 @@
+{
+  "generatedAt": "2026-05-12T08:31:51.559Z",
+  "config": {
+    "runs": 10,
+    "method": "simulate",
+    "runBundle": true,
+    "runWarmup": true
+  },
+  "status": "ok",
+  "totalSteps": 22,
+  "failedSteps": 0,
+  "historyWrites": 10,
+  "verification": {
+    "expectedLabels": [
+      "bundle",
+      "warmup",
+      "lighthouse-1",
+      "validate-1",
+      "lighthouse-2",
+      "validate-2",
+      "lighthouse-3",
+      "validate-3",
+      "lighthouse-4",
+      "validate-4",
+      "lighthouse-5",
+      "validate-5",
+      "lighthouse-6",
+      "validate-6",
+      "lighthouse-7",
+      "validate-7",
+      "lighthouse-8",
+      "validate-8",
+      "lighthouse-9",
+      "validate-9",
+      "lighthouse-10",
+      "validate-10"
+    ],
+    "actualLabels": [
+      "bundle",
+      "warmup",
+      "lighthouse-1",
+      "validate-1",
+      "lighthouse-2",
+      "validate-2",
+      "lighthouse-3",
+      "validate-3",
+      "lighthouse-4",
+      "validate-4",
+      "lighthouse-5",
+      "validate-5",
+      "lighthouse-6",
+      "validate-6",
+      "lighthouse-7",
+      "validate-7",
+      "lighthouse-8",
+      "validate-8",
+      "lighthouse-9",
+      "validate-9",
+      "lighthouse-10",
+      "validate-10"
+    ],
+    "orderOk": true,
+    "sequenceComplete": true,
+    "bundlePresent": true,
+    "warmupPresent": true,
+    "historyWritesOnlyValidate": true,
+    "expectedHistoryWrites": 10,
+    "actualHistoryWrites": 10,
+    "historyWritesMatchExpected": true,
+    "warmupHistoryWriteDetected": false,
+    "ready": true
+  },
+  "results": [
+    {
+      "label": "bundle",
+      "runIndex": 0,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:bundle"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:11:32.695Z",
+      "finishedAt": "2026-05-12T08:11:32.958Z",
+      "exitCode": 0
+    },
+    {
+      "label": "warmup",
+      "runIndex": 0,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:11:32.958Z",
+      "finishedAt": "2026-05-12T08:13:23.455Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-1",
+      "runIndex": 1,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:13:23.455Z",
+      "finishedAt": "2026-05-12T08:15:13.431Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-1",
+      "runIndex": 1,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:15:13.431Z",
+      "finishedAt": "2026-05-12T08:15:13.614Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-2",
+      "runIndex": 2,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:15:13.614Z",
+      "finishedAt": "2026-05-12T08:17:03.657Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-2",
+      "runIndex": 2,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:17:03.657Z",
+      "finishedAt": "2026-05-12T08:17:03.859Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-3",
+      "runIndex": 3,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:17:03.859Z",
+      "finishedAt": "2026-05-12T08:18:54.322Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-3",
+      "runIndex": 3,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:18:54.322Z",
+      "finishedAt": "2026-05-12T08:18:54.507Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-4",
+      "runIndex": 4,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:18:54.507Z",
+      "finishedAt": "2026-05-12T08:20:46.752Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-4",
+      "runIndex": 4,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:20:46.752Z",
+      "finishedAt": "2026-05-12T08:20:46.944Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-5",
+      "runIndex": 5,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:20:46.945Z",
+      "finishedAt": "2026-05-12T08:22:37.702Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-5",
+      "runIndex": 5,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:22:37.702Z",
+      "finishedAt": "2026-05-12T08:22:37.890Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-6",
+      "runIndex": 6,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:22:37.890Z",
+      "finishedAt": "2026-05-12T08:24:28.775Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-6",
+      "runIndex": 6,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:24:28.775Z",
+      "finishedAt": "2026-05-12T08:24:28.967Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-7",
+      "runIndex": 7,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:24:28.967Z",
+      "finishedAt": "2026-05-12T08:26:19.762Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-7",
+      "runIndex": 7,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:26:19.762Z",
+      "finishedAt": "2026-05-12T08:26:19.942Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-8",
+      "runIndex": 8,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:26:19.942Z",
+      "finishedAt": "2026-05-12T08:28:10.499Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-8",
+      "runIndex": 8,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:28:10.499Z",
+      "finishedAt": "2026-05-12T08:28:10.687Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-9",
+      "runIndex": 9,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:28:10.687Z",
+      "finishedAt": "2026-05-12T08:30:01.187Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-9",
+      "runIndex": 9,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:30:01.187Z",
+      "finishedAt": "2026-05-12T08:30:01.368Z",
+      "exitCode": 0
+    },
+    {
+      "label": "lighthouse-10",
+      "runIndex": 10,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:lighthouse"
+      ],
+      "writesHistory": false,
+      "startedAt": "2026-05-12T08:30:01.368Z",
+      "finishedAt": "2026-05-12T08:31:51.380Z",
+      "exitCode": 0
+    },
+    {
+      "label": "validate-10",
+      "runIndex": 10,
+      "cmd": "npm",
+      "args": [
+        "run",
+        "perf:validate"
+      ],
+      "writesHistory": true,
+      "startedAt": "2026-05-12T08:31:51.380Z",
+      "finishedAt": "2026-05-12T08:31:51.559Z",
+      "exitCode": 0
+    }
+  ]
+}

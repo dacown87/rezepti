@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "recipedeck",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -23,7 +22,6 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.recipedeck.app",
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
@@ -50,7 +48,8 @@
           "enableFTS": true,
           "useSQLCipher": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
