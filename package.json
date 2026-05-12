@@ -11,7 +11,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "dev:mobile": "concurrently \"npm run dev\" \"cd mobile && npx expo start --web\"",
-    "build:mobile": "cd mobile && CI=1 npx expo export --platform web --output-dir ../public",
+    "build:mobile": "npm --prefix mobile run build:web",
     "build:mobile:docker": "cd mobile && CI=1 npx expo export --platform web --output-dir ../public",
     "postbuild:mobile": "git checkout HEAD -- public/changelog.json",
     "mobile:typecheck": "npm --prefix mobile run typecheck",

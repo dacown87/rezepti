@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { detectCategory, CATEGORY_KEYWORDS } from '../../src/db-react.js'
+import { detectCategory, CATEGORY_KEYWORDS, resolvePostgresSsl } from '../../src/db-react.js'
 
 // ─── detectCategory (pure function — always run) ──────────────────────────────
 
@@ -86,6 +86,17 @@ describe('CATEGORY_KEYWORDS completeness', () => {
         expect(kw, `${category}: keyword "${kw}" is not lowercase`).toBe(kw.toLowerCase())
       }
     }
+  })
+})
+
+describe('resolvePostgresSsl', () => {
+  it('disables SSL for localhost test databases', () => {
+    expect(resolvePostgresSsl('postgresql://postgres:postgres@localhost:5432/rezepti_test')).toBe(false)
+    expect(resolvePostgresSsl('postgresql://postgres:postgres@127.0.0.1:5432/rezepti_test')).toBe(false)
+  })
+
+  it('requires SSL for non-local database hosts', () => {
+    expect(resolvePostgresSsl('postgresql://postgres:postgres@db.example.com:5432/rezepti')).toBe('require')
   })
 })
 

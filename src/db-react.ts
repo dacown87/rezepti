@@ -17,11 +17,30 @@ export { CATEGORY_KEYWORDS, detectCategory };
 let _client: ReturnType<typeof postgres> | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
 
+export function resolvePostgresSsl(connectionString: string) {
+  try {
+    const hostname = new URL(connectionString).hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return false;
+    }
+  } catch {
+    // Fall back to the safer default for malformed or unexpected URLs.
+  }
+
+  return 'require' as const;
+}
+
 function getDb() {
   if (!_db) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL environment variable is required");
-    _client = postgres(connectionString, { max: 10, ssl: 'require', prepare: false, connect_timeout: 10, idle_timeout: 30 });
+    _client = postgres(connectionString, {
+      max: 10,
+      ssl: resolvePostgresSsl(connectionString),
+      prepare: false,
+      connect_timeout: 10,
+      idle_timeout: 30,
+    });
     _db = drizzle(_client, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } });
   }
   return _db;
