@@ -13,6 +13,7 @@ screensshots/
 .playwright-mcp/
 .expo/
 .claude/worktrees/
+.claude/settings.local.json
 FilesWorking/
 test/RecipePicture/
 frontend/dist/

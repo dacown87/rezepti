@@ -10,7 +10,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const mobileDir = path.join(repoRoot, 'mobile');
 const outputDirArgIndex = process.argv.indexOf('--output-dir');
 const outputDir = outputDirArgIndex >= 0 ? process.argv[outputDirArgIndex + 1] : '../public';
-const timeoutSeconds = String(Number(process.env.EXPO_EXPORT_TIMEOUT_SECONDS || 120));
+const timeoutSeconds = String(Number(process.env.EXPO_EXPORT_TIMEOUT_SECONDS || 300));
 
 function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
