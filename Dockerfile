@@ -36,7 +36,10 @@ COPY mobile/package*.json ./mobile/
 RUN cd mobile && npm ci
 
 COPY mobile/ ./mobile/
-RUN cd mobile && CI=1 npx expo export --platform web --output-dir ../public
+COPY scripts/mobile/expo-export-web.mjs ./scripts/mobile/expo-export-web.mjs
+# Wrapper umgeht den bekannten Expo-Export-Post-Hang: timeout + Log-Marker-Check.
+# Siehe docs/PROJECT_LEARNINGS.md#expo-export-hangs-postbuild.
+RUN cd mobile && CI=1 EXPO_EXPORT_TIMEOUT_SECONDS=300 node ../scripts/mobile/expo-export-web.mjs --output-dir ../public
 
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production

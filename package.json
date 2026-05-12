@@ -12,7 +12,7 @@
     "start": "tsx src/index.ts",
     "dev:mobile": "concurrently \"npm run dev\" \"cd mobile && npx expo start --web\"",
     "build:mobile": "npm --prefix mobile run build:web",
-    "build:mobile:docker": "cd mobile && CI=1 npx expo export --platform web --output-dir ../public",
+    "build:mobile:docker": "cd mobile && CI=1 EXPO_EXPORT_TIMEOUT_SECONDS=300 node ../scripts/mobile/expo-export-web.mjs --output-dir ../public",
     "postbuild:mobile": "git ls-files --error-unmatch public/changelog.json >/dev/null 2>&1 && git checkout HEAD -- public/changelog.json || true",
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:build:web": "npm --prefix mobile run build:web",
