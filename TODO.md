@@ -1,4 +1,24 @@
 
+## 🎯 Nächste Aktion — 2. Strict-Probe-Run dispatchen (2026-05-12 Spätabend)
+
+- [ ] **Strict-Probe `workflow_dispatch` ausführen** — Gate ist offen: `strictProbeEligible=true`, `consecutiveGreenRuns=5/5`, `blockers=[]`, `warmupSeed.ready=true`. Letzter Counter-Check: Run `25759065411` (CI auf `1e43fa8`), Observation-Artifact runtergeladen + verifiziert.
+  - **Befehl:** `gh workflow run CI --ref main -f perf_enforcement=strict`
+  - **Erwartung:** `performance-audit`-Job gruen, alle Budgets passed, keine neuen Findings
+  - **Wichtig:** CI-Policy bleibt warn-only fuer `push`/`pull_request`/`schedule` — das ist nur ein Probe-Run. `consecutiveGreenRuns` springt nach dem Probe zurueck auf `0`; weiterer Probe braucht neues 5er-Fenster.
+  - Vorgehen siehe `docs/performance/strict-probe-runbook.md`
+
+---
+
+## 🚨 Sicherheit — RLS aktivieren (2026-05-12)
+
+- [ ] **Supabase Advisor-Warnung: `rls_disabled_in_public`** — Supabase REST-API stellt alle `public.*`-Tabellen über den anon-Key bereit (jeder mit Projekt-URL kann lesen/schreiben/löschen). Backend verbindet als `postgres`-Superuser via `DATABASE_URL` → umgeht RLS automatisch, daher reicht RLS aktivieren ohne Policies.
+  - SQL liegt bereit unter `db/migrations/2026-05-12-enable-rls.sql` (5 Tabellen + `REVOKE` als Hardening)
+  - **Ausführen:** Supabase Dashboard → SQL Editor → Inhalt einfügen → Run
+  - **Verifizieren:** Database → Advisors prüfen + App-Smoke-Test (`npm run dev`, Rezept anlegen/lesen)
+  - **Spätere Multi-User-Phase:** echte Policies mit `auth.uid() = user_id` schreiben und App auf `authenticated`-Key umstellen (siehe „Nächste große Phase — Multi-User Login" unten)
+
+---
+
 ## Phase 9 — Quality & Stability ✅ ABGESCHLOSSEN (2026-04-16)
 
 - **9a** — CLAUDE.md auf PostgreSQL/Supabase aktualisiert
