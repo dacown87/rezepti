@@ -1,7 +1,87 @@
 <!-- /autoplan restore point: /home/patrick/.gstack/projects/dacown87-rezepti/main-autoplan-restore-20260506-091159.md -->
 # Mobile Testing and Web Performance Plan
 
-Stand: 2026-05-07
+Stand: 2026-05-12
+
+## Aktueller Stand (2026-05-12, nach erstem gruenen Strict-Probe-Run)
+
+Kurzfassung: Der urspruengliche Plan ist fuer Phase 1-4 abgeschlossen. Phase 4c ist technisch abgeschlossen: Throttling-Vergleich, Bundle-Slice, statische App-Shell und Budget-Mechanik sind umgesetzt und nicht-sandboxiert verifiziert. Der Strict-Hardening-Seed ist am 2026-05-12 erfolgreich gelaufen, danach wurden 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs erreicht und der erste manuelle Strict-Probe-Run via `workflow_dispatch` (Run `25742783313`) ist gruen abgeschlossen. CI-Policy bleibt fuer `push`/`pull_request`/`schedule` weiter warn-only — eine breitere Aktivierung von `strict` ist eine separate Entscheidung.
+
+Erledigt:
+
+- Phase 1: Mobile Release Gate, CI-Split, `expo-doctor`, Shared Contracts.
+- Phase 2: Mobile Workflow Reliability inkl. Cache-/Retry-/Mutation-/Offline-Pfade.
+- Phase 3: Warn-only Lighthouse-/Bundle-Foundation mit Artefakten, CI-Job, History/Readiness-Mechanik.
+- Phase 4: React-Performance-Slices fuer Recipe List und Planner, plus Skeleton-Refactor fuer Shopping/Recipe Detail.
+- Phase 5 bleibt bewusst deferred; kein Web-Vitals-Track ohne konkrete Feldmetrik-Frage.
+
+Phase-4c erledigt:
+
+- `scripts/performance/lighthouse-runner.mjs`: `LIGHTHOUSE_THROTTLING=simulate|devtools` validiert, schreibt Methode in Status/Summary/Results und startet bei Import in Unit-Tests nicht mehr automatisch.
+- `scripts/performance/throttling-compare.mjs`: setzt `LIGHTHOUSE_THROTTLING` als Environment, sammelt erfolgreiche Lighthouse-Reports und schreibt p50/p75 plus `simulate-minus-devtools`-Deltas.
+- `scripts/performance/bundle-report.mjs`: schreibt gzip JS-Metriken und exportiert testbare Bundle-Report-Helfer.
+- `scripts/performance/validate-status.mjs`: unterstuetzt methodenfaehige Lighthouse-Budgets, gzip-JS-Budget und JS-Ausfuehrungszeit via Lighthouse `bootup-time`.
+- Tests ergaenzt: Runner-Throttling, Throttling-Compare, Bundle-Gzip, Performance-Budget-Validation.
+- Entscheidung dokumentiert in `docs/performance/throttling-analysis.md`: Outcome Z ist der validierte LCP-Fix; Outcome Y wurde als vorbereitender Bundle-Slice umgesetzt.
+- Phase-B-Slices umgesetzt: PDF-Export wird in Recipe List und Recipe Detail dynamisch importiert; `mobile/app/+html.tsx` rendert eine route-aware `rd-audit-shell` vor dem Expo-Root.
+- Ergebnis im frischen Expo-Web-Export: Entry-Chunk von 4,614,669 Bytes auf 4,156,752 Bytes reduziert; `pdf-export` liegt jetzt als eigener 459,615-Bytes-Chunk vor.
+
+Strict-Hardening-Tooling-Slice erledigt:
+
+- `scripts/performance/stability-seed.mjs`: automatisiert `perf:bundle` einmalig und danach N-mal `perf:lighthouse` + `perf:validate` sequenziell. Default: 10 Runs, Methode `simulate`; steuerbar ueber `PERF_STABILITY_RUNS`, `PERF_STABILITY_METHOD`/`LIGHTHOUSE_THROTTLING`, `PERF_STABILITY_SKIP_BUNDLE=1`.
+- `scripts/performance/budget-suggestions.mjs`: berechnet Budget-Vorschlaege aus echten vollstaendigen History-Runs, gefiltert nach Methode/Viewport. Default-Regel: `p95 * 1.10`; p50/p75/p95 werden als Evidenz mitgeschrieben.
+- `scripts/performance/validate-status.mjs`: schreibt `throttlingMethod` in neue History-Eintraege und erzeugt eindeutige `runId`s auch bei mehreren Validierungen innerhalb eines CI-Runs (`GITHUB_RUN_ID` + Attempt + Messzeitpunkt). Damit ueberschreibt ein 10er-Loop seine eigenen Runs nicht.
+- `package.json`: neue Commands `perf:stability:seed`, `perf:budget:suggest`, `perf:strict-hardening`.
+- Tests ergaenzt: `test/unit/stability-seed.test.ts`, `test/unit/budget-suggestions.test.ts`, plus Run-ID-Test in `test/unit/validate-status-performance-budgets.test.ts`.
+
+Strict-Hardening-Seed erledigt:
+
+- `npm run perf:stability:seed` lief nicht-sandboxiert vollstaendig durch. Der erste Sandbox-Versuch scheiterte erwartbar an `listen EPERM` fuer `127.0.0.1:4173`; ausserhalb der Sandbox konnte der lokale Static Server starten.
+- `npm run perf:budget:suggest` wertete ein komplettes `10/10`-Window aus (`2026-05-12T06:06:18.985Z` bis `2026-05-12T06:22:53.599Z`).
+- `scripts/performance/baseline.json` wurde geschaerft: `maxGzipJsBytes=1140411`, `maxLargestJsAssetBytes=4572427`; `maxJsBytes` bleibt bei der bestehenden strengeren 5.2-MB-Grenze.
+- Lighthouse-Budgets fuer `simulate/mobile-375x812` wurden geschaerft. Der `/`-LCP-Vorschlag von 24616 ms wurde nicht uebernommen, weil er aus einem einzelnen Cold-Run-Ausreisser (22378 ms) kam; die warmen `/`-Runs clustern bei ~903 ms.
+
+Beobachtungs- und Probe-Gate erledigt (2026-05-12):
+
+- ✅ 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs: `25740992098`, `25741507844`, `25741808184`, `25742133438`, `25742437228`.
+- ✅ Beobachtungsartefakt im finalen Warn-Run: `strictProbeEligible=true`, `consecutiveGreenRuns=5`, `readiness.ready=true`, `warmupSeed.ready=true`.
+- ✅ Manueller `workflow_dispatch` mit `perf_enforcement=strict` (Run `25742783313`) gruen abgeschlossen: `performance-audit`-Job gruen, `expectedRuns=9/9`, `warningRuns=0`, alle Budgets passed.
+- ✅ Warm-up-Lauf vor `lighthouse-1` ist im `perf:stability:seed`-Pfad implementiert und unterdrueckt First-Sample-Ausreisser; der `/`-Cold-Run-Ausreisser-Vorschlag (24616 ms) wurde nicht in `baseline.json` uebernommen.
+
+Noch offen:
+
+- Entscheidung, ob und wann `strict` ueber `workflow_dispatch` hinaus auf `schedule` oder `pull_request` ausgeweitet wird. `consecutiveGreenRuns` ist nach dem Probe-Run zurueck auf `0`; ein zweiter Strict-Probe setzt eine neue 5er-Beobachtungsserie voraus.
+- PR-Aufraeumarbeit vor Merge: die vier leeren Trigger-Commits (`be15632`, `d819437`, `fc4eef6`, `043869e`) bei Merge squashen oder vor dem Merge bereinigen.
+
+Aktuelle lokale Verifikation am 2026-05-12:
+
+- `npm --prefix mobile run typecheck` gruen.
+- `npm --prefix mobile run test:unit` gruen: 15 Dateien, 85 Tests.
+- `npm run test:unit` gruen: 35 Dateien passed, 1 skipped; 412 Tests passed, 12 skipped.
+- `npx vitest run test/unit/lighthouse-runner-api-mock.test.ts test/unit/lighthouse-runner-throttling.test.ts test/unit/throttling-compare.test.ts test/unit/bundle-report-gzip.test.ts test/unit/validate-status-performance-budgets.test.ts` gruen: 5 Dateien, 34 Tests.
+- `npx vitest run test/unit/stability-seed.test.ts test/unit/budget-suggestions.test.ts test/unit/validate-status-performance-budgets.test.ts` gruen: 3 Dateien, 13 Tests.
+- `node --check` fuer `lighthouse-runner`, `throttling-compare`, `bundle-report`, `validate-status`, `stability-seed` und `budget-suggestions` gruen.
+- `timeout 180s npm run build:mobile` exportiert `public/` erfolgreich, beendet sich aber wie bekannt nicht sauber und wurde mit Timeout beendet.
+- `npm run perf:bundle` gruen; Bundle-Report zeigt Entry-Chunk 4,156,752 Bytes und gzip JS total 1,036,737 Bytes.
+- `npm run perf:lighthouse:compare` nicht-sandboxiert gruen: 3/3 `simulate` + 3/3 `devtools`, jeweils 9 Samples.
+- Historischer Zwischenstand 2026-05-11: `perf:validate` war gruen, aber die methodenmarkierte 10er-Serie fehlte noch.
+- Dieser Blocker ist am 2026-05-12 erledigt; siehe die folgenden Seed-/Suggest-/Validate-Nachweise.
+- `npm run perf:stability:seed` nicht-sandboxiert gruen: 10 Lighthouse-Zyklen, 10 History-Writes, `fullCoverage=true`.
+- `npm run perf:budget:suggest` gruen: `Window: 10/10 complete runs, complete=true`.
+- `npm run perf:validate` gruen nach Baseline-Schaerfung: `lighthouse=ok`, `warningRate=0.0000`, `fullCoverage=true`.
+- `npx vitest run test/unit/budget-suggestions.test.ts test/unit/stability-seed.test.ts test/unit/validate-status-performance-budgets.test.ts test/unit/bundle-report-gzip.test.ts` gruen: 4 Dateien, 14 Tests.
+
+Konsequenz:
+
+- Die historische `ready=true`-Readiness vom 2026-05-08 bleibt als Nachweis fuer die alte Foundation bestehen.
+- Fuer Budget-Hardening zaehlt ab jetzt die neue Phase-4c-Messbasis mit echter `throttling-comparison.json`, methodenfaehiger Budgetauswertung, methodenmarkierter History und den am 2026-05-12 geschaerften Budgets.
+- Strict-Probe-Gate ist erreicht und der erste Probe-Run war gruen. CI-Policy bleibt fuer `push`/`pull_request`/`schedule` weiter warn-only; jede Ausweitung von `strict` ist eine separate Entscheidung und setzt einen neuen 5er-Beobachtungs-Zyklus voraus.
+
+Wegweiser fuer naechste Schritte (post-Strict-Probe):
+
+1. Branch in PR ueberfuehren: 14 Commits ahead of `main`, davon vier leere Trigger-Commits — bei Merge squashen.
+2. Zweiter Strict-Probe-Run nach kurzer Bewaehrungsserie, sobald natuerliche Push-Aktivitaet wieder 5+ gruene CI-Runs erzeugt hat.
+3. Erst danach entscheiden, ob `strict` auf `schedule` ausgeweitet wird.
 
 ## Implementation Status (2026-05-08)
 
@@ -134,13 +214,12 @@ Wichtig fuer die aktuelle Einfuehrungsphase:
 - `mobile:typecheck` laeuft jetzt auf dem vollen Mobile-Scope.
 - Das Release Gate ist stabil und in CI granular sichtbar (Install, Typecheck, Expo-Web-Export, Mobile-Unit-Tests).
 
-Naechste priorisierte Reihenfolge (aktualisiert 2026-05-08):
+Naechste priorisierte Reihenfolge (aktualisiert 2026-05-12):
 
-1. Phase 3 abgeschlossen (Code/CI + empirische Reife: `ready=true` mit 10 stabilen Runs, alle Checks gruen). CI baut darauf auf.
-2. Phase 4 abgeschlossen (Code + Backend/Search-Follow-up dokumentiert) — keine weitere Mobile-Perf-Arbeit ohne neues Profiling-Signal.
-3. ✅ Folgearbeit erledigt (2026-05-09): API-Mock in `scripts/performance/lighthouse-runner.mjs` auf parametrisierte Routen erweitert — `matchApiRoute()` als pure, testbare Funktion extrahiert. Neu abgedeckt: `/api/v1/recipes/:id` (gibt validen Recipe-Stub zurueck, alle `normalizeRecipe()`-Felder), `/api/v1/shopping/:id` (toggle/delete), `/api/v1/shopping/checked` und `/api/v1/shopping/all`. 17 Unit-Tests in `test/unit/lighthouse-runner-api-mock.test.ts`. Hinweis: LCP auf `/shopping` und `/recipe/1` zeigen in diesem Worktree weiterhin ~25 s, weil die `public/`-Build-Artefakte hier von einem anderen Branch-Stand stammen und Lighthouse in `--throttling-method=simulate` CPU-intensives Re-Render nach dem API-Response simuliert. Die Mock-Correctness ist ueber Unit-Tests und Network-Request-Logs verifiziert. LCP-Budgets aus `baseline.json` werden erst nach 10+ stabilen CI-Runs auf dem Zielbranch als Strict-Gate aktiviert.
-4. Phase 5 (Optional Web Vitals) bleibt deferred, bis Lighthouse/Bundle-Daten eine konkrete Feldmetrik-Frage stellen.
-5. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
+1. Geschaerfte Performance-Budgets in CI beobachten; bei wiederholtem `budgetPass=true` gezielt `PERF_ENFORCEMENT_LEVEL=strict` fuer die validierte Methode aktivieren.
+2. Warm-up-Seed verifizieren: erster validierter `/ @ mobile-375x812`-Run darf keinen LCP-Spike mehr in die History schreiben.
+3. Phase 5 (Optional Web Vitals) bleibt deferred, bis Lighthouse/Bundle/Throttling-Daten eine konkrete Feldmetrik-Frage stellen.
+4. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
 
 ## Summary
 
@@ -936,28 +1015,6 @@ Clean checkout
 | Audit usability | 5/10 -> 8/10 after exact artifacts and warn-only rules |
 | First-run docs | 3/10 -> 8/10 after copy-paste flow |
 
-## GSTACK REVIEW REPORT
-
-Autoplan completed CEO, Design, Engineering, and DX reviews for `docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`.
-
-### Final Recommendation
-
-Approved with recommendations on 2026-05-06. The plan is stronger after rewriting the authoritative rollout around mobile release reliability, shared contracts, workflow tests, and warn-only performance audits.
-
-### Required Before Implementation
-
-- Treat the rewritten `Recommended Rollout` and `Proposed PR Breakdown` as canonical.
-- Start with PR 1: `CI Gate Completion + Shared Contracts`.
-- Do not implement Web Vitals ingestion in this plan unless a later decision defines validation, sampling, retention, rate limits, and alerting.
-- Keep Lighthouse and bundle budgets warn-only until stable baselines exist.
-
-### Review Artifacts
-
-- Restore point: `/home/patrick/.gstack/projects/dacown87-rezepti/main-autoplan-restore-20260506-091159.md`
-- Test plan: `/home/patrick/.gstack/projects/dacown87-rezepti/main-test-plan-20260506-mobile-testing-performance.md`
-
----
-
 ## Code Review — Branch `feat/mobile-release-gate-and-perf-foundation` (2026-05-07)
 
 ### Scope Check
@@ -1063,19 +1120,94 @@ Beobachtung: Wird die CI zeigen, ob der Schritt hält. Kein sofortiger Fix nöti
 | History-/Readiness-Mechanismus | ✅ |
 | Planner-/Shopping-State-Matrix Kernpfade | ✅ |
 
-**Fazit (Stand 2026-05-09, nach Phase-4b):** Phase 1, 2, 3 und 4 sind abgeschlossen. Phase 3 ist auch empirisch erledigt — `artifacts/performance/readiness.json` zeigt `ready=true` mit allen vier Checks gruen, basierend auf 10 lokal geseedeten Lighthouse-Runs (Spread <2% pro Route). Phase 4 ist abgeschlossen mit `mobile/utils/planner-screen-data.ts` + Backend/Search-Follow-up. Phase 5 (Optional Web Vitals) bleibt deferred. Verschoben: Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native` (Vitest/RN-Runtime-Blocker).
+**Fazit (aktualisiert 2026-05-12, nach Strict-Probe-Run):** Phase 1, 2, 3, 4 und 4c sind abgeschlossen. Phase 3 war empirisch fuer die Foundation erledigt — `artifacts/performance/readiness.json` zeigte am 2026-05-08 `ready=true` mit allen vier Checks gruen, basierend auf 10 lokal geseedeten Lighthouse-Runs (Spread <2% pro Route). Nach dem Phase-4b-/Phase-4c-Befund zaehlt fuer Budget-Hardening jetzt die neue methodenmarkierte Messbasis. Der Strict-Hardening-Seed vom 2026-05-12 lieferte 10 vollstaendige `simulate/mobile-375x812`-Runs und eine geschaerfte `baseline.json`. Danach wurden 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs erreicht und der erste manuelle Strict-Probe-Run (`workflow_dispatch`, Run `25742783313`) ist gruen abgeschlossen. Aktive Arbeit ist jetzt PR-Aufraeumarbeit (vier leere Trigger-Commits squashen) und die separate Entscheidung, ob `strict` ueber den Manual-Dispatch hinaus ausgeweitet wird. Phase 5 (Optional Web Vitals) bleibt deferred. Verschoben: Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native` (Vitest/RN-Runtime-Blocker).
 
 Folgearbeit API-Mock erledigt (Commit `3c2c7fd`, 2026-05-09): `matchApiRoute()` aus `handleApiMock()` extrahiert und auf parametrisierte Pfade erweitert — `/api/v1/recipes/:id` gibt validen Recipe-Stub zurueck; `/api/v1/shopping/:id|checked|all` abgedeckt; 17 Unit-Tests in `test/unit/lighthouse-runner-api-mock.test.ts`. Mock-Korrektheit verifiziert ueber Unit-Tests + Network-Requests.
 
 Phase-4b Spinner-zu-Skelett-Refactor erledigt (Commit `04ca16e`, 2026-05-09): `shopping.tsx` und `recipe/[id].tsx` rendern Header-Shell + Skeleton-Container ab erstem React-Frame statt Vollbild-Spinner. Real-Device-UX deutlich verbessert (Content sichtbar sobald React laeuft, nicht erst nach API-Antwort). Tests: 85 Mobile + 387 Root grun.
 
-**Lighthouse-LCP weiterhin ~25 s fuer `/shopping` und `/recipe/1`** — der Skelett-Refactor hat das Lighthouse-Simulate-Ergebnis nicht veraendert (vorher 24824/25158 ms, nachher 25162/25415 ms). Ursache ist nicht das Render-Pattern, sondern dass das LCP-Element erst nach React-Hydration der ~4.6 MB Entry-Bundle gesetzt wird; unter 4× CPU-Throttling braucht das ~25 s. Statisches HTML vom Expo-Web-Export liefert nur FCP (902 ms), kein LCP-Element.
+**Phase-4c-LCP-Fix verifiziert (2026-05-11):** Der Skelett-Refactor allein hatte Lighthouse-LCP fuer `/shopping` und `/recipe/1` nicht verbessert (weiterhin ~25 s). Die Phase-4c-Vergleichsmessung zeigte danach: PDF-Lazy-Loading reduziert den Entry-Chunk, aber loest LCP nicht allein. Die statische App-Shell in `mobile/app/+html.tsx` ist der wirksame Fix: mobile p50 LCP liegt nach `npm run perf:lighthouse:compare` bei `/` 903/1450 ms, `/shopping` 902/1448 ms und `/recipe/1` 1052/1414 ms (`simulate`/`devtools`).
 
-**Naechste Folgearbeit fuer Lighthouse-LCP-Reduktion:** Bundle-Splitting / Lazy-Loading nicht-kritischer Module in `recipe/[id].tsx` (CookModal, EditMode, PDF-Export via `React.lazy()` + `Suspense`) → Entry-Bundle reduzieren → schnellere Hydration → frueheres LCP. Strict-Gate-Aktivierung der `baseline.json`-Budgets (5000 / 5500 ms) bleibt bis dahin **nicht sinnvoll**. Aufwand: ~halber Tag mit Sonnet-Agent + CI-Lauf-Verifikation.
+**Naechste Folgearbeit fuer Budget-Hardening:** Phase 4c ist als Decision Slice technisch erledigt. 10er-Seeding, Budget-Vorschlaege und Baseline-Schaerfung sind erledigt. Beobachtungs- und Probe-Gate ebenfalls erfuellt (5/5 gruene Warn-Runs + ein gruener Strict-Probe-Run am 2026-05-12). `push`/`pull_request`/`schedule` bleiben weiter warn-only; jede breitere Aktivierung von `strict` ist eine separate Entscheidung und setzt einen neuen 5er-Beobachtungs-Zyklus voraus.
+
+### Phase 4c — Throttling Validation + One Optimization Slice
+
+Status: abgeschlossen am 2026-05-11; echte Lighthouse-Vergleichsmessung wurde ausserhalb der Sandbox erfolgreich ausgefuehrt.
+
+Ziel: entscheiden, ob der ~25s-LCP ein Lighthouse-`simulate`-Artefakt, ein echter Bundle-/Hydration-Engpass oder ein App-Shell-Problem ist. Danach wird genau eine Optimierung umgesetzt und erst dann werden Budgets verschaerft.
+
+```text
+Phase A: Messmethode validieren
+  |
+  |-- simulate hoch, devtools ok
+  |     -> Outcome X: Gate auf devtools/validated method umstellen
+  |
+  |-- simulate und devtools beide hoch, JS-Bundle dominiert
+  |     -> Outcome Y: Expo Router asyncRoutes / route-basiertes Splitting
+  |
+  |-- beide hoch, aber LCP braucht statischen First Content
+        -> Outcome Z: statische App-Shell fuer auditable First Paint
+
+Phase B: genau eine gewaehlte Optimierung umsetzen
+Phase C: Baseline/Budgets nach 10 stabilen Runs haerten
+```
+
+#### Phase A — Validation
+
+- ✅ Erledigt: `scripts/performance/lighthouse-runner.mjs` unterstuetzt `LIGHTHOUSE_THROTTLING=simulate|devtools`; Default bleibt `simulate`.
+- ✅ Erledigt: `scripts/performance/throttling-compare.mjs` setzt `LIGHTHOUSE_THROTTLING` als Env-Var, aggregiert p50/p75 pro Route/Viewport/Methode und schreibt `simulate-minus-devtools`-Deltas.
+- ✅ Erledigt: `package.json` enthaelt `perf:lighthouse:compare`.
+- ✅ Erledigt: `scripts/performance/baseline.json` ist auf methodenfaehige Budgets vorbereitet, ohne Strict-Gate vorzeitig zu aktivieren.
+- ✅ Erledigt: `scripts/performance/validate-status.mjs` unterstuetzt methodenfaehige Budget-Auswertung plus gzip-JS und JS-Ausfuehrungszeit.
+- Tests:
+  - ✅ `test/unit/lighthouse-runner-throttling.test.ts`: `LIGHTHOUSE_THROTTLING=simulate|devtools`, invalid value, Default-Verhalten.
+  - ✅ `test/unit/throttling-compare.test.ts`: p50/p75/Deltas pro Route/Viewport/Methode, fehlende Methode, partial/skipped/failed runs und Output-Schema.
+  - ✅ `test/unit/bundle-report-gzip.test.ts`: Gesamt-JS gzip, groesstes JS gzip, raw bytes und doppelte Alias-Dateien.
+  - ✅ `test/unit/validate-status-performance-budgets.test.ts`: methodenfaehige LCP-Budgets, gzip-Budget, JS-Ausfuehrungszeit-Budget, `warn` vs. `strict`, fehlende/NaN-Metriken.
+  - Artifact-Flow ist ueber die Pure-Function-Tests und die erfolgreiche Script-Ausfuehrung (`perf:bundle`, `perf:lighthouse:compare`, `perf:validate`) abgedeckt.
+- ✅ Dokumentation: `docs/performance/throttling-analysis.md` mit Entscheidung X/Y/Z und realer 2026-05-11-Messung aktualisiert.
+
+#### Current Phase-4c Evidence (2026-05-11)
+
+- ✅ `npm run perf:lighthouse:compare` lief nicht-sandboxiert erfolgreich: 3/3 `simulate`-Runs und 3/3 `devtools`-Runs, jeweils 9 Samples.
+- ✅ Mobile p50 LCP nach App-Shell: `/` 903.006 ms (`simulate`) / 1449.870 ms (`devtools`); `/shopping` 901.733 / 1448.252 ms; `/recipe/1` 1051.650 / 1413.536 ms.
+- ✅ `npm run perf:validate`: `lighthouse=ok`, `warningRate=0.0000`, `fullCoverage=true` in der Phase-4c-Vergleichsmessung.
+- Strict-Gate-Aktivierung ist nicht mehr durch Phase-4c-Messbarkeit blockiert; nach dem 2026-05-12-Seed bleibt nur noch CI-Bewaehrung der geschaerften Budgets.
+
+#### Phase B — Chosen Optimization Only
+
+- Outcome X: nicht gewaehlt; `simulate` ist nach Shell-Fix ebenfalls stabil und nicht mehr der alleinige Problemfaktor.
+- ✅ Outcome Y umgesetzt als vorbereitender Bundle-Slice: PDF-Export-Code wird in `mobile/app/(tabs)/index.tsx` und `mobile/app/recipe/[id].tsx` nur noch bei Export/PDF-Aktion dynamisch importiert.
+- ✅ Outcome Z gewaehlt und verifiziert: `mobile/app/+html.tsx` rendert eine minimale route-aware `rd-audit-shell` vor dem Expo-Root, damit `/shopping` und `/recipe/*` vor Hydration einen stabilen LCP-Kandidaten haben.
+- Messbarer Bundle-Effekt: Entry-Chunk im frischen Expo-Web-Export von 4,614,669 Bytes auf 4,156,752 Bytes reduziert; neuer `pdf-export`-Chunk 459,615 Bytes; aktuelles `gzipJsBytes=1,036,737`.
+- Messbarer LCP-Effekt: `/shopping` und `/recipe/1` fallen auf Mobile von ~23-26s p50 auf ~0.9-1.45s p50.
+
+#### Phase C — Budget Hardening
+
+- ✅ Budget-Mechanik umgesetzt: methodenfaehige LCP/CLS/JS-Ausfuehrungszeit-Budgets und gzip-JS-Budget sind im Code abgedeckt.
+- ✅ Bundle-Ziel als gzip-Messwert erfasst; aktueller frischer Bundle-Report: `gzipJsBytes=1,036,737`, unter dem Startlimit `1,400,000`.
+- ✅ LCP-Ziel ist in der aktuellen nicht-sandboxierten Vergleichsmessung erfuellt.
+- ✅ 10-Run-Automation umgesetzt: `npm run perf:stability:seed` fuehrt `perf:bundle` einmalig aus und laesst danach pro echter Messung `perf:lighthouse` + `perf:validate` laufen. `validate-status.mjs` bleibt der einzige Writer fuer `history.json`/`readiness.json`.
+- ✅ Budget-Vorschlaege umgesetzt: `npm run perf:budget:suggest` filtert vollstaendige History-Runs nach Methode/Viewport und schreibt p50/p75/p95 plus `p95 * 1.10`-Vorschlag nach `artifacts/performance/budget-suggestions.json` (Artefakt ist lokal/CI, nicht versioniert).
+- ✅ History-Integritaet gehaertet: neue History-Eintraege enthalten `throttlingMethod`; `runId` bleibt auch bei mehreren Validierungen im selben CI-Run eindeutig.
+- ✅ Vollstaendige 10-Run-Serie ausgefuehrt: `npm run perf:stability:seed` lief am 2026-05-12 nicht-sandboxiert gruen, `perf:budget:suggest` meldete `10/10 complete`.
+- ✅ `baseline.json` geschaerft: gzip-JS und groesstes JS-Asset nach Vorschlag gesenkt, `maxJsBytes` bei der strengeren bestehenden 5.2-MB-Grenze belassen, methodenfaehige Lighthouse-Budgets aktualisiert.
+- ⚠ Der `/`-LCP-Vorschlag von 24616 ms wurde nicht uebernommen, weil er einen einzelnen Cold-Run-Ausreisser widerspiegelt; warm runs liegen nahe 903 ms.
+- ✅ Folgeentscheidung umgesetzt: `perf:stability:seed` fuehrt einen verworfenen Warm-up-`perf:lighthouse`-Lauf aus, damit First-Sample-Ausreisser nicht in das gemessene Stabilitaetsfenster geschrieben werden.
+- Strict-Gate erst aktivieren, wenn die geschaerften Budgets mehrere CI-Runs ohne Regressionsrauschen bestehen und `budgetPass=true` fuer LCP, JS gzip und JS-Ausfuehrungszeit unter der validierten Methode bleibt.
+
+#### NOT in scope fuer Phase 4c
+
+- Web-Vitals-Felddatensammlung: deferred, bis `throttling-comparison.json` eine konkrete Lab-vs-Field-Frage zeigt.
+- Firebase Test Lab oder andere Geraetefarm: deferred, bis das Lab-Gate stabil und relevant ist.
+- Visual Regression / Storybook / Chromatic: eigener UI-Qualitaets-Track, nicht Voraussetzung fuer Performance-Gating.
+- OTA-Update-Simulation: eigener Release-Safety-Track, nicht Voraussetzung fuer Lighthouse-LCP.
 
 ---
 
 ## Code Review — Phase 2 (2026-05-07)
+
+> Archivierter Review-Kontext. Dieser Abschnitt ist nicht mehr die aktuelle Implementierungsanweisung; Phase 4c ist abgeschlossen, aktive Arbeit fuer Performance-Gating ist nur noch Stability-History fuer Strict-Gates.
 
 ### Was behoben wurde (aus dem Phase-1-Review)
 
@@ -1175,6 +1307,8 @@ Aktion: Prüfen ob `POST /api/v1/shopping` Duplikate idempotent behandelt (canon
 ---
 
 ## Code Review — Phase 3 (2026-05-07)
+
+> Archivierter Review-Kontext. Einzelne Findings unten wurden spaeter behoben oder durch den Phase-4b-/Phase-4c-LCP-Befund ueberholt. Fuer neue Arbeit gilt: Strict-Gates erst nach 10 stabilen vollstaendigen Runs aktivieren.
 
 ### Was behoben wurde (aus dem Phase-1-Review + Review-Bugfix-Session)
 
@@ -1287,8 +1421,22 @@ Der Fallback `performance-history-` matcht caches von beliebigen Branches, inklu
 | Budgets warn-only (nicht blocking) | ✅ `PERF_ENFORCEMENT_LEVEL=warn` |
 | Bundle-Limits geprüft | ✅ JS 4.9 MB / 5.2 MB Limit |
 | LCP/INP/CLS werden gesammelt | ✅ (in history.json und summary.json) |
-| LCP-Messungen spiegeln echte Performance | ✅ API-Mock → EmptyState-Render (vorher: 25s Timeout) |
+| LCP-Messungen spiegeln echte Performance | ✅ Phase 4c validiert `simulate` vs. `devtools`; App-Shell senkt mobile p50 LCP auf ~0.9-1.45s |
 | LCP-Budgets werden in CI geprüft | ✅ `validate-status.mjs` prüft LCP + CLS aus `baseline.json` |
-| Readiness für blocking-Budgets | ⏳ Noch 9 weitere CI-Runs nötig (`runs=1/10`) |
+| Readiness für blocking-Budgets | ⏳ Nur noch durch 10 stabile vollstaendige Runs blockiert; Phase-4c-Messbarkeit ist geloest |
 
-**Fazit Phase 3 (nach Bugfixes):** Infrastruktur vollständig und Messungen valide. LCP-Werte nach API-Mock-Fix werden deutlich unter 25s liegen. Die nächste Milestone ist das Sammeln von 10 stabilen CI-Runs für den Readiness-Check.
+**Fazit Phase 3 (historisch, aktualisiert 2026-05-11):** Infrastruktur und Artefakt-Mechanik sind vollstaendig. Die spaetere Phase-4b-Messung zeigte, dass die LCP-Frage nicht allein durch API-Mock-Fixes geloest war; Phase 4c hat den Lab-LCP mit einer statischen App-Shell geloest. Neue Strict-Gates warten nur noch auf Stability-History.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | Autoplan 2026-05-06: mobile reliability first, Web Vitals deferred |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | - | No separate Codex plan review recorded |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 2 | CLEAR | Latest 2026-05-11: Phase 4c Decision Slice freigegeben |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | - | Not run for this perf-plan update |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 1 | CLEAR | Autoplan 2026-05-06: command clarity and CI diagnosability improved |
+
+- **RESOLVED (2026-05-12):** 10 stabile vollstaendige Runs erreicht; 5/5 gruene Warn-Mode-CI-Runs erreicht; erster manueller Strict-Probe-Run (`25742783313`) gruen abgeschlossen.
+- **UNRESOLVED:** Branch-PR-Aufraeumarbeit (vier leere Trigger-Commits) und Entscheidung ueber breitere `strict`-Aktivierung.
+- **VERDICT:** Phase 4c abgeschlossen und durch ersten gruenen Strict-Probe-Run validiert — CI-Policy bleibt fuer `push`/`pull_request`/`schedule` weiterhin warn-only.

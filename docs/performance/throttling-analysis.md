@@ -66,7 +66,7 @@ npm run perf:lighthouse:compare
 npm run perf:validate
 ```
 
-`perf:validate` is warn-only and reports `lighthouse=ok`, `warningRate=0.0000`, and `fullCoverage=true`. The 2026-05-12 strict-hardening seed produced 10 complete `simulate` runs for the `mobile-375x812` budget window; strict enforcement remains disabled until the sharpened budgets are proven stable in CI.
+`perf:validate` is warn-only and reports `lighthouse=ok`, `warningRate=0.0000`, and `fullCoverage=true`. The 2026-05-12 strict-hardening seed produced 10 complete `simulate` runs for the `mobile-375x812` budget window. Five consecutive green warn-mode CI runs (`25740992098`, `25741507844`, `25741808184`, `25742133438`, `25742437228`) then satisfied the observation gate, and a single manual `workflow_dispatch` with `perf_enforcement=strict` (run `25742783313`) passed green on 2026-05-12. CI policy remains warn-only for `push`/`pull_request`/`schedule`; strict is reserved for further explicit manual probe dispatches.
 
 ## Strict-Gate Rule
 
@@ -91,6 +91,6 @@ npm run perf:budget:suggest
 
 The 2026-05-12 suggestion window was complete (`10/10`, first run `2026-05-12T06:06:18.985Z`, last run `2026-05-12T06:22:53.599Z`). Bundle suggestions were applied where they tightened the baseline (`maxGzipJsBytes=1140411`, `maxLargestJsAssetBytes=4572427`); `maxJsBytes` stayed at the existing tighter 5.2 MB limit. Lighthouse budgets were sharpened for `simulate/mobile-375x812`, but the `/` LCP suggestion of 24616 ms was rejected because it came from one cold-run outlier at 22378 ms while warm runs clustered near 903 ms.
 
-Current policy after that finding: scheduled CI stays in `warn` mode while the sharpened budgets prove themselves; `strict` is reserved for one explicit manual probe dispatch after the observation gate turns green. The cold-run artifact is handled operationally by warming up the seed path, not by loosening the route budget.
+Current policy after that finding: scheduled CI stays in `warn` mode while the sharpened budgets prove themselves; `strict` is reserved for explicit manual probe dispatches after the observation gate turns green. The cold-run artifact is handled operationally by a discarded warm-up Lighthouse run before the measured seed window, not by loosening the route budget. The first such probe dispatch (run `25742783313`) was executed and passed green on 2026-05-12; the `consecutiveGreenRuns` counter is back at `0` after that probe, so any further strict probe needs a fresh 5-run observation window.
 
 Die operative Freigabe- und Run-Checkliste steht in `docs/performance/strict-probe-runbook.md`.

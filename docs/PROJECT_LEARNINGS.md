@@ -1,7 +1,7 @@
 # Project Learnings — RecipeDeck (rezepti)
 
 Auto-aggregierte Befunde aus gstack-Sessions. Quelle: `~/.gstack/projects/dacown87-rezepti/learnings.jsonl`.
-Stand: 2026-05-08 — 35 Eintraege.
+Stand: 2026-05-12 — 39 Eintraege.
 
 Format: `[key] (confidence/10, datum)` + Insight + ggf. Files.
 Aktualisieren via `/learn` (zeigt aktuelle), neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` u.a. ergaenzt.
@@ -23,8 +23,28 @@ Das `PLUGINS`-Array in `web/index.ts` wurde im Cleanup 2026-05-05 entfernt. `Web
 
 #### lighthouse-mock-needs-parametric-paths (10/10, 2026-05-08)
 
-`handleApiMock()` in `scripts/performance/lighthouse-runner.mjs` matcht nur exakte API-Pfade (`/api/v1/recipes`, `/api/v1/shopping`). Parametrisierte Pfade wie `/api/v1/recipes/1` fallen in den `json({})` Catchall — die React-App wartet auf eine sinnvolle Recipe-Struktur, rendert nichts und Lighthouse misst LCP=25s (Timeout). Folge: `/shopping` und `/recipe/1` zeigten LCP ~25s waehrend `/` sauber 902ms hatte. Fix: API-Mock auf parametrisierte Routen erweitern und realistische Empty-State-Strukturen liefern (z.B. `{id:1, name:"", ingredients:[]}` fuer `recipes/:id`).
+`handleApiMock()` in `scripts/performance/lighthouse-runner.mjs` matchte zuerst nur exakte API-Pfade (`/api/v1/recipes`, `/api/v1/shopping`). Parametrisierte Pfade wie `/api/v1/recipes/1` fielen in den `json({})` Catchall. Fix: API-Mock auf parametrisierte Routen erweitern und realistische Empty-State-Strukturen liefern. Wichtig: Das war notwendig, aber nicht der finale LCP-Fix; Phase 4c zeigte spaeter, dass `/shopping` und `/recipe/1` zusaetzlich eine statische App-Shell fuer einen fruehen LCP-Kandidaten brauchen.
 *Files:* `scripts/performance/lighthouse-runner.mjs`
+
+#### phase4c-static-shell-beats-hydration-lcp (10/10, 2026-05-11)
+
+Expo-Web kann statisches HTML fuer Routen ausgeben und trotzdem unter Lighthouse erst nach React-Hydration einen validen LCP-Kandidaten liefern. Skeletons innerhalb der React-App verbessern echte Wahrnehmung, aber nicht den Lab-LCP, wenn der LCP-Kandidat erst nach dem grossen Entry-Bundle entsteht. Der validierte Fix war eine route-aware statische Shell in `mobile/app/+html.tsx`, vor dem Expo-Root. Ergebnis nach `perf:lighthouse:compare`: `/shopping` und `/recipe/1` mobile p50 LCP von ~25s auf ~0.9-1.45s. PDF-Lazy-Loading reduzierte den Entry-Chunk, loeste LCP aber nicht allein.
+*Files:* `mobile/app/+html.tsx`, `scripts/performance/throttling-compare.mjs`, `docs/performance/throttling-analysis.md`
+
+#### strict-hardening-needs-nonsandboxed-server-and-outlier-review (10/10, 2026-05-12)
+
+`perf:stability:seed` startet fuer Lighthouse lokal `127.0.0.1:4173`; im Codex-Sandbox-Kontext kann das mit `listen EPERM` scheitern. Fuer echte 10er-Seeds nicht-sandboxiert ausfuehren oder `PERF_LIGHTHOUSE_BASE_URL` auf eine erreichbare App setzen. Budget-Suggestions danach nicht mechanisch uebernehmen: Der 2026-05-12-Seed hatte ein komplettes `10/10`-Window, aber `/` enthielt einen Cold-Run-LCP-Ausreisser von 22378 ms; der daraus folgende 24616-ms-Vorschlag wurde bewusst verworfen, weil warme Runs bei ~903 ms lagen.
+*Files:* `scripts/performance/baseline.json`, `artifacts/performance/budget-suggestions.json`, `docs/performance/throttling-analysis.md`
+
+#### audit-shell-must-be-route-scoped (10/10, 2026-05-12)
+
+Eine globale `rd-audit-shell` ueber alle Routen vergiftet die `/`-LCP-Messung: der erste Versuch fuer Phase 4c-Outcome-Z hatte das Overlay auf `<body>` fuer jede Route gerendert und fuehrte unter Lighthouse zu LCP ~22 s auf `/` (warm runs vorher ~903 ms). Loesung: Audit-Shell nur fuer die historisch instabilen Routen `/shopping` und `/recipe/*` aktiv schalten, gesteuert ueber `html[data-audit-shell='shopping'|'recipe']`. `<head>`-Script setzt das Attribut vor dem Expo-Root-Render. Begleitende Korrektur: CI-Performance-History-Cache mehrfach neu namespacen (v2 -> v3 -> v4), damit verseuchte History-Eintraege nicht in spaetere Beobachtungslaeufe zurueckkippen.
+*Files:* `mobile/app/+html.tsx`, `.github/workflows/ci.yml`
+
+#### strict-probe-gate-needs-five-fresh-runs (10/10, 2026-05-12)
+
+Das `strictProbeEligible=true`-Gate setzt 5 aufeinanderfolgende eigenstaendige CI-Workflow-Runs voraus; GitHub-Reruns mit identischer `run_id` zaehlen nicht. Erfolgreicher Pfad am 2026-05-12: `validate-status.mjs` schreibt eindeutige `runId`s pro Run-Attempt-Timestamp, `observation.json` zaehlt nur Runs aus dem aktuellen Cache-Namespace, anschliessend 5 leere Trigger-Commits (`be15632`, `d819437`, `fc4eef6`, `043869e` + finaler Warn-Run `25742437228`) seriell pushen und sequenziell auf `completed success` warten. Erst danach `gh workflow run CI --ref ... -f perf_enforcement=strict` als einzelner Probe-Run dispatchen (`25742783313` gruen). Wichtig: `consecutiveGreenRuns` springt nach dem Probe-Run zurueck auf `0`; weitere Strict-Probes brauchen ein neues 5er-Fenster.
+*Files:* `scripts/performance/validate-status.mjs`, `scripts/performance/observation-gate.mjs`, `docs/performance/strict-probe-runbook.md`
 
 #### expo-export-hangs-postbuild (10/10, 2026-05-08)
 

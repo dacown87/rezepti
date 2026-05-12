@@ -14,12 +14,25 @@ Die Policy bleibt konservativ:
 
 ## Aktueller Status
 
-Stand 2026-05-12 nach frischem lokalem Warm-up-Seed:
+Stand 2026-05-12 nach erfolgreichem Strict-Probe-Run:
 
 - `readiness.ready=true`
 - Warm-up-Seed verifiziert
-- `strictProbeEligible=false`
-- einziger Restblocker: `0/5` beobachtete gruene CI-Warn-Runs
+- 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs erreicht (Runs `25740992098`, `25741507844`, `25741808184`, `25742133438`, `25742437228`)
+- Manueller `workflow_dispatch` mit `perf_enforcement=strict` als Run `25742783313` gruen abgeschlossen am 2026-05-12T15:01:04 UTC
+- `performance-audit`-Job gruen, alle Budgets passed, keine neuen Findings
+- Policy wurde **nicht** ausgeweitet — `push`, `pull_request`, `schedule` bleiben `warn`
+- Zaehler `consecutiveGreenRuns` ist nach dem Probe-Run erwartungsgemaess auf `0` zurueckgesetzt; ein erneuter Probe-Run setzt wieder eine vollstaendige 5er-Beobachtungsserie voraus
+
+### Probe-Ergebnis 2026-05-12 (Run `25742783313`)
+
+- `mode`: warn-only (persistierte Policy unveraendert)
+- `lighthouse`: ok
+- `expectedRuns`/`successfulRuns`: 9/9
+- `warningRuns`: 0
+- Metric-Stabilitaet im 10er-Window: `/` LCP 903.1 ms (Spread 0.21%), `/shopping` LCP 901.9 ms (Spread 0.22%), `/recipe/1` LCP 1051.7 ms (Spread 0.11%)
+- CLS auf allen Routen 0.0
+- Verifikation gespeichert in `/tmp/perf-artifacts-25742783313/`
 
 ## Freigabekriterien
 
@@ -83,6 +96,8 @@ Der Probe-Run bleibt gesperrt, wenn eines davon zutrifft:
 
 ## Erster Strict Probe-Run
 
+Der erste Strict-Probe-Run ist am 2026-05-12 erfolgt (Run `25742783313`) und ist gruen abgeschlossen. Dieser Abschnitt bleibt als Vorlage fuer weitere Probe-Runs nach einer neuen 5er-Beobachtungsserie bestehen.
+
 Erst nach Freigabe:
 
 1. GitHub Actions manuell starten.
@@ -90,7 +105,7 @@ Erst nach Freigabe:
 3. Input `perf_enforcement=strict` setzen.
 4. Nur einen Probe-Run ausfuehren.
 
-Erwartung fuer Erfolg:
+Erwartung fuer Erfolg (im 2026-05-12-Run erfuellt):
 
 - Job `performance-audit` bleibt gruen
 - keine neuen Budgetverletzungen
