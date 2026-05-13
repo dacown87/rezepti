@@ -220,13 +220,13 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI-Pinning), Expo SDK 55, React 19.2, React Native 0.83
 - [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` 18/18 gruen, `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
 
-## Dependency-Update-Status (2026-05-07)
+## Dependency-Update-Status (2026-05-13)
 
 ### Patch-safe (jetzt updatebar; innerhalb `wanted`)
 
 - Root: `@types/node`, `dotenv`, `drizzle-orm`, `hono`, `openai`, `typescript`, `vite`, `zod`, `@hono/node-server` (v1.x)
 - Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `lucide-react-native`, `react`, `react-dom`, `react-native` (0.83.x), `react-native-reanimated`, `react-native-svg`, `react-test-renderer`
-- **Umsetzung 2026-05-07:** Root-Updates vollstaendig eingespielt. Mobile-Patch-Updates fuer `@tanstack/*` und `lucide-react-native` bleiben aktiv; die SDK-gebundenen Pakete `react`, `react-dom`, `react-native` und `react-native-svg` wurden bewusst auf Expo-Expected zurueckgesetzt (`19.2.0`, `19.2.0`, `0.83.6`, `15.15.3`). `react-test-renderer` wurde dazu passend wieder auf `19.2.0` ausgerichtet.
+- **Umsetzung 2026-05-13:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`) sowie sichere Mobile-Patches fuer `@react-navigation/native` und `@tanstack/*`. Damit sind im `wanted`-Fenster keine offensichtlichen Low-Risk-Patches mehr offen; uebrig bleiben nur Major-Spruenge oder Expo-/SDK-gebundene Pakete.
 - **Peer-/SDK-Blocker:** `react-native-reanimated@4.3.0` verlangt `react-native-worklets@0.8.x`; `expo install react-native-reanimated react-native-worklets` unter SDK 55 hat keine Aenderung vorgenommen (weiter `reanimated@4.2.1`, `worklets@0.7.4`).
 - **Aktueller Compatibility-Status (`expo-doctor`):** wieder `18/18` Checks gruen.
 - **Build-Fix:** `mobile/assets/images/favicon.png` war inhaltlich eine ICO-Datei mit falscher `.png`-Endung und blockierte `expo export` mit `Unsupported MIME type: image/x-icon`; Asset wurde durch eine echte PNG-Datei ersetzt, `npm run mobile:build:web` laeuft wieder erfolgreich.

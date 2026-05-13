@@ -62,7 +62,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.18",
-    "openai": "^6.36.0",
+    "openai": "^6.37.0",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "zod": "^4.4.3"
@@ -70,7 +70,7 @@
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.2.0",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.7.0",
     "@types/qrcode": "^1.5.6",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
@@ -78,11 +78,11 @@
     "drizzle-kit": "^0.31.10",
     "happy-dom": "^20.9.0",
     "jsdom": "^29.1.1",
-    "lighthouse": "^13.2.0",
+    "lighthouse": "^13.3.0",
     "supabase": "^2.98.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.11",
+    "vite": "^8.0.12",
     "vitest": "^3.2.4"
   }
 }
