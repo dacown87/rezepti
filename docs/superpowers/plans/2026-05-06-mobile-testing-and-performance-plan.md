@@ -3,9 +3,9 @@
 
 Stand: 2026-05-13
 
-## Aktueller Stand (2026-05-13, nach zweitem gruenen Strict-Probe-Run + Schedule-Eskalation)
+## Aktueller Stand (2026-05-13, nach verifiziertem Nightly-Strict-Run + aktuellem Green Push)
 
-Kurzfassung: Der urspruengliche Plan ist fuer Phase 1-4 abgeschlossen. Phase 4c ist technisch abgeschlossen: Throttling-Vergleich, Bundle-Slice, statische App-Shell und Budget-Mechanik sind umgesetzt und nicht-sandboxiert verifiziert. **Beide Strict-Probe-Runs gruen** (`25742783313` am 2026-05-12, `25781366107` am 2026-05-13). **Strict-Schedule-Eskalation am 2026-05-13 live**: `schedule` (nightly cron 02:00 UTC) laeuft jetzt `strict`, `push`/`pull_request` bleiben `warn`, `workflow_dispatch` wahlweise. Die naechste Eskalationsstufe (`pull_request` strict) ist offen und braucht eine eigene Datenbasis aus 1-2 Wochen stabilen Nightly-Strict-Runs.
+Kurzfassung: Der urspruengliche Plan ist fuer Phase 1-4 abgeschlossen. Phase 4c ist technisch abgeschlossen: Throttling-Vergleich, Bundle-Slice, statische App-Shell und Budget-Mechanik sind umgesetzt und nicht-sandboxiert verifiziert. **Zwei manuelle Strict-Probe-Runs gruen** (`25742783313` am 2026-05-12, `25781366107` am 2026-05-13). **Nightly-Strict ist seit 2026-05-13 live und verifiziert**: der erste automatische `schedule`-Run unter Strict (`25780670763`) lief komplett gruen; der aktuelle `push`-Run auf `main` (`25801784688`) lief ebenfalls komplett gruen, aber weiter im `warn`-Modus. `schedule` (nightly cron 02:00 UTC) laeuft jetzt `strict`, `push`/`pull_request` bleiben `warn`, `workflow_dispatch` wahlweise. Die naechste Eskalationsstufe (`pull_request` strict) ist offen und braucht weiter mehrere stabile Nightly-Strict-Runs; die aktuell knappste Reserve liegt nicht bei Lighthouse, sondern beim JS-Gesamtbudget.
 
 Erledigt:
 
@@ -1146,7 +1146,7 @@ Phase-4b Spinner-zu-Skelett-Refactor erledigt (Commit `04ca16e`, 2026-05-09): `s
 
 **Phase-4c-LCP-Fix verifiziert (2026-05-11):** Der Skelett-Refactor allein hatte Lighthouse-LCP fuer `/shopping` und `/recipe/1` nicht verbessert (weiterhin ~25 s). Die Phase-4c-Vergleichsmessung zeigte danach: PDF-Lazy-Loading reduziert den Entry-Chunk, aber loest LCP nicht allein. Die statische App-Shell in `mobile/app/+html.tsx` ist der wirksame Fix: mobile p50 LCP liegt nach `npm run perf:lighthouse:compare` bei `/` 903/1450 ms, `/shopping` 902/1448 ms und `/recipe/1` 1052/1414 ms (`simulate`/`devtools`).
 
-**Naechste Folgearbeit fuer Budget-Hardening:** Phase 4c ist als Decision Slice technisch erledigt. 10er-Seeding, Budget-Vorschlaege und Baseline-Schaerfung sind erledigt. Beobachtungs- und Probe-Gate ebenfalls erfuellt (5/5 gruene Warn-Runs + ein gruener Strict-Probe-Run am 2026-05-12). `push`/`pull_request`/`schedule` bleiben weiter warn-only; jede breitere Aktivierung von `strict` ist eine separate Entscheidung und setzt einen neuen 5er-Beobachtungs-Zyklus voraus.
+**Naechste Folgearbeit fuer Budget-Hardening:** Phase 4c ist als Decision Slice technisch erledigt. 10er-Seeding, Budget-Vorschlaege und Baseline-Schaerfung sind erledigt. Beobachtungs- und Probe-Gate ebenfalls erfuellt; dazu kommt inzwischen ein verifizierter gruener Nightly-Strict-Run (`25780670763`, 2026-05-13) und ein weiterer gruener Strict-Probe-Run (`25781366107`, 2026-05-13). Der aktuelle `main`-Push (`25801784688`) ist ebenfalls gruen, zaehlt aber nicht als Strict-Evidenz, weil `push` weiter `warn` laeuft. `pull_request`-Strict bleibt damit eine separate Entscheidung und sollte erst nach mehreren weiteren gruenen Nightly-Strict-Runs aktiviert werden. Operativ ist das knappste Budget derzeit `jsBytes`: 5,061,200 / 5,200,000 Bytes (nur 138,800 Bytes bzw. ~2.7% Reserve); LCP/CLS haben weiterhin komfortablen Abstand zu den Limits.
 
 ### Phase 4c — Throttling Validation + One Optimization Slice
 
@@ -1457,9 +1457,9 @@ Status: erledigt am 2026-05-13 durch Doppelmechanik aus früherer Cache-Versioni
 | LCP/INP/CLS werden gesammelt | ✅ (in history.json und summary.json) |
 | LCP-Messungen spiegeln echte Performance | ✅ Phase 4c validiert `simulate` vs. `devtools`; App-Shell senkt mobile p50 LCP auf ~0.9-1.45s |
 | LCP-Budgets werden in CI geprüft | ✅ `validate-status.mjs` prüft LCP + CLS aus `baseline.json` |
-| Readiness für blocking-Budgets | ⏳ Nur noch durch 10 stabile vollstaendige Runs blockiert; Phase-4c-Messbarkeit ist geloest |
+| Readiness für blocking-Budgets | ⏳ Technisch `ready=true` (10/10 Runs, warningRate 0.0000, fullCoverage=true), aber `pull_request`-Strict wartet weiter auf mehr als einen Nightly-Strict-Run |
 
-**Fazit Phase 3 (historisch, aktualisiert 2026-05-11):** Infrastruktur und Artefakt-Mechanik sind vollstaendig. Die spaetere Phase-4b-Messung zeigte, dass die LCP-Frage nicht allein durch API-Mock-Fixes geloest war; Phase 4c hat den Lab-LCP mit einer statischen App-Shell geloest. Neue Strict-Gates warten nur noch auf Stability-History.
+**Fazit Phase 3 (historisch, aktualisiert 2026-05-13):** Infrastruktur und Artefakt-Mechanik sind vollstaendig. Die spaetere Phase-4b-Messung zeigte, dass die LCP-Frage nicht allein durch API-Mock-Fixes geloest war; Phase 4c hat den Lab-LCP mit einer statischen App-Shell geloest. Nightly-Strict ist jetzt live und einmal gruen verifiziert; fuer neue Strict-Gates auf `pull_request` fehlt aber noch eine breitere Serie automatischer Nightly-Strict-Runs. Das aktuelle Risiko liegt eher beim JS-Gesamtbudget als bei Lighthouse-LCP/CLS.
 
 ## GSTACK REVIEW REPORT
 
@@ -1472,5 +1472,5 @@ Status: erledigt am 2026-05-13 durch Doppelmechanik aus früherer Cache-Versioni
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | CLEAR | Autoplan 2026-05-06: command clarity and CI diagnosability improved |
 
 - **RESOLVED (2026-05-12):** 10 stabile vollstaendige Runs erreicht; 5/5 gruene Warn-Mode-CI-Runs erreicht; erster manueller Strict-Probe-Run (`25742783313`) gruen abgeschlossen.
-- **UNRESOLVED:** Branch-PR-Aufraeumarbeit (vier leere Trigger-Commits) und Entscheidung ueber breitere `strict`-Aktivierung.
-- **VERDICT:** Phase 4c abgeschlossen und durch ersten gruenen Strict-Probe-Run validiert — CI-Policy bleibt fuer `push`/`pull_request`/`schedule` weiterhin warn-only.
+- **UNRESOLVED:** Entscheidung ueber breitere `strict`-Aktivierung. Verifizierte Evidenz aktuell: zwei gruene manuelle Strict-Probe-Runs (`25742783313`, `25781366107`) plus ein gruener Nightly-Strict-Run (`25780670763`). Der aktuelle `push`-Run `25801784688` ist gruen, zaehlt aber nicht als Strict-Evidenz.
+- **VERDICT:** Phase 4c abgeschlossen und operational stabil. `schedule` laeuft bereits `strict`; `push`/`pull_request` bleiben vorerst `warn`, bis mehrere weitere Nightly-Strict-Runs dieselbe Stabilitaet bestaetigen.
