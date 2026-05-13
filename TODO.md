@@ -13,7 +13,7 @@
 
 ### Offen / Folgearbeit
 
-- [ ] **Nightly-Strict-Beobachtung** (passiv) — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
+- [ ] **Nightly-Strict-Beobachtung** (passiv) — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`. _Quelle: [`docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`](docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md) (Phase 3 + Strict-Schedule-Eskalation)_
 - [ ] **Multi-User Login** (nächste große Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Nächste große Phase — Multi-User Login" weiter unten.
 
 ---
@@ -145,8 +145,9 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **Weitere Migrations-Formate** — Copy Me That, Pepperplate, Evernote, Cookmate als Import-Formate (über Paprika/Nextcloud hinaus, RecipeSage-Pattern)
 - **CSV-Export** — Rezept-Sammlung als Tabelle exportieren (Spreadsheets, Backup)
 - **Markdown-Export** — einzelnes Rezept als `.md`-Datei (Obsidian, Notion, etc.)
-- **Phase 5 Trigger praezisieren (deferred)** — Web Vitals bleiben ausdruecklich **nicht** Teil des Performance-Strict-Gates. Phase 4c liefert jetzt Lab-Daten; ein sinnvoller Trigger waere nur noch: Feldmetrik starten, wenn CI-/Lab-Daten und echte Nutzerberichte auseinanderlaufen oder `simulate`/`devtools` nach 10 stabilen Runs wieder stark divergieren. Aktuell kein Blocker.
-- **Code-Hygiene: `mobile/app/recipe/[id].tsx` (1092 Zeilen) modularisieren** — `CookModal` (line 127-225), `DeleteModal` (line 104-126), `StarRow`, `normalizeRecipe`, `parseJSON`, `splitIngredientDisplay` in eigene Dateien unter `mobile/components/recipe/` ziehen. Pattern existiert bereits (`ImagePickerModal.tsx`, 160 Zeilen, eigene Datei). Vorteil: Wartbarkeit und Test-Granularitaet. Nach Phase 4c ist das kein Performance-Blocker mehr, weil Outcome Z den LCP geloest hat.
+- **Phase 5 Trigger praezisieren (deferred)** — Web Vitals bleiben ausdruecklich **nicht** Teil des Performance-Strict-Gates. Phase 4c liefert jetzt Lab-Daten; ein sinnvoller Trigger waere nur noch: Feldmetrik starten, wenn CI-/Lab-Daten und echte Nutzerberichte auseinanderlaufen oder `simulate`/`devtools` nach 10 stabilen Runs wieder stark divergieren. Aktuell kein Blocker. _Plan: Phase 5 (deferred)_
+- **Code-Hygiene: `mobile/app/recipe/[id].tsx` (1092 Zeilen) modularisieren** — `CookModal` (line 127-225), `DeleteModal` (line 104-126), `StarRow`, `normalizeRecipe`, `parseJSON`, `splitIngredientDisplay` in eigene Dateien unter `mobile/components/recipe/` ziehen. Pattern existiert bereits (`ImagePickerModal.tsx`, 160 Zeilen, eigene Datei). Vorteil: Wartbarkeit und Test-Granularitaet. Nach Phase 4c ist das kein Performance-Blocker mehr, weil Outcome Z den LCP geloest hat. _Plan: „Additional Improvements" / Screen-Refactoring nach Messwerten_
+- **`matchedCount` aus API-Antwort lesen** (kosmetisch, kein Perf-Treiber) — statt `evaluateIngredientSearch` clientseitig in `mobile/utils/recipe-list-screen-data.ts` zu rekomputieren, den `match_scores`-Wert aus der API direkt nutzen. Beseitigt nur die Logik-Doppelung zwischen Server (`src/db-react.ts:133-181`) und Client. _Plan: Phase 4 Backend/Search-Follow-up_
 
 ---
 
@@ -182,7 +183,9 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - E2E Tests: skippen graceful ohne laufenden Server
 - Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
 - `npm test -- --run --exclude="test/e2e/**"`
-## Aktueller Fokus — Mobile Testing & Performance (2026-05-07)
+## Mobile Testing & Performance
+
+> **Plan:** [`docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`](docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md) (Stand 2026-05-13). Items unten = Umsetzung der Plan-Phasen.
 
 - [x] Mobile Release Gate + CI-Job stabil (`mobile:typecheck`, `build:web`, `test:unit`)
 - [x] Phase-2 Reliability-Basis (Hooks/Contracts/QueryClient) steht
@@ -205,8 +208,8 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] Phase-4b Spinner-zu-Skelett-Refactor erledigt (Commit `04ca16e`, 2026-05-09): `shopping.tsx` + `recipe/[id].tsx` rendern Header-Shell + Skelett-Container ab erstem React-Frame. Real-Device-UX verbessert; Lighthouse-LCP unveraendert (~25 s) — Bottleneck ist Bundle-Hydration, nicht Render-Pattern.
 - [x] **Phase 4c — Throttling Validation + One Optimization Slice** abgeschlossen (2026-05-11): `LIGHTHOUSE_THROTTLING=simulate|devtools`, `perf:lighthouse:compare`, `throttling-comparison.json`, methodenfaehige Budgets, gzip-JS-Metriken und JS-Ausfuehrungszeit-Budget umgesetzt. Outcome Y als Bundle-Slice erledigt (PDF-Export lazy-loaded); Outcome Z als finaler LCP-Fix validiert (`mobile/app/+html.tsx` rendert route-aware statische App-Shell). Mobile p50 LCP nach Vergleich: `/` 903/1450 ms, `/shopping` 902/1448 ms, `/recipe/1` 1052/1414 ms (`simulate`/`devtools`). Kanonisch: `docs/performance/throttling-analysis.md` und `docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`.
 - [x] **Performance Strict-Hardening Tooling-Slice (2026-05-11):** `perf:stability:seed` automatisiert die 10 echten Runs, `validate-status` schreibt eindeutige methodenmarkierte History-Eintraege, `perf:budget:suggest` berechnet Budget-Vorschlaege aus vollstaendigen Runs (`p95 * 1.10`). Fokussierte Tests gruen.
-- [ ] **Performance Strict-Probe freigeben:** `performance-audit` in CI bei `warn` belassen, `5` aufeinanderfolgende gruene CI-Warn-Runs sammeln, danach einen frischen `npm run perf:stability:seed` als Warm-up-Nachweis verifizieren. Erst wenn `artifacts/performance/observation.json` `strictProbeEligible=true` meldet, ist ein einzelner manueller `workflow_dispatch` mit `perf_enforcement=strict` als Probe erlaubt.
-- [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv)
+- [x] **Performance Strict-Probe freigeben** ✅ (2026-05-12 + 2026-05-13) — beide Probe-Runs grün (`25742783313`, `25781366107`). Nightly-Schedule danach auf `strict` eskaliert. _Plan-Phase 3 + Strict-Probe-Gate_
+- [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv). _Plan: Phase 2 Follow-up_
 - [x] Coverage-Thresholds schrittweise anheben (Start-Gate 1% -> ratcheting via `COVERAGE_RATCHET_MIN`)
 - [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)
 - [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI-Pinning), Expo SDK 55, React 19.2, React Native 0.83
