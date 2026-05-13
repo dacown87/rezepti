@@ -22,6 +22,7 @@
 
 - [ ] **Nightly-Strict-Beobachtung** (passiv) — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`. _Quelle: [`docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`](docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md) (Phase 3 + Strict-Schedule-Eskalation)_
 - [ ] **Multi-User Login** (nächste große Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Nächste große Phase — Multi-User Login" weiter unten.
+- [ ] **Supabase Data API Readiness für Multi-User vorbereiten** — Playbook + SQL-Vorlage liegen in [docs/supabase-data-api-readiness.md](/home/patrick/Projekte/rezepti/docs/supabase-data-api-readiness.md) und [db/templates/public-table-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-table-data-api-rls.sql). Vor dem Auth-Umbau: Grants + Policies für `recipes`, `shopping_list`, `meal_plan` planen; `api_keys` und wahrscheinlich `ingredient_dictionary` bewusst backend-only lassen.
 
 ---
 
