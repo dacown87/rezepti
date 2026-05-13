@@ -1,11 +1,20 @@
 
-## 🎯 Nächste Aktion — Nightly-Strict beobachten (2026-05-13)
+## 🎯 Aktueller Stand (2026-05-13)
 
-- [x] **2. Strict-Probe-Run** ✅ erfolgreich am 2026-05-13 — Run `25781366107`, performance-audit grün in 7m39s, `enforcement=strict`, `lighthouse=ok`, `readiness ready=true 10/10`.
-- [x] **Strict-Schedule eskaliert (2026-05-13)** — `.github/workflows/ci.yml` so geändert, dass `schedule` (nightly cron 02:00 UTC) jetzt `strict` läuft; `push`/`pull_request` bleiben `warn`. Runbook + CLAUDE.md aktualisiert.
-- [ ] **Nightly-Strict-Beobachtung** — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
-- [x] **M3 — Dockerfile changelog-Stage** umbauen (2026-05-13) ✅ — `Dockerfile` COPY-Step durch BuildKit-`RUN --mount=type=bind` mit JSON-Fallback (`{"version":"0.0.0","entries":[]}`) ersetzt. Lokal mit beiden Szenarien (Datei da/nicht da) verifiziert. Squash-Merge-Bug aus PROJECT_LEARNINGS #40 beseitigt.
-- [x] **P1 — Pre-commit-Hook gegen Phantom-Submodule** (2026-05-13) ✅ — `scripts/hooks/pre-commit` blockt Mode-160000-Entries ohne `.gitmodules`-Eintrag. Aktivierung via `npm install` (`prepare`-Script setzt `core.hooksPath`). Mit 3 Szenarien lokal verifiziert.
+**Strict-Performance-Gate live, Aufräumtasks (M3, P1) durch.** Nächste größere Arbeit ist Multi-User Login.
+
+### Erledigt 2026-05-13
+
+- [x] **2. Strict-Probe-Run** ✅ — Run `25781366107`, performance-audit grün in 7m39s, `enforcement=strict`, `lighthouse=ok`, `readiness ready=true 10/10`.
+- [x] **Strict-Schedule eskaliert** — `.github/workflows/ci.yml`: `schedule` (nightly cron 02:00 UTC) läuft jetzt `strict`; `push`/`pull_request` bleiben `warn`; `workflow_dispatch` wahlweise. Runbook + CLAUDE.md aktualisiert. (Commit `7bf820e`)
+- [x] **Supabase RLS aktiviert** — RLS auf 5 Tabellen + REST-Grants für anon/authenticated entzogen + `rls_auto_enable()` REST-EXECUTE revoked. Supabase Advisor clean.
+- [x] **M3 — Dockerfile changelog-Stage** — `COPY public/changelog.json` durch BuildKit-`RUN --mount=type=bind` mit JSON-Fallback (`{"version":"0.0.0","entries":[]}`) ersetzt. Squash-Merge ohne `public/changelog.json` rötet den Docker-Build nicht mehr. Lokal mit beiden Szenarien verifiziert. (Commit `0642e8c`)
+- [x] **P1 — Pre-commit-Hook gegen Phantom-Submodule** — `scripts/hooks/pre-commit` blockt Mode-160000-Entries ohne `.gitmodules`-Eintrag. Aktivierung via `npm install` (`prepare`-Script setzt `core.hooksPath`). Mit 3 Szenarien lokal verifiziert. (Commit `75c5482`)
+
+### Offen / Folgearbeit
+
+- [ ] **Nightly-Strict-Beobachtung** (passiv) — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
+- [ ] **Multi-User Login** (nächste große Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Nächste große Phase — Multi-User Login" weiter unten.
 
 ---
 
