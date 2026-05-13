@@ -1236,79 +1236,90 @@ Phase C: Baseline/Budgets nach 10 stabilen Runs haerten
 
 ### Neue Findings (nichts ändern — für PR 3 oder separates Cleanup)
 
-#### P2 — `RecipePickerModal.loadAllRecipes()` ohne `.catch()`
+#### RESOLVED — `RecipePickerModal.loadAllRecipes()` ohne `.catch()`
 
-**`mobile/app/(tabs)/planner.tsx:110-117`**
+**Status:** Erledigt am 2026-05-07; `.catch()` implementiert in Zeile 119.
+
+**`mobile/app/(tabs)/planner.tsx:117-120`**
 
 ```js
 loadAllRecipes()
-  .then(rows => { setRecipes(rows); setFiltered(rows); })
+  .then(rows => { setRecipes(rows); })
+  .catch(() => { /* stay empty, loading stops in finally */ })
   .finally(() => setLoading(false));
 ```
 
-Kein `.catch()`. Wenn `loadAllRecipes` wirft (z.B. malformed JSON), wird die Ablehnung nicht behandelt: `loading` wird false, `recipes` bleibt leer, kein Fehler-UI. Der Nutzer sieht eine leere Rezeptliste ohne Fehlermeldung.
+Fehlerbehandlung ist jetzt vorhanden. Bei Ablehnung bleibt die Rezeptliste leer, `loading` wird false gesetzt — konsistent mit dem erwarteten Verhalten.
 
-Fix: `.catch(() => { /* recipes stays empty, loading stops */ })` ergänzen oder einen Fehlertext im Modal zeigen.
+#### RESOLVED — `handleQRScanned` — ungeschütztes `await fetch` im Recipe-Link-Pfad
 
-#### P3 — `handleQRScanned` — ungeschütztes `await fetch` im Recipe-Link-Pfad
+**Status:** Erledigt am 2026-05-07; try/catch + `handlePlannerActionError` implementiert in Zeilen 452-475.
 
-**`mobile/app/(tabs)/planner.tsx:453-462`**
+**`mobile/app/(tabs)/planner.tsx:449-477`**
 
 ```js
 if (urlMatch) {
   const recipeId = parseInt(urlMatch[1], 10);
   if (targetDay !== null) {
-    await fetch(`${serverUrl}/api/v1/planner`, { method: 'POST', ... });
-    await loadData();
-    Alert.alert('Hinzugefügt', ...);
+    try {
+      await fetch(`${serverUrl}/api/v1/planner`, { method: 'POST', ... });
+      await loadData();
+      Alert.alert('Hinzugefügt', ...);
+    } catch {
+      handlePlannerActionError('Rezept konnte nicht zum Wochenplan hinzugefügt werden.', ...);
+    }
   }
   return;
 }
 ```
 
-Kein try/catch. Wenn der POST oder `loadData()` wirft, propagiert der Fehler unkontrolliert. Inkonsistent mit dem Mutation-Error-Handling-Muster im Rest des Planners. Der Nutzer sieht keine Rückmeldung.
+Fehlerbehandlung und Retry-Callback sind jetzt konsistent mit dem Rest des Planners.
 
-Fix: try/catch um den Block legen und `handlePlannerActionError` aufrufen — gleich wie bei `handleAddWeekToShopping`.
+#### RESOLVED — `query-client.ts:33` — `AsyncStorage.removeItem` ohne Fehlerbehandlung
 
-#### P3 — `query-client.ts:33` — `AsyncStorage.removeItem` ohne Fehlerbehandlung
+**Status:** Erledigt am 2026-05-07; innerer try/catch implementiert in Zeilen 33-35.
 
-**`mobile/utils/query-client.ts:29-36`**
+**`mobile/utils/query-client.ts:29-37`**
 
 ```js
 } catch {
-  await AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY);  // kann werfen
+  try {
+    await AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY);
+  } catch { /* ignore cleanup failure */ }
   return undefined;
 }
 ```
 
-Wenn `removeItem` selbst wirft (z.B. AsyncStorage-Fehler), propagiert die Exception aus `restoreClient`. Der Persistence-Layer bekommt einen Fehler und könnte beim nächsten Start keine gecachten Daten laden. Low-probability, aber schwer zu debuggen.
+Fehler beim `removeItem` propagieren nicht mehr nach oben. Der Persistence-Layer bleibt robust.
 
-Fix: `try { await AsyncStorage.removeItem(...); } catch { /* ignore cleanup failure */ }`.
+#### RESOLVED — Kosmetisch — Redundanter innerer Block in `loadAllRecipes`
 
-#### Kosmetisch — Redundanter innerer Block in `loadAllRecipes`
+**Status:** Erledigt am 2026-05-07; innerer Block entfernt in Zeile 33-61.
 
-**`mobile/app/(tabs)/planner.tsx:27-57`**
+**`mobile/app/(tabs)/planner.tsx:33-61`**
 
 ```js
 async function loadAllRecipes(): Promise<Recipe[]> {
-  {   // ← unnötiger innerer Block, Überbleibsel eines Refactors
-    const serverUrl = await getServerUrl();
-    ...
-  }
+  const serverUrl = await getServerUrl();
+  const res = await fetch(`${serverUrl}/api/v1/recipes`);
+  // ... direct scope, no inner block
 }
 ```
 
-Der innere `{}` erzeugt eine nutzlose Scope-Ebene. Kein Funktionsfehler, aber verwirrend.
+Innere `{}` sind entfernt. Code ist sauberer.
 
-Fix: Inneren Block entfernen.
-
-#### Informational — Bounded Concurrency bei Fehler: partielle Shopping-Liste
+#### OFFEN (C) — Bounded Concurrency bei Fehler: partielle Shopping-Liste — Backend-Fix empfohlen
 
 **`mobile/utils/shopping-service.ts:36-44`**
 
-Das Worker-Pattern ist für JS korrekt (single-threaded, kein race). Aber: wenn Zutat #3 eines Batches scheitert, lehnt `Promise.all` ab und der Caller bekommt einen Fehler — Zutaten #1 und #2 wurden jedoch bereits hinzugefügt. Der Retry-Button (in `recipe/[id].tsx`) sendet alle Zutaten erneut, also auch die bereits hinzugefügten. Abhängig davon ob die API Duplikate ablehnt oder akzeptiert, bekommt der Nutzer doppelte Einträge.
+Das Worker-Pattern ist für JS korrekt (single-threaded, kein race). Aber: wenn Zutat #3 eines Batches scheitert, lehnt `Promise.all` ab und der Caller bekommt einen Fehler — Zutaten #1 und #2 wurden jedoch bereits hinzugefügt. Kein Retry-Button in `recipe/[id].tsx` (ursprüngliche Beschreibung war ungenau — `handleAddToShopping` hat kein try/catch und keinen Retry). Duplikate entstehen primär durch mehrfaches Antippen bei langsamer Verbindung oder erneutem Tap nach Partial-Failure.
 
-Aktion: Prüfen ob `POST /api/v1/shopping` Duplikate idempotent behandelt (canonical_name + recipe_id eindeutig?). Falls nicht, wäre ein Batch-Endpunkt oder idempotenter Upsert sinnvoll.
+**Analyse (2026-05-13):** `POST /api/v1/shopping` ist **nicht** idempotent. `shopping_list` hat weder unique constraint auf `(canonical_name, recipe_id)` noch einen ON CONFLICT-Upsert (`src/schema.ts:34-43`, `src/db-react.ts:358-367`). Jeder POST erzeugt bedingungslos einen neuen Datensatz.
+
+**Empfohlener Fix (Backend):**
+1. `src/schema.ts`: Composite unique index auf `(canonical_name, recipe_id)` hinzufügen.
+2. `src/db-react.ts:360`: Insert mit `.onConflictDoNothing()` erweitern; `null` zurückgeben bei Duplikat.
+3. `src/routes/planner.ts:57-58`: `null`-Rückgabe abfangen, dennoch `201` antworten (idempotentes Verhalten).
 
 ### Acceptance Criteria Phase 2 — Stand
 
@@ -1347,11 +1358,13 @@ Lighthouse läuft vollständig:
 
 ### Findings (P1 — hohe Auswirkung)
 
-#### P1 — LCP-Messungen sind wertlos: ~25s auf allen drei Routen
+#### RESOLVED — LCP-Messungen sind wertlos: ~25s auf allen drei Routen
 
 **`scripts/performance/lighthouse-runner.mjs` + statische Expo-Web-Ausgabe**
 
-Aktuelle Messwerte (mobile-375x812):
+Status: erledigt mit Phase 4c (2026-05-11) durch route-aware statische App-Shell in `mobile/app/+html.tsx`. Mobile p50 LCP nach Vergleich `simulate`/`devtools`: `/` 903/1450 ms, `/shopping` 902/1448 ms, `/recipe/1` 1052/1414 ms — alle weit unter dem Plan-Budget 3.0–3.4 s. Acceptance-Criteria Phase 3 (Tabelle unten) bestätigt: "LCP-Messungen spiegeln echte Performance ✅".
+
+Aktuelle Messwerte (mobile-375x812) — vor Fix:
 
 | Route | LCP | Performance Score |
 |---|---|---|
@@ -1382,9 +1395,11 @@ Option C: Routen als static-only markieren
 
 **Dringlich:** Keine der 10 Messreihen für die Blocking-Freigabe sollten auf Basis dieser Infrastruktur gesammelt werden.
 
-#### P1 — LCP/INP/CLS-Budgets werden in validate-status nicht geprüft
+#### RESOLVED — LCP/INP/CLS-Budgets werden in validate-status nicht geprüft
 
 **`scripts/performance/validate-status.mjs:376-400`**
+
+Status: erledigt durch Review-Bugfix-Session (2026-05-07) und Phase 4c (2026-05-11). `validate-status.mjs` prüft jetzt LCP + CLS pro Route und Viewport aus `baseline.json` (methodenfaehig nach `LIGHTHOUSE_THROTTLING`), Tests in `test/unit/validate-status-performance-budgets.test.ts`. Acceptance-Criteria Phase 3 (Tabelle unten) bestätigt: "LCP-Budgets werden in CI geprüft ✅".
 
 `validate-status.mjs` liest `baseline.json` und prüft **nur Bundle-Limits** (JS-Bytes, CSS-Bytes, etc.). Die im Plan definierten Core Web Vitals Budgets (LCP <= 3.0s, INP <= 250ms, CLS <= 0.10) sind in `baseline.json` nicht vorhanden und werden nicht geprüft.
 
