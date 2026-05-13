@@ -153,6 +153,10 @@ Host github.com
   IdentityFile ~/.ssh/id_rezepti
 ```
 
+### Git Hooks
+
+`scripts/hooks/pre-commit` blockiert Phantom-Submodule (Mode-160000-Entries ohne `.gitmodules`-Eintrag). Aktivierung erfolgt automatisch ueber `npm install` (`prepare`-Script setzt `core.hooksPath=scripts/hooks`). Bypass mit `git commit --no-verify` ist moeglich, sollte aber die Ausnahme bleiben.
+
 ## Working Notes (Claude)
 
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it

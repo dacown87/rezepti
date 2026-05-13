@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Pre-commit-Hook: blockiert Phantom-Submodule (Mode-160000-Entries ohne
+# passenden Eintrag in .gitmodules).
+#
+# Historie: Am 2026-04-12 sind 6 .claude/worktrees/agent-* Pfade
+# versehentlich als Gitlinks committed worden, was jeden CI-Run mit
+# "fatal: No url found for submodule path" verschmutzt hat. Dieser Hook
+# soll das in Zukunft frueh abfangen.
+#
+# Aktivierung: wird von "npm install" via "prepare"-Script automatisch
+# aktiviert (setzt core.hooksPath=scripts/hooks).
+
+set -euo pipefail
+
+phantoms=$(git ls-files --stage | awk '$1 == "160000" { print $4 }')
+if [ -z "$phantoms" ]; then
+  exit 0
+fi
+
+# Staged Version von .gitmodules in eine Tempdatei holen, damit auch
+# der Fall "Submodule + .gitmodules im selben Commit" sauber laeuft.
+declared_paths=""
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+if git show :.gitmodules > "$tmp" 2>/dev/null; then
+  declared_paths=$(git config -f "$tmp" --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk '{print $2}' || true)
+fi
+
+undeclared=()
+while IFS= read -r p; do
+  [ -z "$p" ] && continue
+  if ! printf '%s\n' "$declared_paths" | grep -qxF "$p"; then
+    undeclared+=("$p")
+  fi
+done <<< "$phantoms"
+
+if [ ${#undeclared[@]} -eq 0 ]; then
+  exit 0
+fi
+
+{
+  echo ""
+  echo "[pre-commit] Phantom-Submodule erkannt!"
+  echo ""
+  echo "Folgende Pfade haben Mode 160000 (Gitlink) im Index, sind aber NICHT"
+  echo "in .gitmodules deklariert -- vermutlich versehentlich committed (z.B."
+  echo "Verzeichnis mit eigenem .git/, oder Claude-Worktree-Ueberbleibsel):"
+  echo ""
+  for p in "${undeclared[@]}"; do
+    echo "  - $p"
+  done
+  echo ""
+  echo "Fix:"
+  echo "  git rm --cached <pfad>"
+  echo "  ggf. den Pfad in .gitignore eintragen"
+  echo ""
+  echo "Wenn das ein echter Submodule sein soll:"
+  echo "  git submodule add <url> <pfad>"
+  echo ""
+  echo "Bypass (nur in Ausnahmen):"
+  echo "  git commit --no-verify"
+  echo ""
+} >&2
+
+exit 1
