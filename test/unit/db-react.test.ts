@@ -256,6 +256,28 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
     expect(items.some((candidate: { id: number }) => candidate.id === created.id)).toBe(false)
   })
 
+  it('keeps duplicate shopping inserts idempotent when recipeId and userId are null', async () => {
+    const marker = `__test__ shopping duplicate ${Date.now()}`
+    const first = await db.addToShoppingList(null, marker, '2', 'Stück')
+
+    try {
+      const second = await db.addToShoppingList(null, marker, '2', 'Stück')
+      expect(second.id).toBe(first.id)
+
+      const items = await db.getShoppingList()
+      const matches = items.filter((candidate: {
+        id: number
+        recipe_id: number | null
+        canonical_name: string
+      }) => candidate.recipe_id === null && candidate.canonical_name === marker)
+
+      expect(matches).toHaveLength(1)
+      expect(matches[0]?.id).toBe(first.id)
+    } finally {
+      await db.deleteShoppingItem(first.id)
+    }
+  })
+
   it('supports dictionary alias and fuzzy matching', async () => {
     const marker = Date.now()
     const canonicalName = `__test__ Tomate ${marker}`

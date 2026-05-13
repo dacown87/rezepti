@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, timestamp, uuid, unique } from "drizzle-orm/pg-core";
 
 export const recipes = pgTable("recipes", {
   id:          serial("id").primaryKey(),
@@ -40,7 +40,15 @@ export const shoppingList = pgTable("shopping_list", {
   checked: boolean("checked").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   userId: uuid("user_id"),
-});
+}, (t) => [
+  // Prevent duplicate entries for the same (user, recipe, ingredient) tuple.
+  // NULLS NOT DISTINCT (Postgres 15+) treats NULL user_id / recipe_id as equal,
+  // so duplicate clicks on "Zur Einkaufsliste" are blocked at DB level even
+  // before multi-user auth is active.
+  unique("shopping_list_user_recipe_name_uidx")
+    .on(t.userId, t.recipeId, t.canonicalName)
+    .nullsNotDistinct(),
+]);
 
 export const mealPlan = pgTable("meal_plan", {
   id: serial("id").primaryKey(),

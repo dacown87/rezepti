@@ -110,6 +110,33 @@ describe('planner route APIs', () => {
       expect(first.status).toBe(200)
       expect(second.status).toBe(404)
     })
+
+    it('is idempotent on duplicate POST — returns same id and calls db once per request', async () => {
+      // First call: insert succeeds, db returns the new row.
+      dbMocks.addToShoppingList.mockResolvedValueOnce({ id: 42 })
+      // Second call: db detects conflict and returns the existing row id.
+      dbMocks.addToShoppingList.mockResolvedValueOnce({ id: 42 })
+
+      const payload = { recipeId: 5, canonicalName: 'Tomate', quantity: '3', unit: 'Stück' }
+
+      const first = await jsonRequest('/api/v1/shopping', payload)
+      const second = await jsonRequest('/api/v1/shopping', payload)
+
+      expect(first.status).toBe(201)
+      expect(second.status).toBe(201)
+
+      const body1 = await first.json() as { id: number }
+      const body2 = await second.json() as { id: number }
+
+      // Both responses must carry the same stable id.
+      expect(body1.id).toBe(42)
+      expect(body2.id).toBe(42)
+
+      // db function was called for each request (conflict resolution is inside db layer).
+      expect(dbMocks.addToShoppingList).toHaveBeenCalledTimes(2)
+      expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(1, 5, 'Tomate', '3', 'Stück')
+      expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(2, 5, 'Tomate', '3', 'Stück')
+    })
   })
 
   describe('/api/v1/dictionary/match', () => {

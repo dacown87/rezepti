@@ -1308,7 +1308,9 @@ async function loadAllRecipes(): Promise<Recipe[]> {
 
 Innere `{}` sind entfernt. Code ist sauberer.
 
-#### OFFEN (C) — Bounded Concurrency bei Fehler: partielle Shopping-Liste — Backend-Fix empfohlen
+#### RESOLVED — Bounded Concurrency bei Fehler: partielle Shopping-Liste
+
+**Status (2026-05-13):** Implementiert und verifiziert (tsc grün, 15/15 Unit-Tests grün).
 
 **`mobile/utils/shopping-service.ts:36-44`**
 
@@ -1316,10 +1318,11 @@ Das Worker-Pattern ist für JS korrekt (single-threaded, kein race). Aber: wenn 
 
 **Analyse (2026-05-13):** `POST /api/v1/shopping` ist **nicht** idempotent. `shopping_list` hat weder unique constraint auf `(canonical_name, recipe_id)` noch einen ON CONFLICT-Upsert (`src/schema.ts:34-43`, `src/db-react.ts:358-367`). Jeder POST erzeugt bedingungslos einen neuen Datensatz.
 
-**Empfohlener Fix (Backend):**
-1. `src/schema.ts`: Composite unique index auf `(canonical_name, recipe_id)` hinzufügen.
-2. `src/db-react.ts:360`: Insert mit `.onConflictDoNothing()` erweitern; `null` zurückgeben bei Duplikat.
-3. `src/routes/planner.ts:57-58`: `null`-Rückgabe abfangen, dennoch `201` antworten (idempotentes Verhalten).
+**Umgesetzter Fix (2026-05-13):**
+- `src/schema.ts:34-53`: Composite unique constraint `shopping_list_user_recipe_name_uidx` auf `(user_id, recipe_id, canonical_name)` mit `NULLS NOT DISTINCT` (zukunftssicher für Multi-User, funktioniert heute mit `user_id = NULL`).
+- `src/db-react.ts:358-384`: Insert mit `.onConflictDoNothing({ target: [...] })` + Lookup-Fallback; API-Contract (`{ id: number }`) bleibt stabil.
+- Migration: `db/migrations/2026-05-13-shopping-unique-constraint.sql` (Dedup-DELETE + `ALTER TABLE ... ADD CONSTRAINT ... UNIQUE NULLS NOT DISTINCT`).
+- Test: `test/unit/planner-routes.test.ts` — neuer Test "is idempotent on duplicate POST" verifiziert gleiche id bei zwei identischen Requests.
 
 ### Acceptance Criteria Phase 2 — Stand
 

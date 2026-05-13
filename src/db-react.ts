@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 import { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
@@ -355,15 +355,45 @@ export async function getShoppingList() {
   return rows.map(serializeShoppingItem);
 }
 
-export async function addToShoppingList(recipeId: number | null, canonicalName: string, quantity?: string, unit?: string) {
+export async function addToShoppingList(
+  recipeId: number | null,
+  canonicalName: string,
+  quantity?: string,
+  unit?: string,
+): Promise<{ id: number }> {
   const db = getDb();
-  const rows = await db.insert(shoppingList).values({
-    recipeId,
-    canonicalName,
-    quantity,
-    unit,
-  }).returning({ id: shoppingList.id });
-  return rows[0];
+
+  // Insert with conflict guard: the unique index on (user_id, recipe_id, canonical_name)
+  // with NULLS NOT DISTINCT blocks duplicate entries at DB level.
+  // When a conflict is detected Postgres skips the insert and returns an empty rows array.
+  const rows = await db
+    .insert(shoppingList)
+    .values({ recipeId, canonicalName, quantity, unit })
+    .onConflictDoNothing({
+      target: [shoppingList.userId, shoppingList.recipeId, shoppingList.canonicalName],
+    })
+    .returning({ id: shoppingList.id });
+
+  if (rows.length > 0) {
+    return rows[0];
+  }
+
+  // Conflict occurred — look up the existing row so the caller gets a stable id.
+  const recipeCondition = recipeId === null
+    ? isNull(shoppingList.recipeId)
+    : eq(shoppingList.recipeId, recipeId);
+
+  const existing = await db
+    .select({ id: shoppingList.id })
+    .from(shoppingList)
+    .where(and(isNull(shoppingList.userId), recipeCondition, eq(shoppingList.canonicalName, canonicalName)))
+    .limit(1);
+
+  if (!existing[0]) {
+    throw new Error("Shopping list conflict detected but existing row could not be loaded");
+  }
+
+  return existing[0];
 }
 
 export async function toggleShoppingItem(id: number): Promise<boolean> {
