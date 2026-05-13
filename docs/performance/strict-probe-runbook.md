@@ -1,28 +1,29 @@
 # Strict Probe Runbook
 
-Stand: 2026-05-12
+Stand: 2026-05-13
 
 ## Ziel
 
-Dieses Runbook steuert die Freigabe fuer den ersten manuellen `workflow_dispatch` mit `perf_enforcement=strict`.
+Dieses Runbook steuert die Freigabe fuer manuelle `workflow_dispatch`-Probes mit `perf_enforcement=strict`. Es bleibt relevant fuer Ad-hoc-Validierungen.
 
-Die Policy bleibt konservativ:
+Aktuelle Policy (seit 2026-05-13, nach 2 gruenen Probe-Runs):
 
-- `push`, `pull_request` und `schedule` bleiben `warn`
-- `strict` ist nur ein einzelner manueller Probe-Run
-- Freigabe erst bei `artifacts/performance/observation.json -> strictProbeEligible=true`
+- `schedule` (nightly cron 02:00 UTC) laeuft **strict**
+- `push` und `pull_request` bleiben **warn**
+- `workflow_dispatch` ist wahlweise `warn` (default) oder `strict`
+- Freigabe fuer Ad-hoc-Probe-Run weiterhin nur bei `artifacts/performance/observation.json -> strictProbeEligible=true`
 
 ## Aktueller Status
 
-Stand 2026-05-12 nach erfolgreichem Strict-Probe-Run:
+Stand 2026-05-13 nach erfolgreichem 2. Strict-Probe-Run und Policy-Eskalation:
 
 - `readiness.ready=true`
 - Warm-up-Seed verifiziert
-- 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs erreicht (Runs `25740992098`, `25741507844`, `25741808184`, `25742133438`, `25742437228`)
-- Manueller `workflow_dispatch` mit `perf_enforcement=strict` als Run `25742783313` gruen abgeschlossen am 2026-05-12T15:01:04 UTC
-- `performance-audit`-Job gruen, alle Budgets passed, keine neuen Findings
-- Policy wurde **nicht** ausgeweitet — `push`, `pull_request`, `schedule` bleiben `warn`
-- Zaehler `consecutiveGreenRuns` ist nach dem Probe-Run erwartungsgemaess auf `0` zurueckgesetzt; ein erneuter Probe-Run setzt wieder eine vollstaendige 5er-Beobachtungsserie voraus
+- 1. Probe: Run `25742783313` gruen am 2026-05-12T15:01:04 UTC
+- 2. Probe: Run `25781366107` gruen am 2026-05-13T06:07:06 UTC (5/5 Warn-Runs `25745137766`, `25750452339`, `25750960475`, `25752160250`, `25759065411`)
+- `performance-audit`-Job gruen in beiden Probes, alle Budgets passed, keine neuen Findings
+- **Policy-Eskalation am 2026-05-13:** `schedule` (nightly cron) auf `strict` umgestellt; `push`/`pull_request` bleiben `warn`. Naechste Eskalation auf `pull_request` strict bleibt offen und braucht eigene Datenbasis.
+- Zaehler `consecutiveGreenRuns` ist nach jedem Probe-Run erwartungsgemaess auf `0` zurueckgesetzt; ein erneuter Ad-hoc-Probe setzt wieder eine vollstaendige 5er-Beobachtungsserie voraus
 
 ### Probe-Ergebnis 2026-05-12 (Run `25742783313`)
 

@@ -193,8 +193,8 @@ jobs:
       - name: Diagnose Lighthouse environment
         run: npm run perf:lighthouse:doctor
 
-      - name: Enforce browser readiness (explicit strict dispatch)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.perf_enforcement == 'strict' }}
+      - name: Enforce browser readiness (strict dispatch or nightly schedule)
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.perf_enforcement == 'strict') }}
         run: |
           if command -v google-chrome >/dev/null 2>&1; then
             google-chrome --version
@@ -218,10 +218,10 @@ jobs:
       - name: Run performance audit
         run: npm run perf:audit
 
-      - name: Validate performance status (warn by default; strict on explicit dispatch)
+      - name: Validate performance status (warn on push/PR; strict on nightly schedule or explicit dispatch)
         run: npm run perf:validate
         env:
-          PERF_ENFORCEMENT_LEVEL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.perf_enforcement == 'strict' && 'strict' || 'warn' }}
+          PERF_ENFORCEMENT_LEVEL: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.perf_enforcement == 'strict')) && 'strict' || 'warn' }}
 
       - name: Save performance history cache
         if: always()

@@ -1,11 +1,11 @@
 
-## 🎯 Nächste Aktion — 2. Strict-Probe-Run dispatchen (2026-05-12 Spätabend)
+## 🎯 Nächste Aktion — Nightly-Strict beobachten (2026-05-13)
 
-- [ ] **Strict-Probe `workflow_dispatch` ausführen** — Gate ist offen: `strictProbeEligible=true`, `consecutiveGreenRuns=5/5`, `blockers=[]`, `warmupSeed.ready=true`. Letzter Counter-Check: Run `25759065411` (CI auf `1e43fa8`), Observation-Artifact runtergeladen + verifiziert.
-  - **Befehl:** `gh workflow run CI --ref main -f perf_enforcement=strict`
-  - **Erwartung:** `performance-audit`-Job gruen, alle Budgets passed, keine neuen Findings
-  - **Wichtig:** CI-Policy bleibt warn-only fuer `push`/`pull_request`/`schedule` — das ist nur ein Probe-Run. `consecutiveGreenRuns` springt nach dem Probe zurueck auf `0`; weiterer Probe braucht neues 5er-Fenster.
-  - Vorgehen siehe `docs/performance/strict-probe-runbook.md`
+- [x] **2. Strict-Probe-Run** ✅ erfolgreich am 2026-05-13 — Run `25781366107`, performance-audit grün in 7m39s, `enforcement=strict`, `lighthouse=ok`, `readiness ready=true 10/10`.
+- [x] **Strict-Schedule eskaliert (2026-05-13)** — `.github/workflows/ci.yml` so geändert, dass `schedule` (nightly cron 02:00 UTC) jetzt `strict` läuft; `push`/`pull_request` bleiben `warn`. Runbook + CLAUDE.md aktualisiert.
+- [ ] **Nightly-Strict-Beobachtung** — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
+- [ ] **M3 — Dockerfile changelog-Stage** umbauen (`Dockerfile:54` `COPY public/changelog.json` → Glob/Fallback, beseitigt Squash-Merge-Bug aus PROJECT_LEARNINGS #40)
+- [ ] **P1 — Pre-commit-Hook gegen Phantom-Submodule** (Mode-160000-Entries ohne `.gitmodules` blocken)
 
 ---
 
