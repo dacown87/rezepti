@@ -222,11 +222,22 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ## Dependency-Update-Status (2026-05-13)
 
+- Vollstaendige Zielmatrix und Upgrade-Reihenfolge: [docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md)
+- Entscheidungsregel: so modern wie sinnvoll, aber nur auf stabilen Linien und nie gegen Expo-/SDK-Support oder Major-Migrationsrisiken.
+
+### Umsetzung des Upgrade-Plans
+
+- [ ] **Batch 0 — CI Runtime Hygiene** — `.github/workflows/docker-publish.yml` + `.github/workflows/changelog-update.yml`: `actions/checkout` auf `v6`, `actions/setup-node` auf `v6`, `docker/login-action` auf `v4`, `docker/build-push-action` auf `v7` anheben; `northflank/deploy-to-northflank@v1` als moeglichen Upstream-Sonderfall dokumentieren. Exit-Kriterium: Node-20-Deprecation-Warnung verschwindet fuer first-party- und Docker-Actions oder bleibt nur noch dokumentiert bei Northflank.
+- [ ] **Batch 1 — Kleinster Code-Track** — nach abgeschlossenem Batch 0: `@hono/node-server` `1 -> 2` und `mobile/typescript` `5.9 -> 6.0.3` anheben; Root/Mobile-Typecheck und bestehende Unit-Suiten gruen halten.
+- [ ] **Batch 2 — Tooling-Welle** — `vitest`, `@vitest/coverage-v8`, `@vitest/ui` auf `4.1.6`; Root- und Mobile-Test-Setup gemeinsam migrieren, aber bewusst erst nach Batch 1.
+- [ ] **Batch 3 — Mobile Persistenz** — `@react-native-async-storage/async-storage` `2 -> 3` separat mit Query-Cache-, Offline-, Settings-, Theme- und PDF-Persistenzpfaden verifizieren.
+- [ ] **Batch 4 — Expo-/Styling-Track spaeter** — Expo-SDK-Sprung, `react-native-web`, `react-native-*`, `tailwindcss 4`, `nativewind 5`, `react-native-worklets`/`reanimated` bleiben bewusst vertagt, bis die jeweilige Leitplanke stabil ist.
+
 ### Patch-safe (jetzt updatebar; innerhalb `wanted`)
 
-- Root: `@types/node`, `dotenv`, `drizzle-orm`, `hono`, `openai`, `typescript`, `vite`, `zod`, `@hono/node-server` (v1.x)
-- Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `lucide-react-native`, `react`, `react-dom`, `react-native` (0.83.x), `react-native-reanimated`, `react-native-svg`, `react-test-renderer`
-- **Umsetzung 2026-05-13:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`) sowie sichere Mobile-Patches fuer `@react-navigation/native` und `@tanstack/*`. Damit sind im `wanted`-Fenster keine offensichtlichen Low-Risk-Patches mehr offen; uebrig bleiben nur Major-Spruenge oder Expo-/SDK-gebundene Pakete.
+- Root: sichere Root-Patches sind eingespielt; uebrig sind derzeit keine offenen Low-Risk-`wanted`-Updates mehr.
+- Mobile: sichere Mobile-Patches fuer `@react-navigation/native` und `@tanstack/*` sind eingespielt; uebrig bleiben Major-Spruenge oder Expo-/SDK-gebundene Pakete.
+- **Umsetzung 2026-05-13:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`) sowie sichere Mobile-Patches fuer `@react-navigation/native` und `@tanstack/*`.
 - **Peer-/SDK-Blocker:** `react-native-reanimated@4.3.0` verlangt `react-native-worklets@0.8.x`; `expo install react-native-reanimated react-native-worklets` unter SDK 55 hat keine Aenderung vorgenommen (weiter `reanimated@4.2.1`, `worklets@0.7.4`).
 - **Aktueller Compatibility-Status (`expo-doctor`):** wieder `18/18` Checks gruen.
 - **Build-Fix:** `mobile/assets/images/favicon.png` war inhaltlich eine ICO-Datei mit falscher `.png`-Endung und blockierte `expo export` mit `Unsupported MIME type: image/x-icon`; Asset wurde durch eine echte PNG-Datei ersetzt, `npm run mobile:build:web` laeuft wieder erfolgreich.
@@ -240,4 +251,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ### Major / später (bewusst vertagt)
 
 - Root: `@hono/node-server` 1 -> 2, `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `@vitest/ui` 3 -> 4
-- Mobile: `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `tailwindcss` 3 -> 4, `typescript` 5 -> 6, `react-native` 0.83 -> 0.85, `@react-native-async-storage/async-storage` 2 -> 3, `react-native-worklets` 0.7 -> 0.8
+- Mobile: `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `typescript` 5 -> 6, `@react-native-async-storage/async-storage` 2 -> 3
+- Mobile, Expo-/SDK-gebunden: `react-native` 0.83 -> 0.85, `react` 19.2.0 -> 19.2.6, `react-dom` 19.2.0 -> 19.2.6, `react-native-gesture-handler` 2.30 -> 2.31, `react-native-safe-area-context` 5.6 -> 5.7, `react-native-screens` 4.23 -> 4.25, `react-native-svg` 15.15.3 -> 15.15.5, `react-test-renderer` 19.2.0 -> 19.2.6
+- Mobile, Styling-Track: `tailwindcss` 3 -> 4 bleibt bis zu einer stabilen `NativeWind`-v5-Linie vertagt.
+- Mobile, harter Blocker: `react-native-worklets` 0.7 -> 0.8 und damit indirekt `react-native-reanimated` 4.2 -> 4.3 bleiben bis zu einem passenden Expo-SDK vertagt.
