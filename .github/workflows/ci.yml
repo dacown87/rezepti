@@ -189,6 +189,8 @@ jobs:
 
       - name: Setup Chrome for Lighthouse
         uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: '150'
 
       - name: Diagnose Lighthouse environment
         run: npm run perf:lighthouse:doctor

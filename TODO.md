@@ -10,6 +10,13 @@
 - [x] **Supabase RLS aktiviert** — RLS auf 5 Tabellen + REST-Grants für anon/authenticated entzogen + `rls_auto_enable()` REST-EXECUTE revoked. Supabase Advisor clean.
 - [x] **M3 — Dockerfile changelog-Stage** — `COPY public/changelog.json` durch BuildKit-`RUN --mount=type=bind` mit JSON-Fallback (`{"version":"0.0.0","entries":[]}`) ersetzt. Squash-Merge ohne `public/changelog.json` rötet den Docker-Build nicht mehr. Lokal mit beiden Szenarien verifiziert. (Commit `0642e8c`)
 - [x] **P1 — Pre-commit-Hook gegen Phantom-Submodule** — `scripts/hooks/pre-commit` blockt Mode-160000-Entries ohne `.gitmodules`-Eintrag. Aktivierung via `npm install` (`prepare`-Script setzt `core.hooksPath`). Mit 3 Szenarien lokal verifiziert. (Commit `75c5482`)
+- [x] **Mobile-Plan Code-Review-Findings (alle 6) abgearbeitet** — Plan-Sektionen "Findings — Phase 1–3" jetzt alle `RESOLVED`:
+    - **P2 canonicalName Length-Limit** — war schon umgesetzt (`src/routes/planner.ts:53-55`), nur Plan-Status nachgezogen.
+    - **P3 `^`-Constraints React/RN pinnen** — `mobile/package.json`: react/react-dom/react-native/react-native-svg/react-test-renderer auf exakte Expo-SDK-55-Versionen gepinnt. `expo-doctor` weiter 18/18.
+    - **P3 Chrome-Versions-Pin in CI** — `.github/workflows/ci.yml:193`: `chrome-version: '150'` (Major-Pin, weil beide grünen Strict-Probes auf Chromium 150 liefen).
+    - **P3 Coverage-Schwellenwert effektiv 1%** — `vitest.config.ts` + `mobile/vitest.config.ts`: per-Metrik-Floors statt globaler 1% (Root lines/statements/functions=30, branches=60; Mobile lines/statements=30, functions=35, branches=55). Beide Coverage-Runs grün.
+    - **P3 Perf-History-Cache Cross-Branch** — durch früheren `v4-`-Cache-Umstieg + Strict-nur-auf-Schedule bereits entschärft; nur Plan-Status korrigiert.
+    - **Info E2E ohne `continue-on-error`** — empirisch resolved: 30/30 E2E-Runs grün; alle 5 Failures lagen in `test`/`performance-audit`.
 
 ### Offen / Folgearbeit
 
@@ -210,7 +217,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] **Performance Strict-Hardening Tooling-Slice (2026-05-11):** `perf:stability:seed` automatisiert die 10 echten Runs, `validate-status` schreibt eindeutige methodenmarkierte History-Eintraege, `perf:budget:suggest` berechnet Budget-Vorschlaege aus vollstaendigen Runs (`p95 * 1.10`). Fokussierte Tests gruen.
 - [x] **Performance Strict-Probe freigeben** ✅ (2026-05-12 + 2026-05-13) — beide Probe-Runs grün (`25742783313`, `25781366107`). Nightly-Schedule danach auf `strict` eskaliert. _Plan-Phase 3 + Strict-Probe-Gate_
 - [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv). _Plan: Phase 2 Follow-up_
-- [x] Coverage-Thresholds schrittweise anheben (Start-Gate 1% -> ratcheting via `COVERAGE_RATCHET_MIN`)
+- [x] Coverage-Thresholds schrittweise anheben — Start-Gate 1% am 2026-05-13 auf per-Metrik-Floors angehoben (Root lines/statements/functions=30, branches=60; Mobile lines/statements=30, functions=35, branches=55). Weitere Ratchet-Schritte manuell über `COVERAGE_RATCHET_MIN`-Env oder Baseline-Anhebung in den Config-Files.
 - [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)
 - [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI-Pinning), Expo SDK 55, React 19.2, React Native 0.83
 - [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` 18/18 gruen, `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden

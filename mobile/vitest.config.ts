@@ -1,15 +1,21 @@
 import { defineConfig } from 'vitest/config';
 import { configDefaults } from 'vitest/config';
 
-// CI-safe default: keep the gate conservative to avoid flaky failures.
-const COVERAGE_BASELINE_MIN = 1;
-// Optional ratchet for deliberate tightening in CI/local (1 -> 2 -> 5 ...).
-// Invalid or missing values safely fall back to COVERAGE_BASELINE_MIN.
+// Per-metric coverage floors based on measured baseline (2026-05-13):
+// Mobile: lines/statements 37.52%, functions 47.84%, branches 70.94%
+// Floor formula: floor(measured * 0.8 / 5) * 5 — leaves buffer for test flakes.
+const COVERAGE_BASELINES = {
+  lines: 30,
+  statements: 30,
+  functions: 35,
+  branches: 55,
+} as const;
+// Optional global ratchet (env COVERAGE_RATCHET_MIN) raises all metrics — never lowers below baseline.
 const COVERAGE_RATCHET_ENV = Number.parseInt(process.env.COVERAGE_RATCHET_MIN ?? '', 10);
-const COVERAGE_RATCHET_MIN =
-  Number.isFinite(COVERAGE_RATCHET_ENV) && COVERAGE_RATCHET_ENV >= COVERAGE_BASELINE_MIN
+const applyRatchet = (baseline: number) =>
+  Number.isFinite(COVERAGE_RATCHET_ENV) && COVERAGE_RATCHET_ENV > baseline
     ? COVERAGE_RATCHET_ENV
-    : COVERAGE_BASELINE_MIN;
+    : baseline;
 
 export default defineConfig({
   resolve: {
@@ -40,10 +46,10 @@ export default defineConfig({
         '**/*.config.*',
       ],
       thresholds: {
-        lines: COVERAGE_RATCHET_MIN,
-        statements: COVERAGE_RATCHET_MIN,
-        functions: COVERAGE_RATCHET_MIN,
-        branches: COVERAGE_RATCHET_MIN,
+        lines: applyRatchet(COVERAGE_BASELINES.lines),
+        statements: applyRatchet(COVERAGE_BASELINES.statements),
+        functions: applyRatchet(COVERAGE_BASELINES.functions),
+        branches: applyRatchet(COVERAGE_BASELINES.branches),
       },
     },
     alias: {

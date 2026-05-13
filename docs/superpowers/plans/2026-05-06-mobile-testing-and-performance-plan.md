@@ -1070,13 +1070,13 @@ Der fruehere unbounded `Promise.all()`-Pfad ist nicht mehr aktiv. `addIngredient
 
 Status: erledigt in Phase 2; kein offenes Acceptance-Criterion mehr.
 
-#### P2 — `canonicalName` ohne Length-Limit
+#### RESOLVED — `canonicalName` ohne Length-Limit
 
 **`src/routes/planner.ts` — POST /api/v1/shopping**
 
-`recipeId` und `canonicalName` werden validiert (Typ + Existenz), aber `canonicalName` hat kein Längen-Limit. Ein Client kann beliebig lange Strings senden.
+`canonicalName` hat ein Length-Limit von 500 Zeichen implementiert (Zeile 53–55). Validierung prüft `canonicalName.length > 500` und gibt 400-Fehler zurück.
 
-Fix (PR 1 oder 2): `if (canonicalName.length > 500) return c.json({ error: "canonicalName too long" }, 400)`.
+Status: erledigt am 2026-05-07; siehe `src/routes/planner.ts:53–55`.
 
 #### RESOLVED — Business Logic aus Screen-File extrahiert
 
@@ -1086,13 +1086,16 @@ Fix (PR 1 oder 2): `if (canonicalName.length > 500) return c.json({ error: "cano
 
 Status: erledigt in Phase 2.
 
-#### P3 — Coverage-Schwellenwert effektiv 1%
+#### RESOLVED — Coverage-Schwellenwert effektiv 1%
 
 **`vitest.config.ts` + `mobile/vitest.config.ts`**
 
-`COVERAGE_RATCHET_MIN` startet bei 1 als "CI-safe default". Coverage-Gating ist technisch aktiv, aber ein Schwellenwert von 1% ist kein reales Gate. Plan sagt: "Ratchet nach stabilen Messreihen hochziehen."
+Status: erledigt am 2026-05-13. Per-Metrik-Floors via `COVERAGE_BASELINES`-Objekt, optionaler `COVERAGE_RATCHET_MIN`-Env-Override raises über alle Metriken. Floor-Formel: `floor(measured * 0.8 / 5) * 5`.
 
-Aktion: Nach 3–5 stabilen CI-Runs den Wert auf den gemessenen p25-Wert setzen und schrittweise erhöhen.
+- Root-Floors: `lines=30`, `statements=30`, `functions=30`, `branches=60`
+- Mobile-Floors: `lines=30`, `statements=30`, `functions=35`, `branches=55`
+- Gemessene Coverage am 2026-05-13: Root `lines/statements 38.14% / functions 39.62% / branches 78.33%`; Mobile `lines/statements 37.52% / functions 47.84% / branches 70.94%`.
+- Nächster Ratchet-Schritt bleibt manuell über `COVERAGE_RATCHET_MIN`-Env oder Baseline-Anhebung in den Config-Files.
 
 #### RESOLVED — Chrome im `performance-audit` CI-Job
 
@@ -1102,7 +1105,7 @@ Chrome/Chromium wird im `performance-audit`-Job jetzt deterministisch bereitgest
 
 Status: erledigt in Phase 3 ueber `browser-actions/setup-chrome@v1`.
 
-#### P3 — `^`-Constraints für React/RN in Expo SDK 55
+#### RESOLVED — `^`-Constraints für React/RN in Expo SDK 55
 
 **`mobile/package.json`**
 
@@ -1110,13 +1113,17 @@ Status: erledigt in Phase 3 ueber `browser-actions/setup-chrome@v1`.
 
 Fix: Vor dem Merge prüfen, ob Expo SDK 55 exakte Versionen fordert, und ggf. auf `"react": "19.2.0"` (ohne `^`) wechseln.
 
-#### Informational — E2E ohne `continue-on-error`
+Status: erledigt am 2026-05-13; `react`, `react-dom`, `react-native`, `react-native-svg` (dependencies) sowie `react-test-renderer` (devDependencies) auf exakte Versionen gepinnt, expo-doctor weiterhin grün (18/18).
+
+#### RESOLVED — E2E ohne `continue-on-error`
 
 **`.github/workflows/ci.yml` — Job `e2e`**
 
-Früher hatte der E2E-Job `continue-on-error: true`. Nach dem Cleanup blockiert ein flakiger E2E-Test den gesamten CI-Run. Das ist die korrekte Intention (E2E soll zuverlässig sein), aber es ist ein operatives Risiko bis die E2E-Tests beweislich stabil sind.
+Status: erledigt am 2026-05-13 durch Empirie — E2E-Job ist seit dem Cleanup beweislich stabil.
 
-Beobachtung: Wird die CI zeigen, ob der Schritt hält. Kein sofortiger Fix nötig.
+- 30/30 E2E-Runs in den letzten 30 CI-Runs erfolgreich (Stand 2026-05-13, Window: 2026-05-04 bis 2026-05-13).
+- Die 5 Failures in den letzten 30 Runs verteilten sich auf `test` (4×, Unit-Tests) und `performance-audit` (1×) — keine E2E-Failure.
+- Damit ist der ursprüngliche Plan ("Beobachtung wird zeigen, ob der Schritt hält") erfüllt: er hält. Kein `continue-on-error` einführen.
 
 ### Ship-Readiness
 
@@ -1402,25 +1409,23 @@ Aber: Budgets erst eintragen wenn die Messungen valide sind (Topologie-Problem l
 
 ### Findings (P3 — niedrige Auswirkung)
 
-#### P3 — `browser-actions/setup-chrome@v1` ohne Chrome-Versions-Pin
+#### RESOLVED — `browser-actions/setup-chrome@v1` ohne Chrome-Versions-Pin
 
-**`.github/workflows/ci.yml:192`**
+**`.github/workflows/ci.yml:192-194`**
 
-`browser-actions/setup-chrome@v1` installiert immer die neueste Chrome-Stable-Version ohne Versions-Lock. Unterschiedliche CI-Runs können unterschiedliche Chrome-Versionen verwenden, was Lighthouse-Score-Variationen erzeugt. Für warn-only-Modus akzeptabel, aber für spätere blocking-Budgets ein Stabilitätsrisiko.
+Status: Erledigt am 2026-05-13. Chrome gepinnt auf Major-Version `150`, weil die letzten beiden grünen Strict-Probe-Runs (`25742783313`, `25781366107`) auf Chromium 150.0.7839.0 liefen — die etablierten Strict-Budgets sind gegen diese Major kalibriert. Major-Pin bekommt Security-Patches innerhalb der Version, verhindert aber überraschende Major-Bumps.
 
-Fix (wenn budgets blocking werden): `browser-actions/setup-chrome@v1` mit `chrome-version: stable` oder einer festen Version pinnen.
+~~`browser-actions/setup-chrome@v1` installiert immer die neueste Chrome-Stable-Version ohne Versions-Lock.~~ ✅
 
-#### P3 — Performance-History-Cache fallback kann Cross-Branch-History einschleusen
+#### RESOLVED — Performance-History-Cache fallback kann Cross-Branch-History einschleusen
 
 **`.github/workflows/ci.yml` — cache restore-keys**
 
-```yaml
-restore-keys: |
-  performance-history-${{ github.ref_name }}-
-  performance-history-
-```
+Status: erledigt am 2026-05-13 durch Doppelmechanik aus früherer Cache-Versionierung und Strict-Schedule-Eskalation.
 
-Der Fallback `performance-history-` matcht caches von beliebigen Branches, inklusive `main`. Ein neuer Feature-Branch könnte History von `main` erben und dadurch die Readiness-Checks früher auslösen als intendiert. Für warn-only unkritisch, aber erwähnenswert.
+- Aktuelle restore-keys (`ci.yml:188`): nur `performance-history-v4-${{ github.ref_name }}-` — der frühere reine `performance-history-` Fallback (matchte alle Branches) ist mit dem `v4-`-Umstieg entfernt worden.
+- Restrisiko aus GitHub-Default-Cache-Cascade (Feature-Branches erben automatisch `main`-Caches, unabhängig von `restore-keys`) ist im warn-only Modus folgenlos und im Strict-Modus folgenlos, weil Strict seit 2026-05-13 nur auf `schedule` (= `main` Cron) automatisch läuft.
+- Bei `workflow_dispatch perf_enforcement=strict` auf einem Feature-Branch bleibt das Restrisiko theoretisch bestehen; das ist aber Operator-Opt-in, kein automatisches Verhalten. Wird im Runbook (`docs/performance/strict-probe-runbook.md`) als Operator-Verantwortung dokumentiert.
 
 ### Acceptance Criteria Phase 3 — Stand
 
