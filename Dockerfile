@@ -51,7 +51,16 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=web-builder /app/public ./public
-COPY public/changelog.json ./public/changelog.json
+# changelog.json ist im Repo manuell gepflegt; Squash-Merges koennen die Datei
+# auf main loeschen (siehe docs/PROJECT_LEARNINGS.md "squash-merge-deletes-changelog-json-breaks-docker").
+# Bind-Mount + Fallback verhindern, dass der Build dann scheitert. Der
+# changelog-update.yml-Workflow legt sie beim naechsten Version-Bump wieder neu an.
+RUN --mount=type=bind,source=public,target=/tmp/public-host \
+    if [ -f /tmp/public-host/changelog.json ]; then \
+      cp /tmp/public-host/changelog.json ./public/changelog.json; \
+    else \
+      echo '{"version":"0.0.0","entries":[]}' > ./public/changelog.json; \
+    fi
 
 EXPOSE 3000
 

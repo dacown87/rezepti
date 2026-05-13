@@ -4,7 +4,7 @@
 - [x] **2. Strict-Probe-Run** ✅ erfolgreich am 2026-05-13 — Run `25781366107`, performance-audit grün in 7m39s, `enforcement=strict`, `lighthouse=ok`, `readiness ready=true 10/10`.
 - [x] **Strict-Schedule eskaliert (2026-05-13)** — `.github/workflows/ci.yml` so geändert, dass `schedule` (nightly cron 02:00 UTC) jetzt `strict` läuft; `push`/`pull_request` bleiben `warn`. Runbook + CLAUDE.md aktualisiert.
 - [ ] **Nightly-Strict-Beobachtung** — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
-- [ ] **M3 — Dockerfile changelog-Stage** umbauen (`Dockerfile:54` `COPY public/changelog.json` → Glob/Fallback, beseitigt Squash-Merge-Bug aus PROJECT_LEARNINGS #40)
+- [x] **M3 — Dockerfile changelog-Stage** umbauen (2026-05-13) ✅ — `Dockerfile` COPY-Step durch BuildKit-`RUN --mount=type=bind` mit JSON-Fallback (`{"version":"0.0.0","entries":[]}`) ersetzt. Lokal mit beiden Szenarien (Datei da/nicht da) verifiziert. Squash-Merge-Bug aus PROJECT_LEARNINGS #40 beseitigt.
 - [ ] **P1 — Pre-commit-Hook gegen Phantom-Submodule** (Mode-160000-Entries ohne `.gitmodules` blocken)
 
 ---
