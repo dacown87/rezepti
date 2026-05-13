@@ -73,20 +73,21 @@
 
 - ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
-- ✅ `npm run test:unit` — **412 Tests bestanden, 12 skipped** (Stand: 2026-05-11)
-- ✅ `npm --prefix mobile run test:unit` — **85 Tests bestanden** (Stand: 2026-05-11)
+- ✅ `npm run test:unit` — **438 Tests bestanden, 13 skipped** (Stand: 2026-05-13)
+- ✅ `npm --prefix mobile run test:unit` — **86 Tests bestanden** (Stand: 2026-05-13)
 - ℹ️ E2E-/Docker-Tests skippen graceful, wenn kein Server bzw. Container läuft
 
 ---
 
-## Mobile / Expo Status (2026-05-11)
+## Mobile / Expo Status (2026-05-13)
 
 - ✅ `cd mobile && CI=1 npx expo-doctor` — `18/18` Checks bestanden
 - ✅ `npm run mobile:typecheck` — erfolgreich
-- ✅ `npm run test:mobile` — `85/85` Tests bestanden
+- ✅ `npm run test:mobile` — `86/86` Tests bestanden
 - ✅ `npm run mobile:build:web` — erfolgreicher Expo-Web-Export nach `public/`
 - ✅ Phase-2-Reliability weiter gehaertet:
   - Planner zeigt jetzt sichtbaren Ladefehler mit Retry/Close bei fehlgeschlagenem Wochen-Load
+  - `RecipePickerModal` zeigt jetzt lokalen Ladefehler mit Retry/Close statt stillen Empty-State bei fehlgeschlagenem Rezept-Load
   - Planner-Mutationen zeigen jetzt sichtbare Pending-/Retry-Zustaende fuer Add/Remove, inklusive direktem Retry ohne zweiten Confirm-Dialog beim Remove-Pfad
   - Shopping behaelt gecachte Items bei fehlgeschlagenem Refresh sichtbar
   - Persistierter React-Query-Cache heilt bei korruptem AsyncStorage-Eintrag selbst
@@ -98,7 +99,7 @@
   - offener Rest: 10 stabile vollstaendige Runs sammeln, bevor Strict-Gates aktiviert werden
 - ✅ Review-Bugfixes (2026-05-07):
   - `mobile/utils/query-client.ts` — `AsyncStorage.removeItem` in eigenem try/catch abgesichert
-  - `mobile/app/(tabs)/planner.tsx` — redundanter innerer Block entfernt, `.catch()` fuer `loadAllRecipes()` im RecipePickerModal, try/catch + Fehler-UI fuer QR-Recipe-Link-Pfad
+  - `mobile/app/(tabs)/planner.tsx` — redundanter innerer Block entfernt; `RecipePickerModal` mit lokalem Error/Retry-State statt stillem Empty-State; try/catch + Fehler-UI fuer QR-Recipe-Link-Pfad
   - `src/routes/planner.ts` — `canonicalName` Length-Limit (max 500 Zeichen)
   - `scripts/performance/lighthouse-runner.mjs` — API-Mock im statischen Server: `/api/*` → realistische Mock-Antworten; parametrisierte Recipe-/Shopping-Pfade sind abgedeckt
   - `scripts/performance/baseline.json` — LCP/CLS-Budgets ergaenzt (initial 5s, tighten nach 10+ CI-Runs)
@@ -156,7 +157,7 @@
   - `React.memo` auf `DayColumn` mit stabiler `useCallback`-Ref fuer `handleRemoveEntry`
 - ✅ Backend/Search Follow-up fuer Zutaten-Suche im Plan dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist `searchRecipesByIngredientsAdvanced` (`src/db-react.ts:133-181`) keine Performance-Bremse; kein Backend-Refactor gerechtfertigt
 - ✅ Phase 4 damit als abgeschlossen markiert (Acceptance Criteria erfuellt: dokumentierter Backend-Follow-up + messbare Render-Reduktion)
-- ✅ Mobile-Suite damals: `83/83` Tests gruen, Mobile-Typecheck clean. Aktueller Stand siehe oben: `85/85`.
+- ✅ Mobile-Suite damals: `83/83` Tests gruen, Mobile-Typecheck clean. Aktueller Stand siehe oben: `86/86`.
 
 ### Hinweise
 
