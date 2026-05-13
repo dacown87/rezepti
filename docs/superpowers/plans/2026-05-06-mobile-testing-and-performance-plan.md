@@ -197,7 +197,7 @@ Bereits umgesetzt:
 - Review-Bugfixes aller Phasen umgesetzt (2026-05-07):
   - `src/routes/planner.ts` — `canonicalName` Length-Limit (max 500 Zeichen) ergaenzt
   - `mobile/utils/query-client.ts` — `AsyncStorage.removeItem` in eigenem try/catch abgesichert
-  - `mobile/app/(tabs)/planner.tsx` — redundanter innerer Block entfernt; `.catch()` fuer `loadAllRecipes()` im RecipePickerModal; try/catch + konsistente Fehler-UI fuer QR-Recipe-Link-Pfad via `handlePlannerActionError`
+  - `mobile/app/(tabs)/planner.tsx` — redundanter innerer Block entfernt; `RecipePickerModal` mit lokalem Error/Retry-State statt stillem Empty-State; try/catch + konsistente Fehler-UI fuer QR-Recipe-Link-Pfad via `handlePlannerActionError`
   - `scripts/performance/lighthouse-runner.mjs` — API-Mock im statischen Lighthouse-Server: `/api/*`-Anfragen werden mit leeren JSON-Antworten beantwortet; LCP misst jetzt den tatsaechlichen Empty-State statt eines ~25s API-Timeouts
   - `scripts/performance/baseline.json` — LCP/CLS-Budgets ergaenzt (initial 5s, tighten nach 10+ stabilen CI-Runs; Zielbudget laut Plan: LCP 3.0–3.4s)
   - `scripts/performance/validate-status.mjs` — LCP- und CLS-Budget-Checks pro Route und Viewport implementiert
@@ -1332,7 +1332,7 @@ Das Worker-Pattern ist für JS korrekt (single-threaded, kein race). Aber: wenn 
 | list → search → detail → shopping Workflow | ✅ `mobile-workflow-list-detail-shopping-ui.test.tsx` |
 | Network failure recovery (shopping) | ✅ `mobile-workflow-shopping-recovery.test.ts` |
 | Planner add/remove/retry Mutation-Paths | ✅ `planner-screen-fallbacks.test.tsx` |
-| Sichtbare Error-States (kein stiller catch) | ✅ (bis auf `RecipePickerModal` — P2 offen) |
+| Sichtbare Error-States (kein stiller catch) | ✅ inklusive lokalem Error/Retry-State im `RecipePickerModal` |
 | Offline cached data bleibt nutzbar | ✅ `query-client.ts` corrupt-cache discard |
 | Bounded concurrency für `addIngredients` | ✅ `shopping-service.ts` concurrency=4 |
 

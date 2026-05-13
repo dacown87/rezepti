@@ -110,15 +110,26 @@ function RecipePickerModal({
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadRecipes = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const rows = await loadAllRecipes();
+      setRecipes(rows);
+    } catch {
+      setRecipes([]);
+      setLoadError('Rezepte konnten nicht geladen werden.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
-    setLoading(true);
-    loadAllRecipes()
-      .then(rows => { setRecipes(rows); })
-      .catch(() => { /* stay empty, loading stops in finally */ })
-      .finally(() => setLoading(false));
-  }, [visible]);
+    void loadRecipes();
+  }, [visible, loadRecipes]);
 
   const deferredSearch = useDeferredValue(search);
   const filtered = useMemo(
@@ -156,6 +167,18 @@ function RecipePickerModal({
 
         {loading ? (
           <ActivityIndicator className="mt-8" color="#C84B31" />
+        ) : loadError ? (
+          <View className="mx-4 mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-3">
+            <Text className="text-sm text-red-700">{loadError}</Text>
+            <View className="mt-3 flex-row gap-2">
+              <Pressable onPress={() => void loadRecipes()} className="rounded-lg bg-red-600 px-3 py-1.5">
+                <Text className="text-xs font-medium text-white">Erneut versuchen</Text>
+              </Pressable>
+              <Pressable onPress={onClose} className="rounded-lg bg-red-100 px-3 py-1.5">
+                <Text className="text-xs font-medium text-red-700">Schließen</Text>
+              </Pressable>
+            </View>
+          </View>
         ) : (
           <FlatList
             data={filtered}

@@ -340,6 +340,105 @@ describe('PlannerScreen UI fallbacks', () => {
     expect(state.router.navigate).toHaveBeenCalledWith('/(tabs)/shopping');
   });
 
+  it('shows visible recipe picker load error with local retry instead of empty state', async () => {
+    let recipesFetchCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/v1/planner?week=')) return jsonResponse([]);
+        if (url.endsWith('/api/v1/recipes')) {
+          recipesFetchCalls += 1;
+          if (recipesFetchCalls === 1) {
+            throw new Error('Network request failed');
+          }
+          return jsonResponse([
+            { id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' },
+          ]);
+        }
+        return jsonResponse({});
+      })
+    );
+
+    const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
+    let tree: ReturnType<typeof TestRenderer.create>;
+    await act(async () => {
+      tree = TestRenderer.create(React.createElement(PlannerScreen));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const addButtons = tree!.root.findAll(
+      (node: { type: unknown; props: { className?: string; onPress?: () => unknown } }) =>
+        String(node.type) === 'Pressable' &&
+        typeof node.props.onPress === 'function' &&
+        typeof node.props.className === 'string' &&
+        node.props.className.includes('border-dashed')
+    );
+    await act(async () => {
+      await (addButtons[0]!.props as { onPress?: () => void }).onPress?.();
+    });
+
+    const pickRecipeAction = tree!.root.find(
+      (node: {
+        type: unknown;
+        props: { onPress?: () => unknown };
+        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
+      }) =>
+        String(node.type) === 'Pressable' &&
+        typeof node.props.onPress === 'function' &&
+        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Rezept auswählen')).length > 0
+    );
+    await act(async () => {
+      await (pickRecipeAction.props as { onPress?: () => void }).onPress?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      tree!.root.findAll(
+        (node: { type: unknown; children: unknown[] }) =>
+          String(node.type) === 'Text' && node.children.includes('Rezepte konnten nicht geladen werden.')
+      ).length
+    ).toBeGreaterThan(0);
+    expect(
+      tree!.root.findAll(
+        (node: { type: unknown; children: unknown[] }) =>
+          String(node.type) === 'Text' && node.children.includes('Keine Rezepte gefunden.')
+      ).length
+    ).toBe(0);
+
+    const retryAction = tree!.root.find(
+      (node: {
+        type: unknown;
+        props: { onPress?: () => unknown };
+        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
+      }) =>
+        String(node.type) === 'Pressable' &&
+        typeof node.props.onPress === 'function' &&
+        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
+    );
+    await act(async () => {
+      await (retryAction.props as { onPress?: () => Promise<void> }).onPress?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(recipesFetchCalls).toBe(2);
+    expect(
+      tree!.root.findAll(
+        (node: { type: unknown; children: unknown[] }) =>
+          String(node.type) === 'Text' && node.children.includes('Rezepte konnten nicht geladen werden.')
+      ).length
+    ).toBe(0);
+    expect(
+      tree!.root.findAll(
+        (node: { type: unknown; children: unknown[] }) =>
+          String(node.type) === 'Text' && node.children.includes('Suppe')
+      ).length
+    ).toBeGreaterThan(0);
+  });
+
   it('keeps planner fallback visible and switches retry label while a retry is pending', async () => {
     let releaseRetry: (() => void) | null = null;
     let plannerFetchCalls = 0;
