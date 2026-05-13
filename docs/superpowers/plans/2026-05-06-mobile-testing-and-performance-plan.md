@@ -1,11 +1,11 @@
 <!-- /autoplan restore point: /home/patrick/.gstack/projects/dacown87-rezepti/main-autoplan-restore-20260506-091159.md -->
 # Mobile Testing and Web Performance Plan
 
-Stand: 2026-05-12
+Stand: 2026-05-13
 
-## Aktueller Stand (2026-05-12, nach erstem gruenen Strict-Probe-Run)
+## Aktueller Stand (2026-05-13, nach zweitem gruenen Strict-Probe-Run + Schedule-Eskalation)
 
-Kurzfassung: Der urspruengliche Plan ist fuer Phase 1-4 abgeschlossen. Phase 4c ist technisch abgeschlossen: Throttling-Vergleich, Bundle-Slice, statische App-Shell und Budget-Mechanik sind umgesetzt und nicht-sandboxiert verifiziert. Der Strict-Hardening-Seed ist am 2026-05-12 erfolgreich gelaufen, danach wurden 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs erreicht und der erste manuelle Strict-Probe-Run via `workflow_dispatch` (Run `25742783313`) ist gruen abgeschlossen. CI-Policy bleibt fuer `push`/`pull_request`/`schedule` weiter warn-only — eine breitere Aktivierung von `strict` ist eine separate Entscheidung.
+Kurzfassung: Der urspruengliche Plan ist fuer Phase 1-4 abgeschlossen. Phase 4c ist technisch abgeschlossen: Throttling-Vergleich, Bundle-Slice, statische App-Shell und Budget-Mechanik sind umgesetzt und nicht-sandboxiert verifiziert. **Beide Strict-Probe-Runs gruen** (`25742783313` am 2026-05-12, `25781366107` am 2026-05-13). **Strict-Schedule-Eskalation am 2026-05-13 live**: `schedule` (nightly cron 02:00 UTC) laeuft jetzt `strict`, `push`/`pull_request` bleiben `warn`, `workflow_dispatch` wahlweise. Die naechste Eskalationsstufe (`pull_request` strict) ist offen und braucht eine eigene Datenbasis aus 1-2 Wochen stabilen Nightly-Strict-Runs.
 
 Erledigt:
 
@@ -41,17 +41,28 @@ Strict-Hardening-Seed erledigt:
 - `scripts/performance/baseline.json` wurde geschaerft: `maxGzipJsBytes=1140411`, `maxLargestJsAssetBytes=4572427`; `maxJsBytes` bleibt bei der bestehenden strengeren 5.2-MB-Grenze.
 - Lighthouse-Budgets fuer `simulate/mobile-375x812` wurden geschaerft. Der `/`-LCP-Vorschlag von 24616 ms wurde nicht uebernommen, weil er aus einem einzelnen Cold-Run-Ausreisser (22378 ms) kam; die warmen `/`-Runs clustern bei ~903 ms.
 
-Beobachtungs- und Probe-Gate erledigt (2026-05-12):
+Beobachtungs- und Probe-Gate erledigt (2026-05-12 + 2026-05-13):
 
-- ✅ 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs: `25740992098`, `25741507844`, `25741808184`, `25742133438`, `25742437228`.
-- ✅ Beobachtungsartefakt im finalen Warn-Run: `strictProbeEligible=true`, `consecutiveGreenRuns=5`, `readiness.ready=true`, `warmupSeed.ready=true`.
-- ✅ Manueller `workflow_dispatch` mit `perf_enforcement=strict` (Run `25742783313`) gruen abgeschlossen: `performance-audit`-Job gruen, `expectedRuns=9/9`, `warningRuns=0`, alle Budgets passed.
+- ✅ 1. Probe-Window (2026-05-12): 5/5 gruene Warn-Mode-CI-Runs (`25740992098`, `25741507844`, `25741808184`, `25742133438`, `25742437228`); Beobachtungsartefakt im finalen Warn-Run: `strictProbeEligible=true`, `consecutiveGreenRuns=5`, `readiness.ready=true`, `warmupSeed.ready=true`.
+- ✅ 1. Strict-Probe (Run `25742783313`, 2026-05-12) gruen: `performance-audit`-Job gruen, `expectedRuns=9/9`, `warningRuns=0`, alle Budgets passed.
+- ✅ 2. Probe-Window (2026-05-13): 5/5 gruene Warn-Mode-CI-Runs (`25745137766`, `25750452339`, `25750960475`, `25752160250`, `25759065411`).
+- ✅ 2. Strict-Probe (Run `25781366107`, 2026-05-13) gruen: `performance-audit`-Job 7m39s, `enforcement=strict`, `lighthouse=ok`, `readiness ready=true 10/10`, `warningRate=0.0000`, `fullCoverage=true`.
 - ✅ Warm-up-Lauf vor `lighthouse-1` ist im `perf:stability:seed`-Pfad implementiert und unterdrueckt First-Sample-Ausreisser; der `/`-Cold-Run-Ausreisser-Vorschlag (24616 ms) wurde nicht in `baseline.json` uebernommen.
+- ✅ PR #1 `feat/mobile-release-gate-and-perf-foundation` am 2026-05-12 via Squash gemerged (Squash-Commit `d291c0f`); die vier leeren Trigger-Commits aus dem 1. Probe-Window wurden mit-squashed.
+
+Strict-Schedule-Eskalation erledigt (2026-05-13, Commit `7bf820e`):
+
+- `.github/workflows/ci.yml`: Schritte `Enforce browser readiness` und `Validate performance status` triggern auf `github.event_name == 'schedule' || (workflow_dispatch && perf_enforcement == 'strict')`.
+- `push`/`pull_request` bleiben weiter `warn` — kein PR-Block bei Lighthouse-Flakes.
+- `workflow_dispatch` weiter wahlweise `warn` (default) oder `strict`.
+- Runbook (`docs/performance/strict-probe-runbook.md`) und `CLAUDE.md` auf neue Policy aktualisiert.
 
 Noch offen:
 
-- Entscheidung, ob und wann `strict` ueber `workflow_dispatch` hinaus auf `schedule` oder `pull_request` ausgeweitet wird. `consecutiveGreenRuns` ist nach dem Probe-Run zurueck auf `0`; ein zweiter Strict-Probe setzt eine neue 5er-Beobachtungsserie voraus.
-- PR-Aufraeumarbeit vor Merge: die vier leeren Trigger-Commits (`be15632`, `d819437`, `fc4eef6`, `043869e`) bei Merge squashen oder vor dem Merge bereinigen.
+- **Nightly-Strict-Beobachtung** (passiv) — Erste 1-2 Wochen Nightly-Cron-Runs auf Drift/Flakes beobachten. Bei stabil gruen: Eskalation auf `pull_request` strict erwaegen. Bei rot: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
+- **Phase 5 (Optional Web Vitals)** bleibt deferred bis konkrete Feldmetrik-Frage entsteht, die Lighthouse/Bundle nicht beantwortet.
+- **Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native`** (Follow-up, kein Blocker): wartet auf den aktuellen Vitest/RN-Runtime-Blocker.
+- **Kosmetisches Follow-up** (kein Perf-Treiber): `matchedCount` direkt aus der API-Antwort lesen statt clientseitig in `recipe-list-screen-data.ts` zu rekomputieren — beseitigt nur die Logik-Doppelung.
 
 Aktuelle lokale Verifikation am 2026-05-12:
 
@@ -75,13 +86,13 @@ Konsequenz:
 
 - Die historische `ready=true`-Readiness vom 2026-05-08 bleibt als Nachweis fuer die alte Foundation bestehen.
 - Fuer Budget-Hardening zaehlt ab jetzt die neue Phase-4c-Messbasis mit echter `throttling-comparison.json`, methodenfaehiger Budgetauswertung, methodenmarkierter History und den am 2026-05-12 geschaerften Budgets.
-- Strict-Probe-Gate ist erreicht und der erste Probe-Run war gruen. CI-Policy bleibt fuer `push`/`pull_request`/`schedule` weiter warn-only; jede Ausweitung von `strict` ist eine separate Entscheidung und setzt einen neuen 5er-Beobachtungs-Zyklus voraus.
+- Strict-Probe-Gate ist zweimal erreicht und beide Probe-Runs waren gruen. **CI-Policy seit 2026-05-13**: `schedule` (nightly) faehrt `strict`, `push`/`pull_request` bleiben `warn`, `workflow_dispatch` wahlweise. Jede weitere Ausweitung von `strict` (insbesondere auf `pull_request`) ist eine separate Entscheidung und setzt eine eigene Datenbasis voraus (1-2 Wochen stabilen Nightly-Strict).
 
-Wegweiser fuer naechste Schritte (post-Strict-Probe):
+Wegweiser fuer naechste Schritte (post-Schedule-Eskalation):
 
-1. Branch in PR ueberfuehren: 14 Commits ahead of `main`, davon vier leere Trigger-Commits — bei Merge squashen.
-2. Zweiter Strict-Probe-Run nach kurzer Bewaehrungsserie, sobald natuerliche Push-Aktivitaet wieder 5+ gruene CI-Runs erzeugt hat.
-3. Erst danach entscheiden, ob `strict` auf `schedule` ausgeweitet wird.
+1. **Nightly-Strict-Beobachtung** — Erste 1-2 Wochen Nightly-Cron-Runs auf Drift/Flakes beobachten. Bei stabil gruen: `pull_request` strict erwaegen.
+2. **Bei rotem Nightly-Run** kein Reflex-Rollback — zuerst Artefakte sichern, Ursache als Budget-/Flake-/Infrastrukturproblem klassifizieren, dann gezielt reagieren (z.B. `perf:budget:suggest` fuer eine neue Budget-Schaerfungsrunde).
+3. Erst nach 1-2 Wochen stabiler Nightly-Strict-Runs entscheiden, ob `strict` auf `pull_request` ausgeweitet wird.
 
 ## Implementation Status (2026-05-08)
 
@@ -214,10 +225,10 @@ Wichtig fuer die aktuelle Einfuehrungsphase:
 - `mobile:typecheck` laeuft jetzt auf dem vollen Mobile-Scope.
 - Das Release Gate ist stabil und in CI granular sichtbar (Install, Typecheck, Expo-Web-Export, Mobile-Unit-Tests).
 
-Naechste priorisierte Reihenfolge (aktualisiert 2026-05-12):
+Naechste priorisierte Reihenfolge (aktualisiert 2026-05-13):
 
-1. Geschaerfte Performance-Budgets in CI beobachten; bei wiederholtem `budgetPass=true` gezielt `PERF_ENFORCEMENT_LEVEL=strict` fuer die validierte Methode aktivieren.
-2. Warm-up-Seed verifizieren: erster validierter `/ @ mobile-375x812`-Run darf keinen LCP-Spike mehr in die History schreiben.
+1. Nightly-Strict-Cron (02:00 UTC) ueber die ersten 1-2 Wochen beobachten; bei stabil gruen `pull_request` strict erwaegen.
+2. Bei rotem Nightly-Run zuerst klassifizieren (Budget / Flake / Infrastruktur) — kein Reflex-Rollback der Schedule-Policy.
 3. Phase 5 (Optional Web Vitals) bleibt deferred, bis Lighthouse/Bundle/Throttling-Daten eine konkrete Feldmetrik-Frage stellen.
 4. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
 
