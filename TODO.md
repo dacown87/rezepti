@@ -9,13 +9,12 @@
 
 ---
 
-## 🚨 Sicherheit — RLS aktivieren (2026-05-12)
+## 🚨 Sicherheit — RLS aktivieren ✅ ABGESCHLOSSEN (2026-05-13)
 
-- [ ] **Supabase Advisor-Warnung: `rls_disabled_in_public`** — Supabase REST-API stellt alle `public.*`-Tabellen über den anon-Key bereit (jeder mit Projekt-URL kann lesen/schreiben/löschen). Backend verbindet als `postgres`-Superuser via `DATABASE_URL` → umgeht RLS automatisch, daher reicht RLS aktivieren ohne Policies.
-  - SQL liegt bereit unter `db/migrations/2026-05-12-enable-rls.sql` (5 Tabellen + `REVOKE` als Hardening)
-  - **Ausführen:** Supabase Dashboard → SQL Editor → Inhalt einfügen → Run
-  - **Verifizieren:** Database → Advisors prüfen + App-Smoke-Test (`npm run dev`, Rezept anlegen/lesen)
-  - **Spätere Multi-User-Phase:** echte Policies mit `auth.uid() = user_id` schreiben und App auf `authenticated`-Key umstellen (siehe „Nächste große Phase — Multi-User Login" unten)
+- [x] **Supabase Advisor-Warnung: `rls_disabled_in_public`** behoben — `db/migrations/2026-05-12-enable-rls.sql` über SQL Editor ausgeführt: RLS auf `recipes`, `ingredient_dictionary`, `shopping_list`, `meal_plan`, `api_keys` aktiviert + REST-Grants für anon/authenticated entzogen.
+- [x] **Zusatz-Advisor `rls_auto_enable` SECURITY DEFINER** behoben — `REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon, authenticated, public` ausgeführt. Event-Trigger-Funktion bleibt funktional (läuft via DDL, nicht REST). Statement im Migration-File ergänzt.
+- Backend nutzt weiter `DATABASE_URL` mit postgres-Superuser → RLS wird automatisch umgangen, App-Funktion unverändert.
+- **Spätere Multi-User-Phase:** echte Policies mit `auth.uid() = user_id` schreiben und App auf `authenticated`-Key umstellen (siehe „Nächste große Phase — Multi-User Login" unten)
 
 ---
 
