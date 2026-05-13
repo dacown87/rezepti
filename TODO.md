@@ -154,8 +154,6 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - **Markdown-Export** — einzelnes Rezept als `.md`-Datei (Obsidian, Notion, etc.)
 - **Phase 5 Trigger praezisieren (deferred)** — Web Vitals bleiben ausdruecklich **nicht** Teil des Performance-Strict-Gates. Phase 4c liefert jetzt Lab-Daten; ein sinnvoller Trigger waere nur noch: Feldmetrik starten, wenn CI-/Lab-Daten und echte Nutzerberichte auseinanderlaufen oder `simulate`/`devtools` nach 10 stabilen Runs wieder stark divergieren. Aktuell kein Blocker. _Plan: Phase 5 (deferred)_
 - **Code-Hygiene: `mobile/app/recipe/[id].tsx` (1092 Zeilen) modularisieren** — `CookModal` (line 127-225), `DeleteModal` (line 104-126), `StarRow`, `normalizeRecipe`, `parseJSON`, `splitIngredientDisplay` in eigene Dateien unter `mobile/components/recipe/` ziehen. Pattern existiert bereits (`ImagePickerModal.tsx`, 160 Zeilen, eigene Datei). Vorteil: Wartbarkeit und Test-Granularitaet. Nach Phase 4c ist das kein Performance-Blocker mehr, weil Outcome Z den LCP geloest hat. _Plan: „Additional Improvements" / Screen-Refactoring nach Messwerten_
-- **`matchedCount` aus API-Antwort lesen** (kosmetisch, kein Perf-Treiber) — statt `evaluateIngredientSearch` clientseitig in `mobile/utils/recipe-list-screen-data.ts` zu rekomputieren, den `match_scores`-Wert aus der API direkt nutzen. Beseitigt nur die Logik-Doppelung zwischen Server (`src/db-react.ts:133-181`) und Client. _Plan: Phase 4 Backend/Search-Follow-up_
-
 ---
 
 ## Offene Punkte nach QA + Code-Review (2026-05-01)

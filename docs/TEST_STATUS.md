@@ -96,7 +96,7 @@
   - `performance-audit` richtet Chrome im CI jetzt deterministisch fuer Lighthouse ein
   - `perf:validate` schreibt `artifacts/performance/history.json` und `artifacts/performance/readiness.json`
   - Phase 3 ist damit im Code-/CI-Setup abgeschlossen; Phase 4c hat die spaetere LCP-Messluecke geloest
-  - offener Rest: 10 stabile vollstaendige Runs sammeln, bevor Strict-Gates aktiviert werden
+  - `schedule` laeuft seit 2026-05-13 unter `strict`; offen bleibt nur die Beobachtung weiterer Nightly-Runs vor einer moeglichen Eskalation auf `pull_request`
 - ✅ Review-Bugfixes (2026-05-07):
   - `mobile/utils/query-client.ts` — `AsyncStorage.removeItem` in eigenem try/catch abgesichert
   - `mobile/app/(tabs)/planner.tsx` — redundanter innerer Block entfernt; `RecipePickerModal` mit lokalem Error/Retry-State statt stillem Empty-State; try/catch + Fehler-UI fuer QR-Recipe-Link-Pfad
@@ -141,10 +141,10 @@
 - ✅ Strict-Hardening-Seed (2026-05-12): `npm run perf:stability:seed` lief nicht-sandboxiert vollstaendig durch; `perf:budget:suggest` wertete ein komplettes `10/10`-Window fuer `simulate/mobile-375x812` aus.
 - ✅ `scripts/performance/baseline.json` geschaerft: gzip-JS und groesstes JS-Asset nach belastbaren Vorschlaegen gesenkt, `maxJsBytes` bei der bestehenden strengeren 5.2-MB-Grenze belassen, LCP/CLS/JS-Ausfuehrung fuer `simulate/mobile-375x812` aktualisiert. Der einzelne `/`-LCP-Cold-Run-Ausreisser (22378 ms) wurde nicht als 24616-ms-Budget uebernommen.
 - ✅ Folgehaertung nach Outlier-Review: `perf:stability:seed` bekommt einen verworfenen Warm-up-Lauf vor dem ersten validierten Lighthouse-Run, damit First-Sample-Artefakte nicht in `history.json` landen.
-- ✅ CI-Enforcement konservativ gehalten: `performance-audit` bleibt auf `warn` by default; `strict` wird nur noch per explizitem `workflow_dispatch` aktiviert.
+- ✅ CI-Enforcement konservativ gehalten: `schedule` laeuft `strict`, `push`/`pull_request` bleiben `warn`, `workflow_dispatch` bleibt wahlweise `warn` oder `strict`.
 - ✅ Beobachtungs-Gate operationalisiert: `perf:validate` schreibt jetzt `artifacts/performance/observation.json` und markiert den ersten manuellen `strict`-Probe-Run erst dann als freigabefaehig, wenn `5` aufeinanderfolgende gruene CI-Warn-Runs, ein gueltiger Warm-up-Seed und `readiness.ready=true` gleichzeitig vorliegen.
 - ✅ Fokussierte Tests fuer den Tooling-Slice: `npx vitest run test/unit/budget-suggestions.test.ts test/unit/stability-seed.test.ts test/unit/validate-status-performance-budgets.test.ts test/unit/bundle-report-gzip.test.ts` gruen, 4 Dateien, 14 Tests.
-- ⏳ Strict-Gates bleiben warn-only, bis die geschaerften Budgets mehrere CI-Runs ohne Regressionsrauschen bestehen.
+- ⏳ Breitere Strict-Gates bleiben offen, bis mehrere weitere Nightly-Strict-Runs ohne Regressionsrauschen bestehen.
 
 ### Phase-4 Slice 2: Planner-Hotspot + Backend-Follow-up (2026-05-07)
 

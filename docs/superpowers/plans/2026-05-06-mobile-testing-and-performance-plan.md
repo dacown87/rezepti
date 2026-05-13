@@ -63,13 +63,15 @@ Noch offen:
 - **Phase 5 (Optional Web Vitals)** bleibt deferred bis konkrete Feldmetrik-Frage entsteht, die Lighthouse/Bundle nicht beantwortet.
 - **Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native`** (Follow-up, kein Blocker): wartet auf den aktuellen Vitest/RN-Runtime-Blocker.
 
-Aktuelle lokale Verifikation am 2026-05-12:
+Aktuelle lokale Verifikation am 2026-05-13:
 
 - `npm --prefix mobile run typecheck` gruen.
-- `npm --prefix mobile run test:unit` gruen: 15 Dateien, 85 Tests.
-- `npm run test:unit` gruen: 35 Dateien passed, 1 skipped; 412 Tests passed, 12 skipped.
+- `npm --prefix mobile run test:unit` gruen: 15 Dateien, 87 Tests.
+- `npm run test:unit` gruen: 36 Dateien passed, 1 skipped; 438 Tests passed, 13 skipped.
 - `npx vitest run test/unit/lighthouse-runner-api-mock.test.ts test/unit/lighthouse-runner-throttling.test.ts test/unit/throttling-compare.test.ts test/unit/bundle-report-gzip.test.ts test/unit/validate-status-performance-budgets.test.ts` gruen: 5 Dateien, 34 Tests.
 - `npx vitest run test/unit/stability-seed.test.ts test/unit/budget-suggestions.test.ts test/unit/validate-status-performance-budgets.test.ts` gruen: 3 Dateien, 13 Tests.
+- `npx vitest run test/unit/recipes-routes.test.ts` gruen: API liefert `matched_counts` fuer Zutaten-Suchergebnisse.
+- `npx vitest run -c vitest.config.ts test/recipe-list-screen-data.test.ts` gruen: Mobile nutzt API-`matched_counts` bevorzugt und faellt nur fuer aeltere Payloads lokal zurueck.
 - `node --check` fuer `lighthouse-runner`, `throttling-compare`, `bundle-report`, `validate-status`, `stability-seed` und `budget-suggestions` gruen.
 - `timeout 180s npm run build:mobile` exportiert `public/` erfolgreich, beendet sich aber wie bekannt nicht sauber und wurde mit Timeout beendet.
 - `npm run perf:bundle` gruen; Bundle-Report zeigt Entry-Chunk 4,156,752 Bytes und gzip JS total 1,036,737 Bytes.
