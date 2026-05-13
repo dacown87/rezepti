@@ -74,7 +74,7 @@
 - ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
 - ✅ `npm run test:unit` — **438 Tests bestanden, 13 skipped** (Stand: 2026-05-13)
-- ✅ `npm --prefix mobile run test:unit` — **86 Tests bestanden** (Stand: 2026-05-13)
+- ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-05-13)
 - ℹ️ E2E-/Docker-Tests skippen graceful, wenn kein Server bzw. Container läuft
 
 ---
@@ -83,7 +83,7 @@
 
 - ✅ `cd mobile && CI=1 npx expo-doctor` — `18/18` Checks bestanden
 - ✅ `npm run mobile:typecheck` — erfolgreich
-- ✅ `npm run test:mobile` — `86/86` Tests bestanden
+- ✅ `npm run test:mobile` — `87/87` Tests bestanden
 - ✅ `npm run mobile:build:web` — erfolgreicher Expo-Web-Export nach `public/`
 - ✅ Phase-2-Reliability weiter gehaertet:
   - Planner zeigt jetzt sichtbaren Ladefehler mit Retry/Close bei fehlgeschlagenem Wochen-Load

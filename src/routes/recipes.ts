@@ -54,6 +54,7 @@ app.get("/api/v1/recipes", async (c) => {
       return c.json({
         recipes: limitedResults.map(r => r.recipe),
         match_scores: limitedResults.map(r => r.matchScore),
+        matched_counts: limitedResults.map(r => r.matchedIngredients.length),
         missing_ingredients: limitedResults.map(r => r.missingIngredients),
         match_mode: match,
         threshold,

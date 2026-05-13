@@ -19,8 +19,8 @@ describe('recipes route ingredient search', () => {
     vi.clearAllMocks()
     dbMocks.getRecipeListFromReactDb.mockResolvedValue([])
     dbMocks.searchRecipesByIngredientsAdvanced.mockResolvedValue([
-      { recipe: { id: 1, name: 'Pasta' }, matchScore: 100, missingIngredients: [] },
-      { recipe: { id: 2, name: 'Salat' }, matchScore: 50, missingIngredients: ['tomate'] },
+      { recipe: { id: 1, name: 'Pasta' }, matchScore: 100, matchedIngredients: ['tomate', 'nudeln'], missingIngredients: [] },
+      { recipe: { id: 2, name: 'Salat' }, matchScore: 50, matchedIngredients: ['nudeln'], missingIngredients: ['tomate'] },
     ])
   })
 
@@ -31,6 +31,7 @@ describe('recipes route ingredient search', () => {
     await expect(res.json()).resolves.toMatchObject({
       recipes: [{ id: 1, name: 'Pasta' }, { id: 2, name: 'Salat' }],
       match_scores: [100, 50],
+      matched_counts: [2, 1],
       missing_ingredients: [[], ['tomate']],
       match_mode: 'or',
       threshold: 0,

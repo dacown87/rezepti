@@ -179,6 +179,7 @@ export default function RecipeListScreen() {
   const [showIngredientSearch, setShowIngredientSearch] = useState(false);
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredientResults, setIngredientResults] = useState<Recipe[]>([]);
+  const [ingredientResultMatchedCounts, setIngredientResultMatchedCounts] = useState<number[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
   const deferredIngredientInput = useDeferredValue(ingredientInput);
@@ -219,7 +220,11 @@ export default function RecipeListScreen() {
 
   const handleIngredientSearch = (input: string) => {
     setIngredientInput(input);
-    if (!input.trim()) { setIngredientResults([]); return; }
+    if (!input.trim()) {
+      setIngredientResults([]);
+      setIngredientResultMatchedCounts([]);
+      return;
+    }
 
     // Use the backend search endpoint
     if (ingredientSearchTimer.current) clearTimeout(ingredientSearchTimer.current);
@@ -234,8 +239,12 @@ export default function RecipeListScreen() {
         if (!res.ok) return;
         const data = await res.json();
         const list: ApiRecipe[] = Array.isArray(data.recipes) ? data.recipes : [];
+        const matchedCounts = Array.isArray(data.matched_counts)
+          ? data.matched_counts.filter((value: unknown): value is number => Number.isInteger(value))
+          : [];
         startTransition(() => {
           setIngredientResults(list.map(apiToRecipe));
+          setIngredientResultMatchedCounts(matchedCounts);
         });
       } catch { /* ignore network errors */ }
     }, 300);
@@ -282,8 +291,8 @@ export default function RecipeListScreen() {
     [deferredIngredientInput],
   );
   const ingredientResultEntries = useMemo(
-    () => buildIngredientResultRows(ingredientResults, ingredientResultTerms),
-    [ingredientResults, ingredientResultTerms],
+    () => buildIngredientResultRows(ingredientResults, ingredientResultTerms, ingredientResultMatchedCounts),
+    [ingredientResults, ingredientResultMatchedCounts, ingredientResultTerms],
   );
   const renderCategoryItem = useCallback(({ item }: { item: CategoryInfo }) => (
     <CategoryCard info={item} onPress={() => {
@@ -333,7 +342,12 @@ export default function RecipeListScreen() {
             {recipes.length > 0 && (
               <>
                 <Pressable
-                  onPress={() => { setShowIngredientSearch(true); setIngredientInput(''); setIngredientResults([]); }}
+                  onPress={() => {
+                    setShowIngredientSearch(true);
+                    setIngredientInput('');
+                    setIngredientResults([]);
+                    setIngredientResultMatchedCounts([]);
+                  }}
                   className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
                 >
                   <Refrigerator size={17} color="#9E8878" />

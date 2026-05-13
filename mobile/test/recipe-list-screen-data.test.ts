@@ -52,4 +52,15 @@ describe('recipe list screen derived data', () => {
     expect(ingredientRows.some((entry) => entry.matchedCount === 2)).toBe(true);
     expect(ingredientRows.every((entry) => entry.matchedCount >= 0 && entry.matchedCount <= ingredientTerms.length)).toBe(true);
   });
+
+  it('prefers matched counts from the ingredient search payload when present', () => {
+    const recipes = createRecipePerformanceFixture({ count: 2, seed: 11 });
+
+    const rows = buildIngredientResultRows(recipes, ['tomate', 'nudeln'], [2, 1]);
+
+    expect(rows).toEqual([
+      { recipe: recipes[0], matchedCount: 2 },
+      { recipe: recipes[1], matchedCount: 1 },
+    ]);
+  });
 });

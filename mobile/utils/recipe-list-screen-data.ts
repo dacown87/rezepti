@@ -93,8 +93,16 @@ export function parseIngredientTerms(input: string): string[] {
 
 export function buildIngredientResultRows(
   recipes: Recipe[],
-  terms: string[]
+  terms: string[],
+  matchedCounts?: number[]
 ): IngredientResultRow[] {
+  if (Array.isArray(matchedCounts) && matchedCounts.length === recipes.length) {
+    return recipes.map((recipe, index) => ({
+      recipe,
+      matchedCount: matchedCounts[index] ?? 0,
+    }));
+  }
+
   if (terms.length === 0) {
     return recipes.map((recipe) => ({ recipe, matchedCount: 0 }));
   }

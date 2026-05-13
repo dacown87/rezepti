@@ -62,7 +62,6 @@ Noch offen:
 - **Nightly-Strict-Beobachtung** (passiv) — Erste 1-2 Wochen Nightly-Cron-Runs auf Drift/Flakes beobachten. Bei stabil gruen: Eskalation auf `pull_request` strict erwaegen. Bei rot: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
 - **Phase 5 (Optional Web Vitals)** bleibt deferred bis konkrete Feldmetrik-Frage entsteht, die Lighthouse/Bundle nicht beantwortet.
 - **Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native`** (Follow-up, kein Blocker): wartet auf den aktuellen Vitest/RN-Runtime-Blocker.
-- **Kosmetisches Follow-up** (kein Perf-Treiber): `matchedCount` direkt aus der API-Antwort lesen statt clientseitig in `recipe-list-screen-data.ts` zu rekomputieren — beseitigt nur die Logik-Doppelung.
 
 Aktuelle lokale Verifikation am 2026-05-12:
 
