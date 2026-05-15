@@ -27,11 +27,29 @@ Status-Update: Top-5 Kandidaten wurden nach `TODO.md` als konkrete Follow-up-TOD
 - `test-flake`: Nicht-deterministische Timing- oder Schwellenwertbedingungen ohne Produktaenderung.
 - `produkt-regression`: Reproduzierbare API-/Datenverhaltensaenderung bei stabiler Umgebung.
 
+## P3a: Trennscharfe Klassifikation (Docker/Environment vs API-Regression)
+
+- Alles aus Docker-/Host-Diagnostik (`docker.test.ts`, Containerstatus, Ports, Runtime-Tools, Host-Ressourcen) wird initial als `infra` gefuehrt.
+- `produkt-regression` ist gesperrt, bis beide Bedingungen erfuellt sind:
+1. Runtime stabil (`/api/v1/health` gruen, kein Boot-/Crash-Signal im `rezepti-server.log`).
+2. API-Abweichung reproduzierbar ohne Docker-Sonderpfad (lokal via `npm run test:e2e:contract` oder `npm run test:e2e:legacy:ci`).
+- Unklare Lage nach 15 Minuten: `infra-unverified` statt voreilig `produkt-regression`.
+
 ## Sofortiger Triage-Workflow fuer den naechsten roten Nightly
 
 1. JUnit + `rezepti-server.log` sichern und zuerst auf `infra`-Signale pruefen (Boot, Health, Skip-Welle).
 2. Bei laufendem Server: Failures in `polling/perf` zuerst als `test-flake` behandeln und Repro mit `npm run test:e2e:legacy:ci`.
 3. DB-/API-Verhaltensabweichungen mit Repro-Schritten als `produkt-regression` erfassen und priorisiert beheben.
+
+### Erst-15-Minuten-Checklist (verbindlich)
+
+1. Minute 0-3: Server-Boot/Crash/Bind-Fehler im `rezepti-server.log`.
+2. Minute 3-6: Skip-/Failure-Signal aus JUnit + Skip-JSON lesen.
+3. Minute 6-10: Health-Zustand verifizieren (`/api/v1/health`).
+4. Minute 10-15: Vorlaeufiges Label setzen (`infra`, `test-flake`, oder `infra-unverified`).
+
+Pflichtsatz fuer Thread/Issue:
+- `Keine Produktregression bis Docker-/Environment-Diagnostik abgeschlossen ist.`
 
 ## P2a: Skip-Wave-Klassifikation (verbindlicher Betriebsablauf)
 

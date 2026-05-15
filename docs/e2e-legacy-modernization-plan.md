@@ -193,6 +193,19 @@ Fortschritt (2026-05-15):
 4. Bei `infra`: zuerst Boot/Health/Runner als Incident behandeln, keine voreilige Produktregression markieren.
 5. Bei `test`: betroffene Legacy-Gruppe (`polling`, `perf`, `db-mutation`) markieren und in den P1/P2-Backlog rueckfuehren.
 
+#### P3a-Ergaenzung: Docker/Environment strikt von API-Vertrag trennen
+
+Klassifikationsregeln (verbindlich):
+1. Docker-/Host-/Runtime-Auffaelligkeiten sind initial immer `infra`.
+2. `produkt-regression` erst nach Repro bei stabiler Runtime (`/api/v1/health` gruen, kein Bootfehler, kein Container-Sonderpfad).
+3. Wenn innerhalb von 15 Minuten nicht reproduzierbar: `infra-unverified` und Follow-up statt Fehlklassifikation.
+
+Erst-15-Minuten-Triage:
+1. `rezepti-server.log` auf Boot/Crash/Port pruefen.
+2. `e2e-legacy-junit.xml` + `e2e-legacy-skip-signal.json` korrelieren.
+3. Health pruefen und nur dann API-Verhalten bewerten.
+4. Thread-Notiz setzen: `Noch keine Produktregression; zuerst Environment-Diagnostik abgeschlossen.`
+
 ## Worktree-Parallelisierung
 
 ### Dependency table

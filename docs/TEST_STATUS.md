@@ -104,6 +104,21 @@ Triage-Regel pro rotem Nightly:
 2. `test-flake` — nicht-deterministische Testinstabilitaet ohne Produktaenderung.
 3. `produkt-regression` — reproduzierbare Verhaltensaenderung in API/Flows.
 
+P3a-Klassifikationsregel (verbindlich, gegen False-Positive):
+- `Docker-/Environment-Diagnostik` ist **kein** API-Contract-Signal. Faelle aus `docker.test.ts`, Container-Namen, Port-Bindings, Host-CPU/IO, fehlende Runtime-Dependencies werden initial immer als `infra` klassifiziert.
+- `produkt-regression` darf nur gesetzt werden, wenn dieselbe Abweichung mit gesundem Server (`/api/v1/health` gruen), ohne Docker-Sonderpfad und mit lokalem Repro (`npm run test:e2e:contract` oder `npm run test:e2e:legacy:ci`) erneut auftritt.
+- Wenn Ursache in den ersten 15 Minuten unklar ist: Pflichtlabel `infra-unverified`, **nicht** `produkt-regression`.
+
+Erst-15-Minuten-Checklist (pro rotem Legacy-Soak):
+1. Minute 0-3: `rezepti-server.log` auf Boot-/Bind-/Crash-Signale pruefen.
+2. Minute 3-6: JUnit + Skip-Signal (`e2e-legacy-junit.xml`, `e2e-legacy-skip-signal.json`) gegenlesen.
+3. Minute 6-10: Health lokal/CI-validieren (`/api/v1/health` erreichbar?).
+4. Minute 10-15: Vorlaeufige Klasse setzen: `infra` oder `test-flake`; `produkt-regression` nur bei reproduzierbarer API-Abweichung.
+
+Pflichtformulierung im Incident-/PR-Thread:
+- `Noch nicht als Produktregression eingestuft: zuerst Docker/Environment-Diagnostik abgeschlossen.`
+- `Produktregression erst nach Repro in stabiler Runtime und ohne Container-/Host-Sondereinfluss.`
+
 Erwartung:
 - Jeder rote Lauf bekommt eine Kategorie + Owner + naechste Aktion im Issue/PR-Thread.
 

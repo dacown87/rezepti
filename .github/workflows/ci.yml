@@ -220,6 +220,11 @@ jobs:
       - name: Run E2E legacy soak
         run: npm run test:e2e:legacy:ci
 
+      - name: Build legacy runtime diagnostics
+        if: always()
+        run: |
+          node -e "const fs=require('node:fs');const cp=require('node:child_process');const out='artifacts/test-reports/e2e-legacy-runtime-diagnostics.json';const run=(cmd)=>{try{return {ok:true,stdout:cp.execSync(cmd,{encoding:'utf8'}).trim()}}catch(err){return {ok:false,stdout:String(err?.stdout||'').trim(),stderr:String(err?.stderr||'').trim(),message:err?.message||'command failed'}}};const serverPid=process.env.SERVER_PID||'';const pidAlive=serverPid?run('kill -0 '+serverPid):{ok:false,message:'SERVER_PID missing'};const health=run(\"curl -sS -o /tmp/rezepti-legacy-health-body.txt -w '%{http_code} %{time_total}' http://localhost:3000/api/v1/health\");const junit='artifacts/test-reports/e2e-legacy-junit.xml';let junitStat=null;try{const s=fs.statSync(junit);junitStat={exists:true,sizeBytes:s.size}}catch{junitStat={exists:false,sizeBytes:0}};const signal={generatedAt:new Date().toISOString(),runner:{os:process.env.RUNNER_OS||'',arch:process.env.RUNNER_ARCH||'',name:process.env.RUNNER_NAME||''},runtime:{node:process.version,npm:run('npm -v').stdout||''},server:{pid:serverPid||null,pidAlive:pidAlive.ok,healthProbe:health},junit:junitStat};fs.mkdirSync('artifacts/test-reports',{recursive:true});fs.writeFileSync(out,JSON.stringify(signal,null,2));console.log(JSON.stringify(signal,null,2));"
+
       - name: Build legacy skip signal
         if: always()
         run: |
