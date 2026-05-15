@@ -15,6 +15,11 @@ on:
         options:
           - 'warn'
           - 'strict'
+      run_e2e_legacy_soak:
+        description: 'Run legacy E2E soak job'
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 2 * * *'
 
@@ -114,8 +119,127 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
 
-      - name: Run E2E tests
-        run: npm test -- --run test/e2e/
+      - name: Start API server
+        run: |
+          npm start > /tmp/rezepti-server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/health >/dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to become ready within timeout"
+          echo "Last server log lines:"
+          tail -n 200 /tmp/rezepti-server.log || true
+          exit 1
+
+      - name: Run E2E contract gate
+        run: npm run test:e2e:contract
+
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -n "${SERVER_PID:-}" ]; then
+            kill "$SERVER_PID" || true
+          fi
+
+      - name: Upload API server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-server-log
+          path: /tmp/rezepti-server.log
+          if-no-files-found: warn
+
+  e2e-legacy-soak:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_e2e_legacy_soak == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rezepti_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+      GROQ_API_KEY: test-placeholder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push schema to test DB
+        run: npx drizzle-kit push --force
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+
+      - name: Start API server
+        run: |
+          npm start > /tmp/rezepti-server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/health >/dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to become ready within timeout"
+          echo "Last server log lines:"
+          tail -n 200 /tmp/rezepti-server.log || true
+          exit 1
+
+      - name: Run E2E legacy soak
+        run: npm run test:e2e:legacy:ci
+
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -n "${SERVER_PID:-}" ]; then
+            kill "$SERVER_PID" || true
+          fi
+
+      - name: Upload legacy soak artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-legacy-soak-artifacts
+          path: |
+            /tmp/rezepti-server.log
+            artifacts/test-reports/e2e-legacy-junit.xml
+            artifacts/e2e/**
+            artifacts/test-reports/**
+            test-results/**
+            junit*.xml
+          if-no-files-found: warn
 
   mobile-release-gate:
     runs-on: ubuntu-latest
