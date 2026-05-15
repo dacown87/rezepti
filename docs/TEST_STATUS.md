@@ -131,7 +131,7 @@ P2 Legacy-DB-Isolation (verifiziert):
 - `Database Operations` in `test/e2e/react-api.test.ts` laufen mit deterministischen, pro Test isolierten Fixtures und explizitem Cleanup-Lifecycle.
 - Stabilisierungs-Repro bestanden: `test:e2e:legacy:db` lief 10-mal hintereinander lokal gruen.
 
-### Legacy Flake Inventory (Top 5) (Stand: 2026-05-15)
+### Legacy Flake Inventory (Top 5) (Stand: 2026-05-15, nach P1/P2/P3a)
 
 Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/rezepti/docs/testing/e2e-legacy-flake-inventory.md)
 

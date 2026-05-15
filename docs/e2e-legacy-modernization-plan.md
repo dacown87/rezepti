@@ -257,7 +257,12 @@ Conflict flags:
 
 ## Ready-to-implement sequence
 
-1. Phase A sofort starten (Top-5 Flakes + Klassifikation).
-2. Dann Phase B fuer die Top-2 mit hoechster Wiederholrate.
-3. Danach genau 1 Contract-Promotion in Phase C.
-4. Erst dann naechsten Zyklus starten.
+Status 2026-05-15:
+1. Phase A abgeschlossen.
+2. Phase B fuer die priorisierten Faelle (P1 + P2) abgeschlossen.
+3. Mehrere stabile Contract-Promotions umgesetzt (`PATCH`, `DELETE`, `jobs` envelope/shape, `BYOK` missing key).
+
+Naechster Zyklus:
+1. Nightly-Soak weiter beobachten und neue Flake-Signale gegen P2a/P3a-Regeln klassifizieren.
+2. Pro Zyklus genau einen weiteren stabilen Legacy-Kandidaten in den Contract-Slice uebernehmen.
+3. Danach Doku/TODO synchronisieren und erst dann den naechsten Zyklus starten.
