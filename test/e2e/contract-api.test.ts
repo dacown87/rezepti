@@ -214,4 +214,17 @@ describe.skipIf(!serverAvailable)('Root API Contract (CI Gate)', () => {
     expect(result.success).toBe(true);
     expect(result.data?.error).toBeDefined();
   });
+
+  it('job status endpoint returns 404 for unknown job id', async () => {
+    const result = await testRunner.testEndpoint(
+      'GET',
+      '/api/v1/extract/react/invalid_job_id_contract',
+      null,
+      'Unknown job status contract',
+      404
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data?.error).toBeDefined();
+  });
 });

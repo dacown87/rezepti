@@ -71,6 +71,7 @@ function assertTerminalExtractionState(jobId: string, payload: Record<string, an
 describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
   let testRunner: TestRunner;
   let createdJobs: string[] = [];
+  let createdRecipeIds: number[] = [];
 
   beforeAll(async () => {
     console.log('\n' + '='.repeat(60));
@@ -96,12 +97,24 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
 
   beforeEach(() => {
     createdJobs = [];
+    createdRecipeIds = [];
   });
 
   afterEach(async () => {
     for (const jobId of createdJobs) {
       try {
         await fetch(`${defaultConfig.apiBase}/api/v1/extract/react/${jobId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
+    for (const recipeId of createdRecipeIds) {
+      try {
+        await fetch(`${defaultConfig.apiBase}/api/v1/recipes/${recipeId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -351,6 +364,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       expect(typeof createResult.data?.id).toBe('number');
 
       const recipeId = createResult.data?.id as number;
+      createdRecipeIds.push(recipeId);
       const result = await testRunner.testEndpoint(
         'GET',
         `/api/v1/recipes/${recipeId}`,
@@ -386,6 +400,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
 
       expect(createResult.success).toBe(true);
       const recipeId = createResult.data?.id as number;
+      createdRecipeIds.push(recipeId);
       const newName = `${RECIPE_FIXTURE.recipe.name} Updated`;
 
       const result = await testRunner.testEndpoint(
@@ -397,8 +412,19 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.id).toBe(recipeId);
-      expect(result.data?.name).toBe(newName);
+      expect(result.data?.success).toBe(true);
+
+      const verifyResult = await testRunner.testEndpoint(
+        'GET',
+        `/api/v1/recipes/${recipeId}`,
+        null,
+        'Verify recipe update via detail endpoint',
+        200
+      );
+
+      expect(verifyResult.success).toBe(true);
+      expect(verifyResult.data?.id).toBe(recipeId);
+      expect(verifyResult.data?.name).toBe(newName);
     });
 
     it('should delete recipe', async () => {
@@ -412,6 +438,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
 
       expect(createResult.success).toBe(true);
       const recipeId = createResult.data?.id as number;
+      createdRecipeIds.push(recipeId);
 
       const result = await testRunner.testEndpoint(
         'DELETE',
@@ -433,6 +460,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       );
       expect(verifyResult.success).toBe(true);
       expect(verifyResult.data?.error).toBeDefined();
+      createdRecipeIds = createdRecipeIds.filter(id => id !== recipeId);
     });
   }, TEST_TIMEOUT);
 
