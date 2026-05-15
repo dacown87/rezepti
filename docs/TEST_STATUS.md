@@ -107,6 +107,11 @@ Triage-Regel pro rotem Nightly:
 Erwartung:
 - Jeder rote Lauf bekommt eine Kategorie + Owner + naechste Aktion im Issue/PR-Thread.
 
+P2a Skip-Wave-Klassifikation (verbindlich):
+- `e2e-legacy-soak` erzeugt zusaetzlich `artifacts/test-reports/e2e-legacy-skip-signal.json` mit `tests/skipped/failures/errors`.
+- Wenn `skipped > 0`, muss der Lauf bis spaetestens naechster Arbeitstag 18:00 CET als `infra` oder `test` klassifiziert sein.
+- Pflichtfelder im Incident-/PR-Thread: Run-ID, Signalwerte, finale Klasse, Repro-Command (`npm run test:e2e:legacy:ci`), naechste Aktion + Owner.
+
 ### Legacy Flake Inventory (Top 5) (Stand: 2026-05-15)
 
 Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/rezepti/docs/testing/e2e-legacy-flake-inventory.md)

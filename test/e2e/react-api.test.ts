@@ -36,6 +36,34 @@ const RECIPE_FIXTURE = {
   sourceUrl: 'https://react-e2e.rezepti.local/recipes/kartoffelsalat-v1',
   transcript: 'react-e2e-seed-v1',
 };
+const NON_EXISTENT_RECIPE_ID = -1;
+
+let currentIsolationKey = 'react-e2e-unknown';
+const testCaseRunCounts = new Map<string, number>();
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'unnamed';
+}
+
+function makeScopedUrl(label: string): string {
+  return `https://example.com/${URL_SEED}-${currentIsolationKey}-${label}`;
+}
+
+function makeRecipeFixture(label: string) {
+  const suffix = `${currentIsolationKey}-${label}`;
+  return {
+    recipe: {
+      ...RECIPE_FIXTURE.recipe,
+      name: `${RECIPE_FIXTURE.recipe.name} ${suffix}`,
+    },
+    sourceUrl: `${RECIPE_FIXTURE.sourceUrl}-${suffix}`,
+    transcript: `${RECIPE_FIXTURE.transcript}-${suffix}`,
+  };
+}
 
 const serverAvailable = await isServerAvailable();
 
@@ -95,7 +123,12 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
     testRunner.printSummary();
   });
 
-  beforeEach(() => {
+  beforeEach((context) => {
+    const testName = context.task.name ?? 'unnamed-test';
+    const keyBase = slugify(testName);
+    const runCount = (testCaseRunCounts.get(keyBase) ?? 0) + 1;
+    testCaseRunCounts.set(keyBase, runCount);
+    currentIsolationKey = `${keyBase}-run-${runCount}`;
     createdJobs = [];
     createdRecipeIds = [];
   });
@@ -201,7 +234,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       const result = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
-        { url: `https://example.com/${URL_SEED}-create-job` },
+        { url: makeScopedUrl('create-job') },
         'Create job for website URL',
         202
       );
@@ -219,7 +252,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         'POST',
         '/api/v1/extract/react',
         {
-          url: `https://example.com/${URL_SEED}-invalid-byok`,
+          url: makeScopedUrl('invalid-byok'),
           apiKey: 'gsk_userkey1234567890abcdefghijklmn',
         },
         'Create job with invalid BYOK key',
@@ -255,7 +288,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       const urlTypes = ['website', 'youtube', 'instagram'] as const;
       
       for (const urlType of urlTypes) {
-        const url = `https://example.com/${URL_SEED}-${urlType}`;
+        const url = makeScopedUrl(urlType);
         const result = await testRunner.testEndpoint(
           'POST',
           '/api/v1/extract/react',
@@ -281,7 +314,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       const jobResult = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
-        { url: `https://example.com/${URL_SEED}-status-test` },
+        { url: makeScopedUrl('status-test') },
         'Create job for status test',
         202
       );
@@ -318,7 +351,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       const jobResult = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
-        { url: `https://example.com/${URL_SEED}-poll-test` },
+        { url: makeScopedUrl('poll-test') },
         'Create job for polling test',
         202
       );
@@ -352,10 +385,11 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
     });
 
     it('should get recipe by ID', async () => {
+      const fixture = makeRecipeFixture('get-by-id');
       const createResult = await testRunner.testEndpoint(
         'POST',
         '/api/v1/recipes',
-        RECIPE_FIXTURE,
+        fixture,
         'Create recipe fixture for ID test',
         201
       );
@@ -374,13 +408,13 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.id).toBe(recipeId);
-      expect(result.data?.name).toBe(RECIPE_FIXTURE.recipe.name);
+      expect(result.data?.name).toBe(fixture.recipe.name);
     });
 
     it('should handle non-existent recipe ID', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
-        '/api/v1/recipes/999999',
+        `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
         null,
         'Get non-existent recipe',
         404
@@ -393,7 +427,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       const createResult = await testRunner.testEndpoint(
         'POST',
         '/api/v1/recipes',
-        RECIPE_FIXTURE,
+        makeRecipeFixture('update'),
         'Create recipe fixture for update test',
         201
       );
@@ -431,7 +465,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       const createResult = await testRunner.testEndpoint(
         'POST',
         '/api/v1/recipes',
-        RECIPE_FIXTURE,
+        makeRecipeFixture('delete'),
         'Create recipe fixture for delete test',
         201
       );
@@ -517,7 +551,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       const result = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
-        { url: `https://example.com/${URL_SEED}-large-payload` },
+        { url: makeScopedUrl('large-payload') },
         'Create job with very long URL',
         202
       );
@@ -533,7 +567,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
           testRunner.testEndpoint(
             'POST',
             '/api/v1/extract/react',
-            { url: `https://example.com/${URL_SEED}-concurrent-${i}` },
+            { url: makeScopedUrl(`concurrent-${i}`) },
             `Concurrent job ${i}`,
             202
           )
@@ -555,7 +589,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
     it('should handle database connection errors', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
-        '/api/v1/recipes/999999',
+        `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
         null,
         'Handle non-existent recipe gracefully',
         404
@@ -601,7 +635,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         const result = await testRunner.testEndpoint(
           'POST',
           '/api/v1/extract/react',
-          { url: `https://example.com/${URL_SEED}-perf-test-${i}` },
+          { url: makeScopedUrl(`perf-test-${i}`) },
           `Job creation performance sample ${i + 1}`,
           202
         );

@@ -220,6 +220,11 @@ jobs:
       - name: Run E2E legacy soak
         run: npm run test:e2e:legacy:ci
 
+      - name: Build legacy skip signal
+        if: always()
+        run: |
+          node -e "const fs=require('node:fs');const p='artifacts/test-reports/e2e-legacy-junit.xml';const out='artifacts/test-reports/e2e-legacy-skip-signal.json';let xml='';try{xml=fs.readFileSync(p,'utf8')}catch{xml=''};const num=(re,d=0)=>{const m=xml.match(re);return m?Number(m[1]):d};const skipped=(xml.match(/<skipped\\b/g)||[]).length;const failures=(xml.match(/<failure\\b/g)||[]).length;const errors=(xml.match(/<error\\b/g)||[]).length;const testsAttr=num(/<testsuites[^>]*\\btests=['\\\"](\\d+)['\\\"]/i,num(/<testsuite[^>]*\\btests=['\\\"](\\d+)['\\\"]/i,0));const signal={generatedAt:new Date().toISOString(),junitPath:p,tests:testsAttr,skipped,failures,errors,classificationRequired:skipped>0,recommendedFirstClass:skipped>0&&failures===0&&errors===0?'infra':'test',rule:'If skipped>0 classify within one workday as infra or test and link repro command'};fs.mkdirSync('artifacts/test-reports',{recursive:true});fs.writeFileSync(out,JSON.stringify(signal,null,2));console.log(JSON.stringify(signal,null,2));"
+
       - name: Stop API server
         if: always()
         run: |
@@ -235,6 +240,7 @@ jobs:
           path: |
             /tmp/rezepti-server.log
             artifacts/test-reports/e2e-legacy-junit.xml
+            artifacts/test-reports/e2e-legacy-skip-signal.json
             artifacts/e2e/**
             artifacts/test-reports/**
             test-results/**

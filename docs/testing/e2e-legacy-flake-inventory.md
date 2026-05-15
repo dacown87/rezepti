@@ -32,3 +32,30 @@ Status-Update: Top-5 Kandidaten wurden nach `TODO.md` als konkrete Follow-up-TOD
 1. JUnit + `rezepti-server.log` sichern und zuerst auf `infra`-Signale pruefen (Boot, Health, Skip-Welle).
 2. Bei laufendem Server: Failures in `polling/perf` zuerst als `test-flake` behandeln und Repro mit `npm run test:e2e:legacy:ci`.
 3. DB-/API-Verhaltensabweichungen mit Repro-Schritten als `produkt-regression` erfassen und priorisiert beheben.
+
+## P2a: Skip-Wave-Klassifikation (verbindlicher Betriebsablauf)
+
+Ziel:
+- Jeder Nightly-Lauf mit Legacy-Skips wird innerhalb eines Arbeitstags als `infra` oder `test` klassifiziert.
+
+Signalquelle pro Nightly:
+- `artifacts/test-reports/e2e-legacy-skip-signal.json`
+- `artifacts/test-reports/e2e-legacy-junit.xml`
+- `/tmp/rezepti-server.log`
+
+SLA:
+- Triage-Start bis spaetestens 12:00 CET am Folgetag.
+- Klassifikation + Repro-Hinweis bis spaetestens 18:00 CET am Folgetag.
+
+Entscheidungsregel (deterministisch):
+1. Wenn `skipped == 0`: keine P2a-Aktion.
+2. Wenn `skipped > 0` und (`failures == 0` und `errors == 0`): initiale Klasse `infra`.
+3. Wenn `skipped > 0` und (`failures > 0` oder `errors > 0`): initiale Klasse `test`.
+4. Initiale Klasse darf nach Log-/Repro-Pruefung angepasst werden, aber nur mit kurzer Begruendung.
+
+Pflicht-Logeintrag pro Skip-Wave:
+- Run-ID/Datum:
+- Skip-Signal: `tests=<n>, skipped=<n>, failures=<n>, errors=<n>`
+- Finale Klasse: `infra` oder `test`
+- Repro-Command: `npm run test:e2e:legacy:ci`
+- Naechste Aktion + Owner:

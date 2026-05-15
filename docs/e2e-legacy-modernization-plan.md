@@ -185,6 +185,14 @@ Fortschritt (2026-05-15):
 2. Dokumentation in `TODO.md` und `docs/TEST_STATUS.md` aktualisieren.
 3. Offene Flake-Tickets nicht sammeln, sondern aktiv abbauen.
 
+#### P2a-Ergaenzung: Skip-Wave-Tagesroutine (verbindlich)
+
+1. Nightly-Artefakte oeffnen: `e2e-legacy-junit.xml`, `e2e-legacy-skip-signal.json`, `rezepti-server.log`.
+2. Bei `skipped > 0` bis 12:00 CET initiale Klasse setzen (`infra`/`test`) nach deterministischer Regel aus dem Flake-Inventory.
+3. Bis 18:00 CET finale Klasse + Repro-Command + naechste Aktion dokumentieren.
+4. Bei `infra`: zuerst Boot/Health/Runner als Incident behandeln, keine voreilige Produktregression markieren.
+5. Bei `test`: betroffene Legacy-Gruppe (`polling`, `perf`, `db-mutation`) markieren und in den P1/P2-Backlog rueckfuehren.
+
 ## Worktree-Parallelisierung
 
 ### Dependency table
