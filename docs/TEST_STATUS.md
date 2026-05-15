@@ -75,7 +75,49 @@
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
 - ✅ `npm run test:unit` — **438 Tests bestanden, 13 skipped** (Stand: 2026-05-13)
 - ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-05-13)
-- ℹ️ E2E-/Docker-Tests skippen graceful, wenn kein Server bzw. Container läuft
+- ✅ Root-API-Contract-Gate ist jetzt CI-verbindlich mit echtem Server-Boot (Stand: 2026-05-15): `e2e` startet `npm start`, wartet auf `/api/v1/health`, failt bei Timeout hart und führt danach `npm run test:e2e:contract` aus.
+- ✅ Lokale Verifikation gegen laufenden Server (2026-05-15): `npm run test:e2e:contract` -> **9/9 passed**.
+- ✅ Historische Root-E2E-Suite ist vom Pflicht-Gate getrennt: `test:e2e:legacy*` läuft separat im neuen `e2e-legacy-soak` Job (nightly per `schedule`, optional manuell per `workflow_dispatch`-Flag `run_e2e_legacy_soak=true`).
+- ℹ️ Legacy-Soak bleibt bewusst nicht-blockierend für PRs und dient als Drift-/Flake-Frühwarnsystem; bei Rot gilt Triage nach `infra` / `test-flake` / `produkt-regression`.
+
+Kurzabgrenzung (contract vs performance-signal):
+- `contract` (gating): funktionale API-Verträge, deterministisch, PR-blockierend bei Fehlern.
+- `performance-signal` (non-gating): Legacy-Soak-Latenzindikatoren mit robusten Soft-Budgets; Warnsignal bei Drift/Spikes, aber kein Merge-Blocker.
+
+### Legacy-Soak Report & Triage (Stand: 2026-05-15)
+
+- CI-Artefakte aus `e2e-legacy-soak`:
+- `artifacts/test-reports/e2e-legacy-junit.xml` (maschinenlesbarer Vitest-JUnit-Report)
+- `/tmp/rezepti-server.log` (Server-Boot-/Runtime-Log)
+- Lokaler Repro-Command fuer den gleichen Report:
+- `npm run test:e2e:legacy:ci`
+
+Schnelle Auswertung fehlgeschlagener Testcases (lokal):
+
+```bash
+rg -n "<failure|<error" artifacts/test-reports/e2e-legacy-junit.xml
+```
+
+Triage-Regel pro rotem Nightly:
+
+1. `infra` — Server/DB/Runner/Boot fehlgeschlagen (zuerst `rezepti-server.log` lesen).
+2. `test-flake` — nicht-deterministische Testinstabilitaet ohne Produktaenderung.
+3. `produkt-regression` — reproduzierbare Verhaltensaenderung in API/Flows.
+
+Erwartung:
+- Jeder rote Lauf bekommt eine Kategorie + Owner + naechste Aktion im Issue/PR-Thread.
+
+### Legacy Flake Inventory (Top 5) (Stand: 2026-05-15)
+
+Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/rezepti/docs/testing/e2e-legacy-flake-inventory.md)
+
+| Prio | Kandidatengruppe | Klasse | Naechste Aktion | Owner |
+|---|---|---|---|---|
+| 1 | Legacy-Suite wird bei fehlender Server-Readiness komplett geskippt (`skipIf`) | infra | Skip-Wellen im Nightly als eigenes Triage-Signal erfassen (Server-Log + Health-Wait + Skip-Count) | TBD |
+| 2 | Asynchrones Job-Polling (`pollJobStatus`, Poll/Timeout) | test-flake | Polling-Parameter gruppenweit vereinheitlichen und Finalstatus-Assertions deterministisch halten | TBD |
+| 3 | Harte Performance-Grenzen in Legacy-E2E (`<500ms/<1000ms/<200ms`) | test-flake | Performance-Checks aus Legacy-Soak entkoppeln oder auf robuste Budget-Fenster umstellen | TBD |
+| 4 | DB-Mutationspfade mit shared state (`update/delete` auf erstes Rezept) | produkt-regression | Deterministische Fixture pro Testfall + explizites Cleanup einfuehren | TBD |
+| 5 | Docker-/Umgebungsabhaengige Legacy-Pfade (Container/Ports/Assets) | infra | Diagnostik klar von API-Contract-Pruefungen trennen und bei Rot zuerst Runtime klassifizieren | TBD |
 
 ---
 
