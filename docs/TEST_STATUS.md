@@ -76,7 +76,7 @@
 - ✅ `npm run test:unit` — **438 Tests bestanden, 13 skipped** (Stand: 2026-05-13)
 - ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-05-13)
 - ✅ Root-API-Contract-Gate ist jetzt CI-verbindlich mit echtem Server-Boot (Stand: 2026-05-15): `e2e` startet `npm start`, wartet auf `/api/v1/health`, failt bei Timeout hart und führt danach `npm run test:e2e:contract` aus.
-- ✅ Lokale Verifikation gegen laufenden Server (2026-05-15): `npm run test:e2e:contract` -> **9/9 passed**.
+- ✅ Lokale Verifikation gegen laufenden Server (2026-05-15): `npm run test:e2e:contract` -> **11/11 passed**.
 - ✅ Historische Root-E2E-Suite ist vom Pflicht-Gate getrennt: `test:e2e:legacy*` läuft separat im neuen `e2e-legacy-soak` Job (nightly per `schedule`, optional manuell per `workflow_dispatch`-Flag `run_e2e_legacy_soak=true`).
 - ℹ️ Legacy-Soak bleibt bewusst nicht-blockierend für PRs und dient als Drift-/Flake-Frühwarnsystem; bei Rot gilt Triage nach `infra` / `test-flake` / `produkt-regression`.
 
@@ -126,6 +126,10 @@ P2a Skip-Wave-Klassifikation (verbindlich):
 - `e2e-legacy-soak` erzeugt zusaetzlich `artifacts/test-reports/e2e-legacy-skip-signal.json` mit `tests/skipped/failures/errors`.
 - Wenn `skipped > 0`, muss der Lauf bis spaetestens naechster Arbeitstag 18:00 CET als `infra` oder `test` klassifiziert sein.
 - Pflichtfelder im Incident-/PR-Thread: Run-ID, Signalwerte, finale Klasse, Repro-Command (`npm run test:e2e:legacy:ci`), naechste Aktion + Owner.
+
+P2 Legacy-DB-Isolation (verifiziert):
+- `Database Operations` in `test/e2e/react-api.test.ts` laufen mit deterministischen, pro Test isolierten Fixtures und explizitem Cleanup-Lifecycle.
+- Stabilisierungs-Repro bestanden: `test:e2e:legacy:db` lief 10-mal hintereinander lokal gruen.
 
 ### Legacy Flake Inventory (Top 5) (Stand: 2026-05-15)
 

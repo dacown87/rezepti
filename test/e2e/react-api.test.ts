@@ -65,6 +65,17 @@ function makeRecipeFixture(label: string) {
   };
 }
 
+function registerRecipeForCleanup(createdRecipeIds: number[], recipeId: number): void {
+  createdRecipeIds.push(recipeId);
+}
+
+function markRecipeCleanupHandled(createdRecipeIds: number[], recipeId: number): void {
+  const index = createdRecipeIds.indexOf(recipeId);
+  if (index >= 0) {
+    createdRecipeIds.splice(index, 1);
+  }
+}
+
 const serverAvailable = await isServerAvailable();
 
 function nowMs(): number {
@@ -134,6 +145,13 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
   });
 
   afterEach(async () => {
+    const cleanupDiagnostics = {
+      jobsScheduled: createdJobs.length,
+      jobsCleanupErrors: 0,
+      recipesScheduled: createdRecipeIds.length,
+      recipesCleanupErrors: 0,
+    };
+
     for (const jobId of createdJobs) {
       try {
         await fetch(`${defaultConfig.apiBase}/api/v1/extract/react/${jobId}`, {
@@ -141,6 +159,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       } catch {
+        cleanupDiagnostics.jobsCleanupErrors += 1;
         // Ignore cleanup errors
       }
     }
@@ -152,9 +171,14 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       } catch {
+        cleanupDiagnostics.recipesCleanupErrors += 1;
         // Ignore cleanup errors
       }
     }
+
+    console.log(
+      `Isolation cleanup (${currentIsolationKey}): jobs=${cleanupDiagnostics.jobsScheduled}/${cleanupDiagnostics.jobsCleanupErrors} errors, recipes=${cleanupDiagnostics.recipesScheduled}/${cleanupDiagnostics.recipesCleanupErrors} errors`
+    );
   });
 
   describe('Health Endpoints', () => {
@@ -398,7 +422,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       expect(typeof createResult.data?.id).toBe('number');
 
       const recipeId = createResult.data?.id as number;
-      createdRecipeIds.push(recipeId);
+      registerRecipeForCleanup(createdRecipeIds, recipeId);
       const result = await testRunner.testEndpoint(
         'GET',
         `/api/v1/recipes/${recipeId}`,
@@ -434,7 +458,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
 
       expect(createResult.success).toBe(true);
       const recipeId = createResult.data?.id as number;
-      createdRecipeIds.push(recipeId);
+      registerRecipeForCleanup(createdRecipeIds, recipeId);
       const newName = `${RECIPE_FIXTURE.recipe.name} Updated`;
 
       const result = await testRunner.testEndpoint(
@@ -472,7 +496,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
 
       expect(createResult.success).toBe(true);
       const recipeId = createResult.data?.id as number;
-      createdRecipeIds.push(recipeId);
+      registerRecipeForCleanup(createdRecipeIds, recipeId);
 
       const result = await testRunner.testEndpoint(
         'DELETE',
@@ -494,7 +518,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       );
       expect(verifyResult.success).toBe(true);
       expect(verifyResult.data?.error).toBeDefined();
-      createdRecipeIds = createdRecipeIds.filter(id => id !== recipeId);
+      markRecipeCleanupHandled(createdRecipeIds, recipeId);
     });
   }, TEST_TIMEOUT);
 

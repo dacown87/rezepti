@@ -176,8 +176,10 @@ Fortschritt (2026-05-15):
 - Promotion-Kandidat `PATCH /api/v1/recipes/:id` umgesetzt.
 - Promotion-Kandidat `DELETE /api/v1/recipes/:id` umgesetzt (deterministische Fixture + 404-Verify via `GET /api/v1/recipes/:id`).
 - Promotion-Kandidat `GET /api/v1/extract/jobs?limit=N` erweitert (Envelope + Limit-Grenze + robuste Job-Shape-Pruefung fuer `limit=1`).
-- Contract-Slice ist gegen laufenden Server verifiziert: `npm run test:e2e:contract` -> `9 passed` (0 failed).
+- Promotion-Kandidat `POST /api/v1/keys/validate` ohne `apiKey` als stabiler 400-Contract aufgenommen.
+- Contract-Slice ist gegen laufenden Server verifiziert: `npm run test:e2e:contract` -> `11 passed` (0 failed).
 - Legacy-P1-Entkopplung umgesetzt: Polling stabilisiert, Performance-Checks als non-gating Soak-Signal mit Soft-Budgets/Spike-Hinweisen.
+- Legacy-P2 DB-Isolation abgeschlossen: deterministische Fixture-/Cleanup-Strategie in `Database Operations`, plus 10x Repro-Lauf `test:e2e:legacy:db` ohne Reihenfolgefehler.
 
 ### Phase D: Betriebsroutine fixieren (laufend)
 
