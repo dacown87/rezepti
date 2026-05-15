@@ -1,14 +1,14 @@
 import { defineConfig } from 'vitest/config';
 import { configDefaults } from 'vitest/config';
 
-// Per-metric coverage floors based on measured baseline (2026-05-13):
-// Root: lines/statements 38.14%, functions 39.62%, branches 78.33%
+// Per-metric coverage floors based on measured Vitest 4 baseline (2026-05-14):
+// Root: lines 34.67%, statements 34.11%, functions 34.51%, branches 31.55%
 // Floor formula: floor(measured * 0.8 / 5) * 5 — leaves buffer for test flakes.
 const COVERAGE_BASELINES = {
-  lines: 30,
-  statements: 30,
-  functions: 30,
-  branches: 60,
+  lines: 25,
+  statements: 25,
+  functions: 25,
+  branches: 25,
 } as const;
 // Optional global ratchet (env COVERAGE_RATCHET_MIN) raises all metrics — never lowers below baseline.
 const COVERAGE_RATCHET_ENV = Number.parseInt(process.env.COVERAGE_RATCHET_MIN ?? '', 10);

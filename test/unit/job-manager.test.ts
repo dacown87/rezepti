@@ -1,44 +1,7 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { ExtractionJob, JobStatus } from '../../src/job-manager.js'
 
-vi.mock('better-sqlite3', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      exec: vi.fn(),
-      prepare: vi.fn().mockReturnValue({
-        run: vi.fn().mockReturnValue({ changes: 1 }),
-        get: vi.fn(),
-        all: vi.fn().mockReturnValue([]),
-      }),
-      pragma: vi.fn(),
-      close: vi.fn(),
-    })),
-  }
-})
-
-vi.mock('../../src/config.js', () => ({
-  config: {
-    sqlite: {
-      reactPath: ':memory:',
-    },
-  },
-}))
-
 describe('JobManager', () => {
-  let mockDb: any
-
-  beforeEach(async () => {
-    vi.clearAllMocks()
-    const DatabaseMock = await import('better-sqlite3')
-    mockDb = new DatabaseMock.default(':memory:')
-  })
-
-  afterEach(() => {
-    if (mockDb) {
-      mockDb.close()
-    }
-  })
-
   describe('JobStatus type', () => {
     it('should accept valid job statuses', () => {
       const statuses: JobStatus[] = ['pending', 'running', 'completed', 'failed']
