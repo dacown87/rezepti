@@ -3,6 +3,17 @@
 
 **Strict-Performance-Gate live, Aufräumtasks (M3, P1) durch.** Nächste größere Arbeit ist Multi-User Login.
 
+### Naechste Reihenfolge (priorisiert, Stand 2026-05-15)
+
+1. Coverage-Gates nach Vitest-4-Migration wieder anziehen (`25 -> >=30`).
+2. `JobManager`-Tests auf reale Laufzeitlogik umstellen (statt Typ-/Literalfokus).
+3. Supabase Data API Readiness fuer Multi-User vorbereiten (Policies/Grants/Boundaries).
+4. Multi-User Login umsetzen (Auth + RLS + App auf `authenticated`-Key).
+5. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
+6. Nightly-Strict-Beobachtung fortlaufend betreiben (passive Betriebsaufgabe).
+7. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
+8. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+
 ### Erledigt 2026-05-13
 
 - [x] **2. Strict-Probe-Run** ✅ — Run `25781366107`, performance-audit grün in 7m39s, `enforcement=strict`, `lighthouse=ok`, `readiness ready=true 10/10`.
