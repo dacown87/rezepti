@@ -90,6 +90,13 @@ Wichtig:
 
 ### Batch 0: CI Runtime Hygiene
 
+Status nach Umsetzung am 2026-05-14:
+
+- **teilweise umgesetzt**
+- `docker-publish.yml` und `changelog-update.yml` wurden modernisiert
+- `ci.yml` ist bewusst noch nicht im selben Schritt nachgezogen und enthaelt weiter alte Action-Majors
+- der Node-Runtime-Sonderfall rund um `northflank/deploy-to-northflank@v1` bleibt offen
+
 Ziel:
 
 - Die GitHub-Warnung `Node.js 20 is deprecated ... forced to run on Node.js 24` aus den Delivery-Workflows entfernen oder auf einen explizit dokumentierten Upstream-Sonderfall reduzieren.
@@ -102,8 +109,8 @@ Betroffene Workflows:
 
 Zielversionen:
 
-- `actions/checkout` `v4 -> v6`
-- `actions/setup-node` `v4 -> v6`
+- `actions/checkout` `v4 -> v5` als risikoaermere Node-24-Linie fuer die zuerst angefassten Workflows
+- `actions/setup-node` `v4 -> v5` als risikoaermere Node-24-Linie fuer die zuerst angefassten Workflows
 - `docker/login-action` `v3 -> v4`
 - `docker/build-push-action` `v6 -> v7`
 - `northflank/deploy-to-northflank` bleibt vorerst `v1`
@@ -118,8 +125,9 @@ Verifikation / Exit-Kriterien:
 
 - `docker-publish.yml` und `changelog-update.yml` laufen nach dem Versionszug weiter erfolgreich.
 - `push -> Update Changelog & Version -> Build & Push Docker Image` bleibt funktional intakt.
-- Die Node-20-Deprecation-Warnung verschwindet fuer die first-party- und Docker-Actions.
-- Falls die Warnung nur noch vom Northflank-Action kommt, wird das explizit als dokumentierter Upstream-Sonderfall akzeptiert.
+- Die Node-20-Deprecation-Warnung verschwindet fuer die first-party- und Docker-Actions in **allen relevanten Workflows**, nicht nur in `docker-publish.yml` und `changelog-update.yml`.
+- Solange `ci.yml` noch alte Action-Majors nutzt, gilt Batch 0 nur als teilweise erledigt.
+- Falls die Warnung danach nur noch vom Northflank-Action kommt, wird das explizit als dokumentierter Upstream-Sonderfall akzeptiert.
 - `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` kann entfernt werden, sobald keine kompatibilitaetsrelevanten Alt-Actions mehr davon abhaengen.
 
 ### Batch 1: Kleinster Code-Track nach Batch 0
@@ -136,6 +144,12 @@ Warum zuerst:
 
 ### Batch 2: Danach als Tooling-Welle
 
+Status nach Umsetzung am 2026-05-14:
+
+- technisch umgesetzt
+- aber die Verifikation ist schwaecher als ein voller API-E2E-Nachweis, weil die grossen E2E-Suiten ohne laufenden Server weiter skippen
+- die Coverage-Floors wurden im Zuge der Migration auf reale Vitest-4-Messwerte abgesenkt; das ist nicht nur Technik, sondern auch eine Qualitaets-/Policy-Entscheidung
+
 - `vitest` `3.2.4 -> 4.1.6`
 - `@vitest/coverage-v8` `3.2.4 -> 4.1.6`
 - `@vitest/ui` `3.2.4 -> 4.1.6`
@@ -147,6 +161,11 @@ Warum separat:
 
 ### Batch 3: Mobile Persistenz bewusst separat
 
+Status nach Umsetzung am 2026-05-14:
+
+- technisch umgesetzt
+- dokumentarisch noch nicht vollstaendig abgenommen, solange die manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF aussteht
+
 - `@react-native-async-storage/async-storage` `2.2.0 -> 3.0.2`
 
 Gate:
@@ -154,6 +173,7 @@ Gate:
 - Offline-/Persistenztests
 - Query-Cache-Restore
 - PDF-/Theme-/Settings-/Server-URL-Pfade
+- manuelle Neustart-Pruefung auf einem realen App-Lauf
 
 ### Batch 4: Warten auf stabilen Styling-Stack
 
@@ -190,14 +210,16 @@ Entscheidung:
 ## Offene Risiken
 
 - `northflank/deploy-to-northflank@v1` ist aktuell der schwaechste Punkt im CI-Hygiene-Track; moeglicherweise bleibt hier vorerst nur Dokumentation oder ein spaeterer Deploy-Mechanismus-Wechsel.
+- `ci.yml` ist im Node-24-/Action-Major-Track noch nicht nachgezogen; Batch 0 darf deshalb nicht als vollstaendig erledigt gelesen werden.
 - `tailwindcss@4` ist zwar selbst stabil, aber fuer unser React-Native-Setup noch nicht die beste Produktionsentscheidung.
 - `react-native-reanimated@4.3.x` ist aktuell kein normales Paket-Update, sondern durch `react-native-worklets@0.8.x` an die Expo-Kompatibilitaetslinie gekoppelt.
-- `vitest@4` ist wahrscheinlich gut machbar, aber wegen zweier Testwelten (`root` und `mobile`) bewusst als eigener Batch zu behandeln.
+- `vitest@4` ist umgesetzt, aber die Coverage-Policy und die Aussagekraft der Root-E2E-Verifikation muessen weiter sauber nachgeschaerft werden.
 
 ## Ausfuehrungsregel
 
 - `Batch 0` und `Batch 1` laufen **strictly sequential**, nicht parallel.
-- Erst wenn `Batch 0` abgeschlossen und verifiziert ist, startet `Batch 1`.
+- Urspruengliche Regel: Erst wenn `Batch 0` abgeschlossen und verifiziert ist, startet `Batch 1`.
+- Ist-Stand 2026-05-14: `Batch 1` wurde bereits umgesetzt, obwohl `Batch 0` nur teilweise abgeschlossen ist. Die Dokumentation muss das offen tragen, bis `ci.yml` und der Northflank-Pfad sauber bereinigt sind.
 - Diese Trennung ist bewusst boring: Workflow-/Deploy-Fehler und App-/Compiler-Fehler sollen nicht im selben Schritt debuggt werden.
 
 ## Konkrete naechste Aktion
