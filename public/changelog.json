@@ -1,6 +1,13 @@
 {
-  "version": "1.0.117",
+  "version": "1.0.118",
   "entries": [
+    {
+      "version": "1.0.118",
+      "date": "2026-05-24",
+      "changes": [
+        "remediate nightly strict pipeline"
+      ]
+    },
     {
       "version": "1.0.117",
       "date": "2026-05-24",
@@ -99,6 +106,6 @@
   ],
   "lastUpdated": {
     "date": "2026-05-24",
-    "time": "13:14"
+    "time": "16:46"
   }
 }

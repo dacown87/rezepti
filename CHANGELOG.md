@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.118] – 2026-05-24
+
+- remediate nightly strict pipeline
+
 ## [1.0.117] – 2026-05-24
 
 
