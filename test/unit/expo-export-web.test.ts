@@ -1,16 +1,33 @@
-import { describe, expect, it } from 'vitest';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   DEFAULT_OUTPUT_DIR,
+  DEFAULT_POST_EXPORT_GRACE_SECONDS,
   DEFAULT_TIMEOUT_SECONDS,
   buildExportCommand,
   classifyExportResult,
   exportMarkerFor,
+  parseGraceSeconds,
   parseOutputDir,
   parseTimeoutSeconds,
+  runExpoExportWeb,
   shellQuote,
   // @ts-expect-error — .mjs without type declarations
 } from '../../scripts/mobile/expo-export-web.mjs';
+
+class MockChildProcess extends EventEmitter {
+  stdout = new PassThrough();
+  stderr = new PassThrough();
+  kill = vi.fn();
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe('shellQuote', () => {
   it('wraps plain values in single quotes', () => {
@@ -62,6 +79,21 @@ describe('parseTimeoutSeconds', () => {
   it('rejects zero and negative values', () => {
     expect(parseTimeoutSeconds('0')).toBe(String(DEFAULT_TIMEOUT_SECONDS));
     expect(parseTimeoutSeconds('-60')).toBe(String(DEFAULT_TIMEOUT_SECONDS));
+  });
+});
+
+describe('parseGraceSeconds', () => {
+  it('returns default when env value is missing or invalid', () => {
+    expect(parseGraceSeconds(undefined)).toBe(DEFAULT_POST_EXPORT_GRACE_SECONDS);
+    expect(parseGraceSeconds('')).toBe(DEFAULT_POST_EXPORT_GRACE_SECONDS);
+    expect(parseGraceSeconds('abc')).toBe(DEFAULT_POST_EXPORT_GRACE_SECONDS);
+    expect(parseGraceSeconds('0')).toBe(DEFAULT_POST_EXPORT_GRACE_SECONDS);
+    expect(parseGraceSeconds('-2')).toBe(DEFAULT_POST_EXPORT_GRACE_SECONDS);
+  });
+
+  it('parses a valid positive number', () => {
+    expect(parseGraceSeconds('5')).toBe(5);
+    expect(parseGraceSeconds('12')).toBe(12);
   });
 });
 
@@ -140,5 +172,75 @@ describe('classifyExportResult', () => {
     expect(
       classifyExportResult({ exitCode: 124, logOutput: undefined, exportMarker: marker }),
     ).toEqual({ success: false, reason: 'failure' });
+  });
+});
+
+describe('runExpoExportWeb', () => {
+  it('returns clean-exit when the child closes successfully', async () => {
+    const child = new MockChildProcess();
+    const spawnImpl = vi.fn(() => child);
+    const runPromise = runExpoExportWeb({
+      argv: ['node', 'script'],
+      env: { CI: '1', EXPO_EXPORT_TIMEOUT_SECONDS: '5', EXPO_EXPORT_GRACE_SECONDS: '1' },
+      cwd: process.cwd(),
+      spawnImpl,
+    });
+
+    await vi.waitFor(() => expect(spawnImpl).toHaveBeenCalledTimes(1));
+    child.stdout.write('Exported: ../public\n');
+    child.emit('exit', 0);
+    child.stdout.end();
+    child.stderr.end();
+
+    await expect(runPromise).resolves.toMatchObject({ success: true, reason: 'clean-exit', exitCode: 0 });
+  });
+
+  it('waits for close so a late export marker still counts as timeout-after-export success', async () => {
+    const child = new MockChildProcess();
+    const spawnImpl = vi.fn(() => child);
+    const runPromise = runExpoExportWeb({
+      argv: ['node', 'script'],
+      env: { CI: '1', EXPO_EXPORT_TIMEOUT_SECONDS: '5', EXPO_EXPORT_GRACE_SECONDS: '10' },
+      cwd: process.cwd(),
+      spawnImpl,
+    });
+
+    await vi.waitFor(() => expect(spawnImpl).toHaveBeenCalledTimes(1));
+    child.emit('exit', 124);
+    child.stdout.write('Exported: ../public\n');
+    child.stdout.end();
+    child.stderr.end();
+
+    await expect(runPromise).resolves.toMatchObject({
+      success: true,
+      reason: 'timeout-after-export',
+      exitCode: 124,
+    });
+  });
+
+  it('gracefully stops a post-export hang after the marker appears', async () => {
+    vi.useFakeTimers();
+    const child = new MockChildProcess();
+    const spawnImpl = vi.fn(() => child);
+    const runPromise = runExpoExportWeb({
+      argv: ['node', 'script'],
+      env: { CI: '1', EXPO_EXPORT_TIMEOUT_SECONDS: '30', EXPO_EXPORT_GRACE_SECONDS: '1' },
+      cwd: process.cwd(),
+      spawnImpl,
+    });
+
+    await vi.waitFor(() => expect(spawnImpl).toHaveBeenCalledTimes(1));
+    child.stdout.write('Exported: ../public\n');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    child.emit('exit', 1);
+    child.stdout.end();
+    child.stderr.end();
+
+    await expect(runPromise).resolves.toMatchObject({
+      success: true,
+      reason: 'graceful-stop-after-export',
+      exitCode: 1,
+    });
   });
 });

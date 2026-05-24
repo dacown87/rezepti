@@ -127,21 +127,32 @@ export function extractLighthouseMetrics({ report = null, summaryMetric = null, 
   };
 }
 
+export function createFinding(type, message, metadata = {}) {
+  return {
+    type,
+    message,
+    ...metadata,
+  };
+}
+
 export function evaluateLighthouseBudgetFindings({ budget, metrics, route, viewport }) {
   const checks = [
     {
+      metricKey: 'lcpMs',
       budgetKey: 'lcpMs',
       label: 'LCP',
       value: metrics?.lcpMs,
       formatter: (value) => `${Math.round(value)}ms`,
     },
     {
+      metricKey: 'cls',
       budgetKey: 'cls',
       label: 'CLS',
       value: metrics?.cls,
       formatter: (value) => value.toFixed(3),
     },
     {
+      metricKey: 'jsExecutionMs',
       budgetKey: 'jsExecutionMs',
       label: 'JS execution',
       value: metrics?.jsExecutionMs,
@@ -156,14 +167,22 @@ export function evaluateLighthouseBudgetFindings({ budget, metrics, route, viewp
     if (limit === null || limit <= 0) continue;
     if (value === null) {
       findings.push(
-        `WARN: ${check.label} metric unavailable for ${route} @ ${viewport} with an active ${check.budgetKey} budget.`,
+        createFinding(
+          'metric-unavailable',
+          `WARN: ${check.label} metric unavailable for ${route} @ ${viewport} with an active ${check.budgetKey} budget.`,
+          { route, viewport, metricKey: check.metricKey, budgetKey: check.budgetKey, limit },
+        ),
       );
       continue;
     }
     if (value > limit) {
       findings.push(
-        `WARN: ${check.label} budget exceeded for ${route} @ ${viewport} ` +
-          `(${check.formatter(value)} > ${check.formatter(limit)}).`,
+        createFinding(
+          'metric-budget',
+          `WARN: ${check.label} budget exceeded for ${route} @ ${viewport} ` +
+            `(${check.formatter(value)} > ${check.formatter(limit)}).`,
+          { route, viewport, metricKey: check.metricKey, budgetKey: check.budgetKey, value, limit },
+        ),
       );
     }
   }
@@ -171,7 +190,11 @@ export function evaluateLighthouseBudgetFindings({ budget, metrics, route, viewp
   return findings;
 }
 
-export function isBudgetFinding(message) {
+export function isBudgetFinding(finding) {
+  if (finding && typeof finding === 'object') {
+    return ['bundle', 'metric-budget', 'metric-unavailable'].includes(String(finding.type || ''));
+  }
+  const message = finding;
   return (
     typeof message === 'string' &&
     (
@@ -180,6 +203,58 @@ export function isBudgetFinding(message) {
       message.includes('metric unavailable')
     )
   );
+}
+
+export function determineValidationOutcome({
+  enforcementLevel,
+  findingDetails,
+  readiness,
+} = {}) {
+  const findings = Array.isArray(findingDetails) ? findingDetails : [];
+  const readinessReady = readiness?.ready === true;
+  const hardFailureTypes = new Set([
+    'invalid-config',
+    'status-integrity',
+    'summary-integrity',
+    'lighthouse-integrity',
+    'route-availability',
+    'baseline-integrity',
+    'bundle-report-integrity',
+    'artifact-integrity',
+    'bundle',
+    'metric-unavailable',
+    'soft-policy',
+    'strict-policy',
+  ]);
+  const hardFailures = findings.filter((finding) => hardFailureTypes.has(String(finding?.type || '')));
+  const metricBudgetFailures = findings.filter((finding) => String(finding?.type || '') === 'metric-budget');
+
+  if (enforcementLevel === 'warn') {
+    return { exitCode: 0, classification: 'warn_only' };
+  }
+
+  if (hardFailures.length > 0) {
+    return { exitCode: 1, classification: 'failed' };
+  }
+
+  if (enforcementLevel === 'soft') {
+    return {
+      exitCode: metricBudgetFailures.length > 0 ? 1 : 0,
+      classification: metricBudgetFailures.length > 0 ? 'failed' : 'passed',
+    };
+  }
+
+  if (metricBudgetFailures.length > 0) {
+    return readinessReady
+      ? { exitCode: 1, classification: 'failed' }
+      : { exitCode: 0, classification: 'observation_blocked' };
+  }
+
+  if (!readinessReady) {
+    return { exitCode: 0, classification: 'observation_blocked' };
+  }
+
+  return { exitCode: 0, classification: 'passed' };
 }
 
 export function createPerformanceRunId({
@@ -569,7 +644,7 @@ export function collapseObservationRuns(runs) {
   );
 }
 
-function renderHistorySection(readiness) {
+function renderHistorySection(readiness, latestRun = null) {
   const lines = [
     'Runs stored: ' + readiness.window.runs,
     'Consecutive complete runs: ' + readiness.stats.consecutiveCompleteRuns,
@@ -596,6 +671,21 @@ function renderHistorySection(readiness) {
         })
         .join(', ');
       lines.push(`- ${group.route} @ ${group.viewport}: ${metricLine}`);
+    }
+  }
+
+  if (latestRun) {
+    lines.push('', `Latest validation classification: ${latestRun.classification || 'unknown'}`);
+    lines.push(`Latest budget pass: ${latestRun.budgetPass ? 'yes' : 'no'}`);
+    lines.push(`Latest validate exit code: ${Number(latestRun.validateExitCode || 0)}`);
+    if (latestRun.classification === 'observation_blocked') {
+      lines.push('Latest strict result is informational because readiness.ready=false.');
+    }
+    if (Array.isArray(latestRun.findings) && latestRun.findings.length > 0) {
+      lines.push('', 'Latest validation findings:');
+      for (const finding of latestRun.findings) {
+        lines.push(`- ${finding}`);
+      }
     }
   }
 
@@ -630,24 +720,28 @@ function renderObservationSection(observation) {
 }
 
 async function main() {
-  const runFindings = [];
-  const markFailure = () => {
-    process.exitCode = Math.max(Number(process.exitCode || 0), getFailureExitCode(ENFORCEMENT_LEVEL));
-  };
-  const warnAndTrack = (message) => {
-    console.warn(message);
-    runFindings.push(message);
+  const runFindingDetails = [];
+  const warnAndTrack = (findingOrMessage, fallbackType = 'status-integrity') => {
+    const finding =
+      findingOrMessage && typeof findingOrMessage === 'object'
+        ? findingOrMessage
+        : createFinding(fallbackType, String(findingOrMessage));
+    console.warn(finding.message);
+    runFindingDetails.push(finding);
   };
 
   if (!VALID_LEVELS.has(ENFORCEMENT_LEVEL)) {
-    warnAndTrack(`WARN: invalid PERF_ENFORCEMENT_LEVEL=${ENFORCEMENT_LEVEL}; expected warn|soft|strict.`);
+    warnAndTrack(
+      `WARN: invalid PERF_ENFORCEMENT_LEVEL=${ENFORCEMENT_LEVEL}; expected warn|soft|strict.`,
+      'invalid-config',
+    );
     process.exitCode = 1;
     return;
   }
 
   if (!(await exists(STATUS_PATH))) {
-    warnAndTrack('WARN: performance status.json missing.');
-    markFailure();
+    warnAndTrack('WARN: performance status.json missing.', 'status-integrity');
+    process.exitCode = Math.max(Number(process.exitCode || 0), getFailureExitCode(ENFORCEMENT_LEVEL));
     return;
   }
 
@@ -660,8 +754,8 @@ async function main() {
   console.log(`Performance status: mode=${mode}, lighthouse=${lighthouse}, enforcement=${ENFORCEMENT_LEVEL}`);
 
   if (!(await exists(SUMMARY_PATH))) {
-    warnAndTrack('WARN: lighthouse summary.json missing.');
-    markFailure();
+    warnAndTrack('WARN: lighthouse summary.json missing.', 'summary-integrity');
+    process.exitCode = Math.max(Number(process.exitCode || 0), getFailureExitCode(ENFORCEMENT_LEVEL));
     return;
   }
 
@@ -683,68 +777,64 @@ async function main() {
   let bundleReport = null;
 
   if (['skipped', 'error'].includes(lighthouse)) {
-    warnAndTrack(`WARN: lighthouse status is ${lighthouse}.`);
+    warnAndTrack(`WARN: lighthouse status is ${lighthouse}.`, 'lighthouse-integrity');
     if (status.skippedReason) {
-      warnAndTrack(`WARN: skippedReason=${status.skippedReason}`);
-      warnAndTrack(`PERF_LIGHTHOUSE_SKIP_REASON=${status.skippedReason}`);
+      warnAndTrack(`WARN: skippedReason=${status.skippedReason}`, 'lighthouse-integrity');
+      warnAndTrack(`PERF_LIGHTHOUSE_SKIP_REASON=${status.skippedReason}`, 'lighthouse-integrity');
     } else if (status.skippedReasonCode) {
-      warnAndTrack(`PERF_LIGHTHOUSE_SKIP_REASON=${status.skippedReasonCode}`);
+      warnAndTrack(`PERF_LIGHTHOUSE_SKIP_REASON=${status.skippedReasonCode}`, 'lighthouse-integrity');
     }
-    markFailure();
   }
 
   if (lighthouse === 'partial' && successfulRuns === 0 && warningRuns > 0) {
-    warnAndTrack('WARN: NO_LIGHTHOUSE_DATA (all runs warned/skipped).');
+    warnAndTrack('WARN: NO_LIGHTHOUSE_DATA (all runs warned/skipped).', 'lighthouse-integrity');
     if (status.skippedReasonCode) {
-      warnAndTrack(`PERF_LIGHTHOUSE_SKIP_REASON=${status.skippedReasonCode}`);
+      warnAndTrack(`PERF_LIGHTHOUSE_SKIP_REASON=${status.skippedReasonCode}`, 'lighthouse-integrity');
     }
-    markFailure();
   }
 
   if (results.length !== totalRuns) {
-    warnAndTrack(`WARN: status totalRuns (${totalRuns}) does not match summary results (${results.length}).`);
-    markFailure();
+    warnAndTrack(
+      `WARN: status totalRuns (${totalRuns}) does not match summary results (${results.length}).`,
+      'summary-integrity',
+    );
   }
 
   if (summarySuccessCount !== successfulRuns) {
     warnAndTrack(
       `WARN: status successfulRuns (${successfulRuns}) does not match summary successful runs (${summarySuccessCount}).`,
+      'summary-integrity',
     );
-    markFailure();
   }
 
   if (summaryWarningCount !== warningRuns) {
     warnAndTrack(
       `WARN: status warningRuns (${warningRuns}) does not match summary warning runs (${summaryWarningCount}).`,
+      'summary-integrity',
     );
-    markFailure();
   }
 
   if (expectedRuns > 0 && routeCount > 0 && viewportCount > 0 && expectedRuns !== routeCount * viewportCount) {
     warnAndTrack(
       `WARN: status expectedRuns (${expectedRuns}) does not match route/viewport matrix (${routeCount * viewportCount}).`,
+      'summary-integrity',
     );
-    markFailure();
   }
 
   if (lighthouse === 'ok' && summaryWarningCount > 0) {
-    warnAndTrack('WARN: lighthouse=ok but summary still contains warning/skipped results.');
-    markFailure();
+    warnAndTrack('WARN: lighthouse=ok but summary still contains warning/skipped results.', 'summary-integrity');
   }
 
   if (lighthouse === 'partial' && summaryWarningCount === 0) {
-    warnAndTrack('WARN: lighthouse=partial but summary contains no warning/skipped results.');
-    markFailure();
+    warnAndTrack('WARN: lighthouse=partial but summary contains no warning/skipped results.', 'summary-integrity');
   }
 
   if (lighthouse === 'skipped' && results.length > 0) {
-    warnAndTrack('WARN: lighthouse=skipped but summary contains run results.');
-    markFailure();
+    warnAndTrack('WARN: lighthouse=skipped but summary contains run results.', 'summary-integrity');
   }
 
   if (lighthouse === 'error' && results.length > 0 && summarySuccessCount > 0) {
-    warnAndTrack('WARN: lighthouse=error but summary contains successful results.');
-    markFailure();
+    warnAndTrack('WARN: lighthouse=error but summary contains successful results.', 'summary-integrity');
   }
 
   if (unavailableRoutes.length > 0) {
@@ -752,20 +842,18 @@ async function main() {
       `WARN: ${unavailableRoutes.length} requested route(s) were not auditable: ${unavailableRoutes
         .map((entry) => `${entry.requested} (${entry.resolution || 'unknown'})`)
         .join(', ')}`,
+      'route-availability',
     );
-    markFailure();
   }
 
   if (!(await exists(BASELINE_PATH))) {
-    warnAndTrack(`WARN: performance baseline missing at ${BASELINE_PATH}.`);
-    markFailure();
+    warnAndTrack(`WARN: performance baseline missing at ${BASELINE_PATH}.`, 'baseline-integrity');
   } else {
     baseline = await readJson(BASELINE_PATH);
   }
 
   if (!(await exists(BUNDLE_REPORT_PATH))) {
-    warnAndTrack('WARN: bundle report missing.');
-    markFailure();
+    warnAndTrack('WARN: bundle report missing.', 'bundle-report-integrity');
   } else {
     bundleReport = await readJson(BUNDLE_REPORT_PATH);
   }
@@ -774,14 +862,14 @@ async function main() {
     if (!result.jsonPath || !(await exists(result.jsonPath))) {
       warnAndTrack(
         `WARN: successful lighthouse result is missing jsonPath artifact for ${result.route} @ ${result.viewport}.`,
+        'artifact-integrity',
       );
-      markFailure();
     }
     if (!result.htmlPath || !(await exists(result.htmlPath))) {
       warnAndTrack(
         `WARN: successful lighthouse result is missing htmlPath artifact for ${result.route} @ ${result.viewport}.`,
+        'artifact-integrity',
       );
-      markFailure();
     }
   }
 
@@ -789,8 +877,13 @@ async function main() {
     for (const [key, value, limit] of resolveBundleBudgetChecks(bundleReport, baseline)) {
       if (limit <= 0) continue;
       if (value > limit) {
-        warnAndTrack(`WARN: bundle baseline exceeded for ${key} (${value} > ${limit}).`);
-        markFailure();
+        warnAndTrack(
+          createFinding('bundle', `WARN: bundle baseline exceeded for ${key} (${value} > ${limit}).`, {
+            budgetKey: key,
+            value,
+            limit,
+          }),
+        );
       }
     }
   }
@@ -828,40 +921,34 @@ async function main() {
         viewport: result.viewport,
       })) {
         warnAndTrack(finding);
-        markFailure();
       }
     }
   }
 
   if (ENFORCEMENT_LEVEL === 'soft') {
     if (!['ok', 'partial'].includes(lighthouse)) {
-      warnAndTrack(`WARN: soft enforcement requires lighthouse=ok|partial, got ${lighthouse}.`);
-      process.exitCode = 1;
+      warnAndTrack(`WARN: soft enforcement requires lighthouse=ok|partial, got ${lighthouse}.`, 'soft-policy');
     }
     if (!hasAnySuccessfulData) {
-      warnAndTrack('WARN: soft enforcement requires at least one successful lighthouse run.');
-      process.exitCode = 1;
+      warnAndTrack('WARN: soft enforcement requires at least one successful lighthouse run.', 'soft-policy');
     }
     if (totalRuns > 0 && successfulRuns > totalRuns) {
-      warnAndTrack(`WARN: invalid run counters (${successfulRuns}/${totalRuns}).`);
-      process.exitCode = 1;
+      warnAndTrack(`WARN: invalid run counters (${successfulRuns}/${totalRuns}).`, 'soft-policy');
     }
     if (unavailableRoutes.length > 0) {
-      warnAndTrack('WARN: soft enforcement requires every requested route to be auditable.');
-      process.exitCode = 1;
+      warnAndTrack('WARN: soft enforcement requires every requested route to be auditable.', 'soft-policy');
     }
   }
 
   if (ENFORCEMENT_LEVEL === 'strict') {
     if (lighthouse !== 'ok') {
-      warnAndTrack(`WARN: strict enforcement requires lighthouse=ok, got ${lighthouse}.`);
-      process.exitCode = 1;
+      warnAndTrack(`WARN: strict enforcement requires lighthouse=ok, got ${lighthouse}.`, 'strict-policy');
     }
     if (expectedRuns > 0 && successfulRuns < expectedRuns) {
       warnAndTrack(
         `WARN: strict enforcement requires full run coverage (${successfulRuns}/${expectedRuns} successful).`,
+        'strict-policy',
       );
-      process.exitCode = 1;
     }
   }
 
@@ -880,7 +967,8 @@ async function main() {
   }
 
   const runTimestamp = String(status.generatedAt || summary.generatedAt || new Date().toISOString());
-  const runRecord = {
+  const findingMessages = runFindingDetails.map((finding) => finding.message);
+  const baseRunRecord = {
     runId: createPerformanceRunId({
       statusGeneratedAt: status.generatedAt,
       summaryGeneratedAt: summary.generatedAt,
@@ -903,10 +991,10 @@ async function main() {
     routeCount,
     viewportCount,
     unavailableRouteCount: unavailableRoutes.length,
-    findingsCount: runFindings.length,
-    findings: runFindings,
-    budgetPass: !runFindings.some(isBudgetFinding),
-    validateExitCode: Number(process.exitCode || 0),
+    findingsCount: findingMessages.length,
+    findings: findingMessages,
+    findingDetails: runFindingDetails,
+    budgetPass: !runFindingDetails.some(isBudgetFinding),
     bundle: bundleReport
       ? {
           files: Number(bundleReport.totals?.files || 0),
@@ -923,13 +1011,31 @@ async function main() {
 
   await mkdir(path.dirname(HISTORY_PATH), { recursive: true });
   const history = await readJsonArray(HISTORY_PATH);
-  const mergedHistory = history.filter((entry) => entry?.runId !== runRecord.runId);
-  mergedHistory.push(runRecord);
+  const mergedHistory = history.filter((entry) => entry?.runId !== baseRunRecord.runId);
+  mergedHistory.push(baseRunRecord);
   mergedHistory.sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')));
-  const trimmedHistory = mergedHistory.slice(-HISTORY_MAX_ENTRIES);
-  await writeFile(HISTORY_PATH, `${JSON.stringify(trimmedHistory, null, 2)}\n`, 'utf8');
+  let trimmedHistory = mergedHistory.slice(-HISTORY_MAX_ENTRIES);
 
   const readiness = evaluateReadiness(trimmedHistory, READINESS_MIN_RUNS, READINESS_MAX_WARNING_RATE);
+  const outcome = determineValidationOutcome({
+    enforcementLevel: ENFORCEMENT_LEVEL,
+    findingDetails: runFindingDetails,
+    readiness,
+  });
+  const runRecord = {
+    ...baseRunRecord,
+    classification: outcome.classification,
+    observationBlocked: outcome.classification === 'observation_blocked',
+    readinessReady: readiness.ready === true,
+    readinessChecks: readiness.checks,
+    validateExitCode: outcome.exitCode,
+  };
+  trimmedHistory = trimmedHistory
+    .filter((entry) => entry?.runId !== runRecord.runId)
+    .concat(runRecord)
+    .sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')))
+    .slice(-HISTORY_MAX_ENTRIES);
+  await writeFile(HISTORY_PATH, `${JSON.stringify(trimmedHistory, null, 2)}\n`, 'utf8');
   await writeFile(READINESS_PATH, `${JSON.stringify(readiness, null, 2)}\n`, 'utf8');
   const stabilitySeed = (await exists(STABILITY_SEED_PATH)) ? await readJson(STABILITY_SEED_PATH) : null;
   const observation = evaluateStrictObservation({
@@ -949,12 +1055,14 @@ async function main() {
     const preservedSummary = markerIndex >= 0 ? baseSummary.slice(0, markerIndex) : baseSummary;
     const nextSummary = `${preservedSummary.replace(/\s+$/, '')}\n## Baseline History\n${renderHistorySection(
       readiness,
+      runRecord,
     )}\n## Strict Gate Observation\n${renderObservationSection(observation)}\n`;
     await writeFile(SUMMARY_MD_PATH, nextSummary, 'utf8');
   }
 
+  process.exitCode = outcome.exitCode;
   console.log(
-    `Performance readiness: ready=${readiness.ready} runs=${readiness.window.runs}/${readiness.criteria.minRuns} warningRate=${Number(readiness.stats.warningRate || 0).toFixed(4)} fullCoverage=${readiness.checks.fullCoverageMet}`,
+    `Performance readiness: ready=${readiness.ready} classification=${outcome.classification} runs=${readiness.window.runs}/${readiness.criteria.minRuns} warningRate=${Number(readiness.stats.warningRate || 0).toFixed(4)} fullCoverage=${readiness.checks.fullCoverageMet}`,
   );
 }
 

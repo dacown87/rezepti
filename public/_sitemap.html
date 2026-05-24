@@ -6,12 +6,100 @@ body {
   body {
     background-color: #000;
   }
+}</style><style>
+.rd-audit-shell {
+  display: none;
+}
+html[data-audit-shell='shopping'] .rd-audit-shell,
+html[data-audit-shell='recipe'] .rd-audit-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 28px 20px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(250, 218, 170, 0.55), transparent 30%),
+    linear-gradient(180deg, #fff8ef 0%, #f6efe7 100%);
+  color: #2c1810;
+  font-family: ui-rounded, "Avenir Next", "Nunito Sans", system-ui, sans-serif;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+.rd-audit-shell__brand {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #c84b31;
+}
+.rd-audit-shell__card {
+  margin-top: 22px;
+  min-height: 168px;
+  border-radius: 28px;
+  padding: 26px 22px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(200, 75, 49, 0.18);
+  box-shadow: 0 18px 44px rgba(44, 24, 16, 0.12);
+}
+.rd-audit-shell__title {
+  max-width: 12ch;
+  font-size: 44px;
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+.rd-audit-shell__subtitle {
+  margin-top: 18px;
+  max-width: 28ch;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #7f6252;
+}
+.rd-audit-shell--hidden {
+  opacity: 0;
+}
+@media (min-width: 768px) {
+  html[data-audit-shell='shopping'] .rd-audit-shell,
+  html[data-audit-shell='recipe'] .rd-audit-shell {
+    padding: 36px;
+  }
+  .rd-audit-shell__card {
+    max-width: 520px;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  html[data-audit-shell='shopping'] .rd-audit-shell,
+  html[data-audit-shell='recipe'] .rd-audit-shell {
+    background:
+      radial-gradient(circle at 20% 10%, rgba(200, 75, 49, 0.28), transparent 30%),
+      linear-gradient(180deg, #24130d 0%, #120b08 100%);
+    color: #fff8ef;
+  }
+  .rd-audit-shell__card {
+    background: rgba(45, 27, 18, 0.92);
+    border-color: rgba(250, 218, 170, 0.16);
+  }
+  .rd-audit-shell__subtitle {
+    color: #dbc7b7;
+  }
 }</style><script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(function(registrations) {
     for (var r of registrations) { r.unregister(); }
   });
-}</script><style id="react-native-stylesheet">[stylesheet-group="0"]{}
+}</script><script>
+(function() {
+  var path = window.location.pathname;
+  if (path.indexOf('/shopping') === 0) {
+    document.documentElement.setAttribute('data-audit-shell', 'shopping');
+    return;
+  }
+  if (path.indexOf('/recipe/') === 0) {
+    document.documentElement.setAttribute('data-audit-shell', 'recipe');
+  }
+})();</script><style id="react-native-stylesheet">[stylesheet-group="0"]{}
 body{margin:0;}
 button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0;}
 html{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:rgba(0,0,0,0);}
@@ -339,5 +427,17 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 @keyframes r-1pzkwqh{0%{transform:translateY(100%);}100%{transform:translateY(0%);}}
 @keyframes r-imtty0{0%{opacity:0;}100%{opacity:1;}}
 @keyframes r-q67da2{0%{transform:translateX(-100%);}100%{transform:translateX(400%);}}
-@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-e7b924c765b3a2d0e139f1d92a5c6a40.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-e7b924c765b3a2d0e139f1d92a5c6a40.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script src="/_expo/static/js/web/entry-858bae9fe7cd1507616bfe489228e83e.js" defer></script>
+@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-36999ed2749cdb3008ead0afe243bfb4.css" as="style"><link rel="stylesheet" href="/_expo/static/css/web-36999ed2749cdb3008ead0afe243bfb4.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="rd-audit-shell" class="rd-audit-shell" aria-hidden="true"><div class="rd-audit-shell__brand">RecipeDeck</div><div class="rd-audit-shell__card"><div class="rd-audit-shell__title">Ansicht wird vorbereitet</div><div class="rd-audit-shell__subtitle">Inhalte fuer die mobile Ansicht werden geladen.</div></div></div><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script>
+(function() {
+  var shell = document.getElementById('rd-audit-shell');
+  if (!shell) return;
+  if (!document.documentElement.getAttribute('data-audit-shell')) return;
+
+  window.setTimeout(function() {
+    shell.className += ' rd-audit-shell--hidden';
+    window.setTimeout(function() {
+      shell.style.display = 'none';
+    }, 220);
+  }, 5200);
+})();</script><script src="/_expo/static/js/web/entry-9863492063074be456f0002170fe0612.js" defer></script>
 </body></html>

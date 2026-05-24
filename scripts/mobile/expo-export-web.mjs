@@ -1,7 +1,8 @@
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
@@ -10,6 +11,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const mobileDir = path.join(repoRoot, 'mobile');
 
 export const DEFAULT_TIMEOUT_SECONDS = 300;
+export const DEFAULT_POST_EXPORT_GRACE_SECONDS = 8;
 export const DEFAULT_OUTPUT_DIR = '../public';
 
 export function shellQuote(value) {
@@ -28,6 +30,13 @@ export function parseTimeoutSeconds(rawValue, fallback = DEFAULT_TIMEOUT_SECONDS
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed) || parsed <= 0) return String(fallback);
   return String(parsed);
+}
+
+export function parseGraceSeconds(rawValue, fallback = DEFAULT_POST_EXPORT_GRACE_SECONDS) {
+  if (rawValue === undefined || rawValue === null || rawValue === '') return fallback;
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
 }
 
 export function buildExportCommand({ outputDir, timeoutSeconds, logFile }) {
@@ -52,36 +61,105 @@ export function classifyExportResult({ exitCode, logOutput, exportMarker }) {
   return { success: false, reason: 'failure' };
 }
 
+function waitForStreamDrain(stream, timeoutMs = 250) {
+  if (!stream) return Promise.resolve();
+  if (stream.readableEnded || stream.destroyed) return Promise.resolve();
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      stream.off('end', onDone);
+      stream.off('close', onDone);
+      stream.off('error', onDone);
+      resolve();
+    };
+    const onDone = () => cleanup();
+    const timer = setTimeout(cleanup, timeoutMs);
+    stream.once('end', onDone);
+    stream.once('close', onDone);
+    stream.once('error', onDone);
+  });
+}
+
 export async function runExpoExportWeb({
   argv = process.argv,
   env = process.env,
   cwd = mobileDir,
+  spawnImpl = spawn,
 } = {}) {
   const outputDir = parseOutputDir(argv);
   const timeoutSeconds = parseTimeoutSeconds(env.EXPO_EXPORT_TIMEOUT_SECONDS);
+  const graceSeconds = parseGraceSeconds(env.EXPO_EXPORT_GRACE_SECONDS);
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'expo-export-web-'));
   const logFile = path.join(tempDir, 'expo-export.log');
   const exportMarker = exportMarkerFor(outputDir);
-  const command = buildExportCommand({ outputDir, timeoutSeconds, logFile });
-
-  const child = spawn('bash', ['-lc', command], {
+  const logWriter = createWriteStream(logFile, { flags: 'a' });
+  const child = spawnImpl('npx', ['expo', 'export', '--platform', 'web', '--output-dir', outputDir], {
     cwd,
     env: { ...env, CI: env.CI || '1' },
-    stdio: 'inherit',
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+  let sawExportMarker = false;
+  let forceClosedAfterExport = false;
+  let graceTimer = null;
+  let hardKillTimer = null;
+  let timeoutTimer = null;
+  let captured = '';
+
+  const appendChunk = (chunk, stream) => {
+    const text = chunk.toString();
+    captured += text;
+    stream.write(chunk);
+    process.stdout.write(text);
+    if (!sawExportMarker && text.includes(exportMarker)) {
+      sawExportMarker = true;
+      graceTimer = setTimeout(() => {
+        // Expo occasionally keeps worker processes alive after writing output.
+        // Terminate gracefully first; hard-kill if still alive.
+        forceClosedAfterExport = true;
+        child.kill('SIGTERM');
+        hardKillTimer = setTimeout(() => {
+          child.kill('SIGKILL');
+        }, 5000);
+      }, graceSeconds * 1000);
+    }
+  };
+
+  child.stdout.on('data', (chunk) => appendChunk(chunk, logWriter));
+  child.stderr.on('data', (chunk) => appendChunk(chunk, logWriter));
+
+  timeoutTimer = setTimeout(() => {
+    child.kill('SIGTERM');
+    hardKillTimer = setTimeout(() => {
+      child.kill('SIGKILL');
+    }, 5000);
+  }, Number(timeoutSeconds) * 1000);
+
   const exitCode = await new Promise((resolve) => {
-    child.on('exit', (code) => resolve(typeof code === 'number' ? code : 1));
+    child.on('exit', async (code) => {
+      await Promise.all([
+        waitForStreamDrain(child.stdout),
+        waitForStreamDrain(child.stderr),
+      ]);
+      resolve(typeof code === 'number' ? code : 1);
+    });
     child.on('error', () => resolve(1));
   });
 
-  const logOutput = exitCode === 0 ? '' : await readFile(logFile, 'utf8').catch(() => '');
+  if (graceTimer) clearTimeout(graceTimer);
+  if (hardKillTimer) clearTimeout(hardKillTimer);
+  if (timeoutTimer) clearTimeout(timeoutTimer);
+  await new Promise((resolve) => logWriter.end(resolve));
+  const logOutput = captured;
   await rm(tempDir, { recursive: true, force: true });
 
-  const result = classifyExportResult({ exitCode, logOutput, exportMarker });
-  if (result.reason === 'timeout-after-export') {
+  let result = classifyExportResult({ exitCode, logOutput, exportMarker });
+  if (!result.success && sawExportMarker && forceClosedAfterExport) {
+    result = { success: true, reason: 'graceful-stop-after-export' };
+  }
+  if (result.reason === 'graceful-stop-after-export') {
     console.error(
-      '[expo-export-web] Expo export wrote the requested output and then exceeded the timeout; treating this known post-export hang as success.',
+      '[expo-export-web] Expo export finished and was terminated after grace period to avoid known post-export hang.',
     );
   }
   return { ...result, exitCode };

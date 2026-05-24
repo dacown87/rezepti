@@ -1,18 +1,20 @@
 
 ## 🎯 Aktueller Stand (2026-05-24)
 
-**Coverage-/JobManager-Remediation und Supabase-Data-API-Readiness sind durch.** Nächste größere Arbeit ist Multi-User Login.
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness und die Nightly-Strict-Code-Remediation sind durch. Als Nächstes läuft die neue Nightly-Beobachtungsperiode, bevor Multi-User Login wieder nach oben rückt.**
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-05-24)
 
-1. Multi-User Login umsetzen (Auth + RLS + App auf `authenticated`-Key).
-2. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
-3. Nightly-Strict-Beobachtung fortlaufend betreiben (passive Betriebsaufgabe).
+1. **Nightly-Strict-Beobachtungsperiode neu starten** — [docs/superpowers/plans/2026-05-24-nightly-strict-remediation-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-24-nightly-strict-remediation-plan.md): nach dem `performance-history-v5`-Reset jetzt Baseline-Dispatch + 3 Nightlies beobachten, bevor Strict wieder als belastbares Betriebssignal gilt.
+2. Multi-User Login umsetzen (Auth + RLS + App auf `authenticated`-Key).
+3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
 4. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
 5. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
 
 ### Erledigt 2026-05-24
 
+- [x] **Nightly-Strict-Code-Remediation umgesetzt** — `mobile-release-gate` wieder auf Expo-SDK-55-Stand gebracht (`expo-doctor` 19/19, `expo install --check` gruen, Mobile-Typecheck/Web-Build/Coverage lokal gruen); `validate-status.mjs` wertet Strict-Findings jetzt typisiert aus und stuft `ready=false` als `observation_blocked` statt pauschal als Nightly-Fail ein; Performance-History-Cache in `.github/workflows/ci.yml` auf `performance-history-v5` angehoben und per Unit-Test abgesichert.
+- [x] **GitHub Docker-Build repariert (Node-Engine-Mismatch)** — `Dockerfile` `base` und `web-builder` auf `node:24.15.0-slim` angehoben, damit `mobile/package.json`-Engines (`node >=24.15.0`, `npm >=11`) mit dem Build-Container uebereinstimmen. Lokaler Gegencheck: `npm --prefix mobile ci` laeuft wieder sauber. (Commit `1a142da`)
 - [x] **Next-Priority-Plan erstellt und umgesetzt** — [docs/superpowers/plans/2026-05-24-next-priority-work-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-24-next-priority-work-plan.md) fuehrt Coverage, `JobManager` und Supabase-Readiness zusammen.
 - [x] **Coverage-Gates nach Vitest-4-Migration wieder angezogen** — Root und Mobile stehen wieder auf Mindest-Floors `30` fuer lines/statements/functions/branches; `COVERAGE_RATCHET_MIN` bleibt als Anhebungsmechanismus aktiv. Verifiziert mit `npm run test:coverage` und `npm run test:mobile:coverage`.
 - [x] **`JobManager`-Tests auf reale Laufzeitlogik umgestellt** — `test/unit/job-manager.test.ts` prueft jetzt echte Methodenpfade aus `src/job-manager.ts` inkl. `create/start/update/complete/fail`, Event-Polling, `getRecentJobs`, `getActiveJobs`, `isUrlProcessing` und Cleanup. Fokustest und Root-Coverage gruen.
@@ -35,7 +37,7 @@
 
 ### Offen / Folgearbeit
 
-- [ ] **Nightly-Strict-Beobachtung** (passiv) — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`. _Quelle: [`docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`](docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md) (Phase 3 + Strict-Schedule-Eskalation)_
+- [ ] **Nightly-Strict-Beobachtung nach Remediation** (aktiv, P0-Follow-up) — Code-Fixes sind lokal umgesetzt: Expo-SDK-55-Doctor wieder gruen, Strict-Validator-Policy repariert, History-Cache auf `v5` umgestellt. Offen bleibt der neue Beobachtungszyklus: 1x manueller Baseline-Dispatch und danach 3 Nightlies beobachten. Keine PR-Strict-Eskalation vor stabiler Nightly-Serie.
 - [ ] **Multi-User Login** (nächste große Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Nächste große Phase — Multi-User Login" weiter unten.
 
 ---
@@ -243,9 +245,9 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ### Umsetzung des Upgrade-Plans
 
 - [x] **Batch 0 — CI Runtime Hygiene** teilweise abgeschlossen (2026-05-14) — `.github/workflows/docker-publish.yml` und `.github/workflows/changelog-update.yml` angehoben: `actions/checkout`/`actions/setup-node` bewusst auf `v5` (niedrigeres Migrationsrisiko als `v6` bei gleichem Node-24-Ziel), `docker/login-action` auf `v4`, `docker/build-push-action` auf `v7`. **Restoffen:** `.github/workflows/ci.yml` nutzt weiterhin alte Action-Majors; die Node-20-Deprecation kann daher nicht nur von Northflank kommen. `northflank/deploy-to-northflank@v1` bleibt zusaetzlich als gesonderter Upstream-Sonderfall offen.
-- [x] **Batch 1 — Kleinster Code-Track** abgeschlossen (2026-05-14) — `@hono/node-server` `^1.19.14 -> ^2.0.2`, `mobile/typescript` `~5.9.2 -> ~6.0.3`. Verifiziert mit Root-Typecheck, Mobile-Typecheck sowie Root- und Mobile-Unit-Suiten.
+- [x] **Batch 1 — Kleinster Code-Track** abgeschlossen (2026-05-14, Mobile-Nachkorrektur 2026-05-24) — `@hono/node-server` `^1.19.14 -> ^2.0.2`; der zwischenzeitliche Mobile-Compiler-Schritt auf TypeScript 6 wurde fuer Expo-SDK-55-Kompatibilitaet wieder auf die Doctor-kompatible 5.9-Linie zurueckgenommen. Verifiziert mit Mobile-Typecheck und `expo-doctor`.
 - [x] **Batch 2 — Tooling-Welle** abgeschlossen (2026-05-14 / nachgezogen 2026-05-24) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet. API-E2E-Contract-Gate wurde am 2026-05-15 echt gebootet; Coverage-Floors wurden am 2026-05-24 wieder auf mindestens `30` angezogen.
-- [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14) — `@react-native-async-storage/async-storage` `2.2.0 -> 3.0.2`. Verifiziert mit Mobile-Typecheck, Query-Cache-/Persistenztests, UI-Workflow-Regressionen und kompletter Mobile-Unit-Suite. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.
+- [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14, SDK-55-Nachkorrektur 2026-05-24) — der zwischenzeitliche Schritt auf `@react-native-async-storage/async-storage` `3.0.2` wurde fuer Expo-SDK-55-Doctor-Kompatibilitaet wieder auf `2.2.0` zurueckgenommen. Persistenztests, UI-Workflow-Regressionen und Mobile-Coverage bleiben gruen. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.
 - [ ] **Batch 4 — Expo-/Styling-Track spaeter** — Expo-SDK-Sprung, `react-native-web`, `react-native-*`, `tailwindcss 4`, `nativewind 5`, `react-native-worklets`/`reanimated` bleiben bewusst vertagt, bis die jeweilige Leitplanke stabil ist.
 
 ### Follow-up aus Eng-Review (2026-05-14)
@@ -265,10 +267,10 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ### Patch-safe (jetzt updatebar; innerhalb `wanted`)
 
 - Root: sichere Root-Patches sind eingespielt; uebrig sind derzeit keine offenen Low-Risk-`wanted`-Updates mehr.
-- Mobile: sichere Mobile-Patches fuer `@react-navigation/native` und `@tanstack/*` sind eingespielt; uebrig bleiben Major-Spruenge oder Expo-/SDK-gebundene Pakete.
-- **Umsetzung 2026-05-13:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`) sowie sichere Mobile-Patches fuer `@react-navigation/native` und `@tanstack/*`.
+- Mobile: sichere Mobile-Patches fuer `@tanstack/*` sind eingespielt; `@react-navigation/native` wurde fuer Expo-SDK-55 wieder auf die Doctor-kompatible Linie `^7.1.33` zurueckgenommen.
+- **Umsetzung 2026-05-13 / Nachkorrektur 2026-05-24:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`); Mobile-Patches bleiben innerhalb der Expo-SDK-55-Kompatibilitaet.
 - **Peer-/SDK-Blocker:** `react-native-reanimated@4.3.0` verlangt `react-native-worklets@0.8.x`; `expo install react-native-reanimated react-native-worklets` unter SDK 55 hat keine Aenderung vorgenommen (weiter `reanimated@4.2.1`, `worklets@0.7.4`).
-- **Aktueller Compatibility-Status (`expo-doctor`):** wieder `18/18` Checks gruen.
+- **Aktueller Compatibility-Status (`expo-doctor`):** wieder `19/19` Checks gruen.
 - **Build-Fix:** `mobile/assets/images/favicon.png` war inhaltlich eine ICO-Datei mit falscher `.png`-Endung und blockierte `expo export` mit `Unsupported MIME type: image/x-icon`; Asset wurde durch eine echte PNG-Datei ersetzt, `npm run mobile:build:web` laeuft wieder erfolgreich.
 
 ### SDK-gebunden (nur mit Expo-Kompatibilitätscheck)
@@ -280,7 +282,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ### Major / später (bewusst vertagt)
 
 - Root: `@hono/node-server` 1 -> 2, `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `@vitest/ui` 3 -> 4
-- Mobile: `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `typescript` 5 -> 6, `@react-native-async-storage/async-storage` 2 -> 3
+- Mobile: `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4; `typescript` 5 -> 6 und `@react-native-async-storage/async-storage` 2 -> 3 bleiben bis zu einer Expo-kompatiblen Linie vertagt
 - Mobile, Expo-/SDK-gebunden: `react-native` 0.83 -> 0.85, `react` 19.2.0 -> 19.2.6, `react-dom` 19.2.0 -> 19.2.6, `react-native-gesture-handler` 2.30 -> 2.31, `react-native-safe-area-context` 5.6 -> 5.7, `react-native-screens` 4.23 -> 4.25, `react-native-svg` 15.15.3 -> 15.15.5, `react-test-renderer` 19.2.0 -> 19.2.6
 - Mobile, Styling-Track: `tailwindcss` 3 -> 4 bleibt bis zu einer stabilen `NativeWind`-v5-Linie vertagt.
 - Mobile, harter Blocker: `react-native-worklets` 0.7 -> 0.8 und damit indirekt `react-native-reanimated` 4.2 -> 4.3 bleiben bis zu einem passenden Expo-SDK vertagt.

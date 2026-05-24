@@ -1,3 +1,4 @@
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { configDefaults } from 'vitest/config';
@@ -18,16 +19,14 @@ const applyRatchet = (baseline: number) =>
     ? COVERAGE_RATCHET_ENV
     : baseline;
 
-const rootDir = fileURLToPath(new URL('./', import.meta.url));
+const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   resolve: {
     alias: {
       '@': rootDir,
-      'react-native': fileURLToPath(new URL('./test/react-native-shim.ts', import.meta.url)),
-      '@testing-library/react-native': fileURLToPath(
-        new URL('./test/testing-library-rn-compat.ts', import.meta.url)
-      ),
+      'react-native': resolve(rootDir, 'test/react-native-shim.ts'),
+      '@testing-library/react-native': resolve(rootDir, 'test/testing-library-rn-compat.ts'),
     },
     // Expo/Metro resolves platform files implicitly; Vitest needs the suffixes spelled out.
     extensions: ['.native.tsx', '.native.ts', '.web.tsx', '.web.ts', '.tsx', '.ts', '.jsx', '.js', '.json'],

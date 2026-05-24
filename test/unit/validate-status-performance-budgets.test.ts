@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   collapseObservationRuns,
   createPerformanceRunId,
+  determineValidationOutcome,
   evaluateStabilitySeedVerification,
   evaluateStrictObservation,
   evaluateLighthouseBudgetFindings,
@@ -128,17 +129,107 @@ describe('validate-status performance budgets', () => {
         viewport: 'mobile-375x812',
       }),
     ).toEqual([
-      'WARN: LCP metric unavailable for /recipe/1 @ mobile-375x812 with an active lcpMs budget.',
-      'WARN: CLS metric unavailable for /recipe/1 @ mobile-375x812 with an active cls budget.',
-      'WARN: JS execution budget exceeded for /recipe/1 @ mobile-375x812 (2400ms > 2000ms).',
+      {
+        type: 'metric-unavailable',
+        message: 'WARN: LCP metric unavailable for /recipe/1 @ mobile-375x812 with an active lcpMs budget.',
+        route: '/recipe/1',
+        viewport: 'mobile-375x812',
+        metricKey: 'lcpMs',
+        budgetKey: 'lcpMs',
+        limit: 2500,
+      },
+      {
+        type: 'metric-unavailable',
+        message: 'WARN: CLS metric unavailable for /recipe/1 @ mobile-375x812 with an active cls budget.',
+        route: '/recipe/1',
+        viewport: 'mobile-375x812',
+        metricKey: 'cls',
+        budgetKey: 'cls',
+        limit: 0.1,
+      },
+      {
+        type: 'metric-budget',
+        message: 'WARN: JS execution budget exceeded for /recipe/1 @ mobile-375x812 (2400ms > 2000ms).',
+        route: '/recipe/1',
+        viewport: 'mobile-375x812',
+        metricKey: 'jsExecutionMs',
+        budgetKey: 'jsExecutionMs',
+        value: 2400,
+        limit: 2000,
+      },
     ]);
   });
 
   it('classifies only baseline and metric budget warnings as budget findings', () => {
+    expect(isBudgetFinding({ type: 'bundle', message: 'WARN: bundle baseline exceeded for gzipJsBytes (1200 > 1000).' })).toBe(true);
+    expect(isBudgetFinding({ type: 'metric-budget', message: 'WARN: LCP budget exceeded for / @ mobile (3000ms > 2500ms).' })).toBe(true);
+    expect(isBudgetFinding({ type: 'metric-unavailable', message: 'WARN: JS execution metric unavailable for / @ mobile with an active jsExecutionMs budget.' })).toBe(true);
+    expect(isBudgetFinding({ type: 'lighthouse-integrity', message: 'WARN: lighthouse status is skipped.' })).toBe(false);
     expect(isBudgetFinding('WARN: bundle baseline exceeded for gzipJsBytes (1200 > 1000).')).toBe(true);
     expect(isBudgetFinding('WARN: LCP budget exceeded for / @ mobile (3000ms > 2500ms).')).toBe(true);
     expect(isBudgetFinding('WARN: JS execution metric unavailable for / @ mobile with an active jsExecutionMs budget.')).toBe(true);
     expect(isBudgetFinding('WARN: lighthouse status is skipped.')).toBe(false);
+  });
+
+  it('keeps strict metric-budget failures informational until readiness is true', () => {
+    expect(
+      determineValidationOutcome({
+        enforcementLevel: 'strict',
+        findingDetails: [{ type: 'metric-budget', message: 'WARN: LCP budget exceeded for / @ mobile.' }],
+        readiness: { ready: false },
+      }),
+    ).toEqual({
+      exitCode: 0,
+      classification: 'observation_blocked',
+    });
+
+    expect(
+      determineValidationOutcome({
+        enforcementLevel: 'strict',
+        findingDetails: [{ type: 'metric-budget', message: 'WARN: LCP budget exceeded for / @ mobile.' }],
+        readiness: { ready: true },
+      }),
+    ).toEqual({
+      exitCode: 1,
+      classification: 'failed',
+    });
+  });
+
+  it('still fails strict runs on bundle and metric-unavailable findings even when readiness is false', () => {
+    expect(
+      determineValidationOutcome({
+        enforcementLevel: 'strict',
+        findingDetails: [{ type: 'bundle', message: 'WARN: bundle baseline exceeded for gzipJsBytes.' }],
+        readiness: { ready: false },
+      }),
+    ).toEqual({
+      exitCode: 1,
+      classification: 'failed',
+    });
+
+    expect(
+      determineValidationOutcome({
+        enforcementLevel: 'strict',
+        findingDetails: [{ type: 'metric-unavailable', message: 'WARN: JS execution metric unavailable.' }],
+        readiness: { ready: false },
+      }),
+    ).toEqual({
+      exitCode: 1,
+      classification: 'failed',
+    });
+  });
+
+  it('marks strict no-budget runs as observation_blocked while readiness is still false', () => {
+    expect(
+      determineValidationOutcome({
+        enforcementLevel: 'strict',
+        findingDetails: [],
+        readiness: { ready: false },
+      }),
+    ).toEqual({
+      exitCode: 0,
+      classification: 'observation_blocked',
+    });
   });
 
   it('verifies the warmup seed evidence needed before a strict probe', () => {
