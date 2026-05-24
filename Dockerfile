@@ -1,5 +1,5 @@
 # ─── base ──────────────────────────────────────────────────────────────────────
-FROM node:20-slim AS base
+FROM node:24.15.0-slim AS base
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ COPY src/ ./src/
 RUN npx tsc
 
 # ─── web-builder ──────────────────────────────────────────────────────────────
-FROM node:20-slim AS web-builder
+FROM node:24.15.0-slim AS web-builder
 
 WORKDIR /app
 
