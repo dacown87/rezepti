@@ -1,6 +1,6 @@
 {
   "name": "rezepti",
-  "version": "1.0.114",
+  "version": "1.0.115",
   "description": "Rezept-Extraktor mit SQLite-Export",
   "type": "module",
   "engines": {
@@ -34,9 +34,15 @@
     "test:coverage": "vitest run test/unit --coverage",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:e2e": "vitest run test/e2e",
+    "test:e2e": "VITEST_E2E_REAL_FETCH=1 vitest run test/e2e",
+    "test:e2e:contract": "VITEST_E2E_REAL_FETCH=1 vitest run test/e2e/contract-api.test.ts",
+    "test:e2e:legacy:smoke": "VITEST_E2E_REAL_FETCH=1 vitest run test/e2e/smoke.test.ts test/e2e/basic-api.test.ts",
+    "test:e2e:legacy:jobs": "VITEST_E2E_REAL_FETCH=1 vitest run test/e2e/react-api.test.ts -t \"Job Creation and Management|Job Polling and Status|Job List Management\"",
+    "test:e2e:legacy:db": "VITEST_E2E_REAL_FETCH=1 vitest run test/e2e/react-api.test.ts -t \"Database Operations\"",
+    "test:e2e:legacy": "npm run test:e2e:legacy:smoke && npm run test:e2e:legacy:jobs && npm run test:e2e:legacy:db",
+    "test:e2e:legacy:ci": "mkdir -p artifacts/test-reports && VITEST_E2E_REAL_FETCH=1 vitest run test/e2e/smoke.test.ts test/e2e/basic-api.test.ts test/e2e/react-api.test.ts --reporter=default --reporter=junit --outputFile.junit=artifacts/test-reports/e2e-legacy-junit.xml",
     "test:unit": "vitest run test/unit",
-    "test:docker": "vitest run test/e2e/docker.test.ts",
+    "test:docker": "VITEST_E2E_REAL_FETCH=1 vitest run test/e2e/docker.test.ts",
     "test:local": "bash test/scripts/test-local.sh",
     "test:docker-full": "bash test/scripts/test-docker.sh",
     "test:all": "npm run test:unit && npm run test:e2e && npm run test:docker",
@@ -57,7 +63,7 @@
     "docker:backup": "mkdir -p backups && tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.14",
+    "@hono/node-server": "^2.0.2",
     "cheerio": "^1.0.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
@@ -72,8 +78,8 @@
     "@testing-library/jest-dom": "^6.2.0",
     "@types/node": "^25.7.0",
     "@types/qrcode": "^1.5.6",
-    "@vitest/coverage-v8": "^3.2.4",
-    "@vitest/ui": "^3.2.4",
+    "@vitest/coverage-v8": "^4.1.6",
+    "@vitest/ui": "^4.1.6",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
     "happy-dom": "^20.9.0",
@@ -83,6 +89,6 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.12",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.6"
   }
 }

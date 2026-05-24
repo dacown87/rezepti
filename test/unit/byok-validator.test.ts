@@ -1,19 +1,27 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { BYOKValidator } from '../../src/byok-validator.js'
 
-const mockOpenAI = {
-  chat: {
-    completions: {
-      create: vi.fn(),
+const { mockOpenAI, OpenAIConstructor } = vi.hoisted(() => {
+  const mockOpenAI = {
+    chat: {
+      completions: {
+        create: vi.fn(),
+      },
     },
-  },
-  models: {
-    list: vi.fn(),
-  },
-}
+    models: {
+      list: vi.fn(),
+    },
+  }
+
+  const OpenAIConstructor = vi.fn(function MockOpenAI() {
+    return mockOpenAI
+  })
+
+  return { mockOpenAI, OpenAIConstructor }
+})
 
 vi.mock('openai', () => ({
-  default: vi.fn(() => mockOpenAI),
+  default: OpenAIConstructor,
 }))
 
 describe('BYOKValidator', () => {

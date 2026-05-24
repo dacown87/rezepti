@@ -15,6 +15,11 @@ on:
         options:
           - 'warn'
           - 'strict'
+      run_e2e_legacy_soak:
+        description: 'Run legacy E2E soak job'
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 2 * * *'
 
@@ -114,8 +119,138 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
 
-      - name: Run E2E tests
-        run: npm test -- --run test/e2e/
+      - name: Start API server
+        run: |
+          npm start > /tmp/rezepti-server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/health >/dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to become ready within timeout"
+          echo "Last server log lines:"
+          tail -n 200 /tmp/rezepti-server.log || true
+          exit 1
+
+      - name: Run E2E contract gate
+        run: npm run test:e2e:contract
+
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -n "${SERVER_PID:-}" ]; then
+            kill "$SERVER_PID" || true
+          fi
+
+      - name: Upload API server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-server-log
+          path: /tmp/rezepti-server.log
+          if-no-files-found: warn
+
+  e2e-legacy-soak:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_e2e_legacy_soak == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rezepti_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+      GROQ_API_KEY: test-placeholder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push schema to test DB
+        run: npx drizzle-kit push --force
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rezepti_test
+
+      - name: Start API server
+        run: |
+          npm start > /tmp/rezepti-server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/health >/dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to become ready within timeout"
+          echo "Last server log lines:"
+          tail -n 200 /tmp/rezepti-server.log || true
+          exit 1
+
+      - name: Run E2E legacy soak
+        run: npm run test:e2e:legacy:ci
+
+      - name: Build legacy runtime diagnostics
+        if: always()
+        run: |
+          node -e "const fs=require('node:fs');const cp=require('node:child_process');const out='artifacts/test-reports/e2e-legacy-runtime-diagnostics.json';const run=(cmd)=>{try{return {ok:true,stdout:cp.execSync(cmd,{encoding:'utf8'}).trim()}}catch(err){return {ok:false,stdout:String(err?.stdout||'').trim(),stderr:String(err?.stderr||'').trim(),message:err?.message||'command failed'}}};const serverPid=process.env.SERVER_PID||'';const pidAlive=serverPid?run('kill -0 '+serverPid):{ok:false,message:'SERVER_PID missing'};const health=run(\"curl -sS -o /tmp/rezepti-legacy-health-body.txt -w '%{http_code} %{time_total}' http://localhost:3000/api/v1/health\");const junit='artifacts/test-reports/e2e-legacy-junit.xml';let junitStat=null;try{const s=fs.statSync(junit);junitStat={exists:true,sizeBytes:s.size}}catch{junitStat={exists:false,sizeBytes:0}};const signal={generatedAt:new Date().toISOString(),runner:{os:process.env.RUNNER_OS||'',arch:process.env.RUNNER_ARCH||'',name:process.env.RUNNER_NAME||''},runtime:{node:process.version,npm:run('npm -v').stdout||''},server:{pid:serverPid||null,pidAlive:pidAlive.ok,healthProbe:health},junit:junitStat};fs.mkdirSync('artifacts/test-reports',{recursive:true});fs.writeFileSync(out,JSON.stringify(signal,null,2));console.log(JSON.stringify(signal,null,2));"
+
+      - name: Build legacy skip signal
+        if: always()
+        run: |
+          node -e "const fs=require('node:fs');const p='artifacts/test-reports/e2e-legacy-junit.xml';const out='artifacts/test-reports/e2e-legacy-skip-signal.json';let xml='';try{xml=fs.readFileSync(p,'utf8')}catch{xml=''};const num=(re,d=0)=>{const m=xml.match(re);return m?Number(m[1]):d};const skipped=(xml.match(/<skipped\\b/g)||[]).length;const failures=(xml.match(/<failure\\b/g)||[]).length;const errors=(xml.match(/<error\\b/g)||[]).length;const testsAttr=num(/<testsuites[^>]*\\btests=['\\\"](\\d+)['\\\"]/i,num(/<testsuite[^>]*\\btests=['\\\"](\\d+)['\\\"]/i,0));const signal={generatedAt:new Date().toISOString(),junitPath:p,tests:testsAttr,skipped,failures,errors,classificationRequired:skipped>0,recommendedFirstClass:skipped>0&&failures===0&&errors===0?'infra':'test',rule:'If skipped>0 classify within one workday as infra or test and link repro command'};fs.mkdirSync('artifacts/test-reports',{recursive:true});fs.writeFileSync(out,JSON.stringify(signal,null,2));console.log(JSON.stringify(signal,null,2));"
+
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -n "${SERVER_PID:-}" ]; then
+            kill "$SERVER_PID" || true
+          fi
+
+      - name: Upload legacy soak artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-legacy-soak-artifacts
+          path: |
+            /tmp/rezepti-server.log
+            artifacts/test-reports/e2e-legacy-junit.xml
+            artifacts/test-reports/e2e-legacy-skip-signal.json
+            artifacts/e2e/**
+            artifacts/test-reports/**
+            test-results/**
+            junit*.xml
+          if-no-files-found: warn
 
   mobile-release-gate:
     runs-on: ubuntu-latest

@@ -24,22 +24,23 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: production
           push: true
           tags: dacown/rezepti:latest
 
+      # Northflank stays on v1 here as the intentional Node16 special-case; do not bump in this scope.
       - name: Deploy to Northflank
         uses: northflank/deploy-to-northflank@v1
         with:
