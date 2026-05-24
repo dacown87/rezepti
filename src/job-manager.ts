@@ -37,11 +37,19 @@ export interface JobEvent {
   updatedAt: number;
 }
 
+interface JobManagerDependencies {
+  now: () => number;
+  random: () => number;
+}
+
 export class JobManager {
   private static instance: JobManager;
   private jobs = new Map<string, ExtractionJob>();
+  private readonly deps: JobManagerDependencies;
 
-  private constructor() {}
+  private constructor(deps: JobManagerDependencies = { now: Date.now, random: Math.random }) {
+    this.deps = deps;
+  }
 
   static getInstance(): JobManager {
     if (!JobManager.instance) {
@@ -50,9 +58,16 @@ export class JobManager {
     return JobManager.instance;
   }
 
+  static createTestInstance(deps: Partial<JobManagerDependencies> = {}): JobManager {
+    return new JobManager({
+      now: deps.now ?? Date.now,
+      random: deps.random ?? Math.random,
+    });
+  }
+
   createJob(url: string, userAgent?: string, apiKeyHash?: string): ExtractionJob {
-    const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    const now = Date.now();
+    const id = `job_${this.deps.now()}_${this.deps.random().toString(36).substring(2, 11)}`;
+    const now = this.deps.now();
     const job: ExtractionJob = {
       id, url, status: "pending", progress: 0,
       createdAt: now, updatedAt: now, userAgent, apiKeyHash,
@@ -64,7 +79,7 @@ export class JobManager {
   startJob(jobId: string): boolean {
     const job = this.jobs.get(jobId);
     if (!job) return false;
-    const now = Date.now();
+    const now = this.deps.now();
     Object.assign(job, { status: "running", progress: 10, startedAt: now, updatedAt: now });
     return true;
   }
@@ -81,14 +96,14 @@ export class JobManager {
     if (updates.currentStage !== undefined) job.currentStage = updates.currentStage;
     if (updates.message    !== undefined) job.message      = updates.message;
     if (updates.status     !== undefined) job.status       = updates.status;
-    job.updatedAt = Date.now();
+    job.updatedAt = this.deps.now();
     return true;
   }
 
   completeJob(jobId: string, result: PipelineResult): boolean {
     const job = this.jobs.get(jobId);
     if (!job) return false;
-    const now = Date.now();
+    const now = this.deps.now();
     Object.assign(job, { status: "completed", progress: 100, result, completedAt: now, updatedAt: now });
     return true;
   }
@@ -96,7 +111,7 @@ export class JobManager {
   failJob(jobId: string, error: string, hint?: string): boolean {
     const job = this.jobs.get(jobId);
     if (!job) return false;
-    const now = Date.now();
+    const now = this.deps.now();
     Object.assign(job, { status: "failed", progress: 100, error, hint, completedAt: now, updatedAt: now });
     return true;
   }
@@ -125,7 +140,7 @@ export class JobManager {
   }
 
   cleanupOldJobs(daysToKeep = 7): number {
-    const cutoff = Date.now() - daysToKeep * 24 * 60 * 60 * 1000;
+    const cutoff = this.deps.now() - daysToKeep * 24 * 60 * 60 * 1000;
     let count = 0;
     for (const [id, job] of this.jobs) {
       if (job.createdAt < cutoff) { this.jobs.delete(id); count++; }

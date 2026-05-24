@@ -1,18 +1,22 @@
 
-## 🎯 Aktueller Stand (2026-05-13)
+## 🎯 Aktueller Stand (2026-05-24)
 
-**Strict-Performance-Gate live, Aufräumtasks (M3, P1) durch.** Nächste größere Arbeit ist Multi-User Login.
+**Coverage-/JobManager-Remediation und Supabase-Data-API-Readiness sind durch.** Nächste größere Arbeit ist Multi-User Login.
 
-### Naechste Reihenfolge (priorisiert, Stand 2026-05-15)
+### Naechste Reihenfolge (priorisiert, Stand 2026-05-24)
 
-1. Coverage-Gates nach Vitest-4-Migration wieder anziehen (`25 -> >=30`).
-2. `JobManager`-Tests auf reale Laufzeitlogik umstellen (statt Typ-/Literalfokus).
-3. Supabase Data API Readiness fuer Multi-User vorbereiten (Policies/Grants/Boundaries).
-4. Multi-User Login umsetzen (Auth + RLS + App auf `authenticated`-Key).
-5. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
-6. Nightly-Strict-Beobachtung fortlaufend betreiben (passive Betriebsaufgabe).
-7. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
-8. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+1. Multi-User Login umsetzen (Auth + RLS + App auf `authenticated`-Key).
+2. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
+3. Nightly-Strict-Beobachtung fortlaufend betreiben (passive Betriebsaufgabe).
+4. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
+5. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+
+### Erledigt 2026-05-24
+
+- [x] **Next-Priority-Plan erstellt und umgesetzt** — [docs/superpowers/plans/2026-05-24-next-priority-work-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-24-next-priority-work-plan.md) fuehrt Coverage, `JobManager` und Supabase-Readiness zusammen.
+- [x] **Coverage-Gates nach Vitest-4-Migration wieder angezogen** — Root und Mobile stehen wieder auf Mindest-Floors `30` fuer lines/statements/functions/branches; `COVERAGE_RATCHET_MIN` bleibt als Anhebungsmechanismus aktiv. Verifiziert mit `npm run test:coverage` und `npm run test:mobile:coverage`.
+- [x] **`JobManager`-Tests auf reale Laufzeitlogik umgestellt** — `test/unit/job-manager.test.ts` prueft jetzt echte Methodenpfade aus `src/job-manager.ts` inkl. `create/start/update/complete/fail`, Event-Polling, `getRecentJobs`, `getActiveJobs`, `isUrlProcessing` und Cleanup. Fokustest und Root-Coverage gruen.
+- [x] **Supabase Data API Readiness fuer Multi-User konkretisiert** — [docs/supabase-data-api-readiness.md](/home/patrick/Projekte/rezepti/docs/supabase-data-api-readiness.md) enthaelt jetzt eine konkrete RLS-/Grant-Matrix; [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql) ist als reviewbarer SQL-Draft angelegt. Keine DB-Migration ausgefuehrt.
 
 ### Erledigt 2026-05-13
 
@@ -33,7 +37,6 @@
 
 - [ ] **Nightly-Strict-Beobachtung** (passiv) — Erste 1–2 Wochen Nightly-Runs auf Drift/Flakes beobachten. Wenn stabil grün: nächste Eskalation `pull_request` strict erwägen. Wenn rote Runs: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`. _Quelle: [`docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`](docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md) (Phase 3 + Strict-Schedule-Eskalation)_
 - [ ] **Multi-User Login** (nächste große Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Nächste große Phase — Multi-User Login" weiter unten.
-- [ ] **Supabase Data API Readiness für Multi-User vorbereiten** — Playbook + SQL-Vorlage liegen in [docs/supabase-data-api-readiness.md](/home/patrick/Projekte/rezepti/docs/supabase-data-api-readiness.md) und [db/templates/public-table-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-table-data-api-rls.sql). Vor dem Auth-Umbau: Grants + Policies für `recipes`, `shopping_list`, `meal_plan` planen; `api_keys` und wahrscheinlich `ingredient_dictionary` bewusst backend-only lassen.
 
 ---
 
@@ -241,7 +244,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 - [x] **Batch 0 — CI Runtime Hygiene** teilweise abgeschlossen (2026-05-14) — `.github/workflows/docker-publish.yml` und `.github/workflows/changelog-update.yml` angehoben: `actions/checkout`/`actions/setup-node` bewusst auf `v5` (niedrigeres Migrationsrisiko als `v6` bei gleichem Node-24-Ziel), `docker/login-action` auf `v4`, `docker/build-push-action` auf `v7`. **Restoffen:** `.github/workflows/ci.yml` nutzt weiterhin alte Action-Majors; die Node-20-Deprecation kann daher nicht nur von Northflank kommen. `northflank/deploy-to-northflank@v1` bleibt zusaetzlich als gesonderter Upstream-Sonderfall offen.
 - [x] **Batch 1 — Kleinster Code-Track** abgeschlossen (2026-05-14) — `@hono/node-server` `^1.19.14 -> ^2.0.2`, `mobile/typescript` `~5.9.2 -> ~6.0.3`. Verifiziert mit Root-Typecheck, Mobile-Typecheck sowie Root- und Mobile-Unit-Suiten.
-- [x] **Batch 2 — Tooling-Welle** technisch umgesetzt (2026-05-14) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet, Coverage-Floors nach der Migration aber zu weich auf `25` abgesenkt. Verifiziert mit Root- und Mobile-Coverage; **API-E2E-Abnahme offen**, weil `npm run test:e2e` ohne gebooteten Server weiter gruen skippen kann. Folgearbeit: kleiner CI-Contract-E2E-Slice + strengere Floors (`>=30`) nachziehen.
+- [x] **Batch 2 — Tooling-Welle** abgeschlossen (2026-05-14 / nachgezogen 2026-05-24) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet. API-E2E-Contract-Gate wurde am 2026-05-15 echt gebootet; Coverage-Floors wurden am 2026-05-24 wieder auf mindestens `30` angezogen.
 - [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14) — `@react-native-async-storage/async-storage` `2.2.0 -> 3.0.2`. Verifiziert mit Mobile-Typecheck, Query-Cache-/Persistenztests, UI-Workflow-Regressionen und kompletter Mobile-Unit-Suite. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.
 - [ ] **Batch 4 — Expo-/Styling-Track spaeter** — Expo-SDK-Sprung, `react-native-web`, `react-native-*`, `tailwindcss 4`, `nativewind 5`, `react-native-worklets`/`reanimated` bleiben bewusst vertagt, bis die jeweilige Leitplanke stabil ist.
 
@@ -255,8 +258,8 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] **P2a Legacy-Server-Skip-Welle klassifizieren (Prozess eingefuehrt)** — Owner: TBD (rotierend, jeweils On-Call der Woche). Umgesetzt: deterministisches Skip-Signal aus CI (`artifacts/test-reports/e2e-legacy-skip-signal.json`) + verbindlicher Tagesablauf inkl. SLA (`Start bis 12:00 CET`, `finale Klassifikation bis 18:00 CET`) in `docs/testing/e2e-legacy-flake-inventory.md` und `docs/e2e-legacy-modernization-plan.md`. Abnahmekriterium: jeder Nightly-Lauf mit Skips wird innerhalb eines Arbeitstags als `infra` oder `test` klassifiziert und mit Repro-Hinweis dokumentiert.
 - [x] **P2 Legacy-DB-Mutationen testisoliert machen** abgeschlossen (2026-05-15) — Legacy-CRUD-Pfade in `test/e2e/react-api.test.ts` nutzen jetzt deterministische, pro Test isolierte Fixtures (scoped URLs/Recipe-Metadaten), expliziten Recipe-Cleanup-Lifecycle (`register...`/`mark...`) und Cleanup-Diagnostik pro Testlauf. Abnahmekriterium verifiziert: `test:e2e:legacy:db` lief lokal 10/10 hintereinander gruen.
 - [x] **P3a Docker-/Umgebungsdiagnostik vom Legacy-API-Vertrag trennen** abgeschlossen (2026-05-15) — Runbook/Doku in `docs/TEST_STATUS.md`, `docs/testing/e2e-legacy-flake-inventory.md` und `docs/e2e-legacy-modernization-plan.md` geschaerft: verbindliche Klassifikationsregeln (`infra` first fuer Docker/Host), Erst-15-Minuten-Checklist und Pflichtformulierung gegen False-Positive-Labeling (`keine Produktregression vor abgeschlossener Environment-Diagnostik`).
-- [ ] **`JobManager`-Tests wieder auf reale Laufzeitlogik ziehen** — `test/unit/job-manager.test.ts` prüft derzeit vor allem Typformen und Literale, nicht das echte Verhalten aus `src/job-manager.ts`. Die Folgearbeit braucht einen kleinen Test-Seam im Singleton und danach echte Tests für `create/start/update/complete/fail`, Event-Polling, `getRecentJobs`, `getActiveJobs`, `isUrlProcessing` und Cleanup.
-- [ ] **Coverage-Gates nach Vitest-4-Migration wieder anziehen** — Root und Mobile stehen nach der Migration faktisch auf einem zu weichen `25`er Floor. Folgearbeit: beide Configs mindestens auf `30` ziehen, Doku anpassen und nur dann wieder lockern, wenn eine echte Mess- oder Teststruktur-Erklärung vorliegt.
+- [x] **`JobManager`-Tests wieder auf reale Laufzeitlogik ziehen** — abgeschlossen 2026-05-24: `test/unit/job-manager.test.ts` prueft echte Runtime-Pfade ueber einen expliziten Test-Seam in `src/job-manager.ts`; Fokustest und Root-Coverage gruen.
+- [x] **Coverage-Gates nach Vitest-4-Migration wieder anziehen** — abgeschlossen 2026-05-24: Root und Mobile stehen wieder auf Mindest-Floors `30`; Root-Coverage und Mobile-Coverage gruen.
 - [ ] **Northflank-Deploy-Pfad separat neu bewerten** — Der Review-Plan hat den Northflank-Sonderfall bewusst **nicht** in die aktuelle Remediation gezogen. Kontext: `docker-publish.yml` ist bereits auf der Node-24-kompatiblen Linie, `northflank/deploy-to-northflank@v1` bleibt aber ein Upstream-Sonderfall. Wenn später Handlungsdruck entsteht, braucht das einen eigenen Infra-Track statt stillen Scope-Creep in Upgrade-PRs.
 
 ### Patch-safe (jetzt updatebar; innerhalb `wanted`)

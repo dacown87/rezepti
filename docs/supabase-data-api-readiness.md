@@ -1,181 +1,190 @@
-# Supabase Data API Readiness (2026-05-13)
+# Supabase Data API Readiness (2026-05-24)
 
 ## Kurzfazit
 
-Dieses Repo ist **aktuell kaum betroffen** von der Supabase-Aenderung zu expliziten `GRANT`s fuer neue `public`-Tabellen.
+Das Repo ist fuer den aktuellen Server-only-Betrieb weiterhin unkritisch, aber die naechste Multi-User-Phase braucht eine explizite, reviewbare Data-API-Skizze.
 
-Warum:
+Heute gilt:
 
-- Der produktive Datenzugriff laeuft heute ueber direkte Postgres-Verbindungen mit `DATABASE_URL` und Drizzle, nicht ueber `supabase-js`, `/rest/v1/` oder `/graphql/v1/`.
-- Die `public`-Tabellen haben bereits RLS aktiviert und die direkten Grants fuer `anon` und `authenticated` wurden entzogen in [db/migrations/2026-05-12-enable-rls.sql](/home/patrick/Projekte/rezepti/db/migrations/2026-05-12-enable-rls.sql).
-- Die aktuellen Supabase Advisor-Hinweise `rls_enabled_no_policy` sind daher fuer das heutige Setup erwartbar: RLS ist an, aber die Data API soll gerade **nicht** an diese Tabellen kommen.
+- Der produktive Datenzugriff laeuft weiter ueber direkte Postgres-Verbindungen mit `DATABASE_URL` und Drizzle.
+- `public`-Tabellen haben bereits RLS aktiviert und direkte Grants fuer `anon` und `authenticated` wurden entzogen in [db/migrations/2026-05-12-enable-rls.sql](../db/migrations/2026-05-12-enable-rls.sql).
+- Die aktuellen Advisor-Hinweise zu fehlenden Policies sind fuer den heutigen Zustand erwartbar, weil die Data API bewusst noch nicht auf diese Tabellen zielen soll.
 
-Die Aenderung wird relevant, sobald dieses Projekt eine der folgenden Richtungen nimmt:
+Fuer den Multi-User-Umbau ist die relevante Frage deshalb nicht "ob RLS", sondern "welche Tabellen werden fuer den Client wirklich exponiert, und mit welchen exakt begrenzten Rechten".
 
-- neue Tabellen in `public`, die ueber die Data API erreichbar sein sollen
-- Umstieg auf `supabase-js` / PostgREST / GraphQL fuer echte Client-Zugriffe
-- Multi-User-Login mit `authenticated`-Client-Zugriff auf `recipes`, `shopping_list`, `meal_plan`
+## Offizielle Supabase-Regeln, die diese Skizze erzwingen
 
-## Offizielle Quellen
+- [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
+- [Securing your data](https://supabase.com/docs/guides/database/secure-data/)
+- [Understanding API keys](https://supabase.com/docs/guides/getting-started/api-keys)
 
-- Supabase Changelog: <https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically>
-- Supabase Discussion `#45329`: <https://github.com/orgs/supabase/discussions/45329>
-- Supabase Data API docs: <https://supabase.com/docs/guides/database/data-api>
-- Supabase API security docs: <https://supabase.com/docs/guides/api/securing-your-api>
-- Supabase RLS docs: <https://supabase.com/docs/guides/database/postgres/row-level-security>
+Wichtige Regeln daraus:
 
-## Was sich fuer dieses Repo praktisch aendert
+- RLS muss auf exponierten Tabellen aktiv sein.
+- Ein `UPDATE` braucht eine passende `SELECT`-Policy.
+- `raw_user_meta_data` / `user_metadata` sind fuer AuthZ ungeeignet; nur `raw_app_meta_data` ist fuer Zugriffskontrolle belastbar.
+- `secret`/`service_role`-Keys gehoeren nicht in den Client.
+- Views koennen RLS umgehen; falls spaeter Views kommen, dann nur mit `security_invoker = true` oder in einem nicht exponierten Schema.
+- `security definer`-Funktionen gehoeren nicht in exponierte Schemas.
 
-### Heute
+## Schema-Boundaries fuer diese Phase
 
-- Bestehende Tabellen behalten ihre aktuellen Grants.
-- Der Server kann weiter direkt per `DATABASE_URL` arbeiten.
-- Neue `public`-Tabellen brechen **nicht** den aktuellen Serverpfad.
+### Data-API-Tabellen
 
-### Spaeter
+- `public.recipes`
+- `public.shopping_list`
+- `public.meal_plan`
 
-Sobald neue `public`-Tabellen ueber die Data API lesbar oder schreibbar sein sollen, muss die Migration immer drei Dinge explizit enthalten:
+### Backend-only
 
-1. `GRANT`s pro Rolle
-2. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`
-3. passende Policies
+- `public.api_keys`
+- `public.ingredient_dictionary`
 
-Faustregel fuer dieses Repo:
+Warum backend-only:
 
-- **Server-only Tabelle**: kein Data-API-Grants, am besten gleich in ein privates Schema statt `public`
-- **Client-/Data-API-Tabelle**: immer `GRANT + RLS + Policies` im selben Migrationsschritt
+- `api_keys` ist ein Sicherheitsobjekt und sollte nicht in eine breite Client-API wandern.
+- `ingredient_dictionary` ist System-/Kanonisierungsdatenbestand und kein sauberes Multi-User-Client-Objekt fuer den ersten Schritt.
+- Beide Tabellen bleiben in `public` zwar mit RLS abgesichert, bekommen aber keine Data-API-Grants fuer diese Phase.
+- Wenn `ingredient_dictionary` spaeter doch einen Client-Fall bekommt, dann als bewusste, separate Lesefreigabe.
 
-## Arbeitsregeln fuer neue Tabellen
+## Vorbedingungen fuer die spaetere Migration
 
-### Fall A: Tabelle ist nur fuer den Server da
+Diese Readiness-Skizze setzt voraus, dass vor dem echten Auth-Umbau geprueft wird, ob `user_id` auf den relevanten Tabellen sauber befuellbar ist:
 
-Empfehlung:
+- `recipes` darf `user_id = null` behalten, weil die Tabelle globale Default-Rezepte enthalten kann.
+- `shopping_list` und `meal_plan` sollten fuer echte Multi-User-Nutzung entweder bereits backfilled sein oder vor dem Client-Rollout auf konsistente `user_id`-Werte umgestellt werden.
+- Die konkrete Migration kann daraus spaeter `NOT NULL` fuer `shopping_list.user_id` und `meal_plan.user_id` ableiten, wenn der Datenbestand das hergibt.
 
-- nicht in `public`, sondern in einem privaten Schema anlegen
-- wenn `public` unvermeidbar ist: **keine** `anon`-/`authenticated`-Grants setzen
-
-Beispiele in diesem Repo:
-
-- `api_keys`
-- wahrscheinlich auch `ingredient_dictionary`, solange nur der Backend-Server darauf zugreift
-
-### Fall B: Tabelle soll ueber die Data API erreichbar sein
-
-Dann gilt:
-
-- Tabelle in `public` nur mit expliziten Grants
-- `authenticated` nur die minimal noetigen Rechte geben
-- `anon` nur wenn wirklich oeffentliche Lesezugriffe gewollt sind
-- `service_role` nur wenn ein realer Service-Key-Workflow existiert
-- bei `serial` / `identity` IDs die Sequence-Grants nicht vergessen, wenn Inserts ueber die Data API laufen sollen
-
-## Reusable SQL template
-
-Siehe die wiederverwendbare Vorlage in [db/templates/public-table-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-table-data-api-rls.sql).
-
-## Policy-Matrix fuer die spaetere Multi-User-Phase
+## Reviewbare RLS-/Grant-Matrix
 
 ### `public.recipes`
 
-Empfehlung:
+Ziel:
 
-- `SELECT` fuer `authenticated` auf eigene Rezepte plus globale Default-Rezepte
-- `INSERT` nur fuer eigene Rezepte
-- `UPDATE` / `DELETE` nur fuer eigene Rezepte
+- `authenticated` darf eigene Rezepte lesen, anlegen, aendern und loeschen.
+- `authenticated` darf globale Default-Rezepte lesen, aber nicht bearbeiten.
 
-RLS-Idee:
+Konkrete Regeln:
+
+- `GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.recipes TO authenticated`
+- `GRANT USAGE, SELECT ON SEQUENCE public.recipes_id_seq TO authenticated`
+- `SELECT`-Policy: eigene Zeilen plus globale Defaults
+- `INSERT`-Policy: nur eigene Zeilen
+- `UPDATE`-Policy: nur eigene Zeilen
+- `DELETE`-Policy: nur eigene Zeilen
+
+Empfohlene Policy-Logik:
 
 ```sql
-using (user_id = auth.uid() or user_id is null)
-with check (user_id = auth.uid())
+using (user_id = (select auth.uid()) or user_id is null)
+with check (user_id = (select auth.uid()))
 ```
 
 Hinweis:
 
-- Falls globale Rezepte spaeter verschwinden sollen, `OR user_id IS NULL` wieder entfernen.
-- Wenn globale Rezepte editierbar sein sollen, braucht es einen gesonderten Admin-/Service-Flow, nicht eine lockere User-Policy.
+- Die `SELECT`-Policy fuer globale Defaults ist gewollt, damit die App Default-Rezepte anzeigen kann.
+- Die Global-Read-Regel darf nicht dazu fuehren, dass globale Rows editierbar werden. Deshalb bleiben `UPDATE` und `DELETE` strikt auf die eigene `user_id` begrenzt.
 
 ### `public.shopping_list`
 
-Empfehlung:
+Ziel:
 
-- nur eigene Zeilen fuer `authenticated`
-- kein `anon`
+- `authenticated` darf nur eigene Zeilen sehen und veraendern.
 
-RLS-Idee:
+Konkrete Regeln:
+
+- `GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.shopping_list TO authenticated`
+- `GRANT USAGE, SELECT ON SEQUENCE public.shopping_list_id_seq TO authenticated`
+- `SELECT`-Policy: nur eigene Zeilen
+- `INSERT`-Policy: nur eigene Zeilen
+- `UPDATE`-Policy: nur eigene Zeilen
+- `DELETE`-Policy: nur eigene Zeilen
+
+Empfohlene Policy-Logik:
 
 ```sql
-using (user_id = auth.uid())
-with check (user_id = auth.uid())
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()))
 ```
+
+Wichtig:
+
+- `UPDATE` braucht die `SELECT`-Policy mit.
+- Wenn der Bestand noch Legacy-Zeilen mit `user_id = null` enthaelt, sind diese fuer echte Nutzer nach der Umstellung absichtlich nicht mehr sichtbar.
 
 ### `public.meal_plan`
 
-Empfehlung:
+Ziel:
 
-- nur eigene Zeilen fuer `authenticated`
-- kein `anon`
+- `authenticated` darf nur eigene Planzeilen sehen und veraendern.
 
-RLS-Idee:
+Konkrete Regeln:
+
+- `GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.meal_plan TO authenticated`
+- `GRANT USAGE, SELECT ON SEQUENCE public.meal_plan_id_seq TO authenticated`
+- `SELECT`-Policy: nur eigene Zeilen
+- `INSERT`-Policy: nur eigene Zeilen
+- `UPDATE`-Policy: nur eigene Zeilen
+- `DELETE`-Policy: nur eigene Zeilen
+
+Empfohlene Policy-Logik:
 
 ```sql
-using (user_id = auth.uid())
-with check (user_id = auth.uid())
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()))
 ```
+
+Wichtig:
+
+- Auch hier gilt: `UPDATE` ohne `SELECT`-Policy ist ein Stillstand-Fall, kein Exception-Fall.
+- Wenn `meal_plan` spaeter per UI kopiert oder dupliziert wird, muss das weiterhin auf `auth.uid()` schreiben, nicht auf Claims aus `user_metadata`.
 
 ### `public.api_keys`
 
-Empfehlung:
+Ziel:
 
-- **nicht direkt ueber die Data API exponieren**
-- keine `anon`- oder `authenticated`-Grants auf die Tabelle
-- stattdessen serverseitige Route / RPC / Edge-Function, falls spaeter noetig
+- Backend-only, keine Data-API-Freigabe.
 
-Grund:
+Konkrete Regeln:
 
-- Auch wenn heute nur `key_hash` gespeichert wird, ist das ein Sicherheitsobjekt und kein guter Kandidat fuer breite Client-Tabellenrechte.
+- keine `GRANT`s fuer `anon` oder `authenticated`
+- keine Data-API-Policies fuer diese Phase
+- falls ein Backend spaeter per Supabase-Client darauf zugreifen soll, dann nur mit Secret-Key in serverseitigen Komponenten
 
 ### `public.ingredient_dictionary`
 
-Empfehlung:
+Ziel:
 
-- vorerst ebenfalls **nicht direkt ueber die Data API exponieren**
-- wenn spaeter Client-Lesezugriff noetig wird: `SELECT` fuer `authenticated`, aber keine Schreibrechte fuer normale User
+- Backend-only fuer diese Phase.
 
-Grund:
+Konkrete Regeln:
 
-- Das ist eher System-/Kanonisierungsdatenbestand als Nutzerinhalt.
-- Schreibrechte wuerden die Datenqualitaet schnell angreifen.
+- keine `GRANT`s fuer `anon` oder `authenticated`
+- keine Data-API-Policies fuer diese Phase
+- spaeter nur dann lesen, wenn ein echter Client-Fall mit klarer Begruendung existiert
 
-## Bewertung der aktuellen Advisor-Meldungen
+## Reviewable Migrationsskizze
 
-Die `rls_enabled_no_policy`-Infos fuer
+Fuer den naechsten echten Migrationsblock soll die Reihenfolge so aussehen:
 
-- `public.api_keys`
-- `public.ingredient_dictionary`
-- `public.meal_plan`
-- `public.recipes`
-- `public.shopping_list`
+1. Legacy-Daten pruefen und ggf. `user_id` fuer `shopping_list` und `meal_plan` backfillen.
+2. RLS auf den drei Data-API-Tabellen aktiv lassen.
+3. Exakte Grants fuer `authenticated` setzen.
+4. Sequenzen fuer die drei Tabellen freigeben.
+5. Policies fuer `SELECT`, `INSERT`, `UPDATE`, `DELETE` anlegen.
+6. Backend-only-Tabellen weiterhin ohne Data-API-Grants lassen.
+7. Erst danach mit echten `authenticated`-Tokens gegen die Data API verifizieren.
 
-sind im heutigen Zustand **nicht akut problematisch**, weil:
+Empfohlene Verifikation fuer die spaetere Umsetzung:
 
-- RLS aktiv ist
-- `anon` und `authenticated` keine Tabellenrechte mehr haben
-- der App-Zugriff ueber direkte DB-Verbindung laeuft
+- Lesen einer eigenen Rezeptzeile
+- Lesen eines globalen Default-Rezepts
+- Insert einer eigenen Shopping-List-Zeile
+- Update einer eigenen Meal-Plan-Zeile
+- Negative Tests fuer fremde `user_id`-Zeilen
 
-Sobald die Multi-User-Phase startet und die App auf `authenticated`-Clientzugriff umstellt, werden diese Info-Meldungen aber zu echter Folgearbeit:
+## Reusable Draft
 
-- Grants setzen
-- Policies schreiben
-- mit echten Auth-Tokens verifizieren
+Eine konkrete SQL-Vorlage fuer diese Matrix liegt in [db/templates/public-multi-user-data-api-rls.sql](../db/templates/public-multi-user-data-api-rls.sql).
 
-## Empfohlene naechste Schritte
-
-1. Fuer neue serverinterne Tabellen standardmaessig ein privates Schema bevorzugen.
-2. Fuer neue Data-API-Tabellen die SQL-Vorlage aus `db/templates/` benutzen.
-3. Vor Multi-User-Login eine dedizierte RLS-/Grants-Migration fuer
-   - `recipes`
-   - `shopping_list`
-   - `meal_plan`
-   planen.
-4. `api_keys` und wahrscheinlich `ingredient_dictionary` bewusst backend-only lassen, solange kein zwingender Client-Fall existiert.
+Die generische Vorlagendatei [db/templates/public-table-data-api-rls.sql](../db/templates/public-table-data-api-rls.sql) bleibt als Basis fuer neue Data-API-Tabellen bestehen, ist aber fuer diesen Multi-User-Fall zu abstrakt.
