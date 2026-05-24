@@ -1,18 +1,18 @@
 
 ## 🎯 Aktueller Stand (2026-05-24)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness und die Nightly-Strict-Code-Remediation sind durch. Als Nächstes läuft die neue Nightly-Beobachtungsperiode, bevor Multi-User Login wieder nach oben rückt.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness und die Nightly-Strict-Remediation inkl. Verifikationsserie sind durch. Multi-User Login ist wieder der naechste Haupttrack.**
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-05-24)
 
-1. **Nightly-Strict-Beobachtungsperiode neu starten** — [docs/superpowers/plans/2026-05-24-nightly-strict-remediation-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-24-nightly-strict-remediation-plan.md): nach dem `performance-history-v5`-Reset jetzt Baseline-Dispatch + 3 Nightlies beobachten, bevor Strict wieder als belastbares Betriebssignal gilt.
-2. Multi-User Login umsetzen (Auth + RLS + App auf `authenticated`-Key).
-3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
-4. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
-5. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key).
+2. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
+3. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
+4. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
 
 ### Erledigt 2026-05-24
 
+- [x] **Nightly-Strict-Beobachtungsperiode nach Remediation abgeschlossen** — Commit `951d09e` auf `main` gepusht; Push-Run `26364298737` und Baseline-Dispatch `26364301389` komplett gruen. Anschliessend drei explizite Strict-Dispatch-Runs (`26364421549`, `26364422800`, `26364424167`) als kosten- und zeit-effiziente Verifikationsserie auf demselben `workflow_dispatch`-Strict-Pfad wie der Nightly-Run ausgefuehrt; alle drei komplett gruen inkl. `performance-audit` unter `perf_enforcement=strict`.
 - [x] **Nightly-Strict-Code-Remediation umgesetzt** — `mobile-release-gate` wieder auf Expo-SDK-55-Stand gebracht (`expo-doctor` 19/19, `expo install --check` gruen, Mobile-Typecheck/Web-Build/Coverage lokal gruen); `validate-status.mjs` wertet Strict-Findings jetzt typisiert aus und stuft `ready=false` als `observation_blocked` statt pauschal als Nightly-Fail ein; Performance-History-Cache in `.github/workflows/ci.yml` auf `performance-history-v5` angehoben und per Unit-Test abgesichert.
 - [x] **GitHub Docker-Build repariert (Node-Engine-Mismatch)** — `Dockerfile` `base` und `web-builder` auf `node:24.15.0-slim` angehoben, damit `mobile/package.json`-Engines (`node >=24.15.0`, `npm >=11`) mit dem Build-Container uebereinstimmen. Lokaler Gegencheck: `npm --prefix mobile ci` laeuft wieder sauber. (Commit `1a142da`)
 - [x] **Next-Priority-Plan erstellt und umgesetzt** — [docs/superpowers/plans/2026-05-24-next-priority-work-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-24-next-priority-work-plan.md) fuehrt Coverage, `JobManager` und Supabase-Readiness zusammen.
@@ -37,8 +37,7 @@
 
 ### Offen / Folgearbeit
 
-- [ ] **Nightly-Strict-Beobachtung nach Remediation** (aktiv, P0-Follow-up) — Code-Fixes sind lokal umgesetzt: Expo-SDK-55-Doctor wieder gruen, Strict-Validator-Policy repariert, History-Cache auf `v5` umgestellt. Offen bleibt der neue Beobachtungszyklus: 1x manueller Baseline-Dispatch und danach 3 Nightlies beobachten. Keine PR-Strict-Eskalation vor stabiler Nightly-Serie.
-- [ ] **Multi-User Login** (nächste große Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Nächste große Phase — Multi-User Login" weiter unten.
+- [ ] **Multi-User Login** (naechste grosse Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Naechste grosse Phase — Multi-User Login" weiter unten.
 
 ---
 
