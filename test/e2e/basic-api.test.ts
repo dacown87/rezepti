@@ -1,6 +1,6 @@
 /**
- * Basic API Tests for Rezepti React Project
- * Simple tests to verify the API is working
+ * Basic API tests for Rezepti.
+ * Simple tests to verify core API behavior.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -24,15 +24,15 @@ describe.skipIf(!serverAvailable)('Basic API Tests', () => {
       'GET',
       '/api/v1/health',
       null,
-      'React health endpoint'
+      'API health endpoint'
     );
     
     expect(result.success).toBe(true);
     expect(result.data?.status).toBe('healthy');
-    expect(result.data?.database).toBe('react');
+    expect(result.data?.database).toBe('supabase');
   });
 
-  it('should list recipes from React database', async () => {
+  it('should list recipes from configured database backend', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
       '/api/v1/recipes',
