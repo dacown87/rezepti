@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload root coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-root
           path: artifacts/coverage/root/**
@@ -150,7 +150,7 @@ jobs:
 
       - name: Upload API server log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-server-log
           path: /tmp/rezepti-server.log
@@ -239,7 +239,7 @@ jobs:
 
       - name: Upload legacy soak artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-legacy-soak-artifacts
           path: |
@@ -285,7 +285,7 @@ jobs:
 
       - name: Upload mobile coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-mobile
           path: artifacts/coverage/mobile/**
@@ -371,7 +371,7 @@ jobs:
 
       - name: Upload performance artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: performance-artifacts
           path: artifacts/performance/**
