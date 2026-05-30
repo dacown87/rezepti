@@ -1,7 +1,6 @@
 import React from 'react';
-import TestRenderer, { act } from 'react-test-renderer';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ReactTestInstance } from 'react-test-renderer';
 
 (globalThis as { React?: typeof React }).React = React;
 
@@ -109,18 +108,10 @@ describe('RecipeListScreen UI fallbacks', () => {
     });
 
     const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(RecipeListScreen));
-    });
-    expect(tree!.root.findAll((n: ReactTestInstance) => String(n.type) === 'ActivityIndicator').length).toBeGreaterThan(
-      0
-    );
-    expect(
-      tree!.root.findAll(
-        (n: ReactTestInstance) => String(n.type) === 'Text' && n.children.includes('Rezepte konnten nicht geladen werden')
-      ).length
-    ).toBe(0);
+    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeListScreen));
+
+    expect(UNSAFE_queryAllByType('ActivityIndicator').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Rezepte konnten nicht geladen werden')).toBeNull();
   });
 
   it('shows error fallback and triggers refetch via retry action', async () => {
@@ -132,18 +123,9 @@ describe('RecipeListScreen UI fallbacks', () => {
     });
 
     const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(RecipeListScreen));
-    });
+    render(React.createElement(RecipeListScreen));
 
-    const retry = tree!.root.find(
-      (n: ReactTestInstance) => String(n.type) === 'Text' && n.children.includes('Erneut versuchen')
-    );
-    const pressable = retry.parent as { props: { onPress?: () => unknown } };
-    await act(async () => {
-      await pressable.props.onPress?.();
-    });
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
 
     expect(state.refetchMock).toHaveBeenCalled();
   });
@@ -165,31 +147,13 @@ describe('RecipeListScreen UI fallbacks', () => {
     });
 
     const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(RecipeListScreen));
-    });
+    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeListScreen));
+    const offlineBannerNodes = UNSAFE_queryAllByType('OfflineBanner');
 
-    const hasCachedRecipe =
-      tree!.root.findAll(
-        (n: ReactTestInstance) => String(n.type) === 'Text' && n.children.includes('Cached Pasta')
-      ).length > 0;
-    const hasBlockingErrorFallback =
-      tree!.root.findAll(
-        (n: ReactTestInstance) =>
-          String(n.type) === 'Text' && n.children.includes('Rezepte konnten nicht geladen werden')
-      ).length > 0;
-    const hasRetryFallbackButton =
-      tree!.root.findAll(
-        (n: ReactTestInstance) => String(n.type) === 'Text' && n.children.includes('Erneut versuchen')
-      ).length > 0;
-    const offlineBannerNodes = tree!.root.findAll(
-      (n: ReactTestInstance) => String(n.type) === 'OfflineBanner' && n.props.isError === true
-    );
-
-    expect(hasCachedRecipe).toBe(true);
-    expect(hasBlockingErrorFallback).toBe(false);
-    expect(hasRetryFallbackButton).toBe(false);
+    expect(screen.getByText('Cached Pasta')).toBeTruthy();
+    expect(screen.queryByText('Rezepte konnten nicht geladen werden')).toBeNull();
+    expect(screen.queryByText('Erneut versuchen')).toBeNull();
     expect(offlineBannerNodes.length).toBe(1);
+    expect(offlineBannerNodes[0].props.isError).toBe(true);
   });
 });

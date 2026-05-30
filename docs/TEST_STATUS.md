@@ -75,6 +75,7 @@
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
 - ✅ `npm run test:unit` — **448 Tests bestanden, 13 skipped** (Stand: 2026-05-30)
 - ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-05-30)
+- ✅ Test-Infra-Migration gestartet (2026-05-30): `recipe-list-screen-fallbacks.test.tsx` und `recipe-detail-fallbacks.test.tsx` nutzen jetzt die `@testing-library/react-native`-API. Unter Vitest bleibt der lokale Compat-Layer vorerst aktiv, weil die echte RNTL-Laufzeit derzeit am untranspilierten React-Native-Flow-Import scheitert. Offen: Shopping-, Planner- und Workflow-Fallbacktests.
 - ✅ npm-Audit-Triage (2026-05-30): `npm audit fix` ohne `--force` fuer Root und Mobile; Root `5 moderate -> 4 moderate`, Mobile `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify`, `brace-expansion` und Root-`ws` geloest. Restfindings sind dokumentierte `drizzle-kit`-/Expo-SDK-bound Ausnahmen.
 - ✅ Root-API-Contract-Gate ist jetzt CI-verbindlich mit echtem Server-Boot (Stand: 2026-05-15): `e2e` startet `npm start`, wartet auf `/api/v1/health`, failt bei Timeout hart und führt danach `npm run test:e2e:contract` aus.
 - ✅ Lokale Verifikation gegen laufenden Server (2026-05-15): `npm run test:e2e:contract` -> **11/11 passed**.

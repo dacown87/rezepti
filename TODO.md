@@ -1,17 +1,18 @@
 
 ## 🎯 Aktueller Stand (2026-05-30)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Nightly-Strict-Remediation, Node-24-Verifikation und npm-Audit-Triage sind durch. Multi-User Login ist wieder der naechste Haupttrack.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Nightly-Strict-Remediation, Node-24-Verifikation und npm-Audit-Triage sind durch. Test-Infra-Migration Punkt 3 ist gestartet; Multi-User Login bleibt der naechste Haupttrack.**
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-05-30)
 
 1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key).
 2. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
-3. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
+3. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` weiterfuehren.
 4. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
 
 ### Erledigt 2026-05-30
 
+- [x] **Test-Infra-Migration Punkt 3 gestartet** — `recipe-list-screen-fallbacks.test.tsx` und `recipe-detail-fallbacks.test.tsx` importieren und nutzen jetzt `@testing-library/react-native` statt direkter `react-test-renderer`-Tree-Inspektion. Der bestehende Vitest-Compat-Layer kapselt `react-test-renderer` weiterhin als Uebergangsbruecke, weil die echte RNTL-Laufzeit unter Vitest aktuell am untranspilierten React-Native-Flow-Import scheitert. Verifiziert mit fokussierten Mobile-Tests und kompletter Mobile-Unit-Suite (`87 passed`). Offen bleiben `shopping-screen-fallbacks`, `planner-screen-fallbacks` und `mobile-workflow-list-detail-shopping-ui`.
 - [x] **npm-Audit-Findings triagiert** — `npm audit fix` ohne `--force` fuer Root und Mobile ausgefuehrt. Root reduziert `5 moderate -> 4 moderate`; `ws` ist geloest, uebrig bleibt der `drizzle-kit`/`@esbuild-kit`/`esbuild`-Dev-Tool-Cluster, dessen Audit-Fix einen SemVer-Major-/Downgrade-Pfad (`drizzle-kit@0.18.1`) vorschlaegt und deshalb nicht erzwungen wurde. Mobile reduziert `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify` und `brace-expansion` sind geloest, uebrig bleibt der Expo-SDK-gebundene `uuid`/`xcode`/Expo-Cluster. Verifiziert mit `npm ci`, `npm --prefix mobile ci`, `npx tsc --noEmit`, `npm --prefix mobile run typecheck`, `cd mobile && CI=1 npx expo-doctor` (`19/19`), `cd mobile && npx expo install --check`, `npm run test:unit` (`448 passed`, `13 skipped`) und `npm --prefix mobile run test:unit` (`87 passed`). Details: [docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md).
 
 ### Erledigt 2026-05-25

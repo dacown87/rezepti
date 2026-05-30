@@ -1,7 +1,6 @@
 import React from 'react';
-import TestRenderer, { act } from 'react-test-renderer';
+import { fireEvent, render, renderAsync, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ReactTestInstance } from 'react-test-renderer';
 
 (globalThis as { React?: typeof React }).React = React;
 
@@ -122,67 +121,38 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(RecipeDetailScreen));
-    });
+    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeDetailScreen));
 
     // Back button in header must be present immediately (structural shell)
-    const backPressables = tree!.root.findAll(
-      (node: ReactTestInstance) =>
-        String(node.type) === 'Pressable' &&
+    const backPressables = UNSAFE_queryAllByType('Pressable').filter(
+      (node) =>
         typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-        node.findAll((c: ReactTestInstance) => String(c.type) === 'Icon').length > 0
+        node.findAll((child) => String(child.type) === 'Icon').length > 0
     );
     expect(backPressables.length).toBeGreaterThan(0);
 
     // Skeleton placeholder container must be present
-    const skeleton = tree!.root.findAll(
-      (node: ReactTestInstance) =>
-        (node.props as { testID?: string }).testID === 'recipe-skeleton'
-    );
-    expect(skeleton.length).toBeGreaterThan(0);
+    expect(screen.getByTestId('recipe-skeleton')).toBeTruthy();
   });
 
   it('shows loading fallback while detail request is still pending', async () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(RecipeDetailScreen));
-    });
+    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeDetailScreen));
 
-    expect(tree!.root.findAll((n: ReactTestInstance) => String(n.type) === 'ActivityIndicator').length).toBeGreaterThan(
-      0
-    );
+    expect(UNSAFE_queryAllByType('ActivityIndicator').length).toBeGreaterThan(0);
   });
 
   it('shows not-found fallback and supports back navigation', async () => {
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(RecipeDetailScreen));
-      await Promise.resolve();
+    await renderAsync(React.createElement(RecipeDetailScreen));
+
+    await waitFor(() => {
+      expect(screen.getByText('Rezept nicht gefunden.')).toBeTruthy();
     });
 
-    const fallbackVisible =
-      tree!.root.findAll(
-        (n: ReactTestInstance) => String(n.type) === 'Text' && n.children.includes('Rezept nicht gefunden.')
-      ).length > 0;
-    expect(fallbackVisible).toBe(true);
-
-    const backPressable = tree!.root.find(
-      (node: ReactTestInstance) =>
-        String(node.type) === 'Pressable' &&
-        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-        node.findAll(
-          (child: ReactTestInstance) => String(child.type) === 'Text' && child.children.includes('Zurück')
-        ).length > 0
-    );
-    await act(async () => {
-      (backPressable.props as { onPress?: () => unknown }).onPress?.();
-    });
+    fireEvent.press(screen.getByText('Zurück'));
     expect(routerState.backMock).toHaveBeenCalled();
   });
 
@@ -205,34 +175,17 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(RecipeDetailScreen));
-      await Promise.resolve();
+    await renderAsync(React.createElement(RecipeDetailScreen));
+
+    await waitFor(() => {
+      expect(screen.getByText('Rezept konnte nicht geladen werden.')).toBeTruthy();
     });
 
-    expect(
-      tree!.root.findAll(
-        (n: ReactTestInstance) => String(n.type) === 'Text' && n.children.includes('Rezept konnte nicht geladen werden.')
-      ).length
-    ).toBeGreaterThan(0);
-
-    const retryPressable = tree!.root.find(
-      (node: ReactTestInstance) =>
-        String(node.type) === 'Pressable' &&
-        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-        node.findAll(
-          (child: ReactTestInstance) => String(child.type) === 'Text' && child.children.includes('Erneut versuchen')
-        ).length > 0
-    );
-    await act(async () => {
-      await (retryPressable.props as { onPress?: () => Promise<void> }).onPress?.();
-    });
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(
-      tree!.root.findAll((n: ReactTestInstance) => String(n.type) === 'Text' && n.children.includes('Retry Pasta'))
-        .length
-    ).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByText('Retry Pasta')).toBeTruthy();
+    });
   });
 });

@@ -23,16 +23,40 @@ function findByText(text: string): TestNode | null {
   return matches[0] ?? null;
 }
 
+function findByTestId(testID: string): TestNode | null {
+  if (!currentTree) return null;
+  const matches = currentTree.root.findAll(
+    (node: TestNode) => (node.props as { testID?: string } | undefined)?.testID === testID,
+  );
+  return matches[0] ?? null;
+}
+
 export function render(element: React.ReactElement) {
   act(() => {
     currentTree = TestRenderer.create(element);
   });
+  return renderResult();
+}
+
+export async function renderAsync(element: React.ReactElement) {
+  await act(async () => {
+    currentTree = TestRenderer.create(element);
+    await Promise.resolve();
+  });
+  return renderResult();
+}
+
+function renderResult() {
   return {
     toJSON: () => currentTree?.toJSON() ?? null,
     unmount: () => {
       act(() => {
         currentTree?.unmount();
       });
+    },
+    UNSAFE_queryAllByType(type: string) {
+      if (!currentTree) return [];
+      return currentTree.root.findAll((node: TestNode) => String(node.type) === type);
     },
   };
 }
@@ -46,6 +70,14 @@ export const screen = {
   queryByText(text: string) {
     return findByText(text);
   },
+  getByTestId(testID: string) {
+    const node = findByTestId(testID);
+    if (!node) throw new Error(`Unable to find testID: ${testID}`);
+    return node;
+  },
+  queryByTestId(testID: string) {
+    return findByTestId(testID);
+  },
   UNSAFE_queryAllByType(type: string) {
     if (!currentTree) return [];
     return currentTree.root.findAll((node: TestNode) => String(node.type) === type);
@@ -54,8 +86,14 @@ export const screen = {
 
 export const fireEvent = {
   press(node: TestNode) {
-    const onPress = (node.props as { onPress?: () => void }).onPress;
-    if (typeof onPress === 'function') onPress();
+    let current: TestNode | null = node;
+    while (current && typeof (current.props as { onPress?: () => void }).onPress !== 'function') {
+      current = current.parent;
+    }
+    const onPress = (current?.props as { onPress?: () => void } | undefined)?.onPress;
+    if (typeof onPress === 'function') {
+      return act(() => onPress());
+    }
   },
 };
 
@@ -66,6 +104,9 @@ export async function waitFor(assertion: () => void, timeoutMs = 1000) {
   while (Date.now() - started < timeoutMs) {
     try {
       await act(async () => {
+        for (let i = 0; i < 5; i += 1) {
+          await Promise.resolve();
+        }
         assertion();
       });
       return;
