@@ -2,6 +2,7 @@
 
 ## [1.0.121] – 2026-05-25
 
+- npm-Audit-Triage abgeschlossen: sichere Lockfile-Fixes ohne `--force`; Root-`ws`, Mobile-`@xmldom/xmldom`, `dompurify` und `brace-expansion` geloest; verbleibende `drizzle-kit`-/Expo-SDK-bound Findings dokumentiert.
 
 
 ## [1.0.120] – 2026-05-25

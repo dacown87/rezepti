@@ -1,14 +1,22 @@
 
-## 🎯 Aktueller Stand (2026-05-24)
+## 🎯 Aktueller Stand (2026-05-30)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness und die Nightly-Strict-Remediation inkl. Verifikationsserie sind durch. Multi-User Login ist wieder der naechste Haupttrack.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Nightly-Strict-Remediation, Node-24-Verifikation und npm-Audit-Triage sind durch. Multi-User Login ist wieder der naechste Haupttrack.**
 
-### Naechste Reihenfolge (priorisiert, Stand 2026-05-24)
+### Naechste Reihenfolge (priorisiert, Stand 2026-05-30)
 
 1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key).
 2. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
 3. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native`.
 4. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+
+### Erledigt 2026-05-30
+
+- [x] **npm-Audit-Findings triagiert** — `npm audit fix` ohne `--force` fuer Root und Mobile ausgefuehrt. Root reduziert `5 moderate -> 4 moderate`; `ws` ist geloest, uebrig bleibt der `drizzle-kit`/`@esbuild-kit`/`esbuild`-Dev-Tool-Cluster, dessen Audit-Fix einen SemVer-Major-/Downgrade-Pfad (`drizzle-kit@0.18.1`) vorschlaegt und deshalb nicht erzwungen wurde. Mobile reduziert `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify` und `brace-expansion` sind geloest, uebrig bleibt der Expo-SDK-gebundene `uuid`/`xcode`/Expo-Cluster. Verifiziert mit `npm ci`, `npm --prefix mobile ci`, `npx tsc --noEmit`, `npm --prefix mobile run typecheck`, `cd mobile && CI=1 npx expo-doctor` (`19/19`), `cd mobile && npx expo install --check`, `npm run test:unit` (`448 passed`, `13 skipped`) und `npm --prefix mobile run test:unit` (`87 passed`). Details: [docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md).
+
+### Erledigt 2026-05-25
+
+- [x] **Node-24-Upgrade verifiziert** — Lokale Runtime `node v24.15.0` / `npm 11.12.1`; Root und Mobile `npm ci` gruen; Root-Typecheck, Mobile-Typecheck, `expo-doctor` (`19/19`), Root-Unit-Tests (`448 passed`, `13 skipped`) und Mobile-Unit-Tests (`87 passed`) gruen. Voller Production-Docker-Build `docker build --target production -t rezepti-node24-check .` gruen; gebautes Image meldet ebenfalls `node v24.15.0` / `npm 11.12.1`.
 
 ### Erledigt 2026-05-24
 
@@ -29,7 +37,7 @@
 - [x] **P1 — Pre-commit-Hook gegen Phantom-Submodule** — `scripts/hooks/pre-commit` blockt Mode-160000-Entries ohne `.gitmodules`-Eintrag. Aktivierung via `npm install` (`prepare`-Script setzt `core.hooksPath`). Mit 3 Szenarien lokal verifiziert. (Commit `75c5482`)
 - [x] **Mobile-Plan Code-Review-Findings (alle 6) abgearbeitet** — Plan-Sektionen "Findings — Phase 1–3" jetzt alle `RESOLVED`:
     - **P2 canonicalName Length-Limit** — war schon umgesetzt (`src/routes/planner.ts:53-55`), nur Plan-Status nachgezogen.
-    - **P3 `^`-Constraints React/RN pinnen** — `mobile/package.json`: react/react-dom/react-native/react-native-svg/react-test-renderer auf exakte Expo-SDK-55-Versionen gepinnt. `expo-doctor` weiter 18/18.
+    - **P3 `^`-Constraints React/RN pinnen** — `mobile/package.json`: react/react-dom/react-native/react-native-svg/react-test-renderer auf exakte Expo-SDK-55-Versionen gepinnt. `expo-doctor` war zum damaligen Stand weiter 18/18; aktueller Stand 2026-05-30: 19/19.
     - **P3 Chrome-Versions-Pin in CI** — `.github/workflows/ci.yml:193`: `chrome-version: '150'` (Major-Pin, weil beide grünen Strict-Probes auf Chromium 150 liefen).
     - **P3 Coverage-Schwellenwert effektiv 1%** — `vitest.config.ts` + `mobile/vitest.config.ts`: per-Metrik-Floors statt globaler 1% (Root lines/statements/functions=30, branches=60; Mobile lines/statements=30, functions=35, branches=55). Beide Coverage-Runs grün.
     - **P3 Perf-History-Cache Cross-Branch** — durch früheren `v4-`-Cache-Umstieg + Strict-nur-auf-Schedule bereits entschärft; nur Plan-Status korrigiert.
@@ -233,8 +241,8 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv). _Plan: Phase 2 Follow-up_
 - [x] Coverage-Thresholds schrittweise anheben — Start-Gate 1% am 2026-05-13 auf per-Metrik-Floors angehoben (Root lines/statements/functions=30, branches=60; Mobile lines/statements=30, functions=35, branches=55). Weitere Ratchet-Schritte manuell über `COVERAGE_RATCHET_MIN`-Env oder Baseline-Anhebung in den Config-Files.
 - [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)
-- [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI-Pinning), Expo SDK 55, React 19.2, React Native 0.83
-- [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` 18/18 gruen, `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
+- [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI/Docker-Pinning), Expo SDK 55, React 19.2, React Native 0.83; am 2026-05-25 lokal und per Production-Docker-Build erneut verifiziert.
+- [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` war beim Abschluss 18/18 gruen; aktueller Stand 2026-05-30: 19/19. `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
 
 ## Dependency-Update-Status (2026-05-13)
 
@@ -243,7 +251,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ### Umsetzung des Upgrade-Plans
 
-- [x] **Batch 0 — CI Runtime Hygiene** teilweise abgeschlossen (2026-05-14) — `.github/workflows/docker-publish.yml` und `.github/workflows/changelog-update.yml` angehoben: `actions/checkout`/`actions/setup-node` bewusst auf `v5` (niedrigeres Migrationsrisiko als `v6` bei gleichem Node-24-Ziel), `docker/login-action` auf `v4`, `docker/build-push-action` auf `v7`. **Restoffen:** `.github/workflows/ci.yml` nutzt weiterhin alte Action-Majors; die Node-20-Deprecation kann daher nicht nur von Northflank kommen. `northflank/deploy-to-northflank@v1` bleibt zusaetzlich als gesonderter Upstream-Sonderfall offen.
+- [x] **Batch 0 — CI Runtime Hygiene** abgeschlossen fuer GitHub-eigene Workflows (2026-05-25 nachverifiziert) — `.github/workflows/ci.yml`, `.github/workflows/docker-publish.yml` und `.github/workflows/changelog-update.yml` nutzen Node-24-kompatible Action-Linien (`actions/checkout@v5`, `actions/setup-node@v5`, `docker/login-action@v4`, `docker/build-push-action@v7`) und pinnen Node auf `24.15.0`, wo eine Node-Runtime installiert wird. **Separat offen:** `northflank/deploy-to-northflank@v1` bleibt ein dokumentierter Upstream-Sonderfall und gehoert in den eigenen Northflank-Infra-Track.
 - [x] **Batch 1 — Kleinster Code-Track** abgeschlossen (2026-05-14, Mobile-Nachkorrektur 2026-05-24) — `@hono/node-server` `^1.19.14 -> ^2.0.2`; der zwischenzeitliche Mobile-Compiler-Schritt auf TypeScript 6 wurde fuer Expo-SDK-55-Kompatibilitaet wieder auf die Doctor-kompatible 5.9-Linie zurueckgenommen. Verifiziert mit Mobile-Typecheck und `expo-doctor`.
 - [x] **Batch 2 — Tooling-Welle** abgeschlossen (2026-05-14 / nachgezogen 2026-05-24) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet. API-E2E-Contract-Gate wurde am 2026-05-15 echt gebootet; Coverage-Floors wurden am 2026-05-24 wieder auf mindestens `30` angezogen.
 - [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14, SDK-55-Nachkorrektur 2026-05-24) — der zwischenzeitliche Schritt auf `@react-native-async-storage/async-storage` `3.0.2` wurde fuer Expo-SDK-55-Doctor-Kompatibilitaet wieder auf `2.2.0` zurueckgenommen. Persistenztests, UI-Workflow-Regressionen und Mobile-Coverage bleiben gruen. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.

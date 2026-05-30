@@ -73,8 +73,9 @@
 
 - ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
-- ✅ `npm run test:unit` — **438 Tests bestanden, 13 skipped** (Stand: 2026-05-13)
-- ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-05-13)
+- ✅ `npm run test:unit` — **448 Tests bestanden, 13 skipped** (Stand: 2026-05-30)
+- ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-05-30)
+- ✅ npm-Audit-Triage (2026-05-30): `npm audit fix` ohne `--force` fuer Root und Mobile; Root `5 moderate -> 4 moderate`, Mobile `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify`, `brace-expansion` und Root-`ws` geloest. Restfindings sind dokumentierte `drizzle-kit`-/Expo-SDK-bound Ausnahmen.
 - ✅ Root-API-Contract-Gate ist jetzt CI-verbindlich mit echtem Server-Boot (Stand: 2026-05-15): `e2e` startet `npm start`, wartet auf `/api/v1/health`, failt bei Timeout hart und führt danach `npm run test:e2e:contract` aus.
 - ✅ Lokale Verifikation gegen laufenden Server (2026-05-15): `npm run test:e2e:contract` -> **11/11 passed**.
 - ✅ Historische Root-E2E-Suite ist vom Pflicht-Gate getrennt: `test:e2e:legacy*` läuft separat im neuen `e2e-legacy-soak` Job (nightly per `schedule`, optional manuell per `workflow_dispatch`-Flag `run_e2e_legacy_soak=true`).
@@ -145,9 +146,10 @@ Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/reze
 
 ---
 
-## Mobile / Expo Status (2026-05-13)
+## Mobile / Expo Status (2026-05-30)
 
-- ✅ `cd mobile && CI=1 npx expo-doctor` — `18/18` Checks bestanden
+- ✅ `cd mobile && CI=1 npx expo-doctor` — `19/19` Checks bestanden
+- ✅ `cd mobile && npx expo install --check` — Dependencies up to date
 - ✅ `npm run mobile:typecheck` — erfolgreich
 - ✅ `npm run test:mobile` — `87/87` Tests bestanden
 - ✅ `npm run mobile:build:web` — erfolgreicher Expo-Web-Export nach `public/`
@@ -223,7 +225,7 @@ Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/reze
   - `React.memo` auf `DayColumn` mit stabiler `useCallback`-Ref fuer `handleRemoveEntry`
 - ✅ Backend/Search Follow-up fuer Zutaten-Suche im Plan dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist `searchRecipesByIngredientsAdvanced` (`src/db-react.ts:133-181`) keine Performance-Bremse; kein Backend-Refactor gerechtfertigt
 - ✅ Phase 4 damit als abgeschlossen markiert (Acceptance Criteria erfuellt: dokumentierter Backend-Follow-up + messbare Render-Reduktion)
-- ✅ Mobile-Suite damals: `83/83` Tests gruen, Mobile-Typecheck clean. Aktueller Stand siehe oben: `86/86`.
+- ✅ Mobile-Suite damals: `83/83` Tests gruen, Mobile-Typecheck clean. Aktueller Stand siehe oben: `87/87`.
 
 ### Hinweise
 
