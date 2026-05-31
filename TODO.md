@@ -5,7 +5,7 @@
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-05-31)
 
-1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key).
+1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key). Erster Slice ist geplant: [docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 2. **Supabase Advisor Follow-ups separat planen** — Kern-Remediation ist abgeschlossen; offen bleiben nur `vector`/`pg_trgm` Extension-Move nach Staging-Probe und `unused_index` Cleanup nach Nutzungs-/Redundanznachweis. Details: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
 4. Test-Infra-Migration nachziehen: echte `@testing-library/react-native` laeuft unter Vitest ueber den RNTL-Optimizer-Slice und `mobile/test/testing-library-rn-real.ts`; direkte `react-test-renderer`-Imports sind blockiert, der alte Compat-Layer ist entfernt und die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests sind abgebaut.
@@ -60,6 +60,8 @@
 ### Offen / Folgearbeit
 
 - [ ] **Multi-User Login** (naechste grosse Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Naechste grosse Phase — Multi-User Login" weiter unten.
+    - [x] Ersten Multi-User-Login-Slice geplant: Auth-Grundlage, Mobile-Session-Schicht, owner-sichere `shopping_list`/`meal_plan`-Pfade und RLS-Verifikation vor produktiven Grants.
+    - [ ] Phase 0/1 starten: Branch-/Ziel-DB klaeren und Server-Auth-Skeleton mit Tests bauen.
 - [x] **Supabase Advisor Remediation** — [reviewed Plan](/home/patrick/Projekte/rezepti/docs/SupaBase/supabase-advisor-remediation-plan.md) abgearbeitet; Kern-Remediation abgeschlossen, Restpunkte als eigene Follow-up-Tracks dokumentiert:
     - [x] Preflight gegen Ziel-DB ausfuehren: finaler Lauf unter `docs/SupaBase/runbook-output/preflight-2026-05-31-184128.txt`.
     - [x] Runtime-Rolle, `rolsuper`/`rolbypassrls` und Data-API-Grants dokumentieren; Preflight prueft jetzt auch Schema-, Sequence- und Function-Execute-Rechte.
