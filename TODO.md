@@ -274,10 +274,10 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI/Docker-Pinning), Expo SDK 55, React 19.2, React Native 0.83; am 2026-05-25 lokal und per Production-Docker-Build erneut verifiziert.
 - [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` war beim Abschluss 18/18 gruen; aktueller Stand 2026-05-30: 19/19. `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
 
-## Dependency-Update-Status (2026-05-13)
+## Dependency-Update-Status (2026-05-31)
 
 - Vollstaendige Zielmatrix und Upgrade-Reihenfolge: [docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md)
-- Entscheidungsregel: so modern wie sinnvoll, aber nur auf stabilen Linien und nie gegen Expo-/SDK-Support oder Major-Migrationsrisiken.
+- Entscheidungsregel: so modern wie sinnvoll, aber nur auf stabilen Linien und nie gegen Expo-/SDK-Support oder Major-Migrationsrisiken. Matrix wurde am 2026-05-31 gegen `npm outdated`, `expo install --check`, Supabase CLI und Workflow-Actions nachgezogen.
 
 ### Umsetzung des Upgrade-Plans
 
@@ -286,6 +286,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] **Batch 2 — Tooling-Welle** abgeschlossen (2026-05-14 / nachgezogen 2026-05-24) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet. API-E2E-Contract-Gate wurde am 2026-05-15 echt gebootet; Coverage-Floors wurden am 2026-05-24 wieder auf mindestens `30` angezogen.
 - [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14, SDK-55-Nachkorrektur 2026-05-24) — der zwischenzeitliche Schritt auf `@react-native-async-storage/async-storage` `3.0.2` wurde fuer Expo-SDK-55-Doctor-Kompatibilitaet wieder auf `2.2.0` zurueckgenommen. Persistenztests, UI-Workflow-Regressionen und Mobile-Coverage bleiben gruen. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.
 - [ ] **Batch 4 — Expo-/Styling-Track spaeter** — Expo-SDK-Sprung, `react-native-web`, `react-native-*`, `tailwindcss 4`, `nativewind 5`, `react-native-worklets`/`reanimated` bleiben bewusst vertagt, bis die jeweilige Leitplanke stabil ist.
+- [ ] **Kleine Patch-Slices aus Matrix-Nachzug 2026-05-31** — Root: `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai`, `@types/node`; Mobile innerhalb SDK 55: TanStack-Patches, `@react-navigation/native`, `nativewind` v4-Patch, `lucide-react-native`, Vitest-Patch. Nicht mit Multi-User/Auth vermischen.
 
 ### Follow-up aus Eng-Review (2026-05-14)
 
