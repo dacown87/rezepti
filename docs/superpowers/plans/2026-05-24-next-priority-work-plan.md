@@ -1,11 +1,22 @@
 # Next Priority Work Plan
 
 Datum: 2026-05-24
-Status: Draft
+Status: Completed 2026-05-31
+
+## Abschlussnotiz 2026-05-31
+
+Dieser Plan ist abgeschlossen.
+
+- Coverage-Gates wurden nach der Vitest-4-Migration wieder angezogen.
+- `JobManager`-Tests pruefen wieder echte Runtime-Pfade.
+- Supabase Data API Readiness wurde konkretisiert und spaeter durch die Supabase Advisor Kern-Remediation verifiziert/ergaenzt.
+- Die echte Multi-User-Login-Umsetzung ist jetzt als eigener Folgeplan geschnitten: [2026-05-31-multi-user-login-first-slice-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
+
+Die folgenden Abschnitte bleiben als historische Ausfuehrungsplanung erhalten.
 
 ## Ausgangslage
 
-Die aktuelle `TODO.md` priorisiert drei direkte naechste Arbeiten:
+Die damalige `TODO.md` priorisierte drei direkte naechste Arbeiten:
 
 1. Coverage-Gates nach der Vitest-4-Migration wieder anziehen.
 2. `JobManager`-Tests wieder auf echte Laufzeitlogik ziehen.
@@ -235,4 +246,4 @@ Wenn ein Skriptname nicht existiert, gilt die lokale `package.json` als Quelle d
 
 ## Entscheidung
 
-Dieser Plan behandelt die Punkte 1-3 als einen zusammenhaengenden Qualitaets- und Readiness-Block. Multi-User Login startet erst danach als eigene Phase.
+Dieser Plan behandelte die Punkte 1-3 als einen zusammenhaengenden Qualitaets- und Readiness-Block. Multi-User Login startet danach als eigene Phase und ist seit dem 2026-05-31 im Folgeplan [2026-05-31-multi-user-login-first-slice-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md) konkretisiert.
