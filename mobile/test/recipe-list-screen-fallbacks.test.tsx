@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -73,11 +73,16 @@ vi.mock('react-native', () => {
     Text: wrap('Text'),
     FlatList: ({ data, renderItem, ListEmptyComponent }: Record<string, unknown>) => {
       if (Array.isArray(data) && data.length > 0 && typeof renderItem === 'function') {
+        const children = data.map((item, index) =>
+          (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index })
+        );
         return React.createElement(
           'FlatList',
           {},
-          data.map((item, index) =>
-            (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index })
+          children.map((child, index) =>
+            React.isValidElement(child)
+              ? React.cloneElement(child, { key: child.key ?? `flat-list-item-${index}` })
+              : child
           )
         );
       }
@@ -93,6 +98,12 @@ vi.mock('react-native', () => {
     Share: { share: vi.fn(async () => undefined) },
   };
 });
+
+async function press(target: Parameters<typeof fireEvent.press>[0]) {
+  await act(async () => {
+    await fireEvent.press(target);
+  });
+}
 
 describe('RecipeListScreen UI fallbacks', () => {
   beforeEach(() => {
@@ -126,7 +137,7 @@ describe('RecipeListScreen UI fallbacks', () => {
     const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
     render(React.createElement(RecipeListScreen));
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     expect(state.refetchMock).toHaveBeenCalled();
   });

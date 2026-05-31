@@ -60,11 +60,16 @@ Reproduktion:
 - Mit dem Runtime-Fix laeuft `npm --prefix mobile run test:unit` mit `87 passed` und `npm --prefix mobile run typecheck` gruen.
 - Nach dem Strukturquery-Abbau laeuft der fokussierte Slice `npm --prefix mobile run test:unit -- recipe-detail-fallbacks recipe-list-screen-fallbacks shopping-screen-fallbacks planner-screen-fallbacks mobile-workflow-list-detail-shopping-ui` mit `22 passed`.
 
-Bekannte Warnungen nach Real-RNTL:
+Bekannte Warnungen nach Real-RNTL, aktualisiert nach Warnungs-Triage am
+2026-05-31:
 
 - `react-test-renderer is deprecated` aus dem RNTL/React-19-Renderpfad.
-- React-`act(...)`-Warnungen in async Retry-/Error-Pfaden.
-- `key`-Prop-Warnungen aus lokalen `FlatList`-Testshims.
+- React-`act(...)`-Warnungen in async Focus-/Storage-Pfaden. Die Retry- und
+  Mutation-Pfade der migrierten UI-Tests laufen jetzt ueber kleine
+  `act`-Wrapper; die Warnungen wurden im vollen Mobile-Testlauf von 58 auf 4
+  reduziert.
+- `key`-Prop-Warnungen aus lokalen `FlatList`-Testshims sind behoben. Die
+  Testshims geben gerenderte Items jetzt mit stabilen Keys weiter.
 
 Diese Warnungen sind Test-Infrastruktur-Rest und kein Hinweis auf direkte Renderer-Imports oder den alten Compat-Layer.
 
@@ -86,4 +91,4 @@ Er blockiert neue direkte `react-test-renderer`-Imports in Mobile-Testdateien. D
 
 ## Naechster Schritt
 
-Der File-Migrationsslice, `renderAsync`-Abbau, Runtime-Fixpfad und Abbau der dokumentierten `UNSAFE_queryAllByType`-Zugriffe sind abgeschlossen. Naechster Schritt ist keine RNTL-Blockade mehr, sondern eine separate Warnungs-Triage fuer `react-test-renderer`-Deprecation, `act(...)`-Warnungen und `FlatList`-Shim-Keys.
+Der File-Migrationsslice, `renderAsync`-Abbau, Runtime-Fixpfad und Abbau der dokumentierten `UNSAFE_queryAllByType`-Zugriffe sind abgeschlossen. Die erste Warnungs-Triage ist umgesetzt: `FlatList`-Shim-Keys sind erledigt, `act(...)` ist stark reduziert, und `react-test-renderer`-Deprecation bleibt bis zu einem RNTL-/Renderer-Upgrade als erwarteter Upstream-Rest.

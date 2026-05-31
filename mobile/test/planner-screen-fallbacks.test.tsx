@@ -71,11 +71,16 @@ vi.mock('react-native', () => {
     ActivityIndicator: wrap('ActivityIndicator'),
     FlatList: ({ data, renderItem, ListEmptyComponent }: Record<string, unknown>) => {
       if (Array.isArray(data) && data.length > 0 && typeof renderItem === 'function') {
+        const children = data.map((item, index) =>
+          (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index })
+        );
         return React.createElement(
           'FlatList',
           {},
-          data.map((item, index) =>
-            (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index })
+          children.map((child, index) =>
+            React.isValidElement(child)
+              ? React.cloneElement(child, { key: child.key ?? `flat-list-item-${index}` })
+              : child
           )
         );
       }
@@ -127,6 +132,14 @@ async function openRecipePicker(view: Rendered) {
   await openAddMethod(view);
   await fireEvent.press(screen.getByText('Rezept auswählen'));
 }
+
+async function press(target: ReactTestTarget) {
+  await act(async () => {
+    await fireEvent.press(target);
+  });
+}
+
+type ReactTestTarget = Parameters<typeof fireEvent.press>[0];
 
 describe('PlannerScreen UI fallbacks', () => {
   beforeEach(() => {
@@ -191,7 +204,7 @@ describe('PlannerScreen UI fallbacks', () => {
       expect(screen.getByText('Wochenplan konnte nicht geladen werden.')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     await waitFor(() => {
       expect(plannerFetchCalls).toBe(2);
@@ -214,7 +227,7 @@ describe('PlannerScreen UI fallbacks', () => {
     const view = render(React.createElement(PlannerScreen));
 
     await openAddMethod(view);
-    await fireEvent.press(screen.getByText('QR-Code scannen'));
+    await press(screen.getByText('QR-Code scannen'));
 
     const scanner = screen.getByTestId('planner-qr-scanner');
     await fireEvent(scanner!, 'scan', 'invalid-qr-content');
@@ -255,13 +268,13 @@ describe('PlannerScreen UI fallbacks', () => {
       expect(screen.getByText('Suppe')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Einkaufsliste'));
+    await press(screen.getByText('Einkaufsliste'));
 
     await waitFor(() => {
       expect(screen.getByText('Einkaufsliste konnte nicht erstellt werden.')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     await waitFor(() => {
       expect(state.router.navigate).toHaveBeenCalledWith('/(tabs)/shopping');
@@ -295,7 +308,7 @@ describe('PlannerScreen UI fallbacks', () => {
     });
     expect(screen.queryByText('Keine Rezepte gefunden.')).toBeNull();
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     await waitFor(() => {
       expect(recipesFetchCalls).toBe(2);
@@ -386,13 +399,13 @@ describe('PlannerScreen UI fallbacks', () => {
     await waitFor(() => {
       expect(screen.getByText('Suppe')).toBeTruthy();
     });
-    await fireEvent.press(screen.getByText('Suppe'));
+    await press(screen.getByText('Suppe'));
 
     await waitFor(() => {
       expect(screen.getByText('Rezept konnte nicht zum Wochenplan hinzugefügt werden.')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     await waitFor(() => {
       expect(plannerPostCalls).toBe(2);
@@ -438,7 +451,7 @@ describe('PlannerScreen UI fallbacks', () => {
 
     const removeAction = screen.getByTestId('planner-remove-entry-1');
     expect(removeAction).toBeTruthy();
-    await fireEvent.press(removeAction!);
+    await press(removeAction!);
 
     const alertButtons = state.alertMock.mock.calls[0]?.[2] as Array<{ text: string; onPress?: () => Promise<void> }>;
     const confirmAction = alertButtons.find((button) => button.text === 'Entfernen');
@@ -451,7 +464,7 @@ describe('PlannerScreen UI fallbacks', () => {
       expect(screen.getByText('Rezept konnte nicht entfernt werden.')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     await waitFor(() => {
       expect(deleteCalls).toBe(2);

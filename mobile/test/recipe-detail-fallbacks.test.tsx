@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -94,6 +94,12 @@ vi.mock('lucide-react-native', () => {
   };
 });
 
+async function press(target: Parameters<typeof fireEvent.press>[0]) {
+  await act(async () => {
+    await fireEvent.press(target);
+  });
+}
+
 vi.mock('react-native', () => {
   const wrap = (type: string) => ({ children, ...props }: Record<string, unknown>) =>
     React.createElement(type, props, children as React.ReactNode);
@@ -144,7 +150,7 @@ describe('RecipeDetailScreen UI fallbacks', () => {
       expect(screen.getByText('Rezept nicht gefunden.')).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText('Zurück'));
+    await press(screen.getByText('Zurück'));
     expect(routerState.backMock).toHaveBeenCalled();
   });
 
@@ -173,7 +179,7 @@ describe('RecipeDetailScreen UI fallbacks', () => {
       expect(screen.getByText('Rezept konnte nicht geladen werden.')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await waitFor(() => {

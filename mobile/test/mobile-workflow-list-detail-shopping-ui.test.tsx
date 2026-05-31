@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -131,11 +131,16 @@ vi.mock('react-native', () => {
     Share: { share: vi.fn(async () => undefined) },
     FlatList: ({ data, renderItem, ListEmptyComponent }: Record<string, unknown>) => {
       if (Array.isArray(data) && data.length > 0 && typeof renderItem === 'function') {
+        const children = data.map((item, index) =>
+          (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index })
+        );
         return React.createElement(
           'FlatList',
           {},
-          data.map((item, index) =>
-            (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index })
+          children.map((child, index) =>
+            React.isValidElement(child)
+              ? React.cloneElement(child, { key: child.key ?? `flat-list-item-${index}` })
+              : child
           )
         );
       }
@@ -145,6 +150,12 @@ vi.mock('react-native', () => {
       React.createElement('Pressable', props, children as React.ReactNode),
   };
 });
+
+async function press(target: Parameters<typeof fireEvent.press>[0]) {
+  await act(async () => {
+    await fireEvent.press(target);
+  });
+}
 
 describe('mobile ui workflow: list -> detail -> shopping', () => {
   beforeEach(() => {
@@ -190,12 +201,12 @@ describe('mobile ui workflow: list -> detail -> shopping', () => {
     const listRender = render(React.createElement(RecipeListScreen));
 
     expect(screen.getByText('Alle Rezepte')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Alle Rezepte'));
+    await press(screen.getByText('Alle Rezepte'));
 
     await waitFor(() => {
       expect(screen.getByTestId('recipe-card-11')).toBeTruthy();
     });
-    await fireEvent.press(screen.getByTestId('recipe-card-11'));
+    await press(screen.getByTestId('recipe-card-11'));
 
     expect(state.router.push).toHaveBeenCalledWith('/recipe/11');
     listRender.unmount();
@@ -211,7 +222,7 @@ describe('mobile ui workflow: list -> detail -> shopping', () => {
       expect(screen.getAllByText('Pasta').length).toBeGreaterThan(0);
     });
 
-    await fireEvent.press(screen.getByText('Einkauf'));
+    await press(screen.getByText('Einkauf'));
 
     await waitFor(() => {
       expect(state.addIngredientsMock).toHaveBeenCalledWith(['Nudeln', 'Tomaten'], 11);

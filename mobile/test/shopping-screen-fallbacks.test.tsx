@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -57,16 +57,19 @@ vi.mock('react-native', () => {
         children.push(
           React.createElement(
             'Pressable',
-            { testID: 'shopping-refresh-control', onPress: refreshElement.props.onRefresh },
+            { key: 'refresh-control', testID: 'shopping-refresh-control', onPress: refreshElement.props.onRefresh },
             React.createElement('Text', {}, 'Refresh shopping list')
           )
         );
       }
       if (Array.isArray(data) && typeof renderItem === 'function') {
         children.push(
-          ...data.map((item, index) =>
-            (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index })
-          )
+          ...data.map((item, index) => {
+            const child = (renderItem as (args: { item: unknown; index: number }) => React.ReactNode)({ item, index });
+            return React.isValidElement(child)
+              ? React.cloneElement(child, { key: child.key ?? `flat-list-item-${index}` })
+              : child;
+          })
         );
       }
       return React.createElement('FlatList', {}, children);
@@ -79,6 +82,12 @@ vi.mock('react-native', () => {
     Share: { share: vi.fn(async () => undefined) },
   };
 });
+
+async function press(target: Parameters<typeof fireEvent.press>[0]) {
+  await act(async () => {
+    await fireEvent.press(target);
+  });
+}
 
 describe('ShoppingScreen UI fallbacks', () => {
   const fetchMock = vi.fn();
@@ -114,7 +123,7 @@ describe('ShoppingScreen UI fallbacks', () => {
       expect(screen.getByText('Einkaufsliste konnte nicht geladen werden')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -148,14 +157,19 @@ describe('ShoppingScreen UI fallbacks', () => {
     const input = screen.getByPlaceholderText('Artikel hinzufügen…');
 
     await fireEvent.changeText(input, 'Milch');
-    await fireEvent(input, 'submitEditing');
+    await waitFor(() => {
+      expect((input.props as { value?: string }).value).toBe('Milch');
+    });
+    await act(async () => {
+      await fireEvent(input, 'submitEditing');
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Artikel konnte nicht hinzugefügt werden.')).toBeTruthy();
     });
     expect((input.props as { value?: string }).value).toBe('Milch');
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(4);
     await waitFor(() => {
@@ -185,14 +199,14 @@ describe('ShoppingScreen UI fallbacks', () => {
       expect(screen.getByText('Tomaten')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText('Tomaten'));
+    await press(screen.getByText('Tomaten'));
 
     await waitFor(() => {
       expect(screen.getByText('Status konnte nicht aktualisiert werden.')).toBeTruthy();
     });
     expect(screen.getByText('Tomaten')).toBeTruthy();
 
-    await fireEvent.press(screen.getByText('Erneut versuchen'));
+    await press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -218,7 +232,7 @@ describe('ShoppingScreen UI fallbacks', () => {
       expect(screen.getByText('Brot')).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByTestId('shopping-refresh-control'));
+    await press(screen.getByTestId('shopping-refresh-control'));
 
     expect(screen.getByText('Brot')).toBeTruthy();
     expect(screen.queryByText('Einkaufsliste konnte nicht geladen werden')).toBeNull();

@@ -130,7 +130,7 @@ Mobile-Testdateien importieren inzwischen echte `@testing-library/react-native`.
 
 #### rntl-real-runtime-still-emits-test-warnings (9/10, 2026-05-31)
 
-Der Real-RNTL-Pfad ist gruen, aber nicht warnfrei. Erwartete Restwarnungen sind aktuell: `react-test-renderer is deprecated` aus RNTL/React-19-Internals, React-`act(...)`-Warnungen in async Retry-/Error-Pfaden und `key`-Prop-Warnungen aus lokalen `FlatList`-Testshims. Diese Warnungen separat triagieren; sie sind nicht mehr mit dem alten Compat-Layer oder direkten `react-test-renderer`-Imports gleichzusetzen.
+Der Real-RNTL-Pfad ist gruen, aber nicht komplett warnfrei. Lokale `FlatList`-Testshims muessen gerenderte `renderItem`-Kinder mit stabilen Keys weitergeben, sonst erzeugen sie falsche `key`-Prop-Warnungen trotz korrekter Produkt-`keyExtractor`s. Retry-/Mutation-Events in RNTL-Fallbacktests sollten ueber `act`-Wrapper laufen. Nach der ersten Triage sind `key`-Warnungen weg und `act(...)` stark reduziert; `react-test-renderer is deprecated` bleibt aus RNTL/React-19-Internals und ist eher ein Dependency-/Renderer-Upgrade-Thema als ein lokaler Testcode-Fix.
 *Files:* `docs/TEST_STATUS.md`, `mobile/test/planner-screen-fallbacks.test.tsx`, `mobile/test/shopping-screen-fallbacks.test.tsx`, `mobile/test/recipe-list-screen-fallbacks.test.tsx`
 
 #### expo-scrollview-justify-center-web (10/10, 2026-04-16)
