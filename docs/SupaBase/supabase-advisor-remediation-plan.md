@@ -3,6 +3,21 @@
 
 Stand: 2026-05-31
 
+## Completion Status
+
+Die Kern-Remediation aus diesem Plan wurde am 2026-05-31 umgesetzt und
+verifiziert:
+
+- `function_search_path_mutable` wird im Advisor nicht mehr gemeldet.
+- Die 5 fehlenden Foreign-Key-Indexes sind angelegt, valide und bereit.
+- RLS-ohne-Policy ist fuer das aktuelle Backend-only/Data-API-closed Modell
+  klassifiziert.
+- Advisor-Exports liegen unter `docs/SupaBase/advisor-output/`.
+
+Die verbleibenden Punkte `extension_in_public` und `unused_index` sind bewusst
+ausgelagert nach
+`docs/SupaBase/advisor-followups-2026-05-31.md`.
+
 ## Plan Summary
 
 Dieser Plan behebt die echten Supabase-Advisor-Risiken, ohne die aktuell absichtliche Backend-only-Sicherheitsgrenze zu schwächen.
@@ -81,12 +96,16 @@ db/migrations/2026-05-31-supabase-advisor-search-path-and-fk-indexes.sql
 ```sql
 select
   n.nspname as schema,
+  p.oid::regprocedure as signature,
   p.proname as function_name,
   pg_get_function_identity_arguments(p.oid) as args,
+  r.rolname as owner,
+  p.prosecdef as security_definer,
   p.proconfig,
   pg_get_functiondef(p.oid) as definition
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
+join pg_roles r on r.oid = p.proowner
 where n.nspname = 'public'
   and p.proname in (
     'auto_enable_rls',
@@ -118,6 +137,8 @@ order by table_schema, table_name, grantee, privilege_type;
 ```
 
 Backend-only Tabellen muessen fuer `anon` und `authenticated` keine direkten Grants haben. Wenn Grants existieren, erst bewerten und dann gezielt entziehen.
+
+Der Table-Grant-Check beweist nur Tabellenrechte. Fuer eine vollstaendige Data-API-Sperren-Dokumentation gehoeren zusaetzlich Schema-`USAGE`, Sequence-Rechte und `FUNCTION EXECUTE` fuer `anon`, `authenticated` und `service_role` in den Preflight. `docs/SupaBase/preflight.sql` gibt diese Privilegien deshalb separat aus; Revokes duerfen daraus erst nach Tabellen-/Funktionsklassifizierung abgeleitet werden.
 
 ### Foreign-Key- und Index-Preflight
 
@@ -157,7 +178,9 @@ select
 from pg_constraint con
 left join pg_index idx
   on idx.indrelid = con.conrelid
- and idx.indkey::int2[][:array_length(con.conkey, 1)] = con.conkey
+ and idx.indisvalid
+ and idx.indisready
+ and (idx.indkey::int2[])[0:array_length(con.conkey, 1) - 1] = con.conkey
 where con.contype = 'f'
   and con.conname in (
     'code_edges_chunk_source_id_fkey',

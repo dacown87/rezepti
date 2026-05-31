@@ -1,0 +1,2044 @@
+== runtime role ==
+ current_user | session_user 
+--------------+--------------
+ postgres     | postgres
+(1 row)
+
+== role flags ==
+    rolname    | rolsuper | rolbypassrls 
+---------------+----------+--------------
+ anon          | f        | f
+ authenticated | f        | f
+ postgres      | f        | t
+ service_role  | f        | t
+(4 rows)
+
+== target function signatures/search_path ==
+ schema |          signature           |       function_name        | args |  owner   | security_definer |            proconfig            
+--------+------------------------------+----------------------------+------+----------+------------------+---------------------------------
+ public | auto_enable_rls()            | auto_enable_rls            |      | postgres | f                | {"search_path=public, pg_temp"}
+ public | notify_minion_job_change()   | notify_minion_job_change   |      | postgres | f                | {"search_path=public, pg_temp"}
+ public | update_chunk_search_vector() | update_chunk_search_vector |      | postgres | f                | {"search_path=public, pg_temp"}
+ public | update_page_search_vector()  | update_page_search_vector  |      | postgres | f                | {"search_path=public, pg_temp"}
+(4 rows)
+
+== data api table grants for public tables ==
+ table_schema |        table_name         |    grantee    | privilege_type 
+--------------+---------------------------+---------------+----------------
+ public       | access_tokens             | anon          | DELETE
+ public       | access_tokens             | anon          | INSERT
+ public       | access_tokens             | anon          | REFERENCES
+ public       | access_tokens             | anon          | SELECT
+ public       | access_tokens             | anon          | TRIGGER
+ public       | access_tokens             | anon          | TRUNCATE
+ public       | access_tokens             | anon          | UPDATE
+ public       | access_tokens             | authenticated | DELETE
+ public       | access_tokens             | authenticated | INSERT
+ public       | access_tokens             | authenticated | REFERENCES
+ public       | access_tokens             | authenticated | SELECT
+ public       | access_tokens             | authenticated | TRIGGER
+ public       | access_tokens             | authenticated | TRUNCATE
+ public       | access_tokens             | authenticated | UPDATE
+ public       | access_tokens             | service_role  | DELETE
+ public       | access_tokens             | service_role  | INSERT
+ public       | access_tokens             | service_role  | REFERENCES
+ public       | access_tokens             | service_role  | SELECT
+ public       | access_tokens             | service_role  | TRIGGER
+ public       | access_tokens             | service_role  | TRUNCATE
+ public       | access_tokens             | service_role  | UPDATE
+ public       | api_keys                  | service_role  | DELETE
+ public       | api_keys                  | service_role  | INSERT
+ public       | api_keys                  | service_role  | REFERENCES
+ public       | api_keys                  | service_role  | SELECT
+ public       | api_keys                  | service_role  | TRIGGER
+ public       | api_keys                  | service_role  | TRUNCATE
+ public       | api_keys                  | service_role  | UPDATE
+ public       | budget_ledger             | anon          | DELETE
+ public       | budget_ledger             | anon          | INSERT
+ public       | budget_ledger             | anon          | REFERENCES
+ public       | budget_ledger             | anon          | SELECT
+ public       | budget_ledger             | anon          | TRIGGER
+ public       | budget_ledger             | anon          | TRUNCATE
+ public       | budget_ledger             | anon          | UPDATE
+ public       | budget_ledger             | authenticated | DELETE
+ public       | budget_ledger             | authenticated | INSERT
+ public       | budget_ledger             | authenticated | REFERENCES
+ public       | budget_ledger             | authenticated | SELECT
+ public       | budget_ledger             | authenticated | TRIGGER
+ public       | budget_ledger             | authenticated | TRUNCATE
+ public       | budget_ledger             | authenticated | UPDATE
+ public       | budget_ledger             | service_role  | DELETE
+ public       | budget_ledger             | service_role  | INSERT
+ public       | budget_ledger             | service_role  | REFERENCES
+ public       | budget_ledger             | service_role  | SELECT
+ public       | budget_ledger             | service_role  | TRIGGER
+ public       | budget_ledger             | service_role  | TRUNCATE
+ public       | budget_ledger             | service_role  | UPDATE
+ public       | budget_reservations       | anon          | DELETE
+ public       | budget_reservations       | anon          | INSERT
+ public       | budget_reservations       | anon          | REFERENCES
+ public       | budget_reservations       | anon          | SELECT
+ public       | budget_reservations       | anon          | TRIGGER
+ public       | budget_reservations       | anon          | TRUNCATE
+ public       | budget_reservations       | anon          | UPDATE
+ public       | budget_reservations       | authenticated | DELETE
+ public       | budget_reservations       | authenticated | INSERT
+ public       | budget_reservations       | authenticated | REFERENCES
+ public       | budget_reservations       | authenticated | SELECT
+ public       | budget_reservations       | authenticated | TRIGGER
+ public       | budget_reservations       | authenticated | TRUNCATE
+ public       | budget_reservations       | authenticated | UPDATE
+ public       | budget_reservations       | service_role  | DELETE
+ public       | budget_reservations       | service_role  | INSERT
+ public       | budget_reservations       | service_role  | REFERENCES
+ public       | budget_reservations       | service_role  | SELECT
+ public       | budget_reservations       | service_role  | TRIGGER
+ public       | budget_reservations       | service_role  | TRUNCATE
+ public       | budget_reservations       | service_role  | UPDATE
+ public       | calibration_profiles      | anon          | DELETE
+ public       | calibration_profiles      | anon          | INSERT
+ public       | calibration_profiles      | anon          | REFERENCES
+ public       | calibration_profiles      | anon          | SELECT
+ public       | calibration_profiles      | anon          | TRIGGER
+ public       | calibration_profiles      | anon          | TRUNCATE
+ public       | calibration_profiles      | anon          | UPDATE
+ public       | calibration_profiles      | authenticated | DELETE
+ public       | calibration_profiles      | authenticated | INSERT
+ public       | calibration_profiles      | authenticated | REFERENCES
+ public       | calibration_profiles      | authenticated | SELECT
+ public       | calibration_profiles      | authenticated | TRIGGER
+ public       | calibration_profiles      | authenticated | TRUNCATE
+ public       | calibration_profiles      | authenticated | UPDATE
+ public       | calibration_profiles      | service_role  | DELETE
+ public       | calibration_profiles      | service_role  | INSERT
+ public       | calibration_profiles      | service_role  | REFERENCES
+ public       | calibration_profiles      | service_role  | SELECT
+ public       | calibration_profiles      | service_role  | TRIGGER
+ public       | calibration_profiles      | service_role  | TRUNCATE
+ public       | calibration_profiles      | service_role  | UPDATE
+ public       | code_edges_chunk          | anon          | DELETE
+ public       | code_edges_chunk          | anon          | INSERT
+ public       | code_edges_chunk          | anon          | REFERENCES
+ public       | code_edges_chunk          | anon          | SELECT
+ public       | code_edges_chunk          | anon          | TRIGGER
+ public       | code_edges_chunk          | anon          | TRUNCATE
+ public       | code_edges_chunk          | anon          | UPDATE
+ public       | code_edges_chunk          | authenticated | DELETE
+ public       | code_edges_chunk          | authenticated | INSERT
+ public       | code_edges_chunk          | authenticated | REFERENCES
+ public       | code_edges_chunk          | authenticated | SELECT
+ public       | code_edges_chunk          | authenticated | TRIGGER
+ public       | code_edges_chunk          | authenticated | TRUNCATE
+ public       | code_edges_chunk          | authenticated | UPDATE
+ public       | code_edges_chunk          | service_role  | DELETE
+ public       | code_edges_chunk          | service_role  | INSERT
+ public       | code_edges_chunk          | service_role  | REFERENCES
+ public       | code_edges_chunk          | service_role  | SELECT
+ public       | code_edges_chunk          | service_role  | TRIGGER
+ public       | code_edges_chunk          | service_role  | TRUNCATE
+ public       | code_edges_chunk          | service_role  | UPDATE
+ public       | code_edges_symbol         | anon          | DELETE
+ public       | code_edges_symbol         | anon          | INSERT
+ public       | code_edges_symbol         | anon          | REFERENCES
+ public       | code_edges_symbol         | anon          | SELECT
+ public       | code_edges_symbol         | anon          | TRIGGER
+ public       | code_edges_symbol         | anon          | TRUNCATE
+ public       | code_edges_symbol         | anon          | UPDATE
+ public       | code_edges_symbol         | authenticated | DELETE
+ public       | code_edges_symbol         | authenticated | INSERT
+ public       | code_edges_symbol         | authenticated | REFERENCES
+ public       | code_edges_symbol         | authenticated | SELECT
+ public       | code_edges_symbol         | authenticated | TRIGGER
+ public       | code_edges_symbol         | authenticated | TRUNCATE
+ public       | code_edges_symbol         | authenticated | UPDATE
+ public       | code_edges_symbol         | service_role  | DELETE
+ public       | code_edges_symbol         | service_role  | INSERT
+ public       | code_edges_symbol         | service_role  | REFERENCES
+ public       | code_edges_symbol         | service_role  | SELECT
+ public       | code_edges_symbol         | service_role  | TRIGGER
+ public       | code_edges_symbol         | service_role  | TRUNCATE
+ public       | code_edges_symbol         | service_role  | UPDATE
+ public       | code_traversal_cache      | anon          | DELETE
+ public       | code_traversal_cache      | anon          | INSERT
+ public       | code_traversal_cache      | anon          | REFERENCES
+ public       | code_traversal_cache      | anon          | SELECT
+ public       | code_traversal_cache      | anon          | TRIGGER
+ public       | code_traversal_cache      | anon          | TRUNCATE
+ public       | code_traversal_cache      | anon          | UPDATE
+ public       | code_traversal_cache      | authenticated | DELETE
+ public       | code_traversal_cache      | authenticated | INSERT
+ public       | code_traversal_cache      | authenticated | REFERENCES
+ public       | code_traversal_cache      | authenticated | SELECT
+ public       | code_traversal_cache      | authenticated | TRIGGER
+ public       | code_traversal_cache      | authenticated | TRUNCATE
+ public       | code_traversal_cache      | authenticated | UPDATE
+ public       | code_traversal_cache      | service_role  | DELETE
+ public       | code_traversal_cache      | service_role  | INSERT
+ public       | code_traversal_cache      | service_role  | REFERENCES
+ public       | code_traversal_cache      | service_role  | SELECT
+ public       | code_traversal_cache      | service_role  | TRIGGER
+ public       | code_traversal_cache      | service_role  | TRUNCATE
+ public       | code_traversal_cache      | service_role  | UPDATE
+ public       | config                    | anon          | DELETE
+ public       | config                    | anon          | INSERT
+ public       | config                    | anon          | REFERENCES
+ public       | config                    | anon          | SELECT
+ public       | config                    | anon          | TRIGGER
+ public       | config                    | anon          | TRUNCATE
+ public       | config                    | anon          | UPDATE
+ public       | config                    | authenticated | DELETE
+ public       | config                    | authenticated | INSERT
+ public       | config                    | authenticated | REFERENCES
+ public       | config                    | authenticated | SELECT
+ public       | config                    | authenticated | TRIGGER
+ public       | config                    | authenticated | TRUNCATE
+ public       | config                    | authenticated | UPDATE
+ public       | config                    | service_role  | DELETE
+ public       | config                    | service_role  | INSERT
+ public       | config                    | service_role  | REFERENCES
+ public       | config                    | service_role  | SELECT
+ public       | config                    | service_role  | TRIGGER
+ public       | config                    | service_role  | TRUNCATE
+ public       | config                    | service_role  | UPDATE
+ public       | content_chunks            | anon          | DELETE
+ public       | content_chunks            | anon          | INSERT
+ public       | content_chunks            | anon          | REFERENCES
+ public       | content_chunks            | anon          | SELECT
+ public       | content_chunks            | anon          | TRIGGER
+ public       | content_chunks            | anon          | TRUNCATE
+ public       | content_chunks            | anon          | UPDATE
+ public       | content_chunks            | authenticated | DELETE
+ public       | content_chunks            | authenticated | INSERT
+ public       | content_chunks            | authenticated | REFERENCES
+ public       | content_chunks            | authenticated | SELECT
+ public       | content_chunks            | authenticated | TRIGGER
+ public       | content_chunks            | authenticated | TRUNCATE
+ public       | content_chunks            | authenticated | UPDATE
+ public       | content_chunks            | service_role  | DELETE
+ public       | content_chunks            | service_role  | INSERT
+ public       | content_chunks            | service_role  | REFERENCES
+ public       | content_chunks            | service_role  | SELECT
+ public       | content_chunks            | service_role  | TRIGGER
+ public       | content_chunks            | service_role  | TRUNCATE
+ public       | content_chunks            | service_role  | UPDATE
+ public       | dream_verdicts            | anon          | DELETE
+ public       | dream_verdicts            | anon          | INSERT
+ public       | dream_verdicts            | anon          | REFERENCES
+ public       | dream_verdicts            | anon          | SELECT
+ public       | dream_verdicts            | anon          | TRIGGER
+ public       | dream_verdicts            | anon          | TRUNCATE
+ public       | dream_verdicts            | anon          | UPDATE
+ public       | dream_verdicts            | authenticated | DELETE
+ public       | dream_verdicts            | authenticated | INSERT
+ public       | dream_verdicts            | authenticated | REFERENCES
+ public       | dream_verdicts            | authenticated | SELECT
+ public       | dream_verdicts            | authenticated | TRIGGER
+ public       | dream_verdicts            | authenticated | TRUNCATE
+ public       | dream_verdicts            | authenticated | UPDATE
+ public       | dream_verdicts            | service_role  | DELETE
+ public       | dream_verdicts            | service_role  | INSERT
+ public       | dream_verdicts            | service_role  | REFERENCES
+ public       | dream_verdicts            | service_role  | SELECT
+ public       | dream_verdicts            | service_role  | TRIGGER
+ public       | dream_verdicts            | service_role  | TRUNCATE
+ public       | dream_verdicts            | service_role  | UPDATE
+ public       | drift_decisions           | anon          | DELETE
+ public       | drift_decisions           | anon          | INSERT
+ public       | drift_decisions           | anon          | REFERENCES
+ public       | drift_decisions           | anon          | SELECT
+ public       | drift_decisions           | anon          | TRIGGER
+ public       | drift_decisions           | anon          | TRUNCATE
+ public       | drift_decisions           | anon          | UPDATE
+ public       | drift_decisions           | authenticated | DELETE
+ public       | drift_decisions           | authenticated | INSERT
+ public       | drift_decisions           | authenticated | REFERENCES
+ public       | drift_decisions           | authenticated | SELECT
+ public       | drift_decisions           | authenticated | TRIGGER
+ public       | drift_decisions           | authenticated | TRUNCATE
+ public       | drift_decisions           | authenticated | UPDATE
+ public       | drift_decisions           | service_role  | DELETE
+ public       | drift_decisions           | service_role  | INSERT
+ public       | drift_decisions           | service_role  | REFERENCES
+ public       | drift_decisions           | service_role  | SELECT
+ public       | drift_decisions           | service_role  | TRIGGER
+ public       | drift_decisions           | service_role  | TRUNCATE
+ public       | drift_decisions           | service_role  | UPDATE
+ public       | eval_candidates           | anon          | DELETE
+ public       | eval_candidates           | anon          | INSERT
+ public       | eval_candidates           | anon          | REFERENCES
+ public       | eval_candidates           | anon          | SELECT
+ public       | eval_candidates           | anon          | TRIGGER
+ public       | eval_candidates           | anon          | TRUNCATE
+ public       | eval_candidates           | anon          | UPDATE
+ public       | eval_candidates           | authenticated | DELETE
+ public       | eval_candidates           | authenticated | INSERT
+ public       | eval_candidates           | authenticated | REFERENCES
+ public       | eval_candidates           | authenticated | SELECT
+ public       | eval_candidates           | authenticated | TRIGGER
+ public       | eval_candidates           | authenticated | TRUNCATE
+ public       | eval_candidates           | authenticated | UPDATE
+ public       | eval_candidates           | service_role  | DELETE
+ public       | eval_candidates           | service_role  | INSERT
+ public       | eval_candidates           | service_role  | REFERENCES
+ public       | eval_candidates           | service_role  | SELECT
+ public       | eval_candidates           | service_role  | TRIGGER
+ public       | eval_candidates           | service_role  | TRUNCATE
+ public       | eval_candidates           | service_role  | UPDATE
+ public       | eval_capture_failures     | anon          | DELETE
+ public       | eval_capture_failures     | anon          | INSERT
+ public       | eval_capture_failures     | anon          | REFERENCES
+ public       | eval_capture_failures     | anon          | SELECT
+ public       | eval_capture_failures     | anon          | TRIGGER
+ public       | eval_capture_failures     | anon          | TRUNCATE
+ public       | eval_capture_failures     | anon          | UPDATE
+ public       | eval_capture_failures     | authenticated | DELETE
+ public       | eval_capture_failures     | authenticated | INSERT
+ public       | eval_capture_failures     | authenticated | REFERENCES
+ public       | eval_capture_failures     | authenticated | SELECT
+ public       | eval_capture_failures     | authenticated | TRIGGER
+ public       | eval_capture_failures     | authenticated | TRUNCATE
+ public       | eval_capture_failures     | authenticated | UPDATE
+ public       | eval_capture_failures     | service_role  | DELETE
+ public       | eval_capture_failures     | service_role  | INSERT
+ public       | eval_capture_failures     | service_role  | REFERENCES
+ public       | eval_capture_failures     | service_role  | SELECT
+ public       | eval_capture_failures     | service_role  | TRIGGER
+ public       | eval_capture_failures     | service_role  | TRUNCATE
+ public       | eval_capture_failures     | service_role  | UPDATE
+ public       | eval_contradictions_cache | anon          | DELETE
+ public       | eval_contradictions_cache | anon          | INSERT
+ public       | eval_contradictions_cache | anon          | REFERENCES
+ public       | eval_contradictions_cache | anon          | SELECT
+ public       | eval_contradictions_cache | anon          | TRIGGER
+ public       | eval_contradictions_cache | anon          | TRUNCATE
+ public       | eval_contradictions_cache | anon          | UPDATE
+ public       | eval_contradictions_cache | authenticated | DELETE
+ public       | eval_contradictions_cache | authenticated | INSERT
+ public       | eval_contradictions_cache | authenticated | REFERENCES
+ public       | eval_contradictions_cache | authenticated | SELECT
+ public       | eval_contradictions_cache | authenticated | TRIGGER
+ public       | eval_contradictions_cache | authenticated | TRUNCATE
+ public       | eval_contradictions_cache | authenticated | UPDATE
+ public       | eval_contradictions_cache | service_role  | DELETE
+ public       | eval_contradictions_cache | service_role  | INSERT
+ public       | eval_contradictions_cache | service_role  | REFERENCES
+ public       | eval_contradictions_cache | service_role  | SELECT
+ public       | eval_contradictions_cache | service_role  | TRIGGER
+ public       | eval_contradictions_cache | service_role  | TRUNCATE
+ public       | eval_contradictions_cache | service_role  | UPDATE
+ public       | eval_contradictions_runs  | anon          | DELETE
+ public       | eval_contradictions_runs  | anon          | INSERT
+ public       | eval_contradictions_runs  | anon          | REFERENCES
+ public       | eval_contradictions_runs  | anon          | SELECT
+ public       | eval_contradictions_runs  | anon          | TRIGGER
+ public       | eval_contradictions_runs  | anon          | TRUNCATE
+ public       | eval_contradictions_runs  | anon          | UPDATE
+ public       | eval_contradictions_runs  | authenticated | DELETE
+ public       | eval_contradictions_runs  | authenticated | INSERT
+ public       | eval_contradictions_runs  | authenticated | REFERENCES
+ public       | eval_contradictions_runs  | authenticated | SELECT
+ public       | eval_contradictions_runs  | authenticated | TRIGGER
+ public       | eval_contradictions_runs  | authenticated | TRUNCATE
+ public       | eval_contradictions_runs  | authenticated | UPDATE
+ public       | eval_contradictions_runs  | service_role  | DELETE
+ public       | eval_contradictions_runs  | service_role  | INSERT
+ public       | eval_contradictions_runs  | service_role  | REFERENCES
+ public       | eval_contradictions_runs  | service_role  | SELECT
+ public       | eval_contradictions_runs  | service_role  | TRIGGER
+ public       | eval_contradictions_runs  | service_role  | TRUNCATE
+ public       | eval_contradictions_runs  | service_role  | UPDATE
+ public       | eval_takes_quality_runs   | anon          | DELETE
+ public       | eval_takes_quality_runs   | anon          | INSERT
+ public       | eval_takes_quality_runs   | anon          | REFERENCES
+ public       | eval_takes_quality_runs   | anon          | SELECT
+ public       | eval_takes_quality_runs   | anon          | TRIGGER
+ public       | eval_takes_quality_runs   | anon          | TRUNCATE
+ public       | eval_takes_quality_runs   | anon          | UPDATE
+ public       | eval_takes_quality_runs   | authenticated | DELETE
+ public       | eval_takes_quality_runs   | authenticated | INSERT
+ public       | eval_takes_quality_runs   | authenticated | REFERENCES
+ public       | eval_takes_quality_runs   | authenticated | SELECT
+ public       | eval_takes_quality_runs   | authenticated | TRIGGER
+ public       | eval_takes_quality_runs   | authenticated | TRUNCATE
+ public       | eval_takes_quality_runs   | authenticated | UPDATE
+ public       | eval_takes_quality_runs   | service_role  | DELETE
+ public       | eval_takes_quality_runs   | service_role  | INSERT
+ public       | eval_takes_quality_runs   | service_role  | REFERENCES
+ public       | eval_takes_quality_runs   | service_role  | SELECT
+ public       | eval_takes_quality_runs   | service_role  | TRIGGER
+ public       | eval_takes_quality_runs   | service_role  | TRUNCATE
+ public       | eval_takes_quality_runs   | service_role  | UPDATE
+ public       | facts                     | anon          | DELETE
+ public       | facts                     | anon          | INSERT
+ public       | facts                     | anon          | REFERENCES
+ public       | facts                     | anon          | SELECT
+ public       | facts                     | anon          | TRIGGER
+ public       | facts                     | anon          | TRUNCATE
+ public       | facts                     | anon          | UPDATE
+ public       | facts                     | authenticated | DELETE
+ public       | facts                     | authenticated | INSERT
+ public       | facts                     | authenticated | REFERENCES
+ public       | facts                     | authenticated | SELECT
+ public       | facts                     | authenticated | TRIGGER
+ public       | facts                     | authenticated | TRUNCATE
+ public       | facts                     | authenticated | UPDATE
+ public       | facts                     | service_role  | DELETE
+ public       | facts                     | service_role  | INSERT
+ public       | facts                     | service_role  | REFERENCES
+ public       | facts                     | service_role  | SELECT
+ public       | facts                     | service_role  | TRIGGER
+ public       | facts                     | service_role  | TRUNCATE
+ public       | facts                     | service_role  | UPDATE
+ public       | file_migration_ledger     | anon          | DELETE
+ public       | file_migration_ledger     | anon          | INSERT
+ public       | file_migration_ledger     | anon          | REFERENCES
+ public       | file_migration_ledger     | anon          | SELECT
+ public       | file_migration_ledger     | anon          | TRIGGER
+ public       | file_migration_ledger     | anon          | TRUNCATE
+ public       | file_migration_ledger     | anon          | UPDATE
+ public       | file_migration_ledger     | authenticated | DELETE
+ public       | file_migration_ledger     | authenticated | INSERT
+ public       | file_migration_ledger     | authenticated | REFERENCES
+ public       | file_migration_ledger     | authenticated | SELECT
+ public       | file_migration_ledger     | authenticated | TRIGGER
+ public       | file_migration_ledger     | authenticated | TRUNCATE
+ public       | file_migration_ledger     | authenticated | UPDATE
+ public       | file_migration_ledger     | service_role  | DELETE
+ public       | file_migration_ledger     | service_role  | INSERT
+ public       | file_migration_ledger     | service_role  | REFERENCES
+ public       | file_migration_ledger     | service_role  | SELECT
+ public       | file_migration_ledger     | service_role  | TRIGGER
+ public       | file_migration_ledger     | service_role  | TRUNCATE
+ public       | file_migration_ledger     | service_role  | UPDATE
+ public       | files                     | anon          | DELETE
+ public       | files                     | anon          | INSERT
+ public       | files                     | anon          | REFERENCES
+ public       | files                     | anon          | SELECT
+ public       | files                     | anon          | TRIGGER
+ public       | files                     | anon          | TRUNCATE
+ public       | files                     | anon          | UPDATE
+ public       | files                     | authenticated | DELETE
+ public       | files                     | authenticated | INSERT
+ public       | files                     | authenticated | REFERENCES
+ public       | files                     | authenticated | SELECT
+ public       | files                     | authenticated | TRIGGER
+ public       | files                     | authenticated | TRUNCATE
+ public       | files                     | authenticated | UPDATE
+ public       | files                     | service_role  | DELETE
+ public       | files                     | service_role  | INSERT
+ public       | files                     | service_role  | REFERENCES
+ public       | files                     | service_role  | SELECT
+ public       | files                     | service_role  | TRIGGER
+ public       | files                     | service_role  | TRUNCATE
+ public       | files                     | service_role  | UPDATE
+ public       | gbrain_cycle_locks        | anon          | DELETE
+ public       | gbrain_cycle_locks        | anon          | INSERT
+ public       | gbrain_cycle_locks        | anon          | REFERENCES
+ public       | gbrain_cycle_locks        | anon          | SELECT
+ public       | gbrain_cycle_locks        | anon          | TRIGGER
+ public       | gbrain_cycle_locks        | anon          | TRUNCATE
+ public       | gbrain_cycle_locks        | anon          | UPDATE
+ public       | gbrain_cycle_locks        | authenticated | DELETE
+ public       | gbrain_cycle_locks        | authenticated | INSERT
+ public       | gbrain_cycle_locks        | authenticated | REFERENCES
+ public       | gbrain_cycle_locks        | authenticated | SELECT
+ public       | gbrain_cycle_locks        | authenticated | TRIGGER
+ public       | gbrain_cycle_locks        | authenticated | TRUNCATE
+ public       | gbrain_cycle_locks        | authenticated | UPDATE
+ public       | gbrain_cycle_locks        | service_role  | DELETE
+ public       | gbrain_cycle_locks        | service_role  | INSERT
+ public       | gbrain_cycle_locks        | service_role  | REFERENCES
+ public       | gbrain_cycle_locks        | service_role  | SELECT
+ public       | gbrain_cycle_locks        | service_role  | TRIGGER
+ public       | gbrain_cycle_locks        | service_role  | TRUNCATE
+ public       | gbrain_cycle_locks        | service_role  | UPDATE
+ public       | ingest_log                | anon          | DELETE
+ public       | ingest_log                | anon          | INSERT
+ public       | ingest_log                | anon          | REFERENCES
+ public       | ingest_log                | anon          | SELECT
+ public       | ingest_log                | anon          | TRIGGER
+ public       | ingest_log                | anon          | TRUNCATE
+ public       | ingest_log                | anon          | UPDATE
+ public       | ingest_log                | authenticated | DELETE
+ public       | ingest_log                | authenticated | INSERT
+ public       | ingest_log                | authenticated | REFERENCES
+ public       | ingest_log                | authenticated | SELECT
+ public       | ingest_log                | authenticated | TRIGGER
+ public       | ingest_log                | authenticated | TRUNCATE
+ public       | ingest_log                | authenticated | UPDATE
+ public       | ingest_log                | service_role  | DELETE
+ public       | ingest_log                | service_role  | INSERT
+ public       | ingest_log                | service_role  | REFERENCES
+ public       | ingest_log                | service_role  | SELECT
+ public       | ingest_log                | service_role  | TRIGGER
+ public       | ingest_log                | service_role  | TRUNCATE
+ public       | ingest_log                | service_role  | UPDATE
+ public       | ingredient_dictionary     | service_role  | DELETE
+ public       | ingredient_dictionary     | service_role  | INSERT
+ public       | ingredient_dictionary     | service_role  | REFERENCES
+ public       | ingredient_dictionary     | service_role  | SELECT
+ public       | ingredient_dictionary     | service_role  | TRIGGER
+ public       | ingredient_dictionary     | service_role  | TRUNCATE
+ public       | ingredient_dictionary     | service_role  | UPDATE
+ public       | links                     | anon          | DELETE
+ public       | links                     | anon          | INSERT
+ public       | links                     | anon          | REFERENCES
+ public       | links                     | anon          | SELECT
+ public       | links                     | anon          | TRIGGER
+ public       | links                     | anon          | TRUNCATE
+ public       | links                     | anon          | UPDATE
+ public       | links                     | authenticated | DELETE
+ public       | links                     | authenticated | INSERT
+ public       | links                     | authenticated | REFERENCES
+ public       | links                     | authenticated | SELECT
+ public       | links                     | authenticated | TRIGGER
+ public       | links                     | authenticated | TRUNCATE
+ public       | links                     | authenticated | UPDATE
+ public       | links                     | service_role  | DELETE
+ public       | links                     | service_role  | INSERT
+ public       | links                     | service_role  | REFERENCES
+ public       | links                     | service_role  | SELECT
+ public       | links                     | service_role  | TRIGGER
+ public       | links                     | service_role  | TRUNCATE
+ public       | links                     | service_role  | UPDATE
+ public       | mcp_request_log           | anon          | DELETE
+ public       | mcp_request_log           | anon          | INSERT
+ public       | mcp_request_log           | anon          | REFERENCES
+ public       | mcp_request_log           | anon          | SELECT
+ public       | mcp_request_log           | anon          | TRIGGER
+ public       | mcp_request_log           | anon          | TRUNCATE
+ public       | mcp_request_log           | anon          | UPDATE
+ public       | mcp_request_log           | authenticated | DELETE
+ public       | mcp_request_log           | authenticated | INSERT
+ public       | mcp_request_log           | authenticated | REFERENCES
+ public       | mcp_request_log           | authenticated | SELECT
+ public       | mcp_request_log           | authenticated | TRIGGER
+ public       | mcp_request_log           | authenticated | TRUNCATE
+ public       | mcp_request_log           | authenticated | UPDATE
+ public       | mcp_request_log           | service_role  | DELETE
+ public       | mcp_request_log           | service_role  | INSERT
+ public       | mcp_request_log           | service_role  | REFERENCES
+ public       | mcp_request_log           | service_role  | SELECT
+ public       | mcp_request_log           | service_role  | TRIGGER
+ public       | mcp_request_log           | service_role  | TRUNCATE
+ public       | mcp_request_log           | service_role  | UPDATE
+ public       | meal_plan                 | service_role  | DELETE
+ public       | meal_plan                 | service_role  | INSERT
+ public       | meal_plan                 | service_role  | REFERENCES
+ public       | meal_plan                 | service_role  | SELECT
+ public       | meal_plan                 | service_role  | TRIGGER
+ public       | meal_plan                 | service_role  | TRUNCATE
+ public       | meal_plan                 | service_role  | UPDATE
+ public       | minion_attachments        | anon          | DELETE
+ public       | minion_attachments        | anon          | INSERT
+ public       | minion_attachments        | anon          | REFERENCES
+ public       | minion_attachments        | anon          | SELECT
+ public       | minion_attachments        | anon          | TRIGGER
+ public       | minion_attachments        | anon          | TRUNCATE
+ public       | minion_attachments        | anon          | UPDATE
+ public       | minion_attachments        | authenticated | DELETE
+ public       | minion_attachments        | authenticated | INSERT
+ public       | minion_attachments        | authenticated | REFERENCES
+ public       | minion_attachments        | authenticated | SELECT
+ public       | minion_attachments        | authenticated | TRIGGER
+ public       | minion_attachments        | authenticated | TRUNCATE
+ public       | minion_attachments        | authenticated | UPDATE
+ public       | minion_attachments        | service_role  | DELETE
+ public       | minion_attachments        | service_role  | INSERT
+ public       | minion_attachments        | service_role  | REFERENCES
+ public       | minion_attachments        | service_role  | SELECT
+ public       | minion_attachments        | service_role  | TRIGGER
+ public       | minion_attachments        | service_role  | TRUNCATE
+ public       | minion_attachments        | service_role  | UPDATE
+ public       | minion_inbox              | anon          | DELETE
+ public       | minion_inbox              | anon          | INSERT
+ public       | minion_inbox              | anon          | REFERENCES
+ public       | minion_inbox              | anon          | SELECT
+ public       | minion_inbox              | anon          | TRIGGER
+ public       | minion_inbox              | anon          | TRUNCATE
+ public       | minion_inbox              | anon          | UPDATE
+ public       | minion_inbox              | authenticated | DELETE
+ public       | minion_inbox              | authenticated | INSERT
+ public       | minion_inbox              | authenticated | REFERENCES
+ public       | minion_inbox              | authenticated | SELECT
+ public       | minion_inbox              | authenticated | TRIGGER
+ public       | minion_inbox              | authenticated | TRUNCATE
+ public       | minion_inbox              | authenticated | UPDATE
+ public       | minion_inbox              | service_role  | DELETE
+ public       | minion_inbox              | service_role  | INSERT
+ public       | minion_inbox              | service_role  | REFERENCES
+ public       | minion_inbox              | service_role  | SELECT
+ public       | minion_inbox              | service_role  | TRIGGER
+ public       | minion_inbox              | service_role  | TRUNCATE
+ public       | minion_inbox              | service_role  | UPDATE
+ public       | minion_jobs               | anon          | DELETE
+ public       | minion_jobs               | anon          | INSERT
+ public       | minion_jobs               | anon          | REFERENCES
+ public       | minion_jobs               | anon          | SELECT
+ public       | minion_jobs               | anon          | TRIGGER
+ public       | minion_jobs               | anon          | TRUNCATE
+ public       | minion_jobs               | anon          | UPDATE
+ public       | minion_jobs               | authenticated | DELETE
+ public       | minion_jobs               | authenticated | INSERT
+ public       | minion_jobs               | authenticated | REFERENCES
+ public       | minion_jobs               | authenticated | SELECT
+ public       | minion_jobs               | authenticated | TRIGGER
+ public       | minion_jobs               | authenticated | TRUNCATE
+ public       | minion_jobs               | authenticated | UPDATE
+ public       | minion_jobs               | service_role  | DELETE
+ public       | minion_jobs               | service_role  | INSERT
+ public       | minion_jobs               | service_role  | REFERENCES
+ public       | minion_jobs               | service_role  | SELECT
+ public       | minion_jobs               | service_role  | TRIGGER
+ public       | minion_jobs               | service_role  | TRUNCATE
+ public       | minion_jobs               | service_role  | UPDATE
+ public       | oauth_clients             | anon          | DELETE
+ public       | oauth_clients             | anon          | INSERT
+ public       | oauth_clients             | anon          | REFERENCES
+ public       | oauth_clients             | anon          | SELECT
+ public       | oauth_clients             | anon          | TRIGGER
+ public       | oauth_clients             | anon          | TRUNCATE
+ public       | oauth_clients             | anon          | UPDATE
+ public       | oauth_clients             | authenticated | DELETE
+ public       | oauth_clients             | authenticated | INSERT
+ public       | oauth_clients             | authenticated | REFERENCES
+ public       | oauth_clients             | authenticated | SELECT
+ public       | oauth_clients             | authenticated | TRIGGER
+ public       | oauth_clients             | authenticated | TRUNCATE
+ public       | oauth_clients             | authenticated | UPDATE
+ public       | oauth_clients             | service_role  | DELETE
+ public       | oauth_clients             | service_role  | INSERT
+ public       | oauth_clients             | service_role  | REFERENCES
+ public       | oauth_clients             | service_role  | SELECT
+ public       | oauth_clients             | service_role  | TRIGGER
+ public       | oauth_clients             | service_role  | TRUNCATE
+ public       | oauth_clients             | service_role  | UPDATE
+ public       | oauth_codes               | anon          | DELETE
+ public       | oauth_codes               | anon          | INSERT
+ public       | oauth_codes               | anon          | REFERENCES
+ public       | oauth_codes               | anon          | SELECT
+ public       | oauth_codes               | anon          | TRIGGER
+ public       | oauth_codes               | anon          | TRUNCATE
+ public       | oauth_codes               | anon          | UPDATE
+ public       | oauth_codes               | authenticated | DELETE
+ public       | oauth_codes               | authenticated | INSERT
+ public       | oauth_codes               | authenticated | REFERENCES
+ public       | oauth_codes               | authenticated | SELECT
+ public       | oauth_codes               | authenticated | TRIGGER
+ public       | oauth_codes               | authenticated | TRUNCATE
+ public       | oauth_codes               | authenticated | UPDATE
+ public       | oauth_codes               | service_role  | DELETE
+ public       | oauth_codes               | service_role  | INSERT
+ public       | oauth_codes               | service_role  | REFERENCES
+ public       | oauth_codes               | service_role  | SELECT
+ public       | oauth_codes               | service_role  | TRIGGER
+ public       | oauth_codes               | service_role  | TRUNCATE
+ public       | oauth_codes               | service_role  | UPDATE
+ public       | oauth_tokens              | anon          | DELETE
+ public       | oauth_tokens              | anon          | INSERT
+ public       | oauth_tokens              | anon          | REFERENCES
+ public       | oauth_tokens              | anon          | SELECT
+ public       | oauth_tokens              | anon          | TRIGGER
+ public       | oauth_tokens              | anon          | TRUNCATE
+ public       | oauth_tokens              | anon          | UPDATE
+ public       | oauth_tokens              | authenticated | DELETE
+ public       | oauth_tokens              | authenticated | INSERT
+ public       | oauth_tokens              | authenticated | REFERENCES
+ public       | oauth_tokens              | authenticated | SELECT
+ public       | oauth_tokens              | authenticated | TRIGGER
+ public       | oauth_tokens              | authenticated | TRUNCATE
+ public       | oauth_tokens              | authenticated | UPDATE
+ public       | oauth_tokens              | service_role  | DELETE
+ public       | oauth_tokens              | service_role  | INSERT
+ public       | oauth_tokens              | service_role  | REFERENCES
+ public       | oauth_tokens              | service_role  | SELECT
+ public       | oauth_tokens              | service_role  | TRIGGER
+ public       | oauth_tokens              | service_role  | TRUNCATE
+ public       | oauth_tokens              | service_role  | UPDATE
+ public       | op_checkpoints            | anon          | DELETE
+ public       | op_checkpoints            | anon          | INSERT
+ public       | op_checkpoints            | anon          | REFERENCES
+ public       | op_checkpoints            | anon          | SELECT
+ public       | op_checkpoints            | anon          | TRIGGER
+ public       | op_checkpoints            | anon          | TRUNCATE
+ public       | op_checkpoints            | anon          | UPDATE
+ public       | op_checkpoints            | authenticated | DELETE
+ public       | op_checkpoints            | authenticated | INSERT
+ public       | op_checkpoints            | authenticated | REFERENCES
+ public       | op_checkpoints            | authenticated | SELECT
+ public       | op_checkpoints            | authenticated | TRIGGER
+ public       | op_checkpoints            | authenticated | TRUNCATE
+ public       | op_checkpoints            | authenticated | UPDATE
+ public       | op_checkpoints            | service_role  | DELETE
+ public       | op_checkpoints            | service_role  | INSERT
+ public       | op_checkpoints            | service_role  | REFERENCES
+ public       | op_checkpoints            | service_role  | SELECT
+ public       | op_checkpoints            | service_role  | TRIGGER
+ public       | op_checkpoints            | service_role  | TRUNCATE
+ public       | op_checkpoints            | service_role  | UPDATE
+ public       | page_versions             | anon          | DELETE
+ public       | page_versions             | anon          | INSERT
+ public       | page_versions             | anon          | REFERENCES
+ public       | page_versions             | anon          | SELECT
+ public       | page_versions             | anon          | TRIGGER
+ public       | page_versions             | anon          | TRUNCATE
+ public       | page_versions             | anon          | UPDATE
+ public       | page_versions             | authenticated | DELETE
+ public       | page_versions             | authenticated | INSERT
+ public       | page_versions             | authenticated | REFERENCES
+ public       | page_versions             | authenticated | SELECT
+ public       | page_versions             | authenticated | TRIGGER
+ public       | page_versions             | authenticated | TRUNCATE
+ public       | page_versions             | authenticated | UPDATE
+ public       | page_versions             | service_role  | DELETE
+ public       | page_versions             | service_role  | INSERT
+ public       | page_versions             | service_role  | REFERENCES
+ public       | page_versions             | service_role  | SELECT
+ public       | page_versions             | service_role  | TRIGGER
+ public       | page_versions             | service_role  | TRUNCATE
+ public       | page_versions             | service_role  | UPDATE
+ public       | pages                     | anon          | DELETE
+ public       | pages                     | anon          | INSERT
+ public       | pages                     | anon          | REFERENCES
+ public       | pages                     | anon          | SELECT
+ public       | pages                     | anon          | TRIGGER
+ public       | pages                     | anon          | TRUNCATE
+ public       | pages                     | anon          | UPDATE
+ public       | pages                     | authenticated | DELETE
+ public       | pages                     | authenticated | INSERT
+ public       | pages                     | authenticated | REFERENCES
+ public       | pages                     | authenticated | SELECT
+ public       | pages                     | authenticated | TRIGGER
+ public       | pages                     | authenticated | TRUNCATE
+ public       | pages                     | authenticated | UPDATE
+ public       | pages                     | service_role  | DELETE
+ public       | pages                     | service_role  | INSERT
+ public       | pages                     | service_role  | REFERENCES
+ public       | pages                     | service_role  | SELECT
+ public       | pages                     | service_role  | TRIGGER
+ public       | pages                     | service_role  | TRUNCATE
+ public       | pages                     | service_role  | UPDATE
+ public       | query_cache               | anon          | DELETE
+ public       | query_cache               | anon          | INSERT
+ public       | query_cache               | anon          | REFERENCES
+ public       | query_cache               | anon          | SELECT
+ public       | query_cache               | anon          | TRIGGER
+ public       | query_cache               | anon          | TRUNCATE
+ public       | query_cache               | anon          | UPDATE
+ public       | query_cache               | authenticated | DELETE
+ public       | query_cache               | authenticated | INSERT
+ public       | query_cache               | authenticated | REFERENCES
+ public       | query_cache               | authenticated | SELECT
+ public       | query_cache               | authenticated | TRIGGER
+ public       | query_cache               | authenticated | TRUNCATE
+ public       | query_cache               | authenticated | UPDATE
+ public       | query_cache               | service_role  | DELETE
+ public       | query_cache               | service_role  | INSERT
+ public       | query_cache               | service_role  | REFERENCES
+ public       | query_cache               | service_role  | SELECT
+ public       | query_cache               | service_role  | TRIGGER
+ public       | query_cache               | service_role  | TRUNCATE
+ public       | query_cache               | service_role  | UPDATE
+ public       | raw_data                  | anon          | DELETE
+ public       | raw_data                  | anon          | INSERT
+ public       | raw_data                  | anon          | REFERENCES
+ public       | raw_data                  | anon          | SELECT
+ public       | raw_data                  | anon          | TRIGGER
+ public       | raw_data                  | anon          | TRUNCATE
+ public       | raw_data                  | anon          | UPDATE
+ public       | raw_data                  | authenticated | DELETE
+ public       | raw_data                  | authenticated | INSERT
+ public       | raw_data                  | authenticated | REFERENCES
+ public       | raw_data                  | authenticated | SELECT
+ public       | raw_data                  | authenticated | TRIGGER
+ public       | raw_data                  | authenticated | TRUNCATE
+ public       | raw_data                  | authenticated | UPDATE
+ public       | raw_data                  | service_role  | DELETE
+ public       | raw_data                  | service_role  | INSERT
+ public       | raw_data                  | service_role  | REFERENCES
+ public       | raw_data                  | service_role  | SELECT
+ public       | raw_data                  | service_role  | TRIGGER
+ public       | raw_data                  | service_role  | TRUNCATE
+ public       | raw_data                  | service_role  | UPDATE
+ public       | recipes                   | service_role  | DELETE
+ public       | recipes                   | service_role  | INSERT
+ public       | recipes                   | service_role  | REFERENCES
+ public       | recipes                   | service_role  | SELECT
+ public       | recipes                   | service_role  | TRIGGER
+ public       | recipes                   | service_role  | TRUNCATE
+ public       | recipes                   | service_role  | UPDATE
+ public       | search_telemetry          | anon          | DELETE
+ public       | search_telemetry          | anon          | INSERT
+ public       | search_telemetry          | anon          | REFERENCES
+ public       | search_telemetry          | anon          | SELECT
+ public       | search_telemetry          | anon          | TRIGGER
+ public       | search_telemetry          | anon          | TRUNCATE
+ public       | search_telemetry          | anon          | UPDATE
+ public       | search_telemetry          | authenticated | DELETE
+ public       | search_telemetry          | authenticated | INSERT
+ public       | search_telemetry          | authenticated | REFERENCES
+ public       | search_telemetry          | authenticated | SELECT
+ public       | search_telemetry          | authenticated | TRIGGER
+ public       | search_telemetry          | authenticated | TRUNCATE
+ public       | search_telemetry          | authenticated | UPDATE
+ public       | search_telemetry          | service_role  | DELETE
+ public       | search_telemetry          | service_role  | INSERT
+ public       | search_telemetry          | service_role  | REFERENCES
+ public       | search_telemetry          | service_role  | SELECT
+ public       | search_telemetry          | service_role  | TRIGGER
+ public       | search_telemetry          | service_role  | TRUNCATE
+ public       | search_telemetry          | service_role  | UPDATE
+ public       | shopping_list             | service_role  | DELETE
+ public       | shopping_list             | service_role  | INSERT
+ public       | shopping_list             | service_role  | REFERENCES
+ public       | shopping_list             | service_role  | SELECT
+ public       | shopping_list             | service_role  | TRIGGER
+ public       | shopping_list             | service_role  | TRUNCATE
+ public       | shopping_list             | service_role  | UPDATE
+ public       | sources                   | anon          | DELETE
+ public       | sources                   | anon          | INSERT
+ public       | sources                   | anon          | REFERENCES
+ public       | sources                   | anon          | SELECT
+ public       | sources                   | anon          | TRIGGER
+ public       | sources                   | anon          | TRUNCATE
+ public       | sources                   | anon          | UPDATE
+ public       | sources                   | authenticated | DELETE
+ public       | sources                   | authenticated | INSERT
+ public       | sources                   | authenticated | REFERENCES
+ public       | sources                   | authenticated | SELECT
+ public       | sources                   | authenticated | TRIGGER
+ public       | sources                   | authenticated | TRUNCATE
+ public       | sources                   | authenticated | UPDATE
+ public       | sources                   | service_role  | DELETE
+ public       | sources                   | service_role  | INSERT
+ public       | sources                   | service_role  | REFERENCES
+ public       | sources                   | service_role  | SELECT
+ public       | sources                   | service_role  | TRIGGER
+ public       | sources                   | service_role  | TRUNCATE
+ public       | sources                   | service_role  | UPDATE
+ public       | subagent_messages         | anon          | DELETE
+ public       | subagent_messages         | anon          | INSERT
+ public       | subagent_messages         | anon          | REFERENCES
+ public       | subagent_messages         | anon          | SELECT
+ public       | subagent_messages         | anon          | TRIGGER
+ public       | subagent_messages         | anon          | TRUNCATE
+ public       | subagent_messages         | anon          | UPDATE
+ public       | subagent_messages         | authenticated | DELETE
+ public       | subagent_messages         | authenticated | INSERT
+ public       | subagent_messages         | authenticated | REFERENCES
+ public       | subagent_messages         | authenticated | SELECT
+ public       | subagent_messages         | authenticated | TRIGGER
+ public       | subagent_messages         | authenticated | TRUNCATE
+ public       | subagent_messages         | authenticated | UPDATE
+ public       | subagent_messages         | service_role  | DELETE
+ public       | subagent_messages         | service_role  | INSERT
+ public       | subagent_messages         | service_role  | REFERENCES
+ public       | subagent_messages         | service_role  | SELECT
+ public       | subagent_messages         | service_role  | TRIGGER
+ public       | subagent_messages         | service_role  | TRUNCATE
+ public       | subagent_messages         | service_role  | UPDATE
+ public       | subagent_rate_leases      | anon          | DELETE
+ public       | subagent_rate_leases      | anon          | INSERT
+ public       | subagent_rate_leases      | anon          | REFERENCES
+ public       | subagent_rate_leases      | anon          | SELECT
+ public       | subagent_rate_leases      | anon          | TRIGGER
+ public       | subagent_rate_leases      | anon          | TRUNCATE
+ public       | subagent_rate_leases      | anon          | UPDATE
+ public       | subagent_rate_leases      | authenticated | DELETE
+ public       | subagent_rate_leases      | authenticated | INSERT
+ public       | subagent_rate_leases      | authenticated | REFERENCES
+ public       | subagent_rate_leases      | authenticated | SELECT
+ public       | subagent_rate_leases      | authenticated | TRIGGER
+ public       | subagent_rate_leases      | authenticated | TRUNCATE
+ public       | subagent_rate_leases      | authenticated | UPDATE
+ public       | subagent_rate_leases      | service_role  | DELETE
+ public       | subagent_rate_leases      | service_role  | INSERT
+ public       | subagent_rate_leases      | service_role  | REFERENCES
+ public       | subagent_rate_leases      | service_role  | SELECT
+ public       | subagent_rate_leases      | service_role  | TRIGGER
+ public       | subagent_rate_leases      | service_role  | TRUNCATE
+ public       | subagent_rate_leases      | service_role  | UPDATE
+ public       | subagent_tool_executions  | anon          | DELETE
+ public       | subagent_tool_executions  | anon          | INSERT
+ public       | subagent_tool_executions  | anon          | REFERENCES
+ public       | subagent_tool_executions  | anon          | SELECT
+ public       | subagent_tool_executions  | anon          | TRIGGER
+ public       | subagent_tool_executions  | anon          | TRUNCATE
+ public       | subagent_tool_executions  | anon          | UPDATE
+ public       | subagent_tool_executions  | authenticated | DELETE
+ public       | subagent_tool_executions  | authenticated | INSERT
+ public       | subagent_tool_executions  | authenticated | REFERENCES
+ public       | subagent_tool_executions  | authenticated | SELECT
+ public       | subagent_tool_executions  | authenticated | TRIGGER
+ public       | subagent_tool_executions  | authenticated | TRUNCATE
+ public       | subagent_tool_executions  | authenticated | UPDATE
+ public       | subagent_tool_executions  | service_role  | DELETE
+ public       | subagent_tool_executions  | service_role  | INSERT
+ public       | subagent_tool_executions  | service_role  | REFERENCES
+ public       | subagent_tool_executions  | service_role  | SELECT
+ public       | subagent_tool_executions  | service_role  | TRIGGER
+ public       | subagent_tool_executions  | service_role  | TRUNCATE
+ public       | subagent_tool_executions  | service_role  | UPDATE
+ public       | synthesis_evidence        | anon          | DELETE
+ public       | synthesis_evidence        | anon          | INSERT
+ public       | synthesis_evidence        | anon          | REFERENCES
+ public       | synthesis_evidence        | anon          | SELECT
+ public       | synthesis_evidence        | anon          | TRIGGER
+ public       | synthesis_evidence        | anon          | TRUNCATE
+ public       | synthesis_evidence        | anon          | UPDATE
+ public       | synthesis_evidence        | authenticated | DELETE
+ public       | synthesis_evidence        | authenticated | INSERT
+ public       | synthesis_evidence        | authenticated | REFERENCES
+ public       | synthesis_evidence        | authenticated | SELECT
+ public       | synthesis_evidence        | authenticated | TRIGGER
+ public       | synthesis_evidence        | authenticated | TRUNCATE
+ public       | synthesis_evidence        | authenticated | UPDATE
+ public       | synthesis_evidence        | service_role  | DELETE
+ public       | synthesis_evidence        | service_role  | INSERT
+ public       | synthesis_evidence        | service_role  | REFERENCES
+ public       | synthesis_evidence        | service_role  | SELECT
+ public       | synthesis_evidence        | service_role  | TRIGGER
+ public       | synthesis_evidence        | service_role  | TRUNCATE
+ public       | synthesis_evidence        | service_role  | UPDATE
+ public       | tags                      | anon          | DELETE
+ public       | tags                      | anon          | INSERT
+ public       | tags                      | anon          | REFERENCES
+ public       | tags                      | anon          | SELECT
+ public       | tags                      | anon          | TRIGGER
+ public       | tags                      | anon          | TRUNCATE
+ public       | tags                      | anon          | UPDATE
+ public       | tags                      | authenticated | DELETE
+ public       | tags                      | authenticated | INSERT
+ public       | tags                      | authenticated | REFERENCES
+ public       | tags                      | authenticated | SELECT
+ public       | tags                      | authenticated | TRIGGER
+ public       | tags                      | authenticated | TRUNCATE
+ public       | tags                      | authenticated | UPDATE
+ public       | tags                      | service_role  | DELETE
+ public       | tags                      | service_role  | INSERT
+ public       | tags                      | service_role  | REFERENCES
+ public       | tags                      | service_role  | SELECT
+ public       | tags                      | service_role  | TRIGGER
+ public       | tags                      | service_role  | TRUNCATE
+ public       | tags                      | service_role  | UPDATE
+ public       | take_grade_cache          | anon          | DELETE
+ public       | take_grade_cache          | anon          | INSERT
+ public       | take_grade_cache          | anon          | REFERENCES
+ public       | take_grade_cache          | anon          | SELECT
+ public       | take_grade_cache          | anon          | TRIGGER
+ public       | take_grade_cache          | anon          | TRUNCATE
+ public       | take_grade_cache          | anon          | UPDATE
+ public       | take_grade_cache          | authenticated | DELETE
+ public       | take_grade_cache          | authenticated | INSERT
+ public       | take_grade_cache          | authenticated | REFERENCES
+ public       | take_grade_cache          | authenticated | SELECT
+ public       | take_grade_cache          | authenticated | TRIGGER
+ public       | take_grade_cache          | authenticated | TRUNCATE
+ public       | take_grade_cache          | authenticated | UPDATE
+ public       | take_grade_cache          | service_role  | DELETE
+ public       | take_grade_cache          | service_role  | INSERT
+ public       | take_grade_cache          | service_role  | REFERENCES
+ public       | take_grade_cache          | service_role  | SELECT
+ public       | take_grade_cache          | service_role  | TRIGGER
+ public       | take_grade_cache          | service_role  | TRUNCATE
+ public       | take_grade_cache          | service_role  | UPDATE
+ public       | take_nudge_log            | anon          | DELETE
+ public       | take_nudge_log            | anon          | INSERT
+ public       | take_nudge_log            | anon          | REFERENCES
+ public       | take_nudge_log            | anon          | SELECT
+ public       | take_nudge_log            | anon          | TRIGGER
+ public       | take_nudge_log            | anon          | TRUNCATE
+ public       | take_nudge_log            | anon          | UPDATE
+ public       | take_nudge_log            | authenticated | DELETE
+ public       | take_nudge_log            | authenticated | INSERT
+ public       | take_nudge_log            | authenticated | REFERENCES
+ public       | take_nudge_log            | authenticated | SELECT
+ public       | take_nudge_log            | authenticated | TRIGGER
+ public       | take_nudge_log            | authenticated | TRUNCATE
+ public       | take_nudge_log            | authenticated | UPDATE
+ public       | take_nudge_log            | service_role  | DELETE
+ public       | take_nudge_log            | service_role  | INSERT
+ public       | take_nudge_log            | service_role  | REFERENCES
+ public       | take_nudge_log            | service_role  | SELECT
+ public       | take_nudge_log            | service_role  | TRIGGER
+ public       | take_nudge_log            | service_role  | TRUNCATE
+ public       | take_nudge_log            | service_role  | UPDATE
+ public       | take_proposals            | anon          | DELETE
+ public       | take_proposals            | anon          | INSERT
+ public       | take_proposals            | anon          | REFERENCES
+ public       | take_proposals            | anon          | SELECT
+ public       | take_proposals            | anon          | TRIGGER
+ public       | take_proposals            | anon          | TRUNCATE
+ public       | take_proposals            | anon          | UPDATE
+ public       | take_proposals            | authenticated | DELETE
+ public       | take_proposals            | authenticated | INSERT
+ public       | take_proposals            | authenticated | REFERENCES
+ public       | take_proposals            | authenticated | SELECT
+ public       | take_proposals            | authenticated | TRIGGER
+ public       | take_proposals            | authenticated | TRUNCATE
+ public       | take_proposals            | authenticated | UPDATE
+ public       | take_proposals            | service_role  | DELETE
+ public       | take_proposals            | service_role  | INSERT
+ public       | take_proposals            | service_role  | REFERENCES
+ public       | take_proposals            | service_role  | SELECT
+ public       | take_proposals            | service_role  | TRIGGER
+ public       | take_proposals            | service_role  | TRUNCATE
+ public       | take_proposals            | service_role  | UPDATE
+ public       | takes                     | anon          | DELETE
+ public       | takes                     | anon          | INSERT
+ public       | takes                     | anon          | REFERENCES
+ public       | takes                     | anon          | SELECT
+ public       | takes                     | anon          | TRIGGER
+ public       | takes                     | anon          | TRUNCATE
+ public       | takes                     | anon          | UPDATE
+ public       | takes                     | authenticated | DELETE
+ public       | takes                     | authenticated | INSERT
+ public       | takes                     | authenticated | REFERENCES
+ public       | takes                     | authenticated | SELECT
+ public       | takes                     | authenticated | TRIGGER
+ public       | takes                     | authenticated | TRUNCATE
+ public       | takes                     | authenticated | UPDATE
+ public       | takes                     | service_role  | DELETE
+ public       | takes                     | service_role  | INSERT
+ public       | takes                     | service_role  | REFERENCES
+ public       | takes                     | service_role  | SELECT
+ public       | takes                     | service_role  | TRIGGER
+ public       | takes                     | service_role  | TRUNCATE
+ public       | takes                     | service_role  | UPDATE
+ public       | think_ab_results          | anon          | DELETE
+ public       | think_ab_results          | anon          | INSERT
+ public       | think_ab_results          | anon          | REFERENCES
+ public       | think_ab_results          | anon          | SELECT
+ public       | think_ab_results          | anon          | TRIGGER
+ public       | think_ab_results          | anon          | TRUNCATE
+ public       | think_ab_results          | anon          | UPDATE
+ public       | think_ab_results          | authenticated | DELETE
+ public       | think_ab_results          | authenticated | INSERT
+ public       | think_ab_results          | authenticated | REFERENCES
+ public       | think_ab_results          | authenticated | SELECT
+ public       | think_ab_results          | authenticated | TRIGGER
+ public       | think_ab_results          | authenticated | TRUNCATE
+ public       | think_ab_results          | authenticated | UPDATE
+ public       | think_ab_results          | service_role  | DELETE
+ public       | think_ab_results          | service_role  | INSERT
+ public       | think_ab_results          | service_role  | REFERENCES
+ public       | think_ab_results          | service_role  | SELECT
+ public       | think_ab_results          | service_role  | TRIGGER
+ public       | think_ab_results          | service_role  | TRUNCATE
+ public       | think_ab_results          | service_role  | UPDATE
+ public       | timeline_entries          | anon          | DELETE
+ public       | timeline_entries          | anon          | INSERT
+ public       | timeline_entries          | anon          | REFERENCES
+ public       | timeline_entries          | anon          | SELECT
+ public       | timeline_entries          | anon          | TRIGGER
+ public       | timeline_entries          | anon          | TRUNCATE
+ public       | timeline_entries          | anon          | UPDATE
+ public       | timeline_entries          | authenticated | DELETE
+ public       | timeline_entries          | authenticated | INSERT
+ public       | timeline_entries          | authenticated | REFERENCES
+ public       | timeline_entries          | authenticated | SELECT
+ public       | timeline_entries          | authenticated | TRIGGER
+ public       | timeline_entries          | authenticated | TRUNCATE
+ public       | timeline_entries          | authenticated | UPDATE
+ public       | timeline_entries          | service_role  | DELETE
+ public       | timeline_entries          | service_role  | INSERT
+ public       | timeline_entries          | service_role  | REFERENCES
+ public       | timeline_entries          | service_role  | SELECT
+ public       | timeline_entries          | service_role  | TRIGGER
+ public       | timeline_entries          | service_role  | TRUNCATE
+ public       | timeline_entries          | service_role  | UPDATE
+(1022 rows)
+
+== data api schema usage grants ==
+ schema_name |    grantee    | privilege_type 
+-------------+---------------+----------------
+ public      | anon          | USAGE
+ public      | authenticated | USAGE
+ public      | service_role  | USAGE
+ storage     | anon          | USAGE
+ storage     | authenticated | USAGE
+ storage     | service_role  | USAGE
+(6 rows)
+
+== data api sequence grants ==
+ schema |          sequence_name          |    grantee    | privilege_type 
+--------+---------------------------------+---------------+----------------
+ public | api_keys_id_seq                 | anon          | SELECT
+ public | api_keys_id_seq                 | anon          | UPDATE
+ public | api_keys_id_seq                 | anon          | USAGE
+ public | api_keys_id_seq                 | authenticated | SELECT
+ public | api_keys_id_seq                 | authenticated | UPDATE
+ public | api_keys_id_seq                 | authenticated | USAGE
+ public | api_keys_id_seq                 | service_role  | SELECT
+ public | api_keys_id_seq                 | service_role  | UPDATE
+ public | api_keys_id_seq                 | service_role  | USAGE
+ public | calibration_profiles_id_seq     | anon          | SELECT
+ public | calibration_profiles_id_seq     | anon          | UPDATE
+ public | calibration_profiles_id_seq     | anon          | USAGE
+ public | calibration_profiles_id_seq     | authenticated | SELECT
+ public | calibration_profiles_id_seq     | authenticated | UPDATE
+ public | calibration_profiles_id_seq     | authenticated | USAGE
+ public | calibration_profiles_id_seq     | service_role  | SELECT
+ public | calibration_profiles_id_seq     | service_role  | UPDATE
+ public | calibration_profiles_id_seq     | service_role  | USAGE
+ public | code_edges_chunk_id_seq         | anon          | SELECT
+ public | code_edges_chunk_id_seq         | anon          | UPDATE
+ public | code_edges_chunk_id_seq         | anon          | USAGE
+ public | code_edges_chunk_id_seq         | authenticated | SELECT
+ public | code_edges_chunk_id_seq         | authenticated | UPDATE
+ public | code_edges_chunk_id_seq         | authenticated | USAGE
+ public | code_edges_chunk_id_seq         | service_role  | SELECT
+ public | code_edges_chunk_id_seq         | service_role  | UPDATE
+ public | code_edges_chunk_id_seq         | service_role  | USAGE
+ public | code_edges_symbol_id_seq        | anon          | SELECT
+ public | code_edges_symbol_id_seq        | anon          | UPDATE
+ public | code_edges_symbol_id_seq        | anon          | USAGE
+ public | code_edges_symbol_id_seq        | authenticated | SELECT
+ public | code_edges_symbol_id_seq        | authenticated | UPDATE
+ public | code_edges_symbol_id_seq        | authenticated | USAGE
+ public | code_edges_symbol_id_seq        | service_role  | SELECT
+ public | code_edges_symbol_id_seq        | service_role  | UPDATE
+ public | code_edges_symbol_id_seq        | service_role  | USAGE
+ public | code_traversal_cache_id_seq     | anon          | SELECT
+ public | code_traversal_cache_id_seq     | anon          | UPDATE
+ public | code_traversal_cache_id_seq     | anon          | USAGE
+ public | code_traversal_cache_id_seq     | authenticated | SELECT
+ public | code_traversal_cache_id_seq     | authenticated | UPDATE
+ public | code_traversal_cache_id_seq     | authenticated | USAGE
+ public | code_traversal_cache_id_seq     | service_role  | SELECT
+ public | code_traversal_cache_id_seq     | service_role  | UPDATE
+ public | code_traversal_cache_id_seq     | service_role  | USAGE
+ public | content_chunks_id_seq           | anon          | SELECT
+ public | content_chunks_id_seq           | anon          | UPDATE
+ public | content_chunks_id_seq           | anon          | USAGE
+ public | content_chunks_id_seq           | authenticated | SELECT
+ public | content_chunks_id_seq           | authenticated | UPDATE
+ public | content_chunks_id_seq           | authenticated | USAGE
+ public | content_chunks_id_seq           | service_role  | SELECT
+ public | content_chunks_id_seq           | service_role  | UPDATE
+ public | content_chunks_id_seq           | service_role  | USAGE
+ public | drift_decisions_id_seq          | anon          | SELECT
+ public | drift_decisions_id_seq          | anon          | UPDATE
+ public | drift_decisions_id_seq          | anon          | USAGE
+ public | drift_decisions_id_seq          | authenticated | SELECT
+ public | drift_decisions_id_seq          | authenticated | UPDATE
+ public | drift_decisions_id_seq          | authenticated | USAGE
+ public | drift_decisions_id_seq          | service_role  | SELECT
+ public | drift_decisions_id_seq          | service_role  | UPDATE
+ public | drift_decisions_id_seq          | service_role  | USAGE
+ public | eval_candidates_id_seq          | anon          | SELECT
+ public | eval_candidates_id_seq          | anon          | UPDATE
+ public | eval_candidates_id_seq          | anon          | USAGE
+ public | eval_candidates_id_seq          | authenticated | SELECT
+ public | eval_candidates_id_seq          | authenticated | UPDATE
+ public | eval_candidates_id_seq          | authenticated | USAGE
+ public | eval_candidates_id_seq          | service_role  | SELECT
+ public | eval_candidates_id_seq          | service_role  | UPDATE
+ public | eval_candidates_id_seq          | service_role  | USAGE
+ public | eval_capture_failures_id_seq    | anon          | SELECT
+ public | eval_capture_failures_id_seq    | anon          | UPDATE
+ public | eval_capture_failures_id_seq    | anon          | USAGE
+ public | eval_capture_failures_id_seq    | authenticated | SELECT
+ public | eval_capture_failures_id_seq    | authenticated | UPDATE
+ public | eval_capture_failures_id_seq    | authenticated | USAGE
+ public | eval_capture_failures_id_seq    | service_role  | SELECT
+ public | eval_capture_failures_id_seq    | service_role  | UPDATE
+ public | eval_capture_failures_id_seq    | service_role  | USAGE
+ public | eval_takes_quality_runs_id_seq  | anon          | SELECT
+ public | eval_takes_quality_runs_id_seq  | anon          | UPDATE
+ public | eval_takes_quality_runs_id_seq  | anon          | USAGE
+ public | eval_takes_quality_runs_id_seq  | authenticated | SELECT
+ public | eval_takes_quality_runs_id_seq  | authenticated | UPDATE
+ public | eval_takes_quality_runs_id_seq  | authenticated | USAGE
+ public | eval_takes_quality_runs_id_seq  | service_role  | SELECT
+ public | eval_takes_quality_runs_id_seq  | service_role  | UPDATE
+ public | eval_takes_quality_runs_id_seq  | service_role  | USAGE
+ public | facts_id_seq                    | anon          | SELECT
+ public | facts_id_seq                    | anon          | UPDATE
+ public | facts_id_seq                    | anon          | USAGE
+ public | facts_id_seq                    | authenticated | SELECT
+ public | facts_id_seq                    | authenticated | UPDATE
+ public | facts_id_seq                    | authenticated | USAGE
+ public | facts_id_seq                    | service_role  | SELECT
+ public | facts_id_seq                    | service_role  | UPDATE
+ public | facts_id_seq                    | service_role  | USAGE
+ public | files_id_seq                    | anon          | SELECT
+ public | files_id_seq                    | anon          | UPDATE
+ public | files_id_seq                    | anon          | USAGE
+ public | files_id_seq                    | authenticated | SELECT
+ public | files_id_seq                    | authenticated | UPDATE
+ public | files_id_seq                    | authenticated | USAGE
+ public | files_id_seq                    | service_role  | SELECT
+ public | files_id_seq                    | service_role  | UPDATE
+ public | files_id_seq                    | service_role  | USAGE
+ public | ingest_log_id_seq               | anon          | SELECT
+ public | ingest_log_id_seq               | anon          | UPDATE
+ public | ingest_log_id_seq               | anon          | USAGE
+ public | ingest_log_id_seq               | authenticated | SELECT
+ public | ingest_log_id_seq               | authenticated | UPDATE
+ public | ingest_log_id_seq               | authenticated | USAGE
+ public | ingest_log_id_seq               | service_role  | SELECT
+ public | ingest_log_id_seq               | service_role  | UPDATE
+ public | ingest_log_id_seq               | service_role  | USAGE
+ public | ingredient_dictionary_id_seq    | anon          | SELECT
+ public | ingredient_dictionary_id_seq    | anon          | UPDATE
+ public | ingredient_dictionary_id_seq    | anon          | USAGE
+ public | ingredient_dictionary_id_seq    | authenticated | SELECT
+ public | ingredient_dictionary_id_seq    | authenticated | UPDATE
+ public | ingredient_dictionary_id_seq    | authenticated | USAGE
+ public | ingredient_dictionary_id_seq    | service_role  | SELECT
+ public | ingredient_dictionary_id_seq    | service_role  | UPDATE
+ public | ingredient_dictionary_id_seq    | service_role  | USAGE
+ public | links_id_seq                    | anon          | SELECT
+ public | links_id_seq                    | anon          | UPDATE
+ public | links_id_seq                    | anon          | USAGE
+ public | links_id_seq                    | authenticated | SELECT
+ public | links_id_seq                    | authenticated | UPDATE
+ public | links_id_seq                    | authenticated | USAGE
+ public | links_id_seq                    | service_role  | SELECT
+ public | links_id_seq                    | service_role  | UPDATE
+ public | links_id_seq                    | service_role  | USAGE
+ public | mcp_request_log_id_seq          | anon          | SELECT
+ public | mcp_request_log_id_seq          | anon          | UPDATE
+ public | mcp_request_log_id_seq          | anon          | USAGE
+ public | mcp_request_log_id_seq          | authenticated | SELECT
+ public | mcp_request_log_id_seq          | authenticated | UPDATE
+ public | mcp_request_log_id_seq          | authenticated | USAGE
+ public | mcp_request_log_id_seq          | service_role  | SELECT
+ public | mcp_request_log_id_seq          | service_role  | UPDATE
+ public | mcp_request_log_id_seq          | service_role  | USAGE
+ public | meal_plan_id_seq                | anon          | SELECT
+ public | meal_plan_id_seq                | anon          | UPDATE
+ public | meal_plan_id_seq                | anon          | USAGE
+ public | meal_plan_id_seq                | authenticated | SELECT
+ public | meal_plan_id_seq                | authenticated | UPDATE
+ public | meal_plan_id_seq                | authenticated | USAGE
+ public | meal_plan_id_seq                | service_role  | SELECT
+ public | meal_plan_id_seq                | service_role  | UPDATE
+ public | meal_plan_id_seq                | service_role  | USAGE
+ public | minion_attachments_id_seq       | anon          | SELECT
+ public | minion_attachments_id_seq       | anon          | UPDATE
+ public | minion_attachments_id_seq       | anon          | USAGE
+ public | minion_attachments_id_seq       | authenticated | SELECT
+ public | minion_attachments_id_seq       | authenticated | UPDATE
+ public | minion_attachments_id_seq       | authenticated | USAGE
+ public | minion_attachments_id_seq       | service_role  | SELECT
+ public | minion_attachments_id_seq       | service_role  | UPDATE
+ public | minion_attachments_id_seq       | service_role  | USAGE
+ public | minion_inbox_id_seq             | anon          | SELECT
+ public | minion_inbox_id_seq             | anon          | UPDATE
+ public | minion_inbox_id_seq             | anon          | USAGE
+ public | minion_inbox_id_seq             | authenticated | SELECT
+ public | minion_inbox_id_seq             | authenticated | UPDATE
+ public | minion_inbox_id_seq             | authenticated | USAGE
+ public | minion_inbox_id_seq             | service_role  | SELECT
+ public | minion_inbox_id_seq             | service_role  | UPDATE
+ public | minion_inbox_id_seq             | service_role  | USAGE
+ public | minion_jobs_id_seq              | anon          | SELECT
+ public | minion_jobs_id_seq              | anon          | UPDATE
+ public | minion_jobs_id_seq              | anon          | USAGE
+ public | minion_jobs_id_seq              | authenticated | SELECT
+ public | minion_jobs_id_seq              | authenticated | UPDATE
+ public | minion_jobs_id_seq              | authenticated | USAGE
+ public | minion_jobs_id_seq              | service_role  | SELECT
+ public | minion_jobs_id_seq              | service_role  | UPDATE
+ public | minion_jobs_id_seq              | service_role  | USAGE
+ public | page_versions_id_seq            | anon          | SELECT
+ public | page_versions_id_seq            | anon          | UPDATE
+ public | page_versions_id_seq            | anon          | USAGE
+ public | page_versions_id_seq            | authenticated | SELECT
+ public | page_versions_id_seq            | authenticated | UPDATE
+ public | page_versions_id_seq            | authenticated | USAGE
+ public | page_versions_id_seq            | service_role  | SELECT
+ public | page_versions_id_seq            | service_role  | UPDATE
+ public | page_versions_id_seq            | service_role  | USAGE
+ public | pages_id_seq                    | anon          | SELECT
+ public | pages_id_seq                    | anon          | UPDATE
+ public | pages_id_seq                    | anon          | USAGE
+ public | pages_id_seq                    | authenticated | SELECT
+ public | pages_id_seq                    | authenticated | UPDATE
+ public | pages_id_seq                    | authenticated | USAGE
+ public | pages_id_seq                    | service_role  | SELECT
+ public | pages_id_seq                    | service_role  | UPDATE
+ public | pages_id_seq                    | service_role  | USAGE
+ public | raw_data_id_seq                 | anon          | SELECT
+ public | raw_data_id_seq                 | anon          | UPDATE
+ public | raw_data_id_seq                 | anon          | USAGE
+ public | raw_data_id_seq                 | authenticated | SELECT
+ public | raw_data_id_seq                 | authenticated | UPDATE
+ public | raw_data_id_seq                 | authenticated | USAGE
+ public | raw_data_id_seq                 | service_role  | SELECT
+ public | raw_data_id_seq                 | service_role  | UPDATE
+ public | raw_data_id_seq                 | service_role  | USAGE
+ public | recipes_id_seq                  | anon          | SELECT
+ public | recipes_id_seq                  | anon          | UPDATE
+ public | recipes_id_seq                  | anon          | USAGE
+ public | recipes_id_seq                  | authenticated | SELECT
+ public | recipes_id_seq                  | authenticated | UPDATE
+ public | recipes_id_seq                  | authenticated | USAGE
+ public | recipes_id_seq                  | service_role  | SELECT
+ public | recipes_id_seq                  | service_role  | UPDATE
+ public | recipes_id_seq                  | service_role  | USAGE
+ public | shopping_list_id_seq            | anon          | SELECT
+ public | shopping_list_id_seq            | anon          | UPDATE
+ public | shopping_list_id_seq            | anon          | USAGE
+ public | shopping_list_id_seq            | authenticated | SELECT
+ public | shopping_list_id_seq            | authenticated | UPDATE
+ public | shopping_list_id_seq            | authenticated | USAGE
+ public | shopping_list_id_seq            | service_role  | SELECT
+ public | shopping_list_id_seq            | service_role  | UPDATE
+ public | shopping_list_id_seq            | service_role  | USAGE
+ public | subagent_messages_id_seq        | anon          | SELECT
+ public | subagent_messages_id_seq        | anon          | UPDATE
+ public | subagent_messages_id_seq        | anon          | USAGE
+ public | subagent_messages_id_seq        | authenticated | SELECT
+ public | subagent_messages_id_seq        | authenticated | UPDATE
+ public | subagent_messages_id_seq        | authenticated | USAGE
+ public | subagent_messages_id_seq        | service_role  | SELECT
+ public | subagent_messages_id_seq        | service_role  | UPDATE
+ public | subagent_messages_id_seq        | service_role  | USAGE
+ public | subagent_rate_leases_id_seq     | anon          | SELECT
+ public | subagent_rate_leases_id_seq     | anon          | UPDATE
+ public | subagent_rate_leases_id_seq     | anon          | USAGE
+ public | subagent_rate_leases_id_seq     | authenticated | SELECT
+ public | subagent_rate_leases_id_seq     | authenticated | UPDATE
+ public | subagent_rate_leases_id_seq     | authenticated | USAGE
+ public | subagent_rate_leases_id_seq     | service_role  | SELECT
+ public | subagent_rate_leases_id_seq     | service_role  | UPDATE
+ public | subagent_rate_leases_id_seq     | service_role  | USAGE
+ public | subagent_tool_executions_id_seq | anon          | SELECT
+ public | subagent_tool_executions_id_seq | anon          | UPDATE
+ public | subagent_tool_executions_id_seq | anon          | USAGE
+ public | subagent_tool_executions_id_seq | authenticated | SELECT
+ public | subagent_tool_executions_id_seq | authenticated | UPDATE
+ public | subagent_tool_executions_id_seq | authenticated | USAGE
+ public | subagent_tool_executions_id_seq | service_role  | SELECT
+ public | subagent_tool_executions_id_seq | service_role  | UPDATE
+ public | subagent_tool_executions_id_seq | service_role  | USAGE
+ public | tags_id_seq                     | anon          | SELECT
+ public | tags_id_seq                     | anon          | UPDATE
+ public | tags_id_seq                     | anon          | USAGE
+ public | tags_id_seq                     | authenticated | SELECT
+ public | tags_id_seq                     | authenticated | UPDATE
+ public | tags_id_seq                     | authenticated | USAGE
+ public | tags_id_seq                     | service_role  | SELECT
+ public | tags_id_seq                     | service_role  | UPDATE
+ public | tags_id_seq                     | service_role  | USAGE
+ public | take_nudge_log_id_seq           | anon          | SELECT
+ public | take_nudge_log_id_seq           | anon          | UPDATE
+ public | take_nudge_log_id_seq           | anon          | USAGE
+ public | take_nudge_log_id_seq           | authenticated | SELECT
+ public | take_nudge_log_id_seq           | authenticated | UPDATE
+ public | take_nudge_log_id_seq           | authenticated | USAGE
+ public | take_nudge_log_id_seq           | service_role  | SELECT
+ public | take_nudge_log_id_seq           | service_role  | UPDATE
+ public | take_nudge_log_id_seq           | service_role  | USAGE
+ public | take_proposals_id_seq           | anon          | SELECT
+ public | take_proposals_id_seq           | anon          | UPDATE
+ public | take_proposals_id_seq           | anon          | USAGE
+ public | take_proposals_id_seq           | authenticated | SELECT
+ public | take_proposals_id_seq           | authenticated | UPDATE
+ public | take_proposals_id_seq           | authenticated | USAGE
+ public | take_proposals_id_seq           | service_role  | SELECT
+ public | take_proposals_id_seq           | service_role  | UPDATE
+ public | take_proposals_id_seq           | service_role  | USAGE
+ public | takes_id_seq                    | anon          | SELECT
+ public | takes_id_seq                    | anon          | UPDATE
+ public | takes_id_seq                    | anon          | USAGE
+ public | takes_id_seq                    | authenticated | SELECT
+ public | takes_id_seq                    | authenticated | UPDATE
+ public | takes_id_seq                    | authenticated | USAGE
+ public | takes_id_seq                    | service_role  | SELECT
+ public | takes_id_seq                    | service_role  | UPDATE
+ public | takes_id_seq                    | service_role  | USAGE
+ public | think_ab_results_id_seq         | anon          | SELECT
+ public | think_ab_results_id_seq         | anon          | UPDATE
+ public | think_ab_results_id_seq         | anon          | USAGE
+ public | think_ab_results_id_seq         | authenticated | SELECT
+ public | think_ab_results_id_seq         | authenticated | UPDATE
+ public | think_ab_results_id_seq         | authenticated | USAGE
+ public | think_ab_results_id_seq         | service_role  | SELECT
+ public | think_ab_results_id_seq         | service_role  | UPDATE
+ public | think_ab_results_id_seq         | service_role  | USAGE
+ public | timeline_entries_id_seq         | anon          | SELECT
+ public | timeline_entries_id_seq         | anon          | UPDATE
+ public | timeline_entries_id_seq         | anon          | USAGE
+ public | timeline_entries_id_seq         | authenticated | SELECT
+ public | timeline_entries_id_seq         | authenticated | UPDATE
+ public | timeline_entries_id_seq         | authenticated | USAGE
+ public | timeline_entries_id_seq         | service_role  | SELECT
+ public | timeline_entries_id_seq         | service_role  | UPDATE
+ public | timeline_entries_id_seq         | service_role  | USAGE
+(306 rows)
+
+== data api function execute grants in public ==
+ schema |                                   function_signature                                    |    grantee    | can_execute 
+--------+-----------------------------------------------------------------------------------------+---------------+-------------
+ public | array_to_halfvec(double precision[],integer,boolean)                                    | anon          | t
+ public | array_to_halfvec(double precision[],integer,boolean)                                    | authenticated | t
+ public | array_to_halfvec(double precision[],integer,boolean)                                    | service_role  | t
+ public | array_to_halfvec(integer[],integer,boolean)                                             | anon          | t
+ public | array_to_halfvec(integer[],integer,boolean)                                             | authenticated | t
+ public | array_to_halfvec(integer[],integer,boolean)                                             | service_role  | t
+ public | array_to_halfvec(numeric[],integer,boolean)                                             | anon          | t
+ public | array_to_halfvec(numeric[],integer,boolean)                                             | authenticated | t
+ public | array_to_halfvec(numeric[],integer,boolean)                                             | service_role  | t
+ public | array_to_halfvec(real[],integer,boolean)                                                | anon          | t
+ public | array_to_halfvec(real[],integer,boolean)                                                | authenticated | t
+ public | array_to_halfvec(real[],integer,boolean)                                                | service_role  | t
+ public | array_to_sparsevec(double precision[],integer,boolean)                                  | anon          | t
+ public | array_to_sparsevec(double precision[],integer,boolean)                                  | authenticated | t
+ public | array_to_sparsevec(double precision[],integer,boolean)                                  | service_role  | t
+ public | array_to_sparsevec(integer[],integer,boolean)                                           | anon          | t
+ public | array_to_sparsevec(integer[],integer,boolean)                                           | authenticated | t
+ public | array_to_sparsevec(integer[],integer,boolean)                                           | service_role  | t
+ public | array_to_sparsevec(numeric[],integer,boolean)                                           | anon          | t
+ public | array_to_sparsevec(numeric[],integer,boolean)                                           | authenticated | t
+ public | array_to_sparsevec(numeric[],integer,boolean)                                           | service_role  | t
+ public | array_to_sparsevec(real[],integer,boolean)                                              | anon          | t
+ public | array_to_sparsevec(real[],integer,boolean)                                              | authenticated | t
+ public | array_to_sparsevec(real[],integer,boolean)                                              | service_role  | t
+ public | array_to_vector(double precision[],integer,boolean)                                     | anon          | t
+ public | array_to_vector(double precision[],integer,boolean)                                     | authenticated | t
+ public | array_to_vector(double precision[],integer,boolean)                                     | service_role  | t
+ public | array_to_vector(integer[],integer,boolean)                                              | anon          | t
+ public | array_to_vector(integer[],integer,boolean)                                              | authenticated | t
+ public | array_to_vector(integer[],integer,boolean)                                              | service_role  | t
+ public | array_to_vector(numeric[],integer,boolean)                                              | anon          | t
+ public | array_to_vector(numeric[],integer,boolean)                                              | authenticated | t
+ public | array_to_vector(numeric[],integer,boolean)                                              | service_role  | t
+ public | array_to_vector(real[],integer,boolean)                                                 | anon          | t
+ public | array_to_vector(real[],integer,boolean)                                                 | authenticated | t
+ public | array_to_vector(real[],integer,boolean)                                                 | service_role  | t
+ public | auto_enable_rls()                                                                       | service_role  | t
+ public | avg(halfvec)                                                                            | anon          | t
+ public | avg(halfvec)                                                                            | authenticated | t
+ public | avg(halfvec)                                                                            | service_role  | t
+ public | avg(vector)                                                                             | anon          | t
+ public | avg(vector)                                                                             | authenticated | t
+ public | avg(vector)                                                                             | service_role  | t
+ public | binary_quantize(halfvec)                                                                | anon          | t
+ public | binary_quantize(halfvec)                                                                | authenticated | t
+ public | binary_quantize(halfvec)                                                                | service_role  | t
+ public | binary_quantize(vector)                                                                 | anon          | t
+ public | binary_quantize(vector)                                                                 | authenticated | t
+ public | binary_quantize(vector)                                                                 | service_role  | t
+ public | cosine_distance(halfvec,halfvec)                                                        | anon          | t
+ public | cosine_distance(halfvec,halfvec)                                                        | authenticated | t
+ public | cosine_distance(halfvec,halfvec)                                                        | service_role  | t
+ public | cosine_distance(sparsevec,sparsevec)                                                    | anon          | t
+ public | cosine_distance(sparsevec,sparsevec)                                                    | authenticated | t
+ public | cosine_distance(sparsevec,sparsevec)                                                    | service_role  | t
+ public | cosine_distance(vector,vector)                                                          | anon          | t
+ public | cosine_distance(vector,vector)                                                          | authenticated | t
+ public | cosine_distance(vector,vector)                                                          | service_role  | t
+ public | gin_extract_query_trgm(text,internal,smallint,internal,internal,internal,internal)      | anon          | t
+ public | gin_extract_query_trgm(text,internal,smallint,internal,internal,internal,internal)      | authenticated | t
+ public | gin_extract_query_trgm(text,internal,smallint,internal,internal,internal,internal)      | service_role  | t
+ public | gin_extract_value_trgm(text,internal)                                                   | anon          | t
+ public | gin_extract_value_trgm(text,internal)                                                   | authenticated | t
+ public | gin_extract_value_trgm(text,internal)                                                   | service_role  | t
+ public | gin_trgm_consistent(internal,smallint,text,integer,internal,internal,internal,internal) | anon          | t
+ public | gin_trgm_consistent(internal,smallint,text,integer,internal,internal,internal,internal) | authenticated | t
+ public | gin_trgm_consistent(internal,smallint,text,integer,internal,internal,internal,internal) | service_role  | t
+ public | gin_trgm_triconsistent(internal,smallint,text,integer,internal,internal,internal)       | anon          | t
+ public | gin_trgm_triconsistent(internal,smallint,text,integer,internal,internal,internal)       | authenticated | t
+ public | gin_trgm_triconsistent(internal,smallint,text,integer,internal,internal,internal)       | service_role  | t
+ public | gtrgm_compress(internal)                                                                | anon          | t
+ public | gtrgm_compress(internal)                                                                | authenticated | t
+ public | gtrgm_compress(internal)                                                                | service_role  | t
+ public | gtrgm_consistent(internal,text,smallint,oid,internal)                                   | anon          | t
+ public | gtrgm_consistent(internal,text,smallint,oid,internal)                                   | authenticated | t
+ public | gtrgm_consistent(internal,text,smallint,oid,internal)                                   | service_role  | t
+ public | gtrgm_decompress(internal)                                                              | anon          | t
+ public | gtrgm_decompress(internal)                                                              | authenticated | t
+ public | gtrgm_decompress(internal)                                                              | service_role  | t
+ public | gtrgm_distance(internal,text,smallint,oid,internal)                                     | anon          | t
+ public | gtrgm_distance(internal,text,smallint,oid,internal)                                     | authenticated | t
+ public | gtrgm_distance(internal,text,smallint,oid,internal)                                     | service_role  | t
+ public | gtrgm_in(cstring)                                                                       | anon          | t
+ public | gtrgm_in(cstring)                                                                       | authenticated | t
+ public | gtrgm_in(cstring)                                                                       | service_role  | t
+ public | gtrgm_options(internal)                                                                 | anon          | t
+ public | gtrgm_options(internal)                                                                 | authenticated | t
+ public | gtrgm_options(internal)                                                                 | service_role  | t
+ public | gtrgm_out(gtrgm)                                                                        | anon          | t
+ public | gtrgm_out(gtrgm)                                                                        | authenticated | t
+ public | gtrgm_out(gtrgm)                                                                        | service_role  | t
+ public | gtrgm_penalty(internal,internal,internal)                                               | anon          | t
+ public | gtrgm_penalty(internal,internal,internal)                                               | authenticated | t
+ public | gtrgm_penalty(internal,internal,internal)                                               | service_role  | t
+ public | gtrgm_picksplit(internal,internal)                                                      | anon          | t
+ public | gtrgm_picksplit(internal,internal)                                                      | authenticated | t
+ public | gtrgm_picksplit(internal,internal)                                                      | service_role  | t
+ public | gtrgm_same(gtrgm,gtrgm,internal)                                                        | anon          | t
+ public | gtrgm_same(gtrgm,gtrgm,internal)                                                        | authenticated | t
+ public | gtrgm_same(gtrgm,gtrgm,internal)                                                        | service_role  | t
+ public | gtrgm_union(internal,internal)                                                          | anon          | t
+ public | gtrgm_union(internal,internal)                                                          | authenticated | t
+ public | gtrgm_union(internal,internal)                                                          | service_role  | t
+ public | halfvec_accum(double precision[],halfvec)                                               | anon          | t
+ public | halfvec_accum(double precision[],halfvec)                                               | authenticated | t
+ public | halfvec_accum(double precision[],halfvec)                                               | service_role  | t
+ public | halfvec_add(halfvec,halfvec)                                                            | anon          | t
+ public | halfvec_add(halfvec,halfvec)                                                            | authenticated | t
+ public | halfvec_add(halfvec,halfvec)                                                            | service_role  | t
+ public | halfvec_avg(double precision[])                                                         | anon          | t
+ public | halfvec_avg(double precision[])                                                         | authenticated | t
+ public | halfvec_avg(double precision[])                                                         | service_role  | t
+ public | halfvec_cmp(halfvec,halfvec)                                                            | anon          | t
+ public | halfvec_cmp(halfvec,halfvec)                                                            | authenticated | t
+ public | halfvec_cmp(halfvec,halfvec)                                                            | service_role  | t
+ public | halfvec_combine(double precision[],double precision[])                                  | anon          | t
+ public | halfvec_combine(double precision[],double precision[])                                  | authenticated | t
+ public | halfvec_combine(double precision[],double precision[])                                  | service_role  | t
+ public | halfvec_concat(halfvec,halfvec)                                                         | anon          | t
+ public | halfvec_concat(halfvec,halfvec)                                                         | authenticated | t
+ public | halfvec_concat(halfvec,halfvec)                                                         | service_role  | t
+ public | halfvec_eq(halfvec,halfvec)                                                             | anon          | t
+ public | halfvec_eq(halfvec,halfvec)                                                             | authenticated | t
+ public | halfvec_eq(halfvec,halfvec)                                                             | service_role  | t
+ public | halfvec_ge(halfvec,halfvec)                                                             | anon          | t
+ public | halfvec_ge(halfvec,halfvec)                                                             | authenticated | t
+ public | halfvec_ge(halfvec,halfvec)                                                             | service_role  | t
+ public | halfvec_gt(halfvec,halfvec)                                                             | anon          | t
+ public | halfvec_gt(halfvec,halfvec)                                                             | authenticated | t
+ public | halfvec_gt(halfvec,halfvec)                                                             | service_role  | t
+ public | halfvec_in(cstring,oid,integer)                                                         | anon          | t
+ public | halfvec_in(cstring,oid,integer)                                                         | authenticated | t
+ public | halfvec_in(cstring,oid,integer)                                                         | service_role  | t
+ public | halfvec_l2_squared_distance(halfvec,halfvec)                                            | anon          | t
+ public | halfvec_l2_squared_distance(halfvec,halfvec)                                            | authenticated | t
+ public | halfvec_l2_squared_distance(halfvec,halfvec)                                            | service_role  | t
+ public | halfvec_le(halfvec,halfvec)                                                             | anon          | t
+ public | halfvec_le(halfvec,halfvec)                                                             | authenticated | t
+ public | halfvec_le(halfvec,halfvec)                                                             | service_role  | t
+ public | halfvec_lt(halfvec,halfvec)                                                             | anon          | t
+ public | halfvec_lt(halfvec,halfvec)                                                             | authenticated | t
+ public | halfvec_lt(halfvec,halfvec)                                                             | service_role  | t
+ public | halfvec_mul(halfvec,halfvec)                                                            | anon          | t
+ public | halfvec_mul(halfvec,halfvec)                                                            | authenticated | t
+ public | halfvec_mul(halfvec,halfvec)                                                            | service_role  | t
+ public | halfvec_ne(halfvec,halfvec)                                                             | anon          | t
+ public | halfvec_ne(halfvec,halfvec)                                                             | authenticated | t
+ public | halfvec_ne(halfvec,halfvec)                                                             | service_role  | t
+ public | halfvec_negative_inner_product(halfvec,halfvec)                                         | anon          | t
+ public | halfvec_negative_inner_product(halfvec,halfvec)                                         | authenticated | t
+ public | halfvec_negative_inner_product(halfvec,halfvec)                                         | service_role  | t
+ public | halfvec_out(halfvec)                                                                    | anon          | t
+ public | halfvec_out(halfvec)                                                                    | authenticated | t
+ public | halfvec_out(halfvec)                                                                    | service_role  | t
+ public | halfvec_recv(internal,oid,integer)                                                      | anon          | t
+ public | halfvec_recv(internal,oid,integer)                                                      | authenticated | t
+ public | halfvec_recv(internal,oid,integer)                                                      | service_role  | t
+ public | halfvec_send(halfvec)                                                                   | anon          | t
+ public | halfvec_send(halfvec)                                                                   | authenticated | t
+ public | halfvec_send(halfvec)                                                                   | service_role  | t
+ public | halfvec_spherical_distance(halfvec,halfvec)                                             | anon          | t
+ public | halfvec_spherical_distance(halfvec,halfvec)                                             | authenticated | t
+ public | halfvec_spherical_distance(halfvec,halfvec)                                             | service_role  | t
+ public | halfvec_sub(halfvec,halfvec)                                                            | anon          | t
+ public | halfvec_sub(halfvec,halfvec)                                                            | authenticated | t
+ public | halfvec_sub(halfvec,halfvec)                                                            | service_role  | t
+ public | halfvec_to_float4(halfvec,integer,boolean)                                              | anon          | t
+ public | halfvec_to_float4(halfvec,integer,boolean)                                              | authenticated | t
+ public | halfvec_to_float4(halfvec,integer,boolean)                                              | service_role  | t
+ public | halfvec_to_sparsevec(halfvec,integer,boolean)                                           | anon          | t
+ public | halfvec_to_sparsevec(halfvec,integer,boolean)                                           | authenticated | t
+ public | halfvec_to_sparsevec(halfvec,integer,boolean)                                           | service_role  | t
+ public | halfvec_to_vector(halfvec,integer,boolean)                                              | anon          | t
+ public | halfvec_to_vector(halfvec,integer,boolean)                                              | authenticated | t
+ public | halfvec_to_vector(halfvec,integer,boolean)                                              | service_role  | t
+ public | halfvec_typmod_in(cstring[])                                                            | anon          | t
+ public | halfvec_typmod_in(cstring[])                                                            | authenticated | t
+ public | halfvec_typmod_in(cstring[])                                                            | service_role  | t
+ public | halfvec(halfvec,integer,boolean)                                                        | anon          | t
+ public | halfvec(halfvec,integer,boolean)                                                        | authenticated | t
+ public | halfvec(halfvec,integer,boolean)                                                        | service_role  | t
+ public | hamming_distance(bit,bit)                                                               | anon          | t
+ public | hamming_distance(bit,bit)                                                               | authenticated | t
+ public | hamming_distance(bit,bit)                                                               | service_role  | t
+ public | hnsw_bit_support(internal)                                                              | anon          | t
+ public | hnsw_bit_support(internal)                                                              | authenticated | t
+ public | hnsw_bit_support(internal)                                                              | service_role  | t
+ public | hnsw_halfvec_support(internal)                                                          | anon          | t
+ public | hnsw_halfvec_support(internal)                                                          | authenticated | t
+ public | hnsw_halfvec_support(internal)                                                          | service_role  | t
+ public | hnsw_sparsevec_support(internal)                                                        | anon          | t
+ public | hnsw_sparsevec_support(internal)                                                        | authenticated | t
+ public | hnsw_sparsevec_support(internal)                                                        | service_role  | t
+ public | hnswhandler(internal)                                                                   | anon          | t
+ public | hnswhandler(internal)                                                                   | authenticated | t
+ public | hnswhandler(internal)                                                                   | service_role  | t
+ public | inner_product(halfvec,halfvec)                                                          | anon          | t
+ public | inner_product(halfvec,halfvec)                                                          | authenticated | t
+ public | inner_product(halfvec,halfvec)                                                          | service_role  | t
+ public | inner_product(sparsevec,sparsevec)                                                      | anon          | t
+ public | inner_product(sparsevec,sparsevec)                                                      | authenticated | t
+ public | inner_product(sparsevec,sparsevec)                                                      | service_role  | t
+ public | inner_product(vector,vector)                                                            | anon          | t
+ public | inner_product(vector,vector)                                                            | authenticated | t
+ public | inner_product(vector,vector)                                                            | service_role  | t
+ public | ivfflat_bit_support(internal)                                                           | anon          | t
+ public | ivfflat_bit_support(internal)                                                           | authenticated | t
+ public | ivfflat_bit_support(internal)                                                           | service_role  | t
+ public | ivfflat_halfvec_support(internal)                                                       | anon          | t
+ public | ivfflat_halfvec_support(internal)                                                       | authenticated | t
+ public | ivfflat_halfvec_support(internal)                                                       | service_role  | t
+ public | ivfflathandler(internal)                                                                | anon          | t
+ public | ivfflathandler(internal)                                                                | authenticated | t
+ public | ivfflathandler(internal)                                                                | service_role  | t
+ public | jaccard_distance(bit,bit)                                                               | anon          | t
+ public | jaccard_distance(bit,bit)                                                               | authenticated | t
+ public | jaccard_distance(bit,bit)                                                               | service_role  | t
+ public | l1_distance(halfvec,halfvec)                                                            | anon          | t
+ public | l1_distance(halfvec,halfvec)                                                            | authenticated | t
+ public | l1_distance(halfvec,halfvec)                                                            | service_role  | t
+ public | l1_distance(sparsevec,sparsevec)                                                        | anon          | t
+ public | l1_distance(sparsevec,sparsevec)                                                        | authenticated | t
+ public | l1_distance(sparsevec,sparsevec)                                                        | service_role  | t
+ public | l1_distance(vector,vector)                                                              | anon          | t
+ public | l1_distance(vector,vector)                                                              | authenticated | t
+ public | l1_distance(vector,vector)                                                              | service_role  | t
+ public | l2_distance(halfvec,halfvec)                                                            | anon          | t
+ public | l2_distance(halfvec,halfvec)                                                            | authenticated | t
+ public | l2_distance(halfvec,halfvec)                                                            | service_role  | t
+ public | l2_distance(sparsevec,sparsevec)                                                        | anon          | t
+ public | l2_distance(sparsevec,sparsevec)                                                        | authenticated | t
+ public | l2_distance(sparsevec,sparsevec)                                                        | service_role  | t
+ public | l2_distance(vector,vector)                                                              | anon          | t
+ public | l2_distance(vector,vector)                                                              | authenticated | t
+ public | l2_distance(vector,vector)                                                              | service_role  | t
+ public | l2_norm(halfvec)                                                                        | anon          | t
+ public | l2_norm(halfvec)                                                                        | authenticated | t
+ public | l2_norm(halfvec)                                                                        | service_role  | t
+ public | l2_norm(sparsevec)                                                                      | anon          | t
+ public | l2_norm(sparsevec)                                                                      | authenticated | t
+ public | l2_norm(sparsevec)                                                                      | service_role  | t
+ public | l2_normalize(halfvec)                                                                   | anon          | t
+ public | l2_normalize(halfvec)                                                                   | authenticated | t
+ public | l2_normalize(halfvec)                                                                   | service_role  | t
+ public | l2_normalize(sparsevec)                                                                 | anon          | t
+ public | l2_normalize(sparsevec)                                                                 | authenticated | t
+ public | l2_normalize(sparsevec)                                                                 | service_role  | t
+ public | l2_normalize(vector)                                                                    | anon          | t
+ public | l2_normalize(vector)                                                                    | authenticated | t
+ public | l2_normalize(vector)                                                                    | service_role  | t
+ public | notify_minion_job_change()                                                              | service_role  | t
+ public | rls_auto_enable()                                                                       | service_role  | t
+ public | set_limit(real)                                                                         | anon          | t
+ public | set_limit(real)                                                                         | authenticated | t
+ public | set_limit(real)                                                                         | service_role  | t
+ public | show_limit()                                                                            | anon          | t
+ public | show_limit()                                                                            | authenticated | t
+ public | show_limit()                                                                            | service_role  | t
+ public | show_trgm(text)                                                                         | anon          | t
+ public | show_trgm(text)                                                                         | authenticated | t
+ public | show_trgm(text)                                                                         | service_role  | t
+ public | similarity_dist(text,text)                                                              | anon          | t
+ public | similarity_dist(text,text)                                                              | authenticated | t
+ public | similarity_dist(text,text)                                                              | service_role  | t
+ public | similarity_op(text,text)                                                                | anon          | t
+ public | similarity_op(text,text)                                                                | authenticated | t
+ public | similarity_op(text,text)                                                                | service_role  | t
+ public | similarity(text,text)                                                                   | anon          | t
+ public | similarity(text,text)                                                                   | authenticated | t
+ public | similarity(text,text)                                                                   | service_role  | t
+ public | sparsevec_cmp(sparsevec,sparsevec)                                                      | anon          | t
+ public | sparsevec_cmp(sparsevec,sparsevec)                                                      | authenticated | t
+ public | sparsevec_cmp(sparsevec,sparsevec)                                                      | service_role  | t
+ public | sparsevec_eq(sparsevec,sparsevec)                                                       | anon          | t
+ public | sparsevec_eq(sparsevec,sparsevec)                                                       | authenticated | t
+ public | sparsevec_eq(sparsevec,sparsevec)                                                       | service_role  | t
+ public | sparsevec_ge(sparsevec,sparsevec)                                                       | anon          | t
+ public | sparsevec_ge(sparsevec,sparsevec)                                                       | authenticated | t
+ public | sparsevec_ge(sparsevec,sparsevec)                                                       | service_role  | t
+ public | sparsevec_gt(sparsevec,sparsevec)                                                       | anon          | t
+ public | sparsevec_gt(sparsevec,sparsevec)                                                       | authenticated | t
+ public | sparsevec_gt(sparsevec,sparsevec)                                                       | service_role  | t
+ public | sparsevec_in(cstring,oid,integer)                                                       | anon          | t
+ public | sparsevec_in(cstring,oid,integer)                                                       | authenticated | t
+ public | sparsevec_in(cstring,oid,integer)                                                       | service_role  | t
+ public | sparsevec_l2_squared_distance(sparsevec,sparsevec)                                      | anon          | t
+ public | sparsevec_l2_squared_distance(sparsevec,sparsevec)                                      | authenticated | t
+ public | sparsevec_l2_squared_distance(sparsevec,sparsevec)                                      | service_role  | t
+ public | sparsevec_le(sparsevec,sparsevec)                                                       | anon          | t
+ public | sparsevec_le(sparsevec,sparsevec)                                                       | authenticated | t
+ public | sparsevec_le(sparsevec,sparsevec)                                                       | service_role  | t
+ public | sparsevec_lt(sparsevec,sparsevec)                                                       | anon          | t
+ public | sparsevec_lt(sparsevec,sparsevec)                                                       | authenticated | t
+ public | sparsevec_lt(sparsevec,sparsevec)                                                       | service_role  | t
+ public | sparsevec_ne(sparsevec,sparsevec)                                                       | anon          | t
+ public | sparsevec_ne(sparsevec,sparsevec)                                                       | authenticated | t
+ public | sparsevec_ne(sparsevec,sparsevec)                                                       | service_role  | t
+ public | sparsevec_negative_inner_product(sparsevec,sparsevec)                                   | anon          | t
+ public | sparsevec_negative_inner_product(sparsevec,sparsevec)                                   | authenticated | t
+ public | sparsevec_negative_inner_product(sparsevec,sparsevec)                                   | service_role  | t
+ public | sparsevec_out(sparsevec)                                                                | anon          | t
+ public | sparsevec_out(sparsevec)                                                                | authenticated | t
+ public | sparsevec_out(sparsevec)                                                                | service_role  | t
+ public | sparsevec_recv(internal,oid,integer)                                                    | anon          | t
+ public | sparsevec_recv(internal,oid,integer)                                                    | authenticated | t
+ public | sparsevec_recv(internal,oid,integer)                                                    | service_role  | t
+ public | sparsevec_send(sparsevec)                                                               | anon          | t
+ public | sparsevec_send(sparsevec)                                                               | authenticated | t
+ public | sparsevec_send(sparsevec)                                                               | service_role  | t
+ public | sparsevec_to_halfvec(sparsevec,integer,boolean)                                         | anon          | t
+ public | sparsevec_to_halfvec(sparsevec,integer,boolean)                                         | authenticated | t
+ public | sparsevec_to_halfvec(sparsevec,integer,boolean)                                         | service_role  | t
+ public | sparsevec_to_vector(sparsevec,integer,boolean)                                          | anon          | t
+ public | sparsevec_to_vector(sparsevec,integer,boolean)                                          | authenticated | t
+ public | sparsevec_to_vector(sparsevec,integer,boolean)                                          | service_role  | t
+ public | sparsevec_typmod_in(cstring[])                                                          | anon          | t
+ public | sparsevec_typmod_in(cstring[])                                                          | authenticated | t
+ public | sparsevec_typmod_in(cstring[])                                                          | service_role  | t
+ public | sparsevec(sparsevec,integer,boolean)                                                    | anon          | t
+ public | sparsevec(sparsevec,integer,boolean)                                                    | authenticated | t
+ public | sparsevec(sparsevec,integer,boolean)                                                    | service_role  | t
+ public | strict_word_similarity_commutator_op(text,text)                                         | anon          | t
+ public | strict_word_similarity_commutator_op(text,text)                                         | authenticated | t
+ public | strict_word_similarity_commutator_op(text,text)                                         | service_role  | t
+ public | strict_word_similarity_dist_commutator_op(text,text)                                    | anon          | t
+ public | strict_word_similarity_dist_commutator_op(text,text)                                    | authenticated | t
+ public | strict_word_similarity_dist_commutator_op(text,text)                                    | service_role  | t
+ public | strict_word_similarity_dist_op(text,text)                                               | anon          | t
+ public | strict_word_similarity_dist_op(text,text)                                               | authenticated | t
+ public | strict_word_similarity_dist_op(text,text)                                               | service_role  | t
+ public | strict_word_similarity_op(text,text)                                                    | anon          | t
+ public | strict_word_similarity_op(text,text)                                                    | authenticated | t
+ public | strict_word_similarity_op(text,text)                                                    | service_role  | t
+ public | strict_word_similarity(text,text)                                                       | anon          | t
+ public | strict_word_similarity(text,text)                                                       | authenticated | t
+ public | strict_word_similarity(text,text)                                                       | service_role  | t
+ public | subvector(halfvec,integer,integer)                                                      | anon          | t
+ public | subvector(halfvec,integer,integer)                                                      | authenticated | t
+ public | subvector(halfvec,integer,integer)                                                      | service_role  | t
+ public | subvector(vector,integer,integer)                                                       | anon          | t
+ public | subvector(vector,integer,integer)                                                       | authenticated | t
+ public | subvector(vector,integer,integer)                                                       | service_role  | t
+ public | sum(halfvec)                                                                            | anon          | t
+ public | sum(halfvec)                                                                            | authenticated | t
+ public | sum(halfvec)                                                                            | service_role  | t
+ public | sum(vector)                                                                             | anon          | t
+ public | sum(vector)                                                                             | authenticated | t
+ public | sum(vector)                                                                             | service_role  | t
+ public | update_chunk_search_vector()                                                            | service_role  | t
+ public | update_page_search_vector()                                                             | service_role  | t
+ public | vector_accum(double precision[],vector)                                                 | anon          | t
+ public | vector_accum(double precision[],vector)                                                 | authenticated | t
+ public | vector_accum(double precision[],vector)                                                 | service_role  | t
+ public | vector_add(vector,vector)                                                               | anon          | t
+ public | vector_add(vector,vector)                                                               | authenticated | t
+ public | vector_add(vector,vector)                                                               | service_role  | t
+ public | vector_avg(double precision[])                                                          | anon          | t
+ public | vector_avg(double precision[])                                                          | authenticated | t
+ public | vector_avg(double precision[])                                                          | service_role  | t
+ public | vector_cmp(vector,vector)                                                               | anon          | t
+ public | vector_cmp(vector,vector)                                                               | authenticated | t
+ public | vector_cmp(vector,vector)                                                               | service_role  | t
+ public | vector_combine(double precision[],double precision[])                                   | anon          | t
+ public | vector_combine(double precision[],double precision[])                                   | authenticated | t
+ public | vector_combine(double precision[],double precision[])                                   | service_role  | t
+ public | vector_concat(vector,vector)                                                            | anon          | t
+ public | vector_concat(vector,vector)                                                            | authenticated | t
+ public | vector_concat(vector,vector)                                                            | service_role  | t
+ public | vector_dims(halfvec)                                                                    | anon          | t
+ public | vector_dims(halfvec)                                                                    | authenticated | t
+ public | vector_dims(halfvec)                                                                    | service_role  | t
+ public | vector_dims(vector)                                                                     | anon          | t
+ public | vector_dims(vector)                                                                     | authenticated | t
+ public | vector_dims(vector)                                                                     | service_role  | t
+ public | vector_eq(vector,vector)                                                                | anon          | t
+ public | vector_eq(vector,vector)                                                                | authenticated | t
+ public | vector_eq(vector,vector)                                                                | service_role  | t
+ public | vector_ge(vector,vector)                                                                | anon          | t
+ public | vector_ge(vector,vector)                                                                | authenticated | t
+ public | vector_ge(vector,vector)                                                                | service_role  | t
+ public | vector_gt(vector,vector)                                                                | anon          | t
+ public | vector_gt(vector,vector)                                                                | authenticated | t
+ public | vector_gt(vector,vector)                                                                | service_role  | t
+ public | vector_in(cstring,oid,integer)                                                          | anon          | t
+ public | vector_in(cstring,oid,integer)                                                          | authenticated | t
+ public | vector_in(cstring,oid,integer)                                                          | service_role  | t
+ public | vector_l2_squared_distance(vector,vector)                                               | anon          | t
+ public | vector_l2_squared_distance(vector,vector)                                               | authenticated | t
+ public | vector_l2_squared_distance(vector,vector)                                               | service_role  | t
+ public | vector_le(vector,vector)                                                                | anon          | t
+ public | vector_le(vector,vector)                                                                | authenticated | t
+ public | vector_le(vector,vector)                                                                | service_role  | t
+ public | vector_lt(vector,vector)                                                                | anon          | t
+ public | vector_lt(vector,vector)                                                                | authenticated | t
+ public | vector_lt(vector,vector)                                                                | service_role  | t
+ public | vector_mul(vector,vector)                                                               | anon          | t
+ public | vector_mul(vector,vector)                                                               | authenticated | t
+ public | vector_mul(vector,vector)                                                               | service_role  | t
+ public | vector_ne(vector,vector)                                                                | anon          | t
+ public | vector_ne(vector,vector)                                                                | authenticated | t
+ public | vector_ne(vector,vector)                                                                | service_role  | t
+ public | vector_negative_inner_product(vector,vector)                                            | anon          | t
+ public | vector_negative_inner_product(vector,vector)                                            | authenticated | t
+ public | vector_negative_inner_product(vector,vector)                                            | service_role  | t
+ public | vector_norm(vector)                                                                     | anon          | t
+ public | vector_norm(vector)                                                                     | authenticated | t
+ public | vector_norm(vector)                                                                     | service_role  | t
+ public | vector_out(vector)                                                                      | anon          | t
+ public | vector_out(vector)                                                                      | authenticated | t
+ public | vector_out(vector)                                                                      | service_role  | t
+ public | vector_recv(internal,oid,integer)                                                       | anon          | t
+ public | vector_recv(internal,oid,integer)                                                       | authenticated | t
+ public | vector_recv(internal,oid,integer)                                                       | service_role  | t
+ public | vector_send(vector)                                                                     | anon          | t
+ public | vector_send(vector)                                                                     | authenticated | t
+ public | vector_send(vector)                                                                     | service_role  | t
+ public | vector_spherical_distance(vector,vector)                                                | anon          | t
+ public | vector_spherical_distance(vector,vector)                                                | authenticated | t
+ public | vector_spherical_distance(vector,vector)                                                | service_role  | t
+ public | vector_sub(vector,vector)                                                               | anon          | t
+ public | vector_sub(vector,vector)                                                               | authenticated | t
+ public | vector_sub(vector,vector)                                                               | service_role  | t
+ public | vector_to_float4(vector,integer,boolean)                                                | anon          | t
+ public | vector_to_float4(vector,integer,boolean)                                                | authenticated | t
+ public | vector_to_float4(vector,integer,boolean)                                                | service_role  | t
+ public | vector_to_halfvec(vector,integer,boolean)                                               | anon          | t
+ public | vector_to_halfvec(vector,integer,boolean)                                               | authenticated | t
+ public | vector_to_halfvec(vector,integer,boolean)                                               | service_role  | t
+ public | vector_to_sparsevec(vector,integer,boolean)                                             | anon          | t
+ public | vector_to_sparsevec(vector,integer,boolean)                                             | authenticated | t
+ public | vector_to_sparsevec(vector,integer,boolean)                                             | service_role  | t
+ public | vector_typmod_in(cstring[])                                                             | anon          | t
+ public | vector_typmod_in(cstring[])                                                             | authenticated | t
+ public | vector_typmod_in(cstring[])                                                             | service_role  | t
+ public | vector(vector,integer,boolean)                                                          | anon          | t
+ public | vector(vector,integer,boolean)                                                          | authenticated | t
+ public | vector(vector,integer,boolean)                                                          | service_role  | t
+ public | word_similarity_commutator_op(text,text)                                                | anon          | t
+ public | word_similarity_commutator_op(text,text)                                                | authenticated | t
+ public | word_similarity_commutator_op(text,text)                                                | service_role  | t
+ public | word_similarity_dist_commutator_op(text,text)                                           | anon          | t
+ public | word_similarity_dist_commutator_op(text,text)                                           | authenticated | t
+ public | word_similarity_dist_commutator_op(text,text)                                           | service_role  | t
+ public | word_similarity_dist_op(text,text)                                                      | anon          | t
+ public | word_similarity_dist_op(text,text)                                                      | authenticated | t
+ public | word_similarity_dist_op(text,text)                                                      | service_role  | t
+ public | word_similarity_op(text,text)                                                           | anon          | t
+ public | word_similarity_op(text,text)                                                           | authenticated | t
+ public | word_similarity_op(text,text)                                                           | service_role  | t
+ public | word_similarity(text,text)                                                              | anon          | t
+ public | word_similarity(text,text)                                                              | authenticated | t
+ public | word_similarity(text,text)                                                              | service_role  | t
+(452 rows)
+
+== rls policies ==
+ schemaname | tablename | policyname | roles | cmd 
+------------+-----------+------------+-------+-----
+(0 rows)
+
+== target foreign keys ==
+                conname                 |      table_name      |   fk_columns    
+----------------------------------------+----------------------+-----------------
+ code_edges_chunk_source_id_fkey        | code_edges_chunk     | {source_id}
+ facts_superseded_by_fkey               | facts                | {superseded_by}
+ oauth_codes_client_id_fkey             | oauth_codes          | {client_id}
+ subagent_rate_leases_owner_job_id_fkey | subagent_rate_leases | {owner_job_id}
+ take_nudge_log_source_id_fkey          | take_nudge_log       | {source_id}
+(5 rows)
+
+== target foreign key index coverage ==
+                conname                 |      table_name      |              index_name               | indisvalid | indisready | index_attnums | fk_attnums 
+----------------------------------------+----------------------+---------------------------------------+------------+------------+---------------+------------
+ code_edges_chunk_source_id_fkey        | code_edges_chunk     | idx_code_edges_chunk_source_id        | t          | t          | 8             | {8}
+ facts_superseded_by_fkey               | facts                | idx_facts_superseded_by               | t          | t          | 12            | {12}
+ oauth_codes_client_id_fkey             | oauth_codes          | idx_oauth_codes_client_id             | t          | t          | 2             | {2}
+ subagent_rate_leases_owner_job_id_fkey | subagent_rate_leases | idx_subagent_rate_leases_owner_job_id | t          | t          | 3             | {3}
+ take_nudge_log_source_id_fkey          | take_nudge_log       | idx_take_nudge_log_source_id          | t          | t          | 2             | {2}
+(5 rows)
+
+== index usage snapshot ==
+ schemaname |        table_name         |                           index_name                            | idx_scan | idx_tup_read | idx_tup_fetch 
+------------+---------------------------+-----------------------------------------------------------------+----------+--------------+---------------
+ public     | access_tokens             | access_tokens_pkey                                              |        0 |            0 |             0
+ public     | access_tokens             | access_tokens_token_hash_key                                    |        0 |            0 |             0
+ public     | access_tokens             | idx_access_tokens_hash                                          |        0 |            0 |             0
+ public     | api_keys                  | api_keys_key_hash_unique                                        |        0 |            0 |             0
+ public     | api_keys                  | api_keys_pkey                                                   |        0 |            0 |             0
+ public     | budget_ledger             | budget_ledger_pkey                                              |        0 |            0 |             0
+ public     | budget_reservations       | budget_reservations_pkey                                        |        0 |            0 |             0
+ public     | budget_reservations       | idx_budget_reservations_expires                                 |        0 |            0 |             0
+ public     | calibration_profiles      | calibration_profiles_bias_tags_gin                              |        0 |            0 |             0
+ public     | calibration_profiles      | calibration_profiles_holder_recent_idx                          |        0 |            0 |             0
+ public     | calibration_profiles      | calibration_profiles_pkey                                       |        0 |            0 |             0
+ public     | calibration_profiles      | calibration_profiles_published_idx                              |        0 |            0 |             0
+ public     | code_edges_chunk          | code_edges_chunk_pkey                                           |        0 |            0 |             0
+ public     | code_edges_chunk          | code_edges_chunk_unique                                         |        0 |            0 |             0
+ public     | code_edges_chunk          | idx_code_edges_chunk_from                                       |        0 |            0 |             0
+ public     | code_edges_chunk          | idx_code_edges_chunk_source_id                                  |        0 |            0 |             0
+ public     | code_edges_chunk          | idx_code_edges_chunk_to                                         |        0 |            0 |             0
+ public     | code_edges_chunk          | idx_code_edges_chunk_to_symbol                                  |        0 |            0 |             0
+ public     | code_edges_symbol         | code_edges_symbol_pkey                                          |        0 |            0 |             0
+ public     | code_edges_symbol         | code_edges_symbol_unique                                        |        0 |            0 |             0
+ public     | code_edges_symbol         | idx_code_edges_symbol_from                                      |        0 |            0 |             0
+ public     | code_edges_symbol         | idx_code_edges_symbol_resolver                                  |        0 |            0 |             0
+ public     | code_edges_symbol         | idx_code_edges_symbol_to                                        |        0 |            0 |             0
+ public     | code_traversal_cache      | code_traversal_cache_key_idx                                    |        0 |            0 |             0
+ public     | code_traversal_cache      | code_traversal_cache_pkey                                       |        0 |            0 |             0
+ public     | code_traversal_cache      | code_traversal_cache_source_idx                                 |        0 |            0 |             0
+ public     | content_chunks            | content_chunks_pkey                                             |        0 |            0 |             0
+ public     | content_chunks            | idx_chunks_embedding                                            |        0 |            0 |             0
+ public     | content_chunks            | idx_chunks_embedding_image                                      |        0 |            0 |             0
+ public     | content_chunks            | idx_chunks_embedding_null                                       |        0 |            0 |             0
+ public     | content_chunks            | idx_chunks_language                                             |        0 |            0 |             0
+ public     | content_chunks            | idx_chunks_search_vector                                        |        0 |            0 |             0
+ public     | content_chunks            | idx_chunks_symbol_name                                          |        0 |            0 |             0
+ public     | content_chunks            | idx_chunks_symbol_qualified                                     |        0 |            0 |             0
+ public     | content_chunks            | idx_content_chunks_edges_backfill                               |        0 |            0 |             0
+ public     | content_chunks            | idx_content_chunks_symbol_lookup                                |        0 |            0 |             0
+ public     | dream_verdicts            | dream_verdicts_pkey                                             |        0 |            0 |             0
+ public     | drift_decisions           | drift_decisions_pkey                                            |        0 |            0 |             0
+ public     | drift_decisions           | idx_drift_decisions_decided_at                                  |        0 |            0 |             0
+ public     | drift_decisions           | idx_drift_decisions_take                                        |        0 |            0 |             0
+ public     | eval_candidates           | eval_candidates_pkey                                            |        0 |            0 |             0
+ public     | eval_candidates           | idx_eval_candidates_created_at                                  |        0 |            0 |             0
+ public     | eval_capture_failures     | eval_capture_failures_pkey                                      |        0 |            0 |             0
+ public     | eval_contradictions_cache | eval_contradictions_cache_expires_idx                           |        0 |            0 |             0
+ public     | eval_contradictions_cache | eval_contradictions_cache_pkey                                  |        0 |            0 |             0
+ public     | eval_contradictions_runs  | eval_contradictions_runs_pkey                                   |        0 |            0 |             0
+ public     | eval_takes_quality_runs   | eval_takes_quality_runs_pkey                                    |        0 |            0 |             0
+ public     | eval_takes_quality_runs   | eval_takes_quality_runs_receipt_sha8_corpus_receipt_sha8_pr_key |        0 |            0 |             0
+ public     | eval_takes_quality_runs   | eval_takes_quality_runs_trend_idx                               |        0 |            0 |             0
+ public     | facts                     | facts_pkey                                                      |        0 |            0 |             0
+ public     | facts                     | idx_facts_embedding_hnsw                                        |        0 |            0 |             0
+ public     | facts                     | idx_facts_fence_key                                             |        0 |            0 |             0
+ public     | facts                     | idx_facts_session                                               |        0 |            0 |             0
+ public     | facts                     | idx_facts_since                                                 |        0 |            0 |             0
+ public     | facts                     | idx_facts_superseded_by                                         |        0 |            0 |             0
+ public     | facts                     | idx_facts_unconsolidated                                        |        0 |            0 |             0
+ public     | file_migration_ledger     | file_migration_ledger_pkey                                      |        0 |            0 |             0
+ public     | file_migration_ledger     | idx_file_migration_ledger_status                                |        0 |            0 |             0
+ public     | files                     | files_pkey                                                      |        0 |            0 |             0
+ public     | files                     | files_storage_path_key                                          |        0 |            0 |             0
+ public     | files                     | idx_files_hash                                                  |        0 |            0 |             0
+ public     | files                     | idx_files_page                                                  |        0 |            0 |             0
+ public     | files                     | idx_files_source_id                                             |        0 |            0 |             0
+ public     | gbrain_cycle_locks        | idx_cycle_locks_ttl                                             |        0 |            0 |             0
+ public     | ingest_log                | ingest_log_pkey                                                 |        0 |            0 |             0
+ public     | ingredient_dictionary     | ingredient_dictionary_canonical_name_unique                     |        0 |            0 |             0
+ public     | ingredient_dictionary     | ingredient_dictionary_pkey                                      |        0 |            0 |             0
+ public     | links                     | idx_links_origin                                                |        0 |            0 |             0
+ public     | links                     | links_from_to_type_source_origin_unique                         |        0 |            0 |             0
+ public     | links                     | links_pkey                                                      |        0 |            0 |             0
+ public     | mcp_request_log           | idx_mcp_log_time_agent                                          |        0 |            0 |             0
+ public     | mcp_request_log           | mcp_request_log_pkey                                            |        0 |            0 |             0
+ public     | meal_plan                 | meal_plan_pkey                                                  |        0 |            0 |             0
+ public     | minion_attachments        | idx_minion_attachments_job                                      |        0 |            0 |             0
+ public     | minion_attachments        | minion_attachments_pkey                                         |        0 |            0 |             0
+ public     | minion_attachments        | uniq_minion_attachments_job_filename                            |        0 |            0 |             0
+ public     | minion_inbox              | idx_minion_inbox_child_done                                     |        0 |            0 |             0
+ public     | minion_inbox              | idx_minion_inbox_unread                                         |        0 |            0 |             0
+ public     | minion_inbox              | minion_inbox_pkey                                               |        0 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_delayed                                         |        0 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_parent                                          |        0 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_parent_status                                   |        0 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_stagger_key                                     |        0 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_timeout                                         |        0 |            0 |             0
+ public     | minion_jobs               | minion_jobs_pkey                                                |        0 |            0 |             0
+ public     | minion_jobs               | uniq_minion_jobs_idempotency                                    |        0 |            0 |             0
+ public     | oauth_clients             | idx_oauth_clients_source_id                                     |        0 |            0 |             0
+ public     | oauth_clients             | oauth_clients_pkey                                              |        0 |            0 |             0
+ public     | oauth_codes               | idx_oauth_codes_client_id                                       |        0 |            0 |             0
+ public     | oauth_codes               | oauth_codes_pkey                                                |        0 |            0 |             0
+ public     | oauth_tokens              | idx_oauth_tokens_client                                         |        0 |            0 |             0
+ public     | oauth_tokens              | idx_oauth_tokens_expiry                                         |        0 |            0 |             0
+ public     | oauth_tokens              | oauth_tokens_pkey                                               |        0 |            0 |             0
+ public     | op_checkpoints            | op_checkpoints_pkey                                             |        0 |            0 |             0
+ public     | op_checkpoints            | op_checkpoints_updated_at_idx                                   |        0 |            0 |             0
+ public     | page_versions             | idx_versions_page                                               |        0 |            0 |             0
+ public     | page_versions             | page_versions_pkey                                              |        0 |            0 |             0
+ public     | pages                     | idx_pages_frontmatter                                           |        0 |            0 |             0
+ public     | pages                     | idx_pages_search                                                |        0 |            0 |             0
+ public     | pages                     | idx_pages_trgm                                                  |        0 |            0 |             0
+ public     | pages                     | pages_chunker_version_idx                                       |        0 |            0 |             0
+ public     | pages                     | pages_coalesce_date_idx                                         |        0 |            0 |             0
+ public     | pages                     | pages_deleted_at_purge_idx                                      |        0 |            0 |             0
+ public     | pages                     | pages_last_retrieved_at_idx                                     |        0 |            0 |             0
+ public     | query_cache               | idx_query_cache_embedding_hnsw                                  |        0 |            0 |             0
+ public     | query_cache               | idx_query_cache_source_created                                  |        0 |            0 |             0
+ public     | query_cache               | idx_query_cache_source_knobs_created                            |        0 |            0 |             0
+ public     | query_cache               | query_cache_pkey                                                |        0 |            0 |             0
+ public     | raw_data                  | idx_raw_data_page                                               |        0 |            0 |             0
+ public     | raw_data                  | raw_data_page_id_source_key                                     |        0 |            0 |             0
+ public     | raw_data                  | raw_data_pkey                                                   |        0 |            0 |             0
+ public     | search_telemetry          | idx_search_telemetry_date                                       |        0 |            0 |             0
+ public     | search_telemetry          | search_telemetry_pkey                                           |        0 |            0 |             0
+ public     | shopping_list             | shopping_list_pkey                                              |        0 |            0 |             0
+ public     | sources                   | sources_name_key                                                |        0 |            0 |             0
+ public     | subagent_messages         | idx_subagent_messages_job                                       |        0 |            0 |             0
+ public     | subagent_messages         | idx_subagent_messages_provider                                  |        0 |            0 |             0
+ public     | subagent_messages         | subagent_messages_pkey                                          |        0 |            0 |             0
+ public     | subagent_messages         | uniq_subagent_messages_idx                                      |        0 |            0 |             0
+ public     | subagent_rate_leases      | idx_rate_leases_key_expires                                     |        0 |            0 |             0
+ public     | subagent_rate_leases      | idx_subagent_rate_leases_owner_job_id                           |        0 |            0 |             0
+ public     | subagent_rate_leases      | subagent_rate_leases_pkey                                       |        0 |            0 |             0
+ public     | subagent_tool_executions  | idx_subagent_tools_job                                          |        0 |            0 |             0
+ public     | subagent_tool_executions  | subagent_tool_executions_pkey                                   |        0 |            0 |             0
+ public     | subagent_tool_executions  | subagent_tool_executions_stable_id                              |        0 |            0 |             0
+ public     | subagent_tool_executions  | uniq_subagent_tools_use_id                                      |        0 |            0 |             0
+ public     | synthesis_evidence        | idx_synthesis_evidence_take                                     |        0 |            0 |             0
+ public     | synthesis_evidence        | synthesis_evidence_pkey                                         |        0 |            0 |             0
+ public     | tags                      | tags_page_id_tag_key                                            |        0 |            0 |             0
+ public     | tags                      | tags_pkey                                                       |        0 |            0 |             0
+ public     | take_grade_cache          | take_grade_cache_applied_idx                                    |        0 |            0 |             0
+ public     | take_grade_cache          | take_grade_cache_pkey                                           |        0 |            0 |             0
+ public     | take_grade_cache          | take_grade_cache_wave_idx                                       |        0 |            0 |             0
+ public     | take_nudge_log            | idx_take_nudge_log_source_id                                    |        0 |            0 |             0
+ public     | take_nudge_log            | take_nudge_log_pkey                                             |        0 |            0 |             0
+ public     | take_nudge_log            | take_nudge_log_proposal_cooldown_idx                            |        0 |            0 |             0
+ public     | take_nudge_log            | take_nudge_log_take_cooldown_idx                                |        0 |            0 |             0
+ public     | take_nudge_log            | take_nudge_log_wave_idx                                         |        0 |            0 |             0
+ public     | take_proposals            | take_proposals_idempotency_idx                                  |        0 |            0 |             0
+ public     | take_proposals            | take_proposals_pending_idx                                      |        0 |            0 |             0
+ public     | take_proposals            | take_proposals_pkey                                             |        0 |            0 |             0
+ public     | take_proposals            | take_proposals_run_id_idx                                       |        0 |            0 |             0
+ public     | takes                     | idx_takes_embedding_hnsw                                        |        0 |            0 |             0
+ public     | takes                     | idx_takes_holder_active                                         |        0 |            0 |             0
+ public     | takes                     | idx_takes_kind_active                                           |        0 |            0 |             0
+ public     | takes                     | idx_takes_resolved_at                                           |        0 |            0 |             0
+ public     | takes                     | idx_takes_scorecard                                             |        0 |            0 |             0
+ public     | takes                     | idx_takes_weight_active                                         |        0 |            0 |             0
+ public     | takes                     | takes_page_row_key                                              |        0 |            0 |             0
+ public     | takes                     | takes_pkey                                                      |        0 |            0 |             0
+ public     | think_ab_results          | think_ab_results_pkey                                           |        0 |            0 |             0
+ public     | think_ab_results          | think_ab_results_recent_idx                                     |        0 |            0 |             0
+ public     | timeline_entries          | idx_timeline_date                                               |        0 |            0 |             0
+ public     | timeline_entries          | idx_timeline_page                                               |        0 |            0 |             0
+ public     | timeline_entries          | timeline_entries_pkey                                           |        0 |            0 |             0
+ public     | files                     | idx_files_page_id                                               |        1 |            0 |             0
+ public     | links                     | idx_links_source                                                |        1 |            0 |             0
+ public     | mcp_request_log           | idx_mcp_log_agent_time                                          |        1 |            0 |             0
+ public     | oauth_clients             | idx_oauth_clients_federated_read                                |        1 |            0 |             0
+ public     | pages                     | idx_pages_updated_at_desc                                       |        1 |           51 |            50
+ public     | eval_capture_failures     | idx_eval_capture_failures_ts                                    |        2 |            0 |             0
+ public     | eval_contradictions_runs  | eval_contradictions_runs_ran_at_idx                             |        2 |            0 |             0
+ public     | facts                     | idx_facts_entity_active                                         |        2 |            0 |             0
+ public     | ingest_log                | idx_ingest_log_source_type_created                              |        2 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_claim                                           |        2 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_stalled                                         |        2 |            0 |             0
+ public     | minion_jobs               | idx_minion_jobs_status                                          |        5 |            0 |             0
+ public     | tags                      | idx_tags_tag                                                    |        6 |            0 |             0
+ public     | gbrain_cycle_locks        | gbrain_cycle_locks_pkey                                         |        8 |            7 |             4
+ public     | pages                     | idx_pages_type                                                  |       10 |            0 |             0
+ public     | pages                     | pages_source_path_idx                                           |       27 |            0 |             0
+ public     | takes                     | idx_takes_page                                                  |       58 |            0 |             0
+ public     | tags                      | idx_tags_page_id                                                |       60 |            0 |             0
+ public     | links                     | idx_links_from                                                  |      116 |            0 |             0
+ public     | links                     | idx_links_to                                                    |      117 |            0 |             0
+ public     | content_chunks            | idx_chunks_page                                                 |      119 |          329 |            17
+ public     | timeline_entries          | idx_timeline_dedup                                              |      182 |            0 |             0
+ public     | sources                   | sources_pkey                                                    |      213 |          208 |           208
+ public     | pages                     | pages_source_slug_key                                           |      226 |          144 |           104
+ public     | recipes                   | recipes_pkey                                                    |      233 |          220 |           163
+ public     | config                    | config_pkey                                                     |      257 |          216 |           216
+ public     | pages                     | pages_pkey                                                      |      322 |          321 |           321
+ public     | content_chunks            | idx_chunks_page_index                                           |      332 |           15 |            15
+ public     | pages                     | idx_pages_source_id                                             |     1546 |        44161 |         40690
+(184 rows)
+

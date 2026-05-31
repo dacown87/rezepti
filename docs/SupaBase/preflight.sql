@@ -15,11 +15,15 @@ order by rolname;
 \echo '== target function signatures/search_path =='
 select
   n.nspname as schema,
+  p.oid::regprocedure as signature,
   p.proname as function_name,
   pg_get_function_identity_arguments(p.oid) as args,
+  r.rolname as owner,
+  p.prosecdef as security_definer,
   p.proconfig
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
+join pg_roles r on r.oid = p.proowner
 where n.nspname = 'public'
   and p.proname in (
     'auto_enable_rls',
@@ -29,7 +33,7 @@ where n.nspname = 'public'
   )
 order by p.proname;
 
-\echo '== data api grants for public tables =='
+\echo '== data api table grants for public tables =='
 select
   table_schema,
   table_name,
@@ -39,6 +43,46 @@ from information_schema.role_table_grants
 where table_schema = 'public'
   and grantee in ('anon', 'authenticated', 'service_role')
 order by table_name, grantee, privilege_type;
+
+\echo '== data api schema usage grants =='
+select
+  nspname as schema_name,
+  grantee,
+  privilege_type
+from pg_namespace n
+cross join (values ('anon'), ('authenticated'), ('service_role')) as g(grantee)
+cross join (values ('USAGE'), ('CREATE')) as p(privilege_type)
+where nspname in ('public', 'storage')
+  and has_schema_privilege(g.grantee, n.oid, p.privilege_type)
+order by schema_name, grantee, privilege_type;
+
+\echo '== data api sequence grants =='
+select
+  n.nspname as schema,
+  c.relname as sequence_name,
+  g.grantee,
+  p.privilege_type
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+cross join (values ('anon'), ('authenticated'), ('service_role')) as g(grantee)
+cross join (values ('USAGE'), ('SELECT'), ('UPDATE')) as p(privilege_type)
+where c.relkind = 'S'
+  and n.nspname in ('public', 'storage')
+  and has_sequence_privilege(g.grantee, c.oid, p.privilege_type)
+order by schema, sequence_name, grantee, privilege_type;
+
+\echo '== data api function execute grants in public =='
+select
+  n.nspname as schema,
+  p.oid::regprocedure as function_signature,
+  g.grantee,
+  has_function_privilege(g.grantee, p.oid, 'EXECUTE') as can_execute
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+cross join (values ('anon'), ('authenticated'), ('service_role')) as g(grantee)
+where n.nspname = 'public'
+  and has_function_privilege(g.grantee, p.oid, 'EXECUTE')
+order by p.oid::regprocedure::text, grantee;
 
 \echo '== rls policies =='
 select schemaname, tablename, policyname, roles, cmd
@@ -79,7 +123,9 @@ select
 from pg_constraint con
 left join pg_index idx
   on idx.indrelid = con.conrelid
- and idx.indkey::int2[][:array_length(con.conkey, 1)] = con.conkey
+ and idx.indisvalid
+ and idx.indisready
+ and (idx.indkey::int2[])[0:array_length(con.conkey, 1) - 1] = con.conkey
 where con.contype = 'f'
   and con.conname in (
     'code_edges_chunk_source_id_fkey',

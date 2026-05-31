@@ -1,15 +1,19 @@
 
 ## 🎯 Aktueller Stand (2026-05-31)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage und der RNTL-File-Migrationsslice sind durch. Multi-User Login bleibt der naechste Haupttrack.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage und der RNTL-File-Migrationsslice sind durch. Multi-User Login bleibt der naechste Haupttrack.**
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-05-31)
 
 1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key).
-2. **Supabase Advisor Remediation ausfuehren** — reviewed Plan: [docs/SupaBase/supabase-advisor-remediation-plan.md](/home/patrick/Projekte/rezepti/docs/SupaBase/supabase-advisor-remediation-plan.md). Kernentscheidungen: `function_search_path_mutable` fixen, fehlende FK-Indexes nach Preflight ergaenzen, RLS-ohne-Policy als absichtliche Data-API-Sperre klassifizieren statt breit Policies anzulegen, Runtime-DB-Rolle/Grants auditieren. Preflight: [docs/SupaBase/preflight.sql](/home/patrick/Projekte/rezepti/docs/SupaBase/preflight.sql).
+2. **Supabase Advisor Follow-ups separat planen** — Kern-Remediation ist abgeschlossen; offen bleiben nur `vector`/`pg_trgm` Extension-Move nach Staging-Probe und `unused_index` Cleanup nach Nutzungs-/Redundanznachweis. Details: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
 4. Test-Infra-Migration nachziehen: echte `@testing-library/react-native` laeuft unter Vitest ueber den RNTL-Optimizer-Slice und `mobile/test/testing-library-rn-real.ts`; direkte `react-test-renderer`-Imports sind blockiert, der alte Compat-Layer ist entfernt und die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests sind abgebaut.
 5. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+
+### Erledigt 2026-05-31
+
+- [x] **Supabase Advisor Kern-Remediation abgeschlossen** — Supabase CLI lokal auf `2.102.0` aktualisiert, Preflight gegen Ziel-DB ausgefuehrt, Runtime-Rolle/Data-API-Grants dokumentiert, `function_search_path_mutable` fuer vier interne Helper behoben, `anon`/`authenticated` EXECUTE fuer diese Helper revoked, 5 fehlende FK-Indexes angelegt und verifiziert, 52 RLS-ohne-Policy Tabellen klassifiziert und Advisor erneut exportiert. Ergebnis: `function_search_path_mutable` und `unindexed_foreign_keys` sind weg; verbleibende `extension_in_public` und `unused_index` Findings sind als separate Follow-up-Tracks dokumentiert.
 
 ### Erledigt 2026-05-30
 
@@ -55,14 +59,17 @@
 ### Offen / Folgearbeit
 
 - [ ] **Multi-User Login** (naechste grosse Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Naechste grosse Phase — Multi-User Login" weiter unten.
-- [ ] **Supabase Advisor Remediation** — [reviewed Plan](/home/patrick/Projekte/rezepti/docs/SupaBase/supabase-advisor-remediation-plan.md) abarbeiten:
-    - [ ] Preflight gegen Ziel-DB ausfuehren: `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/SupaBase/preflight.sql`.
-    - [ ] Runtime-Rolle, `rolsuper`/`rolbypassrls` und Data-API-Grants dokumentieren.
-    - [ ] `search_path` fuer `auto_enable_rls`, `notify_minion_job_change`, `update_chunk_search_vector`, `update_page_search_vector` fixen.
-    - [ ] Fehlende FK-Indexes nach linksfuehrender Index-Pruefung ergaenzen.
-    - [ ] Alle 52 RLS-ohne-Policy Tabellen klassifizieren; Backend-only Tabellen ohne `anon`/`authenticated` Grants halten.
-    - [ ] Advisor erneut laufen lassen und neue Ergebnisse unter `docs/SupaBase/` ablegen.
-    - [ ] Extension-Move (`vector`, `pg_trgm`) und unused-index Cleanup als separate Follow-up-Tracks offen halten, nicht in der Kern-Remediation mitziehen.
+- [x] **Supabase Advisor Remediation** — [reviewed Plan](/home/patrick/Projekte/rezepti/docs/SupaBase/supabase-advisor-remediation-plan.md) abgearbeitet; Kern-Remediation abgeschlossen, Restpunkte als eigene Follow-up-Tracks dokumentiert:
+    - [x] Preflight gegen Ziel-DB ausfuehren: finaler Lauf unter `docs/SupaBase/runbook-output/preflight-2026-05-31-184128.txt`.
+    - [x] Runtime-Rolle, `rolsuper`/`rolbypassrls` und Data-API-Grants dokumentieren; Preflight prueft jetzt auch Schema-, Sequence- und Function-Execute-Rechte.
+    - [x] `search_path` fuer `auto_enable_rls`, `notify_minion_job_change`, `update_chunk_search_vector`, `update_page_search_vector` fixen; `anon`/`authenticated` EXECUTE fuer diese internen Helper revoked.
+    - [x] Fehlende FK-Indexes nach linksfuehrender Index-Pruefung ergaenzen; alle 5 Ziel-FKs haben valide/bereite Indexes.
+    - [x] Alle 52 RLS-ohne-Policy Tabellen klassifizieren; Produkt-Backend-Tabellen bleiben ohne `anon`/`authenticated` Grants, Aux-Tabellen sind als separater Owner-/Grant-Hardening-Track dokumentiert: [docs/SupaBase/rls-no-policy-classification-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/rls-no-policy-classification-2026-05-31.md).
+    - [x] Advisor erneut laufen lassen und neue Ergebnisse unter `docs/SupaBase/` ablegen: [summary-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-output/summary-2026-05-31.md), JSON-Exports unter `docs/SupaBase/advisor-output/`. Ergebnis: `function_search_path_mutable` und `unindexed_foreign_keys` sind weg; uebrig sind 52 `rls_enabled_no_policy`, 2 `extension_in_public`, 88 `unused_index`.
+    - [x] Extension-Move (`vector`, `pg_trgm`) und unused-index Cleanup als separate Follow-up-Tracks offen halten, nicht in der Kern-Remediation mitziehen: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
+- [ ] **Supabase Advisor Follow-ups** — separate Tracks aus der Remediation:
+    - [ ] `vector`/`pg_trgm` Extension-Move erst nach Staging-Probe und Dependency-Inventar ausfuehren.
+    - [ ] `unused_index` Cleanup erst nach Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis starten.
 - [ ] **Mobile-Testwarnungen nach Real-RNTL einordnen/abbauen** — Tests sind gruen, aber nicht warnfrei. Dokumentierte Warnklassen: `react-test-renderer is deprecated` aus RNTL/React-19-Pfad, `act(...)`-Warnungen in async Retry-/Error-Pfaden, und `key`-Prop-Warnungen aus lokalen `FlatList`-Testshims. Kein aktueller Produktblocker; spaeter separat triagieren.
 
 ---
