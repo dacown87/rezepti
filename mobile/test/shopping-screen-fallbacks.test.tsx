@@ -52,7 +52,16 @@ vi.mock('react-native', () => {
     Text: wrap('Text'),
     FlatList: ({ data, renderItem, refreshControl }: Record<string, unknown>) => {
       const children: React.ReactNode[] = [];
-      if (refreshControl) children.push(refreshControl as React.ReactNode);
+      if (React.isValidElement(refreshControl)) {
+        const refreshElement = refreshControl as React.ReactElement<{ onRefresh?: () => void }>;
+        children.push(
+          React.createElement(
+            'Pressable',
+            { testID: 'shopping-refresh-control', onPress: refreshElement.props.onRefresh },
+            React.createElement('Text', {}, 'Refresh shopping list')
+          )
+        );
+      }
       if (Array.isArray(data) && typeof renderItem === 'function') {
         children.push(
           ...data.map((item, index) =>
@@ -199,7 +208,7 @@ describe('ShoppingScreen UI fallbacks', () => {
       .mockResolvedValueOnce({ ok: false, status: 503 });
 
     const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
-    const { UNSAFE_queryAllByType } = render(React.createElement(ShoppingScreen));
+    render(React.createElement(ShoppingScreen));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -209,9 +218,7 @@ describe('ShoppingScreen UI fallbacks', () => {
       expect(screen.getByText('Brot')).toBeTruthy();
     });
 
-    // RefreshControl has no user-facing node in the test shim; keep this isolated until real RNTL runtime lands.
-    const refreshControl = UNSAFE_queryAllByType('RefreshControl')[0];
-    await fireEvent(refreshControl, 'refresh');
+    await fireEvent.press(screen.getByTestId('shopping-refresh-control'));
 
     expect(screen.getByText('Brot')).toBeTruthy();
     expect(screen.queryByText('Einkaufsliste konnte nicht geladen werden')).toBeNull();

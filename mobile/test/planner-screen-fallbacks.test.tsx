@@ -29,7 +29,7 @@ vi.mock('@/utils/shopping-service', () => ({
 
 vi.mock('@/components/ScannerCamera', () => ({
   default: ({ onScan, onClose }: { onScan: (value: string) => void; onClose: () => void }) =>
-    React.createElement('ScannerCamera', { onScan, onClose }),
+    React.createElement('ScannerCamera', { onScan, onClose, testID: 'planner-qr-scanner' }),
 }));
 
 vi.mock('@/utils/recipe-qr', () => ({
@@ -102,20 +102,15 @@ function jsonResponse(body: unknown, ok = true, status = 200): Response {
 type Rendered = ReturnType<typeof render>;
 
 function addButtons(view: Rendered) {
-  return view.UNSAFE_queryAllByType('Pressable').filter(
-    (node) =>
-      typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-      typeof (node.props as { className?: unknown }).className === 'string' &&
-      (node.props as { className: string }).className.includes('border-dashed')
-  );
+  return Array.from({ length: 7 }, (_unused, index) => view.getByTestId(`planner-add-day-${index}`));
 }
 
 function pressableByText(view: Rendered, text: string) {
-  return view.UNSAFE_queryAllByType('Pressable').find(
-    (node) =>
-      typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-      node.findAll((child) => String(child.type) === 'Text' && child.children.includes(text)).length > 0
-  );
+  let node: { parent?: unknown; props?: { onPress?: unknown } } | null = view.getByText(text);
+  while (node && typeof node.props?.onPress !== 'function') {
+    node = (node.parent ?? null) as typeof node;
+  }
+  return node;
 }
 
 async function openAddMethod(view: Rendered) {
@@ -144,7 +139,7 @@ describe('PlannerScreen UI fallbacks', () => {
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
     const view = render(React.createElement(PlannerScreen));
 
-    expect(view.UNSAFE_queryAllByType('ActivityIndicator').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('planner-loading')).toBeTruthy();
   });
 
   it('renders empty week state without shopping action and keeps add affordance visible', async () => {
@@ -221,7 +216,7 @@ describe('PlannerScreen UI fallbacks', () => {
     await openAddMethod(view);
     await fireEvent.press(screen.getByText('QR-Code scannen'));
 
-    const scanner = view.UNSAFE_queryAllByType('ScannerCamera')[0];
+    const scanner = screen.getByTestId('planner-qr-scanner');
     await fireEvent(scanner!, 'scan', 'invalid-qr-content');
 
     expect(state.alertMock).toHaveBeenCalledWith(
@@ -441,11 +436,7 @@ describe('PlannerScreen UI fallbacks', () => {
       expect(screen.getByText('Suppe')).toBeTruthy();
     });
 
-    const removeAction = view.UNSAFE_queryAllByType('Pressable').find(
-      (node) =>
-        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-        (node.props as { hitSlop?: unknown }).hitSlop === 8
-    );
+    const removeAction = screen.getByTestId('planner-remove-entry-1');
     expect(removeAction).toBeTruthy();
     await fireEvent.press(removeAction!);
 

@@ -123,10 +123,15 @@ postgres-js without `ssl` option fails in Northflank with "Failed query" (not a 
 
 ### Mobile UI / Expo
 
-#### rntl-vitest-real-runtime-blocked-by-rn-flow-entry (10/10, 2026-05-31)
+#### rntl-vitest-real-runtime-via-targeted-optimizer (10/10, 2026-05-31)
 
-Mobile-Testdateien importieren inzwischen `@testing-library/react-native`, aber Vitest resolved diesen Import bewusst auf `mobile/test/testing-library-rn-compat.ts`. Ohne diesen Alias bricht der Suite-Start am echten React-Native-Entrypoint ab: `mobile/node_modules/react-native/index.js` enthaelt Flow-Syntax wie `import typeof`, die ohne React-Native-/Babel-Transform roh in Node landet. Direkte `react-test-renderer`-Imports sind per `npm run test:mobile:rntl-guard` blockiert; `renderAsync` ist aus den Testdateien entfernt. Echte RNTL braucht einen separaten Runtime-/Transform-Track, nicht nur weitere Testdatei-Migrationen.
-*Files:* `mobile/vitest.config.ts`, `mobile/test/testing-library-rn-compat.ts`, `docs/testing/rntl-migration-phase-0-inventory.md`
+Mobile-Testdateien importieren inzwischen echte `@testing-library/react-native`. Der Vitest-Pfad braucht dafuer gezielte SSR-Dependency-Optimierung fuer RNTL, waehrend `react-native` auf dem lokalen Test-Shim bleibt; sonst landet der React-Native-Flow-Entrypoint (`import typeof`) roh in Node. `mobile/test/testing-library-rn-real.ts` ist kein alter Renderer-Compat-Layer mehr, sondern nur ein duennes Real-RNTL-Modul fuer live weitergereichtes `screen` und Uebergangstypen. Direkte `react-test-renderer`-Imports sind per `npm run test:mobile:rntl-guard` blockiert. Die migrierten Tests sollen keine string-basierten `UNSAFE_*ByType`-Strukturabfragen mehr nutzen; fehlende Nutzerqueries werden ueber Accessibility-Labels oder gezielte `testID`s nachgezogen.
+*Files:* `mobile/vitest.config.ts`, `mobile/test/testing-library-rn-real.ts`, `docs/testing/rntl-migration-phase-0-inventory.md`
+
+#### rntl-real-runtime-still-emits-test-warnings (9/10, 2026-05-31)
+
+Der Real-RNTL-Pfad ist gruen, aber nicht warnfrei. Erwartete Restwarnungen sind aktuell: `react-test-renderer is deprecated` aus RNTL/React-19-Internals, React-`act(...)`-Warnungen in async Retry-/Error-Pfaden und `key`-Prop-Warnungen aus lokalen `FlatList`-Testshims. Diese Warnungen separat triagieren; sie sind nicht mehr mit dem alten Compat-Layer oder direkten `react-test-renderer`-Imports gleichzusetzen.
+*Files:* `docs/TEST_STATUS.md`, `mobile/test/planner-screen-fallbacks.test.tsx`, `mobile/test/shopping-screen-fallbacks.test.tsx`, `mobile/test/recipe-list-screen-fallbacks.test.tsx`
 
 #### expo-scrollview-justify-center-web (10/10, 2026-04-16)
 

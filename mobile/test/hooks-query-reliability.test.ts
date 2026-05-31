@@ -19,10 +19,8 @@ const reactQueryMocks = vi.hoisted(() => ({
   useMutationMock: vi.fn(),
 }));
 
-vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
+vi.mock('@tanstack/react-query', () => {
   return {
-    ...actual,
     useQueryClient: vi.fn(() => ({
       invalidateQueries: reactQueryMocks.invalidateQueries,
       removeQueries: reactQueryMocks.removeQueries,

@@ -23,15 +23,27 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': rootDir,
-      'react-native': resolve(rootDir, 'test/react-native-shim.ts'),
-      '@testing-library/react-native': resolve(rootDir, 'test/testing-library-rn-compat.ts'),
-    },
+    alias: [
+      {
+        find: /^@testing-library\/react-native$/,
+        replacement: resolve(rootDir, 'test/testing-library-rn-real.ts'),
+      },
+      { find: /^react-native$/, replacement: resolve(rootDir, 'test/react-native-shim.ts') },
+      { find: '@', replacement: rootDir },
+    ],
     // Expo/Metro resolves platform files implicitly; Vitest needs the suffixes spelled out.
     extensions: ['.native.tsx', '.native.ts', '.web.tsx', '.web.ts', '.tsx', '.ts', '.jsx', '.js', '.json'],
   },
   test: {
+    deps: {
+      optimizer: {
+        ssr: {
+          enabled: true,
+          include: ['@testing-library/react-native'],
+          exclude: ['@tanstack/react-query'],
+        },
+      },
+    },
     globals: true,
     fileParallelism: false,
     environment: 'node',

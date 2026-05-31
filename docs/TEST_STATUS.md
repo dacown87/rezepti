@@ -75,7 +75,8 @@
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
 - ✅ `npm run test:unit` — **448 Tests bestanden, 13 skipped** (Stand: 2026-05-30)
 - ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-05-30)
-- ✅ Test-Infra-File-Migration abgeschlossen (2026-05-30; Phase 0/1 + Shopping-/Workflow-/Planner-Slices nachgezogen 2026-05-31): `recipe-list-screen-fallbacks.test.tsx`, `recipe-detail-fallbacks.test.tsx`, `shopping-screen-fallbacks.test.tsx`, `mobile-workflow-list-detail-shopping-ui.test.tsx` und `planner-screen-fallbacks.test.tsx` nutzen jetzt die `@testing-library/react-native`-API statt direkter `react-test-renderer`-Imports. Unter Vitest bleibt der lokale Compat-Layer vorerst aktiv, weil der Real-RNTL-Spike ohne Alias am echten React-Native-Entrypoint mit `SyntaxError: Unexpected token 'typeof'` scheitert. Inventory, Autor-Checkliste und `npm run test:mobile:rntl-guard` sind dokumentiert/verdrahtet; die Guard-Allowlist ist leer. `renderAsync` ist entfernt; offen bleiben der separate Runtime-Fixpfad fuer echte RNTL und der Abbau begruendeter `UNSAFE_queryAllByType`-Strukturzugriffe.
+- ✅ Test-Infra-File-Migration abgeschlossen (2026-05-30; Runtime-Follow-up 2026-05-31): `recipe-list-screen-fallbacks.test.tsx`, `recipe-detail-fallbacks.test.tsx`, `shopping-screen-fallbacks.test.tsx`, `mobile-workflow-list-detail-shopping-ui.test.tsx` und `planner-screen-fallbacks.test.tsx` nutzen jetzt echte `@testing-library/react-native`-API statt direkter `react-test-renderer`-Imports. Vitest optimiert RNTL gezielt und verwendet `mobile/test/testing-library-rn-real.ts` nur als duennen Live-`screen`-/Uebergangstyp-Wrapper; der alte Compat-Layer ist entfernt. Inventory, Autor-Checkliste und `npm run test:mobile:rntl-guard` sind dokumentiert/verdrahtet; die Guard-Allowlist ist leer. `renderAsync` ist entfernt; die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests wurden durch sichtbare Queries, Accessibility-Labels und gezielte `testID`s ersetzt.
+- ⚠️ Mobile-RNTL ist funktional gruen, aber noch nicht warnfrei (Stand: 2026-05-31). Verbleibende Warnklassen: `react-test-renderer is deprecated` aus dem RNTL/React-19-Renderpfad, React-`act(...)`-Warnungen in async Retry-/Error-Pfaden, und `key`-Prop-Warnungen aus lokalen `FlatList`-Testshims. Diese Warnungen sind dokumentierter Test-Infrastruktur-Rest, kein aktueller Produkt-Fail.
 - ✅ npm-Audit-Triage (2026-05-30): `npm audit fix` ohne `--force` fuer Root und Mobile; Root `5 moderate -> 4 moderate`, Mobile `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify`, `brace-expansion` und Root-`ws` geloest. Restfindings sind dokumentierte `drizzle-kit`-/Expo-SDK-bound Ausnahmen.
 - ✅ Root-API-Contract-Gate ist jetzt CI-verbindlich mit echtem Server-Boot (Stand: 2026-05-15): `e2e` startet `npm start`, wartet auf `/api/v1/health`, failt bei Timeout hart und führt danach `npm run test:e2e:contract` aus.
 - ✅ Lokale Verifikation gegen laufenden Server (2026-05-15): `npm run test:e2e:contract` -> **11/11 passed**.
@@ -147,12 +148,13 @@ Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/reze
 
 ---
 
-## Mobile / Expo Status (2026-05-30)
+## Mobile / Expo Status (2026-05-31)
 
 - ✅ `cd mobile && CI=1 npx expo-doctor` — `19/19` Checks bestanden
 - ✅ `cd mobile && npx expo install --check` — Dependencies up to date
 - ✅ `npm run mobile:typecheck` — erfolgreich
 - ✅ `npm run test:mobile` — `87/87` Tests bestanden
+- ✅ `npm --prefix mobile run test:unit -- recipe-detail-fallbacks recipe-list-screen-fallbacks shopping-screen-fallbacks planner-screen-fallbacks mobile-workflow-list-detail-shopping-ui` — `22/22` Tests bestanden nach Abbau der `UNSAFE_queryAllByType`-Testzugriffe
 - ✅ `npm run mobile:build:web` — erfolgreicher Expo-Web-Export nach `public/`
 - ✅ Phase-2-Reliability weiter gehaertet:
   - Planner zeigt jetzt sichtbaren Ladefehler mit Retry/Close bei fehlgeschlagenem Wochen-Load

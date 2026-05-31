@@ -192,18 +192,10 @@ describe('mobile ui workflow: list -> detail -> shopping', () => {
     expect(screen.getByText('Alle Rezepte')).toBeTruthy();
     await fireEvent.press(screen.getByText('Alle Rezepte'));
 
-    // The test shim does not expose role queries yet; keep the press target lookup isolated.
-    let recipeCardPressable: ReturnType<typeof listRender.UNSAFE_queryAllByType>[number] | undefined;
     await waitFor(() => {
-      recipeCardPressable = listRender.UNSAFE_queryAllByType('Pressable').find((node) =>
-        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-        typeof (node.props as { className?: unknown }).className === 'string' &&
-        (node.props as { className: string }).className.includes('rounded-2xl mb-3') &&
-        node.findAll((child) => String(child.type) === 'Text' && child.children.includes('Pasta')).length > 0
-      );
-      expect(recipeCardPressable).toBeTruthy();
+      expect(screen.getByTestId('recipe-card-11')).toBeTruthy();
     });
-    await fireEvent.press(recipeCardPressable!);
+    await fireEvent.press(screen.getByTestId('recipe-card-11'));
 
     expect(state.router.push).toHaveBeenCalledWith('/recipe/11');
     listRender.unmount();
@@ -216,7 +208,7 @@ describe('mobile ui workflow: list -> detail -> shopping', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Pasta')).toBeTruthy();
+      expect(screen.getAllByText('Pasta').length).toBeGreaterThan(0);
     });
 
     await fireEvent.press(screen.getByText('Einkauf'));

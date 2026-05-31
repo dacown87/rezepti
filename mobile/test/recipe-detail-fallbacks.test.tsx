@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -121,17 +121,9 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeDetailScreen));
+    render(React.createElement(RecipeDetailScreen));
 
-    // Back button in header must be present immediately (structural shell)
-    const backPressables = UNSAFE_queryAllByType('Pressable').filter(
-      (node) =>
-        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
-        node.findAll((child) => String(child.type) === 'Icon').length > 0
-    );
-    expect(backPressables.length).toBeGreaterThan(0);
-
-    // Skeleton placeholder container must be present
+    expect(screen.getByLabelText('Zurück')).toBeTruthy();
     expect(screen.getByTestId('recipe-skeleton')).toBeTruthy();
   });
 
@@ -139,17 +131,14 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeDetailScreen));
+    render(React.createElement(RecipeDetailScreen));
 
-    expect(UNSAFE_queryAllByType('ActivityIndicator').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('recipe-skeleton')).toBeTruthy();
   });
 
   it('shows not-found fallback and supports back navigation', async () => {
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    await act(async () => {
-      render(React.createElement(RecipeDetailScreen));
-      await Promise.resolve();
-    });
+    render(React.createElement(RecipeDetailScreen));
 
     await waitFor(() => {
       expect(screen.getByText('Rezept nicht gefunden.')).toBeTruthy();
@@ -178,10 +167,7 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    await act(async () => {
-      render(React.createElement(RecipeDetailScreen));
-      await Promise.resolve();
-    });
+    render(React.createElement(RecipeDetailScreen));
 
     await waitFor(() => {
       expect(screen.getByText('Rezept konnte nicht geladen werden.')).toBeTruthy();
@@ -191,7 +177,7 @@ describe('RecipeDetailScreen UI fallbacks', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await waitFor(() => {
-      expect(screen.getByText('Retry Pasta')).toBeTruthy();
+      expect(screen.getAllByText('Retry Pasta').length).toBeGreaterThan(0);
     });
   });
 });

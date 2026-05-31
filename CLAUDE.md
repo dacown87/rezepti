@@ -24,7 +24,7 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 - `npm test` — Run tests (Vitest)
 - `npx tsc` — Type-check (noEmit, strict mode)
 
-Test suite: Vitest for unit/e2e tests. Mobile UI-near tests import `@testing-library/react-native`; under Vitest this currently resolves through `mobile/test/testing-library-rn-compat.ts` because the real React Native entrypoint still needs a separate Flow-transform/runtime fix.
+Test suite: Vitest for unit/e2e tests. Mobile UI-near tests import `@testing-library/react-native`; under Vitest this resolves through `mobile/test/testing-library-rn-real.ts`, a thin wrapper around real RNTL that keeps `screen` live and widens the temporary string-based `UNSAFE_*ByType` transition types.
 
 ## Docker
 
@@ -179,8 +179,8 @@ Host github.com
 - **Codemaps:** `docs/CODEMAPS/` — Architecture, Backend, Fetchers, Database, Frontend
 - **TODO:** `TODO.md` — Aktuelle Aufgaben und offene Bugs
 - **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions (41 Eintraege, Stand 2026-05-31). Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
-- **RNTL Migration Inventory:** `docs/testing/rntl-migration-phase-0-inventory.md` — aktueller Mobile-Test-Migrationsstand, Real-RNTL-Runtime-Blocker und verbleibende `UNSAFE_*`-Altfaelle.
-- **RNTL Authoring Checklist:** `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests waehrend der Compat-Uebergangsphase.
+- **RNTL Migration Inventory:** `docs/testing/rntl-migration-phase-0-inventory.md` — aktueller Mobile-Test-Migrationsstand, Real-RNTL-Runtime-Fix, abgebauter `UNSAFE_queryAllByType`-Rest und verbleibende Warnklassen.
+- **RNTL Authoring Checklist:** `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests nach Entfernung des Compat-Layers.
 - **Supabase Advisor Plan:** `docs/SupaBase/supabase-advisor-remediation-plan.md` — reviewed SQL/Ops-Plan fuer `function_search_path_mutable`, FK-Indexes, RLS-ohne-Policy-Klassifizierung und Grants-Audit.
 - **Performance Analysis:** `docs/performance/throttling-analysis.md` — Phase-4c Throttling-Vergleich, App-Shell-LCP-Fix, Bundle-Gzip-Zahlen und Strict-Gate-Regeln.
 - **Strict Probe Runbook:** `docs/performance/strict-probe-runbook.md` — Archiv/Runbook fuer Strict-Probe-Freigabe und spaetere Enforcement-Eskalationen.

@@ -328,7 +328,14 @@ const DayColumn = React.memo(function DayColumn({
               <Text className="flex-1 text-xs text-warm-700 dark:text-warm-200 leading-4" numberOfLines={2}>
                 {recipe?.name ?? `Rezept #${entry.recipe_id}`}
               </Text>
-              <Pressable onPress={() => onRemove(entry.id)} hitSlop={8} disabled={mutationPending}>
+              <Pressable
+                onPress={() => onRemove(entry.id)}
+                hitSlop={8}
+                disabled={mutationPending}
+                accessibilityRole="button"
+                accessibilityLabel={`${recipe?.name ?? `Rezept #${entry.recipe_id}`} entfernen`}
+                testID={`planner-remove-entry-${entry.id}`}
+              >
                 <Trash2 size={12} color="#d1d5db" />
               </Pressable>
             </View>
@@ -340,6 +347,9 @@ const DayColumn = React.memo(function DayColumn({
       <Pressable
         onPress={() => onAdd(dayIndex)}
         disabled={mutationPending}
+        accessibilityRole="button"
+        accessibilityLabel={`${DAYS_FULL[dayIndex]} Rezept hinzufügen`}
+        testID={`planner-add-day-${dayIndex}`}
         className={`mx-2 mb-2 py-2 rounded-xl border border-dashed items-center ${mutationPending ? 'border-warm-100 dark:border-warm-800 opacity-50' : 'border-warm-200 dark:border-warm-700'}`}
       >
         <Plus size={14} color="#9E8878" />
@@ -672,7 +682,7 @@ export default function PlannerScreen() {
       {/* Day columns */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#C84B31" />
+          <ActivityIndicator testID="planner-loading" size="large" color="#C84B31" />
         </View>
       ) : (
         <ScrollView

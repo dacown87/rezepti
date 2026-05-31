@@ -422,7 +422,12 @@ export default function RecipeDetailScreen() {
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
         {/* Header-Shell — sofort sichtbar, LCP-Anker */}
         <View className="flex-row items-center px-4 py-3 bg-white dark:bg-espresso-800 border-b border-warm-200 dark:border-warm-700">
-          <Pressable onPress={() => router.back()} className="mr-3 p-1">
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Zurück"
+            className="mr-3 p-1"
+          >
             <ArrowLeft size={22} color="#374151" />
           </Pressable>
           <View className="flex-1 h-4 rounded-full bg-warm-200 dark:bg-espresso-700" />

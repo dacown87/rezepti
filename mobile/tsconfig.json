@@ -4,7 +4,7 @@
     "strict": true,
     "paths": {
       "@testing-library/react-native": [
-        "./test/testing-library-rn-compat"
+        "./test/testing-library-rn-real"
       ],
       "@/*": [
         "./*"

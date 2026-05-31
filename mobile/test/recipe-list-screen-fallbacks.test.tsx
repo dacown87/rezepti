@@ -23,7 +23,8 @@ vi.mock('@/utils/server-url', () => ({
 }));
 
 vi.mock('@/components/OfflineBanner', () => ({
-  OfflineBanner: ({ isError }: { isError: boolean }) => React.createElement('OfflineBanner', { isError }),
+  OfflineBanner: ({ isError }: { isError: boolean }) =>
+    isError ? React.createElement('Text', { testID: 'offline-banner' }, 'Offline cached recipes') : null,
 }));
 
 vi.mock('react-native-safe-area-context', () => ({
@@ -108,9 +109,9 @@ describe('RecipeListScreen UI fallbacks', () => {
     });
 
     const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
-    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeListScreen));
+    render(React.createElement(RecipeListScreen));
 
-    expect(UNSAFE_queryAllByType('ActivityIndicator').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('recipe-list-loading')).toBeTruthy();
     expect(screen.queryByText('Rezepte konnten nicht geladen werden')).toBeNull();
   });
 
@@ -147,13 +148,11 @@ describe('RecipeListScreen UI fallbacks', () => {
     });
 
     const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
-    const { UNSAFE_queryAllByType } = render(React.createElement(RecipeListScreen));
-    const offlineBannerNodes = UNSAFE_queryAllByType('OfflineBanner');
+    render(React.createElement(RecipeListScreen));
 
     expect(screen.getByText('Cached Pasta')).toBeTruthy();
     expect(screen.queryByText('Rezepte konnten nicht geladen werden')).toBeNull();
     expect(screen.queryByText('Erneut versuchen')).toBeNull();
-    expect(offlineBannerNodes.length).toBe(1);
-    expect(offlineBannerNodes[0].props.isError).toBe(true);
+    expect(screen.getByTestId('offline-banner')).toBeTruthy();
   });
 });

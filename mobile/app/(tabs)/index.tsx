@@ -59,6 +59,9 @@ function ListCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
   return (
     <Pressable
       onPress={() => router.push(`/recipe/${recipe.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`${recipe.name} öffnen`}
+      testID={`recipe-card-${recipe.id}`}
       className="flex-row items-center bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 overflow-hidden"
       style={{ borderLeftColor: '#C84B31', borderLeftWidth: 2 }}
     >
@@ -107,6 +110,9 @@ function GridCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
   return (
     <Pressable
       onPress={() => router.push(`/recipe/${recipe.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`${recipe.name} öffnen`}
+      testID={`recipe-card-${recipe.id}`}
       className="flex-1 bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 overflow-hidden"
       style={{ margin: 4, borderLeftColor: '#C84B31', borderLeftWidth: 2 }}
     >
@@ -428,7 +434,7 @@ export default function RecipeListScreen() {
       {/* Content */}
       {loading && !apiRecipes ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#C84B31" />
+          <ActivityIndicator testID="recipe-list-loading" size="large" color="#C84B31" />
         </View>
       ) : isError && recipes.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
