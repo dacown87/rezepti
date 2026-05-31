@@ -1,5 +1,5 @@
 import React from 'react';
-import TestRenderer, { act } from 'react-test-renderer';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -20,7 +20,7 @@ vi.mock('expo-router', () => ({
   useFocusEffect: (cb: () => void) => {
     if (!focusState.invoked) {
       focusState.invoked = true;
-      cb();
+      queueMicrotask(cb);
     }
   },
 }));
@@ -86,43 +86,26 @@ describe('ShoppingScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
 
     const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(ShoppingScreen));
-    });
 
-    // Header text must be visible immediately
-    const headerText = tree!.root.findAll(
-      (node: { type: unknown; children: unknown[] }) =>
-        node.type === 'Text' && node.children.includes('Einkaufsliste')
-    );
-    expect(headerText.length).toBeGreaterThan(0);
+    render(React.createElement(ShoppingScreen));
 
-    // Skeleton placeholder container must be present
-    const skeleton = tree!.root.findAll(
-      (node: { type: unknown; props: Record<string, unknown> }) =>
-        (node.props as { testID?: string }).testID === 'shopping-skeleton'
-    );
-    expect(skeleton.length).toBeGreaterThan(0);
+    expect(screen.getByText('Einkaufsliste')).toBeTruthy();
+    expect(screen.getByTestId('shopping-skeleton')).toBeTruthy();
   });
 
   it('shows error fallback and supports retry when shopping fetch fails', async () => {
     const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(ShoppingScreen));
-      await Promise.resolve();
+    render(React.createElement(ShoppingScreen));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
     });
 
-    const retryPressable = tree!.root.find(
-      (node: { type: unknown; props: { onPress?: () => void }; findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[] }) =>
-        node.type === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-    await act(async () => {
-      await (retryPressable.props as { onPress?: () => unknown }).onPress?.();
+    await waitFor(() => {
+      expect(screen.getByText('Einkaufsliste konnte nicht geladen werden')).toBeTruthy();
     });
+
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -143,52 +126,32 @@ describe('ShoppingScreen UI fallbacks', () => {
       });
 
     const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(ShoppingScreen));
-      await Promise.resolve();
+    render(React.createElement(ShoppingScreen));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    const input = tree!.root.find(
-      (node: { type: unknown; props: { onChangeText?: (value: string) => void; onSubmitEditing?: () => unknown } }) =>
-        node.type === 'TextInput' &&
-        typeof node.props.onChangeText === 'function' &&
-        typeof node.props.onSubmitEditing === 'function'
-    );
-
-    await act(async () => {
-      (input.props as { onChangeText: (value: string) => void }).onChangeText('Milch');
+    await waitFor(() => {
+      expect(screen.queryByTestId('shopping-skeleton')).toBeNull();
     });
 
-    await act(async () => {
-      await (input.props as { onSubmitEditing: () => Promise<void> }).onSubmitEditing();
-    });
+    const input = screen.getByPlaceholderText('Artikel hinzufügen…');
 
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          node.type === 'Text' && node.children.includes('Artikel konnte nicht hinzugefügt werden.')
-      ).length
-    ).toBeGreaterThan(0);
+    await fireEvent.changeText(input, 'Milch');
+    await fireEvent(input, 'submitEditing');
+
+    await waitFor(() => {
+      expect(screen.getByText('Artikel konnte nicht hinzugefügt werden.')).toBeTruthy();
+    });
     expect((input.props as { value?: string }).value).toBe('Milch');
 
-    const retryPressable = tree!.root.find(
-      (node: { type: unknown; props: { onPress?: () => unknown }; findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[] }) =>
-        node.type === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-
-    await act(async () => {
-      await (retryPressable.props as { onPress?: () => Promise<void> }).onPress?.();
-    });
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes('Milch')
-      ).length
-    ).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByText('Milch')).toBeTruthy();
+    });
   });
 
   it('shows mutation error and retry for failed toggle without dropping the item', async () => {
@@ -203,45 +166,24 @@ describe('ShoppingScreen UI fallbacks', () => {
       .mockResolvedValueOnce({ ok: true, status: 200 });
 
     const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(ShoppingScreen));
-      await Promise.resolve();
+    render(React.createElement(ShoppingScreen));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    const itemPressable = tree!.root.find(
-      (node: { type: unknown; props: { onPress?: () => unknown }; findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[] }) =>
-        node.type === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Tomaten')).length > 0
-    );
-
-    await act(async () => {
-      await (itemPressable.props as { onPress?: () => Promise<void> }).onPress?.();
+    await waitFor(() => {
+      expect(screen.getByText('Tomaten')).toBeTruthy();
     });
 
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          node.type === 'Text' && node.children.includes('Status konnte nicht aktualisiert werden.')
-      ).length
-    ).toBeGreaterThan(0);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes('Tomaten')
-      ).length
-    ).toBeGreaterThan(0);
+    await fireEvent.press(screen.getByText('Tomaten'));
 
-    const retryPressable = tree!.root.find(
-      (node: { type: unknown; props: { onPress?: () => unknown }; findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[] }) =>
-        node.type === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-
-    await act(async () => {
-      await (retryPressable.props as { onPress?: () => Promise<void> }).onPress?.();
+    await waitFor(() => {
+      expect(screen.getByText('Status konnte nicht aktualisiert werden.')).toBeTruthy();
     });
+    expect(screen.getByText('Tomaten')).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -257,30 +199,21 @@ describe('ShoppingScreen UI fallbacks', () => {
       .mockResolvedValueOnce({ ok: false, status: 503 });
 
     const { default: ShoppingScreen } = await import('@/app/(tabs)/shopping');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(ShoppingScreen));
-      await Promise.resolve();
+    const { UNSAFE_queryAllByType } = render(React.createElement(ShoppingScreen));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    const refreshControl = tree!.root.find(
-      (node: { type: unknown; props: { onRefresh?: () => Promise<void> } }) =>
-        node.type === 'RefreshControl' && typeof node.props.onRefresh === 'function'
-    );
-    await act(async () => {
-      await (refreshControl.props as { onRefresh: () => Promise<void> }).onRefresh();
+    await waitFor(() => {
+      expect(screen.getByText('Brot')).toBeTruthy();
     });
 
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes('Brot')
-      ).length
-    ).toBeGreaterThan(0);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          node.type === 'Text' && node.children.includes('Einkaufsliste konnte nicht geladen werden')
-      ).length
-    ).toBe(0);
+    // RefreshControl has no user-facing node in the test shim; keep this isolated until real RNTL runtime lands.
+    const refreshControl = UNSAFE_queryAllByType('RefreshControl')[0];
+    await fireEvent(refreshControl, 'refresh');
+
+    expect(screen.getByText('Brot')).toBeTruthy();
+    expect(screen.queryByText('Einkaufsliste konnte nicht geladen werden')).toBeNull();
   });
 });

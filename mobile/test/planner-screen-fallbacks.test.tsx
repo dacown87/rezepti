@@ -1,5 +1,5 @@
 import React from 'react';
-import TestRenderer, { act } from 'react-test-renderer';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -99,6 +99,40 @@ function jsonResponse(body: unknown, ok = true, status = 200): Response {
   } as Response;
 }
 
+type Rendered = ReturnType<typeof render>;
+
+function addButtons(view: Rendered) {
+  return view.UNSAFE_queryAllByType('Pressable').filter(
+    (node) =>
+      typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
+      typeof (node.props as { className?: unknown }).className === 'string' &&
+      (node.props as { className: string }).className.includes('border-dashed')
+  );
+}
+
+function pressableByText(view: Rendered, text: string) {
+  return view.UNSAFE_queryAllByType('Pressable').find(
+    (node) =>
+      typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
+      node.findAll((child) => String(child.type) === 'Text' && child.children.includes(text)).length > 0
+  );
+}
+
+async function openAddMethod(view: Rendered) {
+  await waitFor(() => {
+    expect(fetch).toHaveBeenCalled();
+  });
+  await waitFor(() => {
+    expect(addButtons(view).length).toBeGreaterThan(0);
+  });
+  await fireEvent.press(addButtons(view)[0]!);
+}
+
+async function openRecipePicker(view: Rendered) {
+  await openAddMethod(view);
+  await fireEvent.press(screen.getByText('Rezept auswählen'));
+}
+
 describe('PlannerScreen UI fallbacks', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -108,14 +142,9 @@ describe('PlannerScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-    });
+    const view = render(React.createElement(PlannerScreen));
 
-    expect(
-      tree!.root.findAll((node: { type: unknown }) => String(node.type) === 'ActivityIndicator').length
-    ).toBeGreaterThan(0);
+    expect(view.UNSAFE_queryAllByType('ActivityIndicator').length).toBeGreaterThan(0);
   });
 
   it('renders empty week state without shopping action and keeps add affordance visible', async () => {
@@ -130,27 +159,15 @@ describe('PlannerScreen UI fallbacks', () => {
     );
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
-      await Promise.resolve();
+    const view = render(React.createElement(PlannerScreen));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
     });
-
-    const shoppingActions = tree!.root.findAll(
-      (node: { type: unknown; children: unknown[] }) =>
-        String(node.type) === 'Text' && node.children.includes('Einkaufsliste')
-    );
-    const addButtons = tree!.root.findAll(
-      (node: { type: unknown; props: { className?: string; onPress?: () => unknown } }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        typeof node.props.className === 'string' &&
-        node.props.className.includes('border-dashed')
-    );
-
-    expect(shoppingActions.length).toBe(0);
-    expect(addButtons.length).toBe(7);
+    await waitFor(() => {
+      expect(addButtons(view).length).toBe(7);
+    });
+    expect(screen.queryByText('Einkaufsliste')).toBeNull();
   });
 
   it('shows load error fallback and retries planner week loading visibly', async () => {
@@ -161,9 +178,7 @@ describe('PlannerScreen UI fallbacks', () => {
         const url = String(input);
         if (url.includes('/api/v1/planner?week=')) {
           plannerFetchCalls += 1;
-          if (plannerFetchCalls === 1) {
-            throw new Error('Network request failed');
-          }
+          if (plannerFetchCalls === 1) throw new Error('Network request failed');
           return jsonResponse([]);
         }
         if (url.endsWith('/api/v1/recipes')) return jsonResponse([]);
@@ -172,43 +187,21 @@ describe('PlannerScreen UI fallbacks', () => {
     );
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
-      await Promise.resolve();
+    const view = render(React.createElement(PlannerScreen));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Wochenplan konnte nicht geladen werden.')).toBeTruthy();
     });
 
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Wochenplan konnte nicht geladen werden.')
-      ).length
-    ).toBeGreaterThan(0);
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
 
-    const retryAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-    await act(async () => {
-      await (retryAction.props as { onPress?: () => Promise<void> }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(plannerFetchCalls).toBe(2);
+      expect(screen.queryByText('Wochenplan konnte nicht geladen werden.')).toBeNull();
     });
-
-    expect(plannerFetchCalls).toBe(2);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Wochenplan konnte nicht geladen werden.')
-      ).length
-    ).toBe(0);
   });
 
   it('shows QR import failure message for non-recipe QR payloads', async () => {
@@ -223,43 +216,13 @@ describe('PlannerScreen UI fallbacks', () => {
     );
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    const view = render(React.createElement(PlannerScreen));
 
-    const addButtons = tree!.root.findAll(
-      (node: { type: unknown; props: { className?: string; onPress?: () => unknown } }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        typeof node.props.className === 'string' &&
-        node.props.className.includes('border-dashed')
-    );
-    await act(async () => {
-      await (addButtons[0]!.props as { onPress?: () => void }).onPress?.();
-    });
+    await openAddMethod(view);
+    await fireEvent.press(screen.getByText('QR-Code scannen'));
 
-    const qrSelect = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('QR-Code scannen')).length > 0
-    );
-    await act(async () => {
-      await (qrSelect.props as { onPress?: () => void }).onPress?.();
-    });
-
-    const scanner = tree!.root.find((node: { type: unknown }) => String(node.type) === 'ScannerCamera');
-    await act(async () => {
-      (scanner.props as { onScan: (value: string) => void }).onScan('invalid-qr-content');
-      await Promise.resolve();
-    });
+    const scanner = view.UNSAFE_queryAllByType('ScannerCamera')[0];
+    await fireEvent(scanner!, 'scan', 'invalid-qr-content');
 
     expect(state.alertMock).toHaveBeenCalledWith(
       'Kein Rezept-QR',
@@ -274,18 +237,12 @@ describe('PlannerScreen UI fallbacks', () => {
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes('/api/v1/planner?week=')) {
-          return jsonResponse([
-            { id: 1, recipe_id: 7, day_of_week: 0, week_start: 1_715_200_000 },
-          ]);
+          return jsonResponse([{ id: 1, recipe_id: 7, day_of_week: 0, week_start: 1_715_200_000 }]);
         }
         if (url.endsWith('/api/v1/recipes')) {
           recipesFetchCalls += 1;
-          if (recipesFetchCalls === 2) {
-            throw new Error('Network request failed');
-          }
-          return jsonResponse([
-            { id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' },
-          ]);
+          if (recipesFetchCalls === 2) throw new Error('Network request failed');
+          return jsonResponse([{ id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' }]);
         }
         return jsonResponse({});
       })
@@ -294,50 +251,27 @@ describe('PlannerScreen UI fallbacks', () => {
     state.addIngredientsMock.mockResolvedValue(undefined);
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
-      await Promise.resolve();
+    const view = render(React.createElement(PlannerScreen));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Suppe')).toBeTruthy();
     });
 
-    const shoppingAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Einkaufsliste')).length > 0
-    );
-    await act(async () => {
-      await (shoppingAction.props as { onPress?: () => Promise<void> }).onPress?.();
-      await Promise.resolve();
+    await fireEvent.press(screen.getByText('Einkaufsliste'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Einkaufsliste konnte nicht erstellt werden.')).toBeTruthy();
     });
 
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Einkaufsliste konnte nicht erstellt werden.')
-      ).length
-    ).toBeGreaterThan(0);
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
 
-    const retryAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-    await act(async () => {
-      await (retryAction.props as { onPress?: () => Promise<void> }).onPress?.();
+    await waitFor(() => {
+      expect(state.router.navigate).toHaveBeenCalledWith('/(tabs)/shopping');
     });
-
-    expect(state.router.navigate).toHaveBeenCalledWith('/(tabs)/shopping');
+    expect(pressableByText(view, 'Einkaufsliste')).toBeTruthy();
   });
 
   it('shows visible recipe picker load error with local retry instead of empty state', async () => {
@@ -349,98 +283,34 @@ describe('PlannerScreen UI fallbacks', () => {
         if (url.includes('/api/v1/planner?week=')) return jsonResponse([]);
         if (url.endsWith('/api/v1/recipes')) {
           recipesFetchCalls += 1;
-          if (recipesFetchCalls === 1) {
-            throw new Error('Network request failed');
-          }
-          return jsonResponse([
-            { id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' },
-          ]);
+          if (recipesFetchCalls === 1) throw new Error('Network request failed');
+          return jsonResponse([{ id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' }]);
         }
         return jsonResponse({});
       })
     );
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
-      await Promise.resolve();
+    const view = render(React.createElement(PlannerScreen));
+
+    await openRecipePicker(view);
+
+    await waitFor(() => {
+      expect(screen.getByText('Rezepte konnten nicht geladen werden.')).toBeTruthy();
     });
+    expect(screen.queryByText('Keine Rezepte gefunden.')).toBeNull();
 
-    const addButtons = tree!.root.findAll(
-      (node: { type: unknown; props: { className?: string; onPress?: () => unknown } }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        typeof node.props.className === 'string' &&
-        node.props.className.includes('border-dashed')
-    );
-    await act(async () => {
-      await (addButtons[0]!.props as { onPress?: () => void }).onPress?.();
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
+
+    await waitFor(() => {
+      expect(recipesFetchCalls).toBe(2);
+      expect(screen.queryByText('Rezepte konnten nicht geladen werden.')).toBeNull();
+      expect(screen.getByText('Suppe')).toBeTruthy();
     });
-
-    const pickRecipeAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Rezept auswählen')).length > 0
-    );
-    await act(async () => {
-      await (pickRecipeAction.props as { onPress?: () => void }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Rezepte konnten nicht geladen werden.')
-      ).length
-    ).toBeGreaterThan(0);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Keine Rezepte gefunden.')
-      ).length
-    ).toBe(0);
-
-    const retryAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-    await act(async () => {
-      await (retryAction.props as { onPress?: () => Promise<void> }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(recipesFetchCalls).toBe(2);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Rezepte konnten nicht geladen werden.')
-      ).length
-    ).toBe(0);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Suppe')
-      ).length
-    ).toBeGreaterThan(0);
   });
 
   it('keeps planner fallback visible and switches retry label while a retry is pending', async () => {
-    let releaseRetry: (() => void) | null = null;
+    const retryGate: { release?: () => void } = {};
     let plannerFetchCalls = 0;
     vi.stubGlobal(
       'fetch',
@@ -448,11 +318,9 @@ describe('PlannerScreen UI fallbacks', () => {
         const url = String(input);
         if (url.includes('/api/v1/planner?week=')) {
           plannerFetchCalls += 1;
-          if (plannerFetchCalls === 1) {
-            throw new Error('Network request failed');
-          }
+          if (plannerFetchCalls === 1) throw new Error('Network request failed');
           await new Promise<void>((resolve) => {
-            releaseRetry = resolve;
+            retryGate.release = resolve;
           });
           return jsonResponse([]);
         }
@@ -462,47 +330,32 @@ describe('PlannerScreen UI fallbacks', () => {
     );
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
+    const view = render(React.createElement(PlannerScreen));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Wochenplan konnte nicht geladen werden.')).toBeTruthy();
+    });
+
+    // Pending-state assertion needs the in-flight handler; fireEvent.press awaits the whole async action.
+    const retryAction = pressableByText(view, 'Erneut versuchen');
+    expect(retryAction).toBeTruthy();
+    let retryPromise: Promise<void> | undefined;
     await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
+      retryPromise = (retryAction!.props as { onPress?: () => Promise<void> }).onPress?.();
       await Promise.resolve();
     });
 
-    const retryAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-
-    await act(async () => {
-      void (retryAction.props as { onPress?: () => Promise<void> }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(screen.getByText('Wochenplan konnte nicht geladen werden.')).toBeTruthy();
+      expect(screen.getByText('Wird versucht…')).toBeTruthy();
     });
 
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Wochenplan konnte nicht geladen werden.')
-      ).length
-    ).toBeGreaterThan(0);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Wird versucht…')
-      ).length
-    ).toBeGreaterThan(0);
-
+    retryGate.release?.();
     await act(async () => {
-      releaseRetry?.();
-      await Promise.resolve();
-      await Promise.resolve();
+      await retryPromise;
     });
   });
 
@@ -516,14 +369,10 @@ describe('PlannerScreen UI fallbacks', () => {
         if (url.includes('/api/v1/planner?week=')) {
           plannerListCalls += 1;
           if (plannerListCalls === 1) return jsonResponse([]);
-          return jsonResponse([
-            { id: 1, recipe_id: 7, day_of_week: 0, week_start: 1_715_200_000 },
-          ]);
+          return jsonResponse([{ id: 1, recipe_id: 7, day_of_week: 0, week_start: 1_715_200_000 }]);
         }
         if (url.endsWith('/api/v1/recipes')) {
-          return jsonResponse([
-            { id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' },
-          ]);
+          return jsonResponse([{ id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' }]);
         }
         if (url.endsWith('/api/v1/planner') && init?.method === 'POST') {
           plannerPostCalls += 1;
@@ -535,90 +384,25 @@ describe('PlannerScreen UI fallbacks', () => {
     );
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
-      await Promise.resolve();
+    const view = render(React.createElement(PlannerScreen));
+
+    await openRecipePicker(view);
+
+    await waitFor(() => {
+      expect(screen.getByText('Suppe')).toBeTruthy();
+    });
+    await fireEvent.press(screen.getByText('Suppe'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Rezept konnte nicht zum Wochenplan hinzugefügt werden.')).toBeTruthy();
     });
 
-    const addButtons = tree!.root.findAll(
-      (node: { type: unknown; props: { className?: string; onPress?: () => unknown } }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        typeof node.props.className === 'string' &&
-        node.props.className.includes('border-dashed')
-    );
-    await act(async () => {
-      await (addButtons[0]!.props as { onPress?: () => void }).onPress?.();
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
+
+    await waitFor(() => {
+      expect(plannerPostCalls).toBe(2);
+      expect(screen.getByText('Suppe')).toBeTruthy();
     });
-
-    const pickRecipeAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Rezept auswählen')).length > 0
-    );
-    await act(async () => {
-      await (pickRecipeAction.props as { onPress?: () => void }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const recipeOption = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Suppe')).length > 0
-    );
-    await act(async () => {
-      await (recipeOption.props as { onPress?: () => Promise<void> }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Rezept konnte nicht zum Wochenplan hinzugefügt werden.')
-      ).length
-    ).toBeGreaterThan(0);
-
-    const retryAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-    await act(async () => {
-      await (retryAction.props as { onPress?: () => Promise<void> }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(plannerPostCalls).toBe(2);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Suppe')
-      ).length
-    ).toBeGreaterThan(0);
   });
 
   it('shows visible rescue fallback for remove mutation failures and retries without a second confirm dialog', async () => {
@@ -631,16 +415,12 @@ describe('PlannerScreen UI fallbacks', () => {
         if (url.includes('/api/v1/planner?week=')) {
           plannerListCalls += 1;
           if (plannerListCalls === 1) {
-            return jsonResponse([
-              { id: 1, recipe_id: 7, day_of_week: 0, week_start: 1_715_200_000 },
-            ]);
+            return jsonResponse([{ id: 1, recipe_id: 7, day_of_week: 0, week_start: 1_715_200_000 }]);
           }
           return jsonResponse([]);
         }
         if (url.endsWith('/api/v1/recipes')) {
-          return jsonResponse([
-            { id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' },
-          ]);
+          return jsonResponse([{ id: 7, name: 'Suppe', ingredients: '["Wasser"]', steps: '["Kochen"]' }]);
         }
         if (url.endsWith('/api/v1/planner/1') && init?.method === 'DELETE') {
           deleteCalls += 1;
@@ -652,61 +432,40 @@ describe('PlannerScreen UI fallbacks', () => {
     );
 
     const { default: PlannerScreen } = await import('@/app/(tabs)/planner');
-    let tree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      tree = TestRenderer.create(React.createElement(PlannerScreen));
-      await Promise.resolve();
-      await Promise.resolve();
+    const view = render(React.createElement(PlannerScreen));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Suppe')).toBeTruthy();
     });
 
-    const removeAction = tree!.root.find(
-      (node: { type: unknown; props: { hitSlop?: unknown; onPress?: () => unknown } }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.props.hitSlop === 8
+    const removeAction = view.UNSAFE_queryAllByType('Pressable').find(
+      (node) =>
+        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
+        (node.props as { hitSlop?: unknown }).hitSlop === 8
     );
-    await act(async () => {
-      await (removeAction.props as { onPress?: () => void }).onPress?.();
-    });
+    expect(removeAction).toBeTruthy();
+    await fireEvent.press(removeAction!);
 
     const alertButtons = state.alertMock.mock.calls[0]?.[2] as Array<{ text: string; onPress?: () => Promise<void> }>;
     const confirmAction = alertButtons.find((button) => button.text === 'Entfernen');
     await act(async () => {
       await confirmAction?.onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
     });
 
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Rezept konnte nicht entfernt werden.')
-      ).length
-    ).toBeGreaterThan(0);
-
-    const retryAction = tree!.root.find(
-      (node: {
-        type: unknown;
-        props: { onPress?: () => unknown };
-        findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[];
-      }) =>
-        String(node.type) === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Erneut versuchen')).length > 0
-    );
-    await act(async () => {
-      await (retryAction.props as { onPress?: () => Promise<void> }).onPress?.();
-      await Promise.resolve();
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(deleteCalls).toBe(1);
+      expect(screen.getByText('Rezept konnte nicht entfernt werden.')).toBeTruthy();
     });
 
-    expect(deleteCalls).toBe(2);
-    expect(state.alertMock).toHaveBeenCalledTimes(1);
-    expect(
-      tree!.root.findAll(
-        (node: { type: unknown; children: unknown[] }) =>
-          String(node.type) === 'Text' && node.children.includes('Suppe')
-      ).length
-    ).toBe(0);
+    await fireEvent.press(screen.getByText('Erneut versuchen'));
+
+    await waitFor(() => {
+      expect(deleteCalls).toBe(2);
+      expect(state.alertMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('Suppe')).toBeNull();
+    });
   });
 });

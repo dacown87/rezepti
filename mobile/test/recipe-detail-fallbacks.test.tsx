@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, renderAsync, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -146,7 +146,10 @@ describe('RecipeDetailScreen UI fallbacks', () => {
 
   it('shows not-found fallback and supports back navigation', async () => {
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    await renderAsync(React.createElement(RecipeDetailScreen));
+    await act(async () => {
+      render(React.createElement(RecipeDetailScreen));
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Rezept nicht gefunden.')).toBeTruthy();
@@ -175,7 +178,10 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    await renderAsync(React.createElement(RecipeDetailScreen));
+    await act(async () => {
+      render(React.createElement(RecipeDetailScreen));
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Rezept konnte nicht geladen werden.')).toBeTruthy();

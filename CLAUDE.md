@@ -13,6 +13,9 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 - `npm run dev:mobile` — API server + Expo web dev server
 - `npm run build:mobile` — Export Expo web app into `public/`
 - `npm run build:mobile:docker` — Expo web export command ohne Git-Abhaengigkeit
+- `npm run mobile:typecheck` — Mobile TypeScript check
+- `npm run test:mobile` — Mobile Vitest suite
+- `npm run test:mobile:rntl-guard` — Guard gegen neue direkte `react-test-renderer`-Imports in Mobile-Tests
 - `npm run perf:bundle` — Analyze the current `public/` Expo export, including raw/gzip JS totals
 - `npm run perf:lighthouse:compare` — Run Lighthouse with `simulate` and `devtools`, then write p50/p75 comparison artifacts
 - `npm run perf:validate` — Validate Lighthouse/bundle status against warn-only budgets and update performance history/readiness
@@ -21,7 +24,7 @@ Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, In
 - `npm test` — Run tests (Vitest)
 - `npx tsc` — Type-check (noEmit, strict mode)
 
-Test suite: Vitest for unit/e2e tests.
+Test suite: Vitest for unit/e2e tests. Mobile UI-near tests import `@testing-library/react-native`; under Vitest this currently resolves through `mobile/test/testing-library-rn-compat.ts` because the real React Native entrypoint still needs a separate Flow-transform/runtime fix.
 
 ## Docker
 
@@ -33,7 +36,7 @@ Test suite: Vitest for unit/e2e tests.
 
 **Image:** `dacown/rezepti:latest` auf Docker Hub — wird automatisch via GitHub Actions gebaut und gepusht bei jedem Merge auf `main`.
 
-**Stages:** `base` (Node 20 + yt-dlp + ffmpeg) → `builder` (tsc) → `web-builder` (Expo Web Export aus `mobile/`) → `production` (node dist/index.js) + `dev` (tsx watch)
+**Stages:** `base` (Node 24.15.0 + yt-dlp + ffmpeg) → `builder` (tsc) → `web-builder` (Expo Web Export aus `mobile/`) → `production` (node dist/index.js) + `dev` (tsx watch)
 
 **Volumes:**
 - `./data:/app/data` — local runtime data such as cookies and export artifacts
@@ -162,6 +165,7 @@ Host github.com
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
 - **After frontend changes:** Bei Bedarf zuerst `npm --prefix mobile ci`, dann `npm run build:mobile` zum Aktualisieren von `public/`. Der Expo-Export kann nach erfolgreichem `Exported: ../public` lokal haengen; nicht mehrfach parallel starten.
+- **After mobile test changes:** `npm run test:mobile:rntl-guard` ausfuehren. Neue Mobile-Tests duerfen `react-test-renderer` nicht direkt importieren; `renderAsync` ist in Testdateien abgebaut. Verbleibende `UNSAFE_queryAllByType`-Altfaelle sind in `docs/testing/rntl-migration-phase-0-inventory.md` dokumentiert.
 - **After performance-sensitive mobile changes:** `npm run perf:bundle`, bei LCP-/Shell-/Routing-Aenderungen zusaetzlich `npm run perf:lighthouse:compare` und `npm run perf:validate`. Phase 4c ist abgeschlossen: `mobile/app/+html.tsx` liefert eine route-aware statische App-Shell, damit `/shopping` und `/recipe/*` vor Expo-Web-Hydration einen stabilen LCP-Kandidaten haben.
 - **Strict performance hardening:** Fuer die 10er-Messreihe `npm run perf:stability:seed` verwenden. Das Script editiert `history.json` nicht selbst; nur `perf:validate` schreibt echte Run-Eintraege. Danach `npm run perf:budget:suggest` ausfuehren und Vorschlaege pruefen. Aktuelle CI-Policy (seit 2026-05-13, nach 2 gruenen Strict-Probes): `schedule` (nightly cron 02:00 UTC) laeuft `strict`, `push`/`pull_request` bleiben `warn`. `workflow_dispatch` weiter wahlweise `warn` oder `strict`. Erste Eskalation auf `pull_request` strict bleibt offen.
 - **New web scraper plugin:** The plugin registry (`PLUGINS` array) was removed in the May 2026 cleanup. The `WebScraperPlugin` interface still exists in `src/fetchers/web/base.ts`. To add a new domain-specific scraper, re-add the plugin registry in `web/index.ts` and implement the interface in `src/fetchers/web/[domain].ts`. Chefkoch bleibt dedizierter Fetcher in `pipeline.ts`.
@@ -174,9 +178,12 @@ Host github.com
 - **Autoplan-Review:** `~/.claude/plans/joyful-kindling-anchor.md` — Vollständiger Projektstand-Review (2026-04-09) mit offenen Punkten
 - **Codemaps:** `docs/CODEMAPS/` — Architecture, Backend, Fetchers, Database, Frontend
 - **TODO:** `TODO.md` — Aktuelle Aufgaben und offene Bugs
-- **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions (36 Eintraege, Stand 2026-05-11). Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
+- **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions (41 Eintraege, Stand 2026-05-31). Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
+- **RNTL Migration Inventory:** `docs/testing/rntl-migration-phase-0-inventory.md` — aktueller Mobile-Test-Migrationsstand, Real-RNTL-Runtime-Blocker und verbleibende `UNSAFE_*`-Altfaelle.
+- **RNTL Authoring Checklist:** `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests waehrend der Compat-Uebergangsphase.
+- **Supabase Advisor Plan:** `docs/SupaBase/supabase-advisor-remediation-plan.md` — reviewed SQL/Ops-Plan fuer `function_search_path_mutable`, FK-Indexes, RLS-ohne-Policy-Klassifizierung und Grants-Audit.
 - **Performance Analysis:** `docs/performance/throttling-analysis.md` — Phase-4c Throttling-Vergleich, App-Shell-LCP-Fix, Bundle-Gzip-Zahlen und Strict-Gate-Regeln.
-- **Strict Probe Runbook:** `docs/performance/strict-probe-runbook.md` — operative Freigabe fuer den ersten manuellen `perf_enforcement=strict`-Probe-Run.
+- **Strict Probe Runbook:** `docs/performance/strict-probe-runbook.md` — Archiv/Runbook fuer Strict-Probe-Freigabe und spaetere Enforcement-Eskalationen.
 
 ## Cleanup (March 2026) ✅
 
@@ -252,10 +259,11 @@ Planned features and current implementation status (as of March 2026):
 - `npm test -- --run --exclude="test/e2e/**"` — run only unit tests
 - `npm test` — all tests (E2E tests fail if server not running)
 
-**Test Status (2026-05-06):**
-- Unit Tests: 366 bestanden, 12 skipped
-- E2E Tests: 40 bestanden
-- Cookidoo Credentials: 21 Unit-Tests bestanden
+**Test Status (2026-05-31):**
+- Root unit tests: zuletzt dokumentiert `448 passed`, `13 skipped`
+- Mobile unit tests: zuletzt dokumentiert `87 passed`
+- Mobile RNTL guard: `npm run test:mobile:rntl-guard` blockiert neue direkte `react-test-renderer`-Imports
+- E2E contract gate: CI startet echten Server und fuehrt `npm run test:e2e:contract` aus
 
 **Test Coverage:**
 | Area | Tests | Files |

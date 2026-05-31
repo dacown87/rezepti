@@ -1,7 +1,7 @@
 # Project Learnings — RecipeDeck (rezepti)
 
 Auto-aggregierte Befunde aus gstack-Sessions. Quelle: `~/.gstack/projects/dacown87-rezepti/learnings.jsonl`.
-Stand: 2026-05-12 — 40 Eintraege.
+Stand: 2026-05-31 — 41 Eintraege.
 
 Format: `[key] (confidence/10, datum)` + Insight + ggf. Files.
 Aktualisieren via `/learn` (zeigt aktuelle), neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` u.a. ergaenzt.
@@ -123,6 +123,11 @@ postgres-js without `ssl` option fails in Northflank with "Failed query" (not a 
 
 ### Mobile UI / Expo
 
+#### rntl-vitest-real-runtime-blocked-by-rn-flow-entry (10/10, 2026-05-31)
+
+Mobile-Testdateien importieren inzwischen `@testing-library/react-native`, aber Vitest resolved diesen Import bewusst auf `mobile/test/testing-library-rn-compat.ts`. Ohne diesen Alias bricht der Suite-Start am echten React-Native-Entrypoint ab: `mobile/node_modules/react-native/index.js` enthaelt Flow-Syntax wie `import typeof`, die ohne React-Native-/Babel-Transform roh in Node landet. Direkte `react-test-renderer`-Imports sind per `npm run test:mobile:rntl-guard` blockiert; `renderAsync` ist aus den Testdateien entfernt. Echte RNTL braucht einen separaten Runtime-/Transform-Track, nicht nur weitere Testdatei-Migrationen.
+*Files:* `mobile/vitest.config.ts`, `mobile/test/testing-library-rn-compat.ts`, `docs/testing/rntl-migration-phase-0-inventory.md`
+
 #### expo-scrollview-justify-center-web (10/10, 2026-04-16)
 
 `justifyContent:center` in a horizontal React Native ScrollView on web clips the left overflow — content starts at a negative offset and cannot be scrolled to. The right side is accessible but the first N items are unreachable. Fix: remove `justifyContent:center` for web, or use `flex-start`. Also: set `showsHorizontalScrollIndicator={Platform.OS===web}` so users see the scrollbar hint.
@@ -167,6 +172,11 @@ Regex `Personen?` means `Persone` + optional `n` — matches `Persone` and `Pers
 *Files:* `src/fetchers/chefkoch.ts`, `test/unit/chefkoch.test.ts`
 
 ### Docker / Infra
+
+#### mobile-engines-require-node24-in-docker (10/10, 2026-05-24)
+
+Wenn `mobile/package.json` Engines auf `node >=24.15.0` und `npm >=11` stehen, aber der Docker-Builder mit `node:20-slim` laeuft, bricht `cd mobile && npm ci` frueh mit `EBADENGINE` und kann anschliessend irrefuehrende Lockfile-Fehler zeigen (`npm ci can only install...`, fehlende Pakete). Der stabile Fix ist, Builder-Images auf Node-24-Linie zu heben (hier: `node:24.15.0-slim` fuer `base` + `web-builder`) und danach `npm --prefix mobile ci` gegen den aktuellen Lockfile-Stand zu verifizieren.
+*Files:* `Dockerfile`, `mobile/package.json`, `mobile/package-lock.json`
 
 #### ytdlp-static-binary-node-slim (10/10, 2026-04-16)
 

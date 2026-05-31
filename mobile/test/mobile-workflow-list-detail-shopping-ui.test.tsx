@@ -1,5 +1,5 @@
 import React from 'react';
-import TestRenderer, { act } from 'react-test-renderer';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -22,7 +22,7 @@ vi.mock('@/hooks/useRecipes', () => ({
 
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: state.recipeIdParam }),
-  useFocusEffect: (cb: () => void) => cb(),
+  useFocusEffect: (cb: () => void) => queueMicrotask(cb),
   router: state.router,
 }));
 
@@ -187,49 +187,44 @@ describe('mobile ui workflow: list -> detail -> shopping', () => {
 
   it('navigates from list to detail and adds recipe ingredients to shopping list', async () => {
     const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
-    let listTree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      listTree = TestRenderer.create(React.createElement(RecipeListScreen));
-    });
+    const listRender = render(React.createElement(RecipeListScreen));
 
-    const recipeCardPressable = listTree!.root.find(
-      (node: { type: unknown; props: { onPress?: () => void; className?: string }; findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[] }) =>
-        node.type === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        typeof node.props.className === 'string' &&
-        node.props.className.includes('rounded-2xl mb-3') &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Pasta')).length > 0
-    );
+    expect(screen.getByText('Alle Rezepte')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Alle Rezepte'));
 
-    await act(async () => {
-      (recipeCardPressable.props as { onPress?: () => unknown }).onPress?.();
+    // The test shim does not expose role queries yet; keep the press target lookup isolated.
+    let recipeCardPressable: ReturnType<typeof listRender.UNSAFE_queryAllByType>[number] | undefined;
+    await waitFor(() => {
+      recipeCardPressable = listRender.UNSAFE_queryAllByType('Pressable').find((node) =>
+        typeof (node.props as { onPress?: unknown }).onPress === 'function' &&
+        typeof (node.props as { className?: unknown }).className === 'string' &&
+        (node.props as { className: string }).className.includes('rounded-2xl mb-3') &&
+        node.findAll((child) => String(child.type) === 'Text' && child.children.includes('Pasta')).length > 0
+      );
+      expect(recipeCardPressable).toBeTruthy();
     });
+    await fireEvent.press(recipeCardPressable!);
 
     expect(state.router.push).toHaveBeenCalledWith('/recipe/11');
-    listTree!.unmount();
+    listRender.unmount();
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
-    let detailTree: ReturnType<typeof TestRenderer.create>;
-    await act(async () => {
-      detailTree = TestRenderer.create(React.createElement(RecipeDetailScreen));
-      await Promise.resolve();
+    const detailRender = render(React.createElement(RecipeDetailScreen));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
     });
 
-    const shoppingButton = detailTree!.root.find(
-      (node: { type: unknown; props: { onPress?: () => void }; findAll: (fn: (child: { type: unknown; children: unknown[] }) => boolean) => unknown[] }) =>
-        node.type === 'Pressable' &&
-        typeof node.props.onPress === 'function' &&
-        node.findAll((child: { type: unknown; children: unknown[] }) => child.type === 'Text' && child.children.includes('Einkauf')).length > 0
-    );
-
-    await act(async () => {
-      await (shoppingButton.props as { onPress?: () => Promise<void> }).onPress?.();
+    await waitFor(() => {
+      expect(screen.getByText('Pasta')).toBeTruthy();
     });
 
-    await act(async () => {
+    await fireEvent.press(screen.getByText('Einkauf'));
+
+    await waitFor(() => {
       expect(state.addIngredientsMock).toHaveBeenCalledWith(['Nudeln', 'Tomaten'], 11);
       expect(state.router.navigate).toHaveBeenCalledWith('/(tabs)/shopping');
     });
-    detailTree!.unmount();
+    detailRender.unmount();
   });
 });

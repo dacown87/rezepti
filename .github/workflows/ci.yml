@@ -277,6 +277,9 @@ jobs:
         run: CI=1 npx expo-doctor
         working-directory: mobile
 
+      - name: RNTL import guard
+        run: npm run test:mobile:rntl-guard
+
       - name: Mobile typecheck
         run: npm --prefix mobile run typecheck
 

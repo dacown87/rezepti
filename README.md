@@ -72,6 +72,7 @@ Nach Aenderungen an Expo-/React-Native-Abhaengigkeiten sollte zusaetzlich `cd mo
 
 ```bash
 npm --prefix mobile run typecheck
+npm run test:mobile:rntl-guard
 npm --prefix mobile run test:unit
 npm run test:unit
 npm run perf:bundle
@@ -85,9 +86,7 @@ npm run perf:budget:suggest
 
 Strict-Hardening: `perf:stability:seed` automatisiert die 10 echten Runs, ohne `history.json` direkt zu editieren; pro Messung schreibt nur `perf:validate` die History. Der Seed fuehrt jetzt standardmaessig einen verworfenen Warm-up-`perf:lighthouse`-Lauf vor `lighthouse-1` aus, damit ein einzelner Cold-Run-Ausreisser nicht das gemessene 10er-Fenster vergiftet. Danach berechnet `perf:budget:suggest` Budget-Vorschlaege aus methodenmarkierten vollstaendigen Runs (`p95 * 1.10`).
 
-Die Freigabe fuer den ersten manuellen `strict`-Probe-Run ist jetzt explizit operationalisiert: `artifacts/performance/observation.json` muss `strictProbeEligible=true` melden. Das setzt `5` aufeinanderfolgende gruene CI-Warn-Runs, eine verifizierte `stability-seed.json` mit `bundle -> warmup -> lighthouse-1..10 -> validate-1..10` und `readiness.ready=true` voraus. PR-/Push-/Schedule-Runs bleiben bis dahin bewusst warn-only; `strict` ist weiterhin nur fuer einen manuellen Probe-Dispatch gedacht.
-
-Aktueller Stand 2026-05-12: Die 10er-Serie fuer `simulate`/`mobile-375x812` ist nicht-sandboxiert erfolgreich gelaufen (`fullCoverage=true`), `perf:budget:suggest` hat ein vollstaendiges `10/10`-Window ausgewertet, und `scripts/performance/baseline.json` wurde geschaerft. Ein einzelner `/`-Cold-Run-LCP-Ausreisser von 22378 ms wurde bewusst nicht als Budget uebernommen; die warmen `/`-Runs liegen bei ~903 ms.
+Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Probes strict, `push`/`pull_request` bleiben warn-only und `workflow_dispatch` kann weiter zwischen `warn` und `strict` waehlen. Fuer neue Budget- oder Shell-Aenderungen bleibt der gueltige Pfad: `perf:stability:seed`, `perf:budget:suggest`, danach `perf:validate`.
 
 ---
 
@@ -154,8 +153,11 @@ BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-B
 - `TODO.md` — Aktuelle offene Punkte, QA-Befunde und Roadmap-Notizen
 - `test/README.md` — Teststruktur und lokale Testbefehle
 - `docs/TEST_STATUS.md` — Historischer Teststatus und bekannte Testlücken
+- `docs/testing/rntl-migration-phase-0-inventory.md` — RNTL-Migrationsstand, Runtime-Blocker und verbleibende `UNSAFE_*`-Altfaelle
+- `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests waehrend der RNTL-Uebergangsphase
+- `docs/SupaBase/supabase-advisor-remediation-plan.md` — reviewed Plan fuer die naechste Supabase-Advisor-Remediation
 - `docs/performance/throttling-analysis.md` — Phase-4c Throttling-Vergleich, App-Shell-LCP-Fix und Budget-Hardening-Regeln
-- `docs/performance/strict-probe-runbook.md` — operative Checkliste fuer die 5-Run-Beobachtung und den ersten manuellen `strict`-Probe-Run
+- `docs/performance/strict-probe-runbook.md` — Archiv/Runbook fuer Strict-Probe-Freigabe und spaetere Enforcement-Eskalationen
 - `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md` — Cleanup-Plan und finaler Review-Stand
 
 ---

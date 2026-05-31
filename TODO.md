@@ -1,18 +1,24 @@
 
 ## 🎯 Aktueller Stand (2026-05-30)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Nightly-Strict-Remediation, Node-24-Verifikation und npm-Audit-Triage sind durch. Test-Infra-Migration Punkt 3 ist gestartet; Multi-User Login bleibt der naechste Haupttrack.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage und der RNTL-File-Migrationsslice sind durch. Multi-User Login bleibt der naechste Haupttrack.**
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-05-30)
 
 1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key).
-2. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
-3. Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` weiterfuehren.
-4. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+2. **Supabase Advisor Remediation ausfuehren** — reviewed Plan: [docs/SupaBase/supabase-advisor-remediation-plan.md](/home/patrick/Projekte/rezepti/docs/SupaBase/supabase-advisor-remediation-plan.md). Kernentscheidungen: `function_search_path_mutable` fixen, fehlende FK-Indexes nach Preflight ergaenzen, RLS-ohne-Policy als absichtliche Data-API-Sperre klassifizieren statt breit Policies anzulegen, Runtime-DB-Rolle/Grants auditieren. Preflight: [docs/SupaBase/preflight.sql](/home/patrick/Projekte/rezepti/docs/SupaBase/preflight.sql).
+3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
+4. Test-Infra-Migration nachziehen: direkte `react-test-renderer`-Imports in Mobile-Testdateien sind entfernt und der Guard hat eine leere Legacy-Allowlist; `renderAsync` ist aus den Testdateien entfernt. Offen bleibt der separate RN-/Vitest-Runtime-Fix fuer echte RNTL sowie der Abbau der begruendeten `UNSAFE_queryAllByType`-Strukturzugriffe.
+5. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
 
 ### Erledigt 2026-05-30
 
-- [x] **Test-Infra-Migration Punkt 3 gestartet** — `recipe-list-screen-fallbacks.test.tsx` und `recipe-detail-fallbacks.test.tsx` importieren und nutzen jetzt `@testing-library/react-native` statt direkter `react-test-renderer`-Tree-Inspektion. Der bestehende Vitest-Compat-Layer kapselt `react-test-renderer` weiterhin als Uebergangsbruecke, weil die echte RNTL-Laufzeit unter Vitest aktuell am untranspilierten React-Native-Flow-Import scheitert. Verifiziert mit fokussierten Mobile-Tests und kompletter Mobile-Unit-Suite (`87 passed`). Offen bleiben `shopping-screen-fallbacks`, `planner-screen-fallbacks` und `mobile-workflow-list-detail-shopping-ui`.
+- [x] **RNTL Compat-only Cleanup gestartet** — `renderAsync` wurde aus `mobile/test/recipe-detail-fallbacks.test.tsx` entfernt; die zwei async Detail-Fallbacks nutzen jetzt `render` plus den offiziellen `act`-/`waitFor`-Pfad aus `@testing-library/react-native`. Verifiziert mit `npm run test:mobile:rntl-guard` und `npm --prefix mobile run test:unit -- test/recipe-detail-fallbacks.test.tsx` (`4 passed`). Echte RNTL bleibt weiter durch den React-Native-Flow-Entrypoint blockiert; verbleibende `UNSAFE_queryAllByType`-Zugriffe sind inventarisiert und brauchen teils Accessibility-/TestID-Hooks statt rein mechanischem Austausch.
+- [x] **RNTL Phase 0/1 ausgefuehrt** — Inventory und Test-Autoren-Checkliste liegen unter `docs/testing/`; `npm run test:mobile:rntl-guard` blockiert neue direkte `react-test-renderer`-Imports und ist im Mobile-CI-Gate verdrahtet. Real-RNTL-Spike ohne Alias reproduziert den bekannten Runtime-Blocker (`SyntaxError: Unexpected token 'typeof'` aus dem echten React-Native-Entrypoint). Gate-Entscheidung: **Gate C**, daher echte RNTL erst nach separatem RN-/Vitest-Runtime-Fix; File-Migrationen duerfen bis dahin nur gegen den eingefrorenen Compat-Subset weiterlaufen.
+- [x] **RNTL Shopping-Slice migriert** — `mobile/test/shopping-screen-fallbacks.test.tsx` importiert jetzt `render`, `screen`, `fireEvent` und `waitFor` aus `@testing-library/react-native` statt direkt `react-test-renderer`. Der Compat-Layer wurde nur um echte RNTL-nahe APIs fuer `getByPlaceholderText`, `fireEvent.changeText` und benannte Events wie `submitEditing`/`refresh` erweitert.
+- [x] **RNTL Workflow-Slice migriert** — `mobile/test/mobile-workflow-list-detail-shopping-ui.test.tsx` importiert jetzt `render`, `screen`, `fireEvent` und `waitFor` aus `@testing-library/react-native` statt direkt `react-test-renderer`. Der Test bleibt ehrlich ein Two-Step-Smoke (`list -> detail -> shopping`) ohne Router-Harness.
+- [x] **RNTL Planner-Slice migriert** — `mobile/test/planner-screen-fallbacks.test.tsx` importiert jetzt die `@testing-library/react-native`-API statt direktem `react-test-renderer`. Die Guard-Allowlist ist leer; neue direkte Renderer-Imports in Mobile-Testdateien werden blockiert. Verifiziert mit fokussiertem Planner-Test (`9 passed`).
+- [x] **Test-Infra-Migration Punkt 3 gestartet und reviewed** — `recipe-list-screen-fallbacks.test.tsx` und `recipe-detail-fallbacks.test.tsx` wurden als erster Slice auf `@testing-library/react-native`-API umgestellt. Der bestehende Vitest-Compat-Layer kapselt `react-test-renderer` weiterhin als Uebergangsbruecke, weil die echte RNTL-Laufzeit unter Vitest aktuell am untranspilierten React-Native-Flow-Import scheitert. Das `/autoplan`-Review zog den Runtime-Gate vor die weiteren File-Migrationen; Phase 0 Inventory/Guardrail und Phase 1 Real-RNTL-Spike sind inzwischen erledigt. Plan: [docs/superpowers/plans/2026-05-30-test-infra-rntl-migration-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-30-test-infra-rntl-migration-plan.md).
 - [x] **npm-Audit-Findings triagiert** — `npm audit fix` ohne `--force` fuer Root und Mobile ausgefuehrt. Root reduziert `5 moderate -> 4 moderate`; `ws` ist geloest, uebrig bleibt der `drizzle-kit`/`@esbuild-kit`/`esbuild`-Dev-Tool-Cluster, dessen Audit-Fix einen SemVer-Major-/Downgrade-Pfad (`drizzle-kit@0.18.1`) vorschlaegt und deshalb nicht erzwungen wurde. Mobile reduziert `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify` und `brace-expansion` sind geloest, uebrig bleibt der Expo-SDK-gebundene `uuid`/`xcode`/Expo-Cluster. Verifiziert mit `npm ci`, `npm --prefix mobile ci`, `npx tsc --noEmit`, `npm --prefix mobile run typecheck`, `cd mobile && CI=1 npx expo-doctor` (`19/19`), `cd mobile && npx expo install --check`, `npm run test:unit` (`448 passed`, `13 skipped`) und `npm --prefix mobile run test:unit` (`87 passed`). Details: [docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md).
 
 ### Erledigt 2026-05-25
@@ -47,6 +53,14 @@
 ### Offen / Folgearbeit
 
 - [ ] **Multi-User Login** (naechste grosse Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Naechste grosse Phase — Multi-User Login" weiter unten.
+- [ ] **Supabase Advisor Remediation** — [reviewed Plan](/home/patrick/Projekte/rezepti/docs/SupaBase/supabase-advisor-remediation-plan.md) abarbeiten:
+    - [ ] Preflight gegen Ziel-DB ausfuehren: `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/SupaBase/preflight.sql`.
+    - [ ] Runtime-Rolle, `rolsuper`/`rolbypassrls` und Data-API-Grants dokumentieren.
+    - [ ] `search_path` fuer `auto_enable_rls`, `notify_minion_job_change`, `update_chunk_search_vector`, `update_page_search_vector` fixen.
+    - [ ] Fehlende FK-Indexes nach linksfuehrender Index-Pruefung ergaenzen.
+    - [ ] Alle 52 RLS-ohne-Policy Tabellen klassifizieren; Backend-only Tabellen ohne `anon`/`authenticated` Grants halten.
+    - [ ] Advisor erneut laufen lassen und neue Ergebnisse unter `docs/SupaBase/` ablegen.
+    - [ ] Extension-Move (`vector`, `pg_trgm`) und unused-index Cleanup als separate Follow-up-Tracks offen halten, nicht in der Kern-Remediation mitziehen.
 
 ---
 
@@ -205,14 +219,16 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ---
 
-## Test-Status (2026-05-06)
+## Test-Status (2026-05-31)
 
-- Unit Tests: 366 bestanden + 12 skipped
+- Root Unit Tests: zuletzt dokumentiert 448 bestanden + 13 skipped
+- Mobile Unit Tests: zuletzt dokumentiert 87 bestanden
+- Mobile RNTL Guard: `npm run test:mobile:rntl-guard` gruen; direkte `react-test-renderer`-Imports in Mobile-Testdateien bleiben blockiert.
 - Cleanup-Commit (5617a12): Planner-Routes, Shopping-Vertrag, PDF-Helper, Native-PDF-Wiring, Static Assets, TikTok-OCR, Chefkoch-Routing — alle grün
 - DB-Integration: weiter unter `TEST_DATABASE_URL`, im lokalen Default-Lauf geskippt
-- E2E Tests: skippen graceful ohne laufenden Server
+- E2E Contract-Gate: CI startet echten Server und fuehrt `npm run test:e2e:contract` aus; Legacy-E2E bleibt separater Soak.
 - Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
-- `npm test -- --run --exclude="test/e2e/**"`
+- Root-Unit-Lauf ohne E2E: `npm test -- --run --exclude="test/e2e/**"`
 ## Mobile Testing & Performance
 
 > **Plan:** [`docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`](docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md) (Stand 2026-05-13). Items unten = Umsetzung der Plan-Phasen.
@@ -239,7 +255,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] **Phase 4c — Throttling Validation + One Optimization Slice** abgeschlossen (2026-05-11): `LIGHTHOUSE_THROTTLING=simulate|devtools`, `perf:lighthouse:compare`, `throttling-comparison.json`, methodenfaehige Budgets, gzip-JS-Metriken und JS-Ausfuehrungszeit-Budget umgesetzt. Outcome Y als Bundle-Slice erledigt (PDF-Export lazy-loaded); Outcome Z als finaler LCP-Fix validiert (`mobile/app/+html.tsx` rendert route-aware statische App-Shell). Mobile p50 LCP nach Vergleich: `/` 903/1450 ms, `/shopping` 902/1448 ms, `/recipe/1` 1052/1414 ms (`simulate`/`devtools`). Kanonisch: `docs/performance/throttling-analysis.md` und `docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`.
 - [x] **Performance Strict-Hardening Tooling-Slice (2026-05-11):** `perf:stability:seed` automatisiert die 10 echten Runs, `validate-status` schreibt eindeutige methodenmarkierte History-Eintraege, `perf:budget:suggest` berechnet Budget-Vorschlaege aus vollstaendigen Runs (`p95 * 1.10`). Fokussierte Tests gruen.
 - [x] **Performance Strict-Probe freigeben** ✅ (2026-05-12 + 2026-05-13) — beide Probe-Runs grün (`25742783313`, `25781366107`). Nightly-Schedule danach auf `strict` eskaliert. _Plan-Phase 3 + Strict-Probe-Gate_
-- [ ] Test-Infra-Migration von `react-test-renderer` auf `@testing-library/react-native` (verschoben: aktueller Vitest/RN-Runtime-Blocker; stabile Uebergangsloesung mit `react-test-renderer` aktiv). _Plan: Phase 2 Follow-up_
+- [x] Test-Infra-File-Migration von direktem `react-test-renderer` auf `@testing-library/react-native` abgeschlossen. `recipe-list-screen-fallbacks`, `recipe-detail-fallbacks`, `shopping-screen-fallbacks`, `mobile-workflow-list-detail-shopping-ui` und `planner-screen-fallbacks` nutzen jetzt die RNTL-API; `npm run test:mobile:rntl-guard` hat eine leere Legacy-Allowlist. Phase 0/1 ist erledigt: Inventory/Checkliste/Guardrail sind dokumentiert, und der Real-RNTL-Spike hat Gate C ergeben (`SyntaxError: Unexpected token 'typeof'` aus dem echten React-Native-Entrypoint). Der Compat-Layer bleibt daher aktiv, bis ein separater RN-/Vitest-Runtime-Fix entschieden ist. Follow-up: Runtime-Fixpfad oder Cleanup der noch vorhandenen Compat-only API (`UNSAFE_queryAllByType`). _Plan: [2026-05-30-test-infra-rntl-migration-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-30-test-infra-rntl-migration-plan.md); Inventory: [rntl-migration-phase-0-inventory.md](/home/patrick/Projekte/rezepti/docs/testing/rntl-migration-phase-0-inventory.md)_
 - [x] Coverage-Thresholds schrittweise anheben — Start-Gate 1% am 2026-05-13 auf per-Metrik-Floors angehoben (Root lines/statements/functions=30, branches=60; Mobile lines/statements=30, functions=35, branches=55). Weitere Ratchet-Schritte manuell über `COVERAGE_RATCHET_MIN`-Env oder Baseline-Anhebung in den Config-Files.
 - [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)
 - [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI/Docker-Pinning), Expo SDK 55, React 19.2, React Native 0.83; am 2026-05-25 lokal und per Production-Docker-Build erneut verifiziert.
