@@ -1,15 +1,19 @@
 
-## 🎯 Aktueller Stand (2026-05-31)
+## 🎯 Aktueller Stand (2026-06-01)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage und der RNTL-File-Migrationsslice sind durch. Multi-User Login bleibt der naechste Haupttrack.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-File-Migrationsslice und der kleine Patch-Slice aus dem Matrix-Nachzug sind durch. Multi-User Login bleibt der naechste Haupttrack.**
 
-### Naechste Reihenfolge (priorisiert, Stand 2026-05-31)
+### Naechste Reihenfolge (priorisiert, Stand 2026-06-01)
 
 1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key). Erster Slice ist geplant: [docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 2. **Supabase Advisor Follow-ups separat planen** — Kern-Remediation ist abgeschlossen; offen bleiben nur `vector`/`pg_trgm` Extension-Move nach Staging-Probe und `unused_index` Cleanup nach Nutzungs-/Redundanznachweis. Details: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
 4. Test-Infra-Migration nachziehen: echte `@testing-library/react-native` laeuft unter Vitest ueber den RNTL-Optimizer-Slice und `mobile/test/testing-library-rn-real.ts`; direkte `react-test-renderer`-Imports sind blockiert, der alte Compat-Layer ist entfernt und die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests sind abgebaut.
 5. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+
+### Erledigt 2026-06-01
+
+- [x] **Kleine Patch-Slices aus Matrix-Nachzug umgesetzt (2026-06-01)** — Root-Patches fuer `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai` und `@types/node` eingespielt. Mobile innerhalb Expo SDK 55 fuer TanStack Query/Persist, `nativewind` v4, `lucide-react-native` und Vitest-Patch nachgezogen. `@react-navigation/native` bleibt manifestseitig auf der Expo-SDK-55-kompatiblen Range `^7.1.33`; das installierte Patch-Level bleibt innerhalb dieser Range. Expo-/React-Native-/Tailwind-4-/Worklets-Tracks bleiben bewusst vertagt. Verifiziert mit Root-Typecheck, Root-Unit-Tests (`448 passed`, `13 skipped`), Mobile-Typecheck, Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`19/19`) und Mobile-Web-Build.
 
 ### Erledigt 2026-05-31
 
@@ -286,7 +290,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] **Batch 2 — Tooling-Welle** abgeschlossen (2026-05-14 / nachgezogen 2026-05-24) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet. API-E2E-Contract-Gate wurde am 2026-05-15 echt gebootet; Coverage-Floors wurden am 2026-05-24 wieder auf mindestens `30` angezogen.
 - [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14, SDK-55-Nachkorrektur 2026-05-24) — der zwischenzeitliche Schritt auf `@react-native-async-storage/async-storage` `3.0.2` wurde fuer Expo-SDK-55-Doctor-Kompatibilitaet wieder auf `2.2.0` zurueckgenommen. Persistenztests, UI-Workflow-Regressionen und Mobile-Coverage bleiben gruen. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.
 - [ ] **Batch 4 — Expo-/Styling-Track spaeter** — Expo-SDK-Sprung, `react-native-web`, `react-native-*`, `tailwindcss 4`, `nativewind 5`, `react-native-worklets`/`reanimated` bleiben bewusst vertagt, bis die jeweilige Leitplanke stabil ist.
-- [ ] **Kleine Patch-Slices aus Matrix-Nachzug 2026-05-31** — Root: `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai`, `@types/node`; Mobile innerhalb SDK 55: TanStack-Patches, `@react-navigation/native`, `nativewind` v4-Patch, `lucide-react-native`, Vitest-Patch. Nicht mit Multi-User/Auth vermischen.
+- [x] **Kleine Patch-Slices aus Matrix-Nachzug 2026-05-31** abgeschlossen (2026-06-01) — Root: `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai`, `@types/node`; Mobile innerhalb SDK 55: TanStack-Patches, `nativewind` v4-Patch, `lucide-react-native`, Vitest-Patch. `@react-navigation/native` wurde nicht ueber die Expo-SDK-55-Range hinaus im Manifest angehoben. Nicht mit Multi-User/Auth vermischt.
 
 ### Follow-up aus Eng-Review (2026-05-14)
 
@@ -304,8 +308,8 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ### Patch-safe (jetzt updatebar; innerhalb `wanted`)
 
-- Root: sichere Root-Patches sind eingespielt; uebrig sind derzeit keine offenen Low-Risk-`wanted`-Updates mehr.
-- Mobile: sichere Mobile-Patches fuer `@tanstack/*` sind eingespielt; `@react-navigation/native` wurde fuer Expo-SDK-55 wieder auf die Doctor-kompatible Linie `^7.1.33` zurueckgenommen.
+- Root: sichere Root-Patches sind eingespielt; uebrig ist nur `concurrently@10` als bewusst nicht gezogener Major.
+- Mobile: sichere Mobile-Patches fuer `@tanstack/*`, `nativewind`, `lucide-react-native` und Vitest sind eingespielt; `@react-navigation/native` bleibt fuer Expo-SDK-55 auf der Doctor-kompatiblen Manifest-Linie `^7.1.33`.
 - **Umsetzung 2026-05-13 / Nachkorrektur 2026-05-24:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`); Mobile-Patches bleiben innerhalb der Expo-SDK-55-Kompatibilitaet.
 - **Peer-/SDK-Blocker:** `react-native-reanimated@4.3.0` verlangt `react-native-worklets@0.8.x`; `expo install react-native-reanimated react-native-worklets` unter SDK 55 hat keine Aenderung vorgenommen (weiter `reanimated@4.2.1`, `worklets@0.7.4`).
 - **Aktueller Compatibility-Status (`expo-doctor`):** wieder `19/19` Checks gruen.

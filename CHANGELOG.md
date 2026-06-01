@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Kleine Patch-Slices aus dem Dependency-Matrix-Nachzug umgesetzt: Root-Patches fuer Hono, OpenAI SDK, TSX, Vite/Vitest und Node-Typen; Mobile-Patches innerhalb Expo SDK 55 fuer TanStack Query/Persist, NativeWind, Lucide und Vitest. Expo-/React-Native-/Tailwind-4-/Worklets-Tracks bleiben vertagt.
+
 ## [1.0.121] – 2026-05-25
 
 - npm-Audit-Triage abgeschlossen: sichere Lockfile-Fixes ohne `--force`; Root-`ws`, Mobile-`@xmldom/xmldom`, `dompurify` und `brace-expansion` geloest; verbleibende `drizzle-kit`-/Expo-SDK-bound Findings dokumentiert.
