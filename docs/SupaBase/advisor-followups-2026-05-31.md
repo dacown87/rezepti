@@ -36,6 +36,28 @@ Aktueller Advisor-Stand:
 - `vector` liegt in `public`.
 - `pg_trgm` liegt in `public`.
 
+Staging-Stand 2026-06-01:
+
+- Supabase-Projekt `rezepti-staging` wurde in Org `dlwezlxtfbkbwvzbrzix`
+  angelegt, Region `eu-west-1`, Ref `abnukbzgfodzhqflgxiw`.
+- Lokale `.env` enthaelt `STAGING_DATABASE_URL`.
+- Staging-DB-Verbindung wurde mit `psql` verifiziert.
+- Basic Extension-Move-Probe auf Staging ist gruen:
+  `vector` und `pg_trgm` wurden angelegt, per
+  `alter extension ... set schema extensions` in `extensions` verschoben und
+  `grant usage on schema extensions to authenticated, service_role` wurde
+  gesetzt.
+- Supabase Security Advisor gegen Staging meldete danach `No issues found`.
+- Danach wurde das Production-`public`-Schema per schema-only Dump nach
+  Staging gespiegelt, ohne Nutzerdaten zu kopieren.
+- Production-nahe Extension-Move-Probe ist gruen: nach Restore des Schemas
+  konnten `vector` und `pg_trgm` erneut nach `extensions` verschoben werden.
+  Verifiziert: 52 `public`-Tabellen, 8 relevante Search-/Vector-Indexe und
+  beide Extensions in `extensions`.
+- Einschraenkung: Die Probe deckt Schema-, Index-, Trigger- und
+  Funktionsabhaengigkeiten ab, aber keine datenabhaengigen Query-Plaene oder
+  realen Nutzungsstatistiken.
+
 Lokales Code-Inventar:
 
 - Keine direkte App-Callsite fuer Postgres-`vector` oder `pg_trgm` gefunden.

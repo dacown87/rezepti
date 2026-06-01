@@ -96,6 +96,7 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 |----------|---------|--------------|
 | `GROQ_API_KEY` | ✅ | Server-Fallback für Groq; einzelne Extraktionsjobs können per BYOK überschreiben |
 | `DATABASE_URL` | ✅ | Supabase PostgreSQL — **Transaction Pooler URL** (Port 6543) |
+| `STAGING_DATABASE_URL` | | Separate Supabase-Staging-Datenbank für Advisor-/Migration-Proben |
 | `SUPABASE_URL` | | Supabase Projekt-URL (für zukünftige Auth-Features) |
 | `SUPABASE_ANON_KEY` | | Supabase Anon Key |
 | `PORT` | | Server-Port (Standard: `3000`) |

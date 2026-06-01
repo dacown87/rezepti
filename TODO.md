@@ -6,7 +6,7 @@
 ### Naechste Reihenfolge (priorisiert, Stand 2026-06-01)
 
 1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key). Erster Slice ist geplant: [docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
-2. **Supabase Advisor Follow-ups separat planen** — Kern-Remediation ist abgeschlossen; offen bleiben nur `vector`/`pg_trgm` Extension-Move nach Staging-Probe und `unused_index` Cleanup nach Nutzungs-/Redundanznachweis. Details: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
+2. **Supabase Advisor Follow-ups separat planen** — Kern-Remediation ist abgeschlossen; die `vector`/`pg_trgm` Staging-Probe ist gegen eine schema-only Production-Kopie gruen, offen bleiben produktive Move-Entscheidung und `unused_index` Cleanup nach Nutzungs-/Redundanznachweis. Details: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
 4. Test-Infra-Migration nachziehen: echte `@testing-library/react-native` laeuft unter Vitest ueber den RNTL-Optimizer-Slice und `mobile/test/testing-library-rn-real.ts`; direkte `react-test-renderer`-Imports sind blockiert, der alte Compat-Layer ist entfernt und die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests sind abgebaut.
 5. Styling-Resttrack separat planen: NativeWind 5/Tailwind 4 bleibt nach dem Expo-SDK-56-Core-Slice bewusst vertagt.
@@ -79,7 +79,7 @@
     - [x] Advisor erneut laufen lassen und neue Ergebnisse unter `docs/SupaBase/` ablegen: [summary-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-output/summary-2026-05-31.md), JSON-Exports unter `docs/SupaBase/advisor-output/`. Ergebnis: `function_search_path_mutable` und `unindexed_foreign_keys` sind weg; uebrig sind 52 `rls_enabled_no_policy`, 2 `extension_in_public`, 88 `unused_index`.
     - [x] Extension-Move (`vector`, `pg_trgm`) und unused-index Cleanup als separate Follow-up-Tracks offen halten, nicht in der Kern-Remediation mitziehen: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 - [ ] **Supabase Advisor Follow-ups** — separate Tracks aus der Remediation:
-    - [ ] `vector`/`pg_trgm` Extension-Move erst nach Staging-Probe und Dependency-Inventar ausfuehren.
+    - [x] `vector`/`pg_trgm` Staging-Probe und Dependency-Inventar gegen schema-only Production-Kopie abgeschlossen; produktive Move-Entscheidung bleibt separat.
     - [ ] `unused_index` Cleanup erst nach Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis starten.
 - [ ] **Mobile-Testwarnungen nach Real-RNTL final einordnen/abbauen** — Tests sind gruen, aber nicht komplett warnfrei. `key`-Prop-Warnungen aus lokalen `FlatList`-Testshims sind behoben; React-`act(...)`-Warnungen sind stark reduziert (`58 -> 4`) und verbleiben in async Focus-/Storage-Pfaden; `react-test-renderer is deprecated` bleibt als RNTL/React-19-Upstream-Rest. Kein aktueller Produktblocker; fuer vollstaendige Warnfreiheit spaeter RNTL-/Renderer-Upgrade oder gezielte Focus-Harness-Arbeit planen.
 
