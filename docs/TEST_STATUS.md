@@ -71,6 +71,7 @@
 
 ## Durchgeführte Tests
 
+- ✅ GitHub Actions nach Merge auf `main` (2026-06-01): CI-Run `26739588618` gruen (`test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` erwartbar skipped). Docker-/Deploy-Runs `26739588567` und `26739599281` gruen, inklusive Docker Build/Push und Northflank Deploy. Automatischer Version-Workflow `26739588576` gruen und erzeugte `v1.0.123`.
 - ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
 - ✅ `npm run test:unit` — **448 Tests bestanden, 13 skipped** (Stand: 2026-06-01)

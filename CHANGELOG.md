@@ -2,13 +2,12 @@
 
 ## [1.0.123] – 2026-06-01
 
-
-
-## Unreleased
-
 - Expo-SDK-56-Core-Slice umgesetzt: Mobile-App von Expo SDK 55 auf SDK 56 gehoben, React/React Native/Expo-Module ueber `expo install --fix` aktualisiert, Expo-Router-Importmigration erledigt, Splash-Konfiguration auf Config-Plugin umgestellt und TypeScript-/RNTL-Folgefixes nachgezogen. NativeWind 5/Tailwind 4 bleibt ein separater Styling-Track.
 - Restupdates nach dem SDK-Sprung nachgezogen: Root-Dev-Tooling `concurrently` auf 10.x aktualisiert, Mobile-`@types/react` auf 19.2.15 gehoben und `react-test-renderer` exakt auf die React-19.2.3-Linie gepinnt.
 - Kleine Patch-Slices aus dem Dependency-Matrix-Nachzug umgesetzt: Root-Patches fuer Hono, OpenAI SDK, TSX, Vite/Vitest und Node-Typen; Mobile-Patches fuer TanStack Query/Persist, NativeWind, Lucide und Vitest. Expo-/React-Native-/Worklets-Track ist im SDK-56-Slice nachgezogen; Tailwind-4/NativeWind-5 bleibt als separater Styling-Track vertagt.
+- GitHub Actions nach Merge auf `main` gruen: CI, Mobile Release Gate, E2E Contract, Performance Audit, Docker Build/Push und Northflank Deploy.
+
+## Unreleased
 
 ## [1.0.122] – 2026-05-25
 

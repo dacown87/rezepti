@@ -1,7 +1,7 @@
 
 ## 🎯 Aktueller Stand (2026-06-01)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-File-Migrationsslice, der Matrix-Nachzug inkl. Restupdates und der Expo-SDK-56-Core-Slice sind durch. Multi-User Login bleibt der naechste Haupttrack.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-File-Migrationsslice, der Matrix-Nachzug inkl. Restupdates und der Expo-SDK-56-Core-Slice sind durch und auf `main` gelandet. CI, Docker Build/Push und Northflank Deploy sind gruen. Multi-User Login bleibt der naechste Haupttrack.**
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-06-01)
 
@@ -13,6 +13,7 @@
 
 ### Erledigt 2026-06-01
 
+- [x] **SDK-56-Branch gelandet und CI-verifiziert (2026-06-01)** — `chore/expo-sdk-56-slice` wurde in `main` gemergt und gepusht. Der automatische Version-Workflow hat `v1.0.123` erzeugt. GitHub Actions fuer den Merge sind gruen: CI (`test`, `mobile-release-gate`, `e2e`, `performance-audit`), `Build & Push Docker Image` und Northflank Deploy. Lokaler Stand ist mit `origin/main` synchron auf `db68113 chore: v1.0.123 [skip ci]`.
 - [x] **Expo-SDK-56-Core-Slice umgesetzt (2026-06-01)** — Mobile von Expo SDK 55 auf SDK 56 gehoben (`expo@~56.0.8`, `expo-router@~56.2.8`, React `19.2.3`, React Native `0.85.3`, Expo-Module, Reanimated `4.3.1`, Worklets `0.8.3`, TypeScript `~6.0.3`). SDK-56-Router-Blocker entfernt: App-Code importiert Navigation-Theme jetzt ueber `expo-router/react-navigation`, direkte `@react-navigation/native`-Dependency ist raus. Alte Top-Level-`splash`-Config wurde in das `expo-splash-screen`-Config-Plugin verschoben. TypeScript-6-/RN-0.85-Folgefixes: Lucide-Tab-Icon-Farben normalisiert, `StyleSheet.absoluteFill` statt nicht mehr typisiertem `absoluteFillObject`, `react-test-renderer@19.2.3` passend zu React. NativeWind 5/Tailwind 4 bleibt separat vertagt. Verifiziert mit Mobile-Typecheck, Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`21/21`), Mobile-Web-Build, Root-Typecheck und Root-Unit-Tests (`448 passed`, `13 skipped`).
 - [x] **Restupdates nach SDK-56-Slice umgesetzt (2026-06-01)** — Root-`concurrently` `9.2.1 -> 10.0.1`, Mobile-`@types/react` `19.2.14 -> 19.2.15`, `react-test-renderer` exakt auf `19.2.3` gepinnt, damit RNTL nicht ueber eine `^`-Range von React `19.2.3` wegdriftet. Verifiziert mit Root-/Mobile-Typecheck, Root-Unit-Tests (`448 passed`, `13 skipped`), Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`21/21`) und kurzem `npm run dev:mobile`-Smoke (`concurrently` startet Root-Dev-Server und Expo Metro; Timeout beendet erwartbar).
 - [x] **SDK-56-Audit-Rest klassifiziert (2026-06-01)** — Mobile-Audit zeigt nach dem SDK-Sprung weiterhin den Expo-CLI-/Config-Plugins-Cluster `uuid <11.1.1` ueber `xcode` (`12 moderate`). `npm audit fix --force` wuerde auf `expo-splash-screen@55.0.21` downgraden und wird nicht genutzt; Rest bleibt Expo-upstream-/SDK-gebunden.
