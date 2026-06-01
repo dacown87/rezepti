@@ -75,6 +75,9 @@
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
 - ✅ `npm run test:unit` — **448 Tests bestanden, 13 skipped** (Stand: 2026-06-01)
 - ✅ `npm --prefix mobile run test:unit` — **87 Tests bestanden** (Stand: 2026-06-01)
+- ✅ Expo-SDK-56-Core-Slice (2026-06-01): Mobile steht auf Expo SDK 56 (`expo-doctor` `21/21`), React `19.2.3`, React Native `0.85.3`, Reanimated/Worklets `4.3.1`/`0.8.3` und TypeScript `~6.0.3`. Verifiziert mit Mobile-Typecheck, Mobile-Unit-Tests, RNTL-Guard, `cd mobile && npx expo install --check`, `cd mobile && CI=1 npx expo-doctor`, `npm run build:mobile`, Root-Typecheck und Root-Unit-Tests. NativeWind 5/Tailwind 4 bleibt ein separater Styling-Track.
+- ✅ Restupdates nach SDK 56 (2026-06-01): `concurrently@10.0.1`, `@types/react@19.2.15` und exakt gepinntes `react-test-renderer@19.2.3`. Verifiziert mit Root-/Mobile-Typecheck, Root-/Mobile-Unit-Tests, RNTL-Guard, Expo-Gates und kurzem `npm run dev:mobile`-Smoke.
+- ⚠️ Mobile-Audit nach SDK 56 bleibt SDK-/Expo-CLI-gebunden: `uuid <11.1.1` ueber `xcode`/`@expo/config-plugins`/Expo-CLI-Cluster (`12 moderate`). `npm audit fix --force` wuerde laut npm auf `expo-splash-screen@55.0.21` downgraden und wird nicht verwendet.
 - ✅ Kleine Patch-Slices aus dem Dependency-Matrix-Nachzug (2026-06-01): Root-Patches fuer `hono`, `@hono/node-server`, `openai`, `tsx`, `vite`, `vitest`, `@vitest/coverage-v8`, `@vitest/ui`, `@types/node`; Mobile-Patches fuer TanStack Query/Persist, `nativewind`, `lucide-react-native`, `vitest` und `@vitest/coverage-v8`. Verifiziert mit Root-/Mobile-Typecheck, Root-/Mobile-Unit-Tests, RNTL-Guard, `npx expo install --check`, `CI=1 npx expo-doctor` (`19/19`), `npm run build:mobile` und Root-Server-Boot-Smoke.
 - ✅ Test-Infra-File-Migration abgeschlossen (2026-05-30; Runtime-Follow-up 2026-05-31): `recipe-list-screen-fallbacks.test.tsx`, `recipe-detail-fallbacks.test.tsx`, `shopping-screen-fallbacks.test.tsx`, `mobile-workflow-list-detail-shopping-ui.test.tsx` und `planner-screen-fallbacks.test.tsx` nutzen jetzt echte `@testing-library/react-native`-API statt direkter `react-test-renderer`-Imports. Vitest optimiert RNTL gezielt und verwendet `mobile/test/testing-library-rn-real.ts` nur als duennen Live-`screen`-/Uebergangstyp-Wrapper; der alte Compat-Layer ist entfernt. Inventory, Autor-Checkliste und `npm run test:mobile:rntl-guard` sind dokumentiert/verdrahtet; die Guard-Allowlist ist leer. `renderAsync` ist entfernt; die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests wurden durch sichtbare Queries, Accessibility-Labels und gezielte `testID`s ersetzt.
 - ⚠️ Mobile-RNTL ist funktional gruen, aber noch nicht komplett warnfrei (Stand: 2026-05-31). Die erste Warnungs-Triage hat lokale `FlatList`-Shim-Keys behoben (`key`-Prop-Warnungen `4 -> 0`) und Retry-/Mutation-Interaktionen in den RNTL-Fallback-/Workflow-Tests ueber `act` stabilisiert (`act(...)`-Warnungen `58 -> 4`). Verbleibender Rest: `react-test-renderer is deprecated` aus dem RNTL/React-19-Renderpfad und wenige `act(...)`-Warnungen aus async Focus-/Storage-Pfaden. Kein aktueller Produkt-Fail.
@@ -149,14 +152,16 @@ Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/reze
 
 ---
 
-## Mobile / Expo Status (2026-05-31)
+## Mobile / Expo Status (2026-06-01)
 
-- ✅ `cd mobile && CI=1 npx expo-doctor` — `19/19` Checks bestanden
+- ✅ `cd mobile && CI=1 npx expo-doctor` — `21/21` Checks bestanden
 - ✅ `cd mobile && npx expo install --check` — Dependencies up to date
-- ✅ `npm run mobile:typecheck` — erfolgreich
-- ✅ `npm run test:mobile` — `87/87` Tests bestanden
+- ✅ Expo SDK 56 Core: `expo@~56.0.8`, `expo-router@~56.2.8`, React `19.2.3`, React Native `0.85.3`, Reanimated `4.3.1`, Worklets `0.8.3`, TypeScript `~6.0.3`
+- ✅ `npm --prefix mobile run typecheck` — erfolgreich
+- ✅ `npm --prefix mobile run test:unit` — `87/87` Tests bestanden
+- ✅ `npm run test:mobile:rntl-guard` — keine neuen direkten `react-test-renderer`-Imports
 - ✅ `npm --prefix mobile run test:unit -- recipe-detail-fallbacks recipe-list-screen-fallbacks shopping-screen-fallbacks planner-screen-fallbacks mobile-workflow-list-detail-shopping-ui` — `22/22` Tests bestanden nach Abbau der `UNSAFE_queryAllByType`-Testzugriffe
-- ✅ `npm run mobile:build:web` — erfolgreicher Expo-Web-Export nach `public/`
+- ✅ `npm run build:mobile` — erfolgreicher Expo-Web-Export nach `public/`
 - ✅ Phase-2-Reliability weiter gehaertet:
   - Planner zeigt jetzt sichtbaren Ladefehler mit Retry/Close bei fehlgeschlagenem Wochen-Load
   - `RecipePickerModal` zeigt jetzt lokalen Ladefehler mit Retry/Close statt stillen Empty-State bei fehlgeschlagenem Rezept-Load
@@ -233,6 +238,6 @@ Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/reze
 
 ### Hinweise
 
-- `react`, `react-dom`, `react-native` und `react-native-svg` wurden nach einem Patch-Update-Versuch wieder auf den Expo-SDK-55-Erwartungsstand zurueckgesetzt.
-- `react-native-reanimated` bleibt auf `4.2.1`, weil `4.3.0` unter SDK 55 `react-native-worklets@0.8.x` verlangen wuerde.
+- Der fruehere SDK-55-Blocker fuer `react-native-reanimated`/`react-native-worklets` ist mit dem Expo-SDK-56-Core-Slice geloest; beide Pakete wurden zusammen auf die SDK-56-kompatible Linie gehoben.
+- NativeWind 5/Tailwind 4 wurde nicht mit dem SDK-Core-Slice vermischt und bleibt als separater Styling-Track offen.
 - Ein Build-Blocker wurde behoben: `mobile/assets/images/favicon.png` war zuvor inhaltlich eine ICO-Datei mit falscher `.png`-Endung.

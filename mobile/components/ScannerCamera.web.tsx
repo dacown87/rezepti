@@ -171,7 +171,7 @@ export default function ScannerCamera({ onScan, onClose }: ScannerCameraProps) {
   }
 
   return (
-    <View style={StyleSheet.absoluteFillObject}>
+    <View style={StyleSheet.absoluteFill}>
       <video
         ref={videoRef}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}

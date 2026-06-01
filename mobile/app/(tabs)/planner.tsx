@@ -276,7 +276,7 @@ function QRScannerModal({
 }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={StyleSheet.absoluteFill}>
         <ScannerCamera onScan={onScanned} onClose={onClose} />
       </View>
     </Modal>
