@@ -40,28 +40,28 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Rezepte',
-          tabBarIcon: ({ color }) => <BookOpen size={24} color={color} />,
+          tabBarIcon: ({ color }) => <BookOpen size={24} color={String(color)} />,
         }}
       />
       <Tabs.Screen
         name="extract"
         options={{
           title: 'Hinzufügen',
-          tabBarIcon: ({ color }) => <Plus size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Plus size={24} color={String(color)} />,
         }}
       />
       <Tabs.Screen
         name="planner"
         options={{
           title: 'Planer',
-          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Calendar size={24} color={String(color)} />,
         }}
       />
       <Tabs.Screen
         name="shopping"
         options={{
           title: 'Einkauf',
-          tabBarIcon: ({ color }) => <ShoppingCart size={24} color={color} />,
+          tabBarIcon: ({ color }) => <ShoppingCart size={24} color={String(color)} />,
         }}
       />
       <Tabs.Screen
@@ -72,7 +72,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Einstellungen',
-          tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Settings size={24} color={String(color)} />,
         }}
       />
     </Tabs>

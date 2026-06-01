@@ -1,7 +1,7 @@
 
 ## 🎯 Aktueller Stand (2026-06-01)
 
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-File-Migrationsslice und der kleine Patch-Slice aus dem Matrix-Nachzug sind durch. Multi-User Login bleibt der naechste Haupttrack.**
+**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-File-Migrationsslice, der Matrix-Nachzug inkl. Restupdates und der Expo-SDK-56-Core-Slice sind durch. Multi-User Login bleibt der naechste Haupttrack.**
 
 ### Naechste Reihenfolge (priorisiert, Stand 2026-06-01)
 
@@ -9,11 +9,14 @@
 2. **Supabase Advisor Follow-ups separat planen** — Kern-Remediation ist abgeschlossen; offen bleiben nur `vector`/`pg_trgm` Extension-Move nach Staging-Probe und `unused_index` Cleanup nach Nutzungs-/Redundanznachweis. Details: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 3. Northflank-Deploy-Pfad separat neu bewerten (eigener Infra-Track).
 4. Test-Infra-Migration nachziehen: echte `@testing-library/react-native` laeuft unter Vitest ueber den RNTL-Optimizer-Slice und `mobile/test/testing-library-rn-real.ts`; direkte `react-test-renderer`-Imports sind blockiert, der alte Compat-Layer ist entfernt und die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests sind abgebaut.
-5. Batch 4 (Expo-/Styling-Track) weiter vertagt bis Leitplanken stabil sind.
+5. Styling-Resttrack separat planen: NativeWind 5/Tailwind 4 bleibt nach dem Expo-SDK-56-Core-Slice bewusst vertagt.
 
 ### Erledigt 2026-06-01
 
-- [x] **Kleine Patch-Slices aus Matrix-Nachzug umgesetzt (2026-06-01)** — Root-Patches fuer `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai` und `@types/node` eingespielt. Mobile innerhalb Expo SDK 55 fuer TanStack Query/Persist, `nativewind` v4, `lucide-react-native` und Vitest-Patch nachgezogen. `@react-navigation/native` bleibt manifestseitig auf der Expo-SDK-55-kompatiblen Range `^7.1.33`; das installierte Patch-Level bleibt innerhalb dieser Range. Expo-/React-Native-/Tailwind-4-/Worklets-Tracks bleiben bewusst vertagt. Verifiziert mit Root-Typecheck, Root-Unit-Tests (`448 passed`, `13 skipped`), Mobile-Typecheck, Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`19/19`) und Mobile-Web-Build.
+- [x] **Expo-SDK-56-Core-Slice umgesetzt (2026-06-01)** — Mobile von Expo SDK 55 auf SDK 56 gehoben (`expo@~56.0.8`, `expo-router@~56.2.8`, React `19.2.3`, React Native `0.85.3`, Expo-Module, Reanimated `4.3.1`, Worklets `0.8.3`, TypeScript `~6.0.3`). SDK-56-Router-Blocker entfernt: App-Code importiert Navigation-Theme jetzt ueber `expo-router/react-navigation`, direkte `@react-navigation/native`-Dependency ist raus. Alte Top-Level-`splash`-Config wurde in das `expo-splash-screen`-Config-Plugin verschoben. TypeScript-6-/RN-0.85-Folgefixes: Lucide-Tab-Icon-Farben normalisiert, `StyleSheet.absoluteFill` statt nicht mehr typisiertem `absoluteFillObject`, `react-test-renderer@19.2.3` passend zu React. NativeWind 5/Tailwind 4 bleibt separat vertagt. Verifiziert mit Mobile-Typecheck, Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`21/21`), Mobile-Web-Build, Root-Typecheck und Root-Unit-Tests (`448 passed`, `13 skipped`).
+- [x] **Restupdates nach SDK-56-Slice umgesetzt (2026-06-01)** — Root-`concurrently` `9.2.1 -> 10.0.1`, Mobile-`@types/react` `19.2.14 -> 19.2.15`, `react-test-renderer` exakt auf `19.2.3` gepinnt, damit RNTL nicht ueber eine `^`-Range von React `19.2.3` wegdriftet. Verifiziert mit Root-/Mobile-Typecheck, Root-Unit-Tests (`448 passed`, `13 skipped`), Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`21/21`) und kurzem `npm run dev:mobile`-Smoke (`concurrently` startet Root-Dev-Server und Expo Metro; Timeout beendet erwartbar).
+- [x] **SDK-56-Audit-Rest klassifiziert (2026-06-01)** — Mobile-Audit zeigt nach dem SDK-Sprung weiterhin den Expo-CLI-/Config-Plugins-Cluster `uuid <11.1.1` ueber `xcode` (`12 moderate`). `npm audit fix --force` wuerde auf `expo-splash-screen@55.0.21` downgraden und wird nicht genutzt; Rest bleibt Expo-upstream-/SDK-gebunden.
+- [x] **Kleine Patch-Slices aus Matrix-Nachzug umgesetzt (2026-06-01)** — Root-Patches fuer `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai` und `@types/node` eingespielt. Mobile-Patches fuer TanStack Query/Persist, `nativewind` v4, `lucide-react-native` und Vitest-Patch wurden zuerst innerhalb SDK 55 nachgezogen; der Expo-/React-Native-/Worklets-Track ist danach im SDK-56-Core-Slice erledigt. Tailwind-4/NativeWind-5 bleibt bewusst separat vertagt. Verifiziert mit Root-Typecheck, Root-Unit-Tests (`448 passed`, `13 skipped`), Mobile-Typecheck, Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` und Mobile-Web-Build.
 
 ### Erledigt 2026-05-31
 
@@ -278,7 +281,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI/Docker-Pinning), Expo SDK 55, React 19.2, React Native 0.83; am 2026-05-25 lokal und per Production-Docker-Build erneut verifiziert.
 - [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` war beim Abschluss 18/18 gruen; aktueller Stand 2026-05-30: 19/19. `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
 
-## Dependency-Update-Status (2026-05-31)
+## Dependency-Update-Status (2026-06-01)
 
 - Vollstaendige Zielmatrix und Upgrade-Reihenfolge: [docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md)
 - Entscheidungsregel: so modern wie sinnvoll, aber nur auf stabilen Linien und nie gegen Expo-/SDK-Support oder Major-Migrationsrisiken. Matrix wurde am 2026-05-31 gegen `npm outdated`, `expo install --check`, Supabase CLI und Workflow-Actions nachgezogen.
@@ -289,7 +292,7 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 - [x] **Batch 1 — Kleinster Code-Track** abgeschlossen (2026-05-14, Mobile-Nachkorrektur 2026-05-24) — `@hono/node-server` `^1.19.14 -> ^2.0.2`; der zwischenzeitliche Mobile-Compiler-Schritt auf TypeScript 6 wurde fuer Expo-SDK-55-Kompatibilitaet wieder auf die Doctor-kompatible 5.9-Linie zurueckgenommen. Verifiziert mit Mobile-Typecheck und `expo-doctor`.
 - [x] **Batch 2 — Tooling-Welle** abgeschlossen (2026-05-14 / nachgezogen 2026-05-24) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet. API-E2E-Contract-Gate wurde am 2026-05-15 echt gebootet; Coverage-Floors wurden am 2026-05-24 wieder auf mindestens `30` angezogen.
 - [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14, SDK-55-Nachkorrektur 2026-05-24) — der zwischenzeitliche Schritt auf `@react-native-async-storage/async-storage` `3.0.2` wurde fuer Expo-SDK-55-Doctor-Kompatibilitaet wieder auf `2.2.0` zurueckgenommen. Persistenztests, UI-Workflow-Regressionen und Mobile-Coverage bleiben gruen. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.
-- [ ] **Batch 4 — Expo-/Styling-Track spaeter** — Expo-SDK-Sprung, `react-native-web`, `react-native-*`, `tailwindcss 4`, `nativewind 5`, `react-native-worklets`/`reanimated` bleiben bewusst vertagt, bis die jeweilige Leitplanke stabil ist.
+- [x] **Batch 4a — Expo-SDK-56-Core-Slice** abgeschlossen (2026-06-01) — Expo-SDK-Sprung, SDK-gefuehrte Expo-Module, React/React Native, `react-native-*`, `react-native-worklets`/`reanimated`, TypeScript 6, Router-Importmigration und Splash-Config-Migration erledigt. **Separat offen:** Styling-Track (`tailwindcss 4`, `nativewind 5`, `react-native-css`) bleibt bewusst vertagt.
 - [x] **Kleine Patch-Slices aus Matrix-Nachzug 2026-05-31** abgeschlossen (2026-06-01) — Root: `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai`, `@types/node`; Mobile innerhalb SDK 55: TanStack-Patches, `nativewind` v4-Patch, `lucide-react-native`, Vitest-Patch. `@react-navigation/native` wurde nicht ueber die Expo-SDK-55-Range hinaus im Manifest angehoben. Nicht mit Multi-User/Auth vermischt.
 
 ### Follow-up aus Eng-Review (2026-05-14)
@@ -308,11 +311,11 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 
 ### Patch-safe (jetzt updatebar; innerhalb `wanted`)
 
-- Root: sichere Root-Patches sind eingespielt; uebrig ist nur `concurrently@10` als bewusst nicht gezogener Major.
-- Mobile: sichere Mobile-Patches fuer `@tanstack/*`, `nativewind`, `lucide-react-native` und Vitest sind eingespielt; `@react-navigation/native` bleibt fuer Expo-SDK-55 auf der Doctor-kompatiblen Manifest-Linie `^7.1.33`.
-- **Umsetzung 2026-05-13 / Nachkorrektur 2026-05-24:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`); Mobile-Patches bleiben innerhalb der Expo-SDK-55-Kompatibilitaet.
-- **Peer-/SDK-Blocker:** `react-native-reanimated@4.3.0` verlangt `react-native-worklets@0.8.x`; `expo install react-native-reanimated react-native-worklets` unter SDK 55 hat keine Aenderung vorgenommen (weiter `reanimated@4.2.1`, `worklets@0.7.4`).
-- **Aktueller Compatibility-Status (`expo-doctor`):** wieder `19/19` Checks gruen.
+- Root: sichere Root-Patches und der `concurrently@10`-Major sind eingespielt; `npm outdated --depth=0` meldet im Root keine offenen Pakete.
+- Mobile: sichere Mobile-Patches fuer `@tanstack/*`, `nativewind`, `lucide-react-native` und Vitest sind eingespielt; der SDK-56-Core-Slice hat die direkte `@react-navigation/native`-Dependency entfernt und nutzt die Expo-Router-kompatiblen Navigation-Theme-Exports.
+- **Umsetzung 2026-05-13 / Nachkorrektur 2026-05-24 / Abschluss 2026-06-01:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`) und Mobile auf die Expo-SDK-56-Kompatibilitaetslinie gebracht.
+- **Peer-/SDK-Blocker geloest:** `react-native-reanimated` und `react-native-worklets` wurden zusammen auf die Expo-SDK-56-kompatible Linie (`4.3.1`/`0.8.3`) gehoben.
+- **Aktueller Compatibility-Status (`expo-doctor`):** `21/21` Checks gruen.
 - **Build-Fix:** `mobile/assets/images/favicon.png` war inhaltlich eine ICO-Datei mit falscher `.png`-Endung und blockierte `expo export` mit `Unsupported MIME type: image/x-icon`; Asset wurde durch eine echte PNG-Datei ersetzt, `npm run mobile:build:web` laeuft wieder erfolgreich.
 
 ### SDK-gebunden (nur mit Expo-Kompatibilitätscheck)
@@ -324,7 +327,6 @@ Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supab
 ### Major / später (bewusst vertagt)
 
 - Root: `@hono/node-server` 1 -> 2, `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4, `@vitest/ui` 3 -> 4
-- Mobile: `vitest` 3 -> 4, `@vitest/coverage-v8` 3 -> 4; `typescript` 5 -> 6 und `@react-native-async-storage/async-storage` 2 -> 3 bleiben bis zu einer Expo-kompatiblen Linie vertagt
-- Mobile, Expo-/SDK-gebunden: `react-native` 0.83 -> 0.85, `react` 19.2.0 -> 19.2.6, `react-dom` 19.2.0 -> 19.2.6, `react-native-gesture-handler` 2.30 -> 2.31, `react-native-safe-area-context` 5.6 -> 5.7, `react-native-screens` 4.23 -> 4.25, `react-native-svg` 15.15.3 -> 15.15.5, `react-test-renderer` 19.2.0 -> 19.2.6
-- Mobile, Styling-Track: `tailwindcss` 3 -> 4 bleibt bis zu einer stabilen `NativeWind`-v5-Linie vertagt.
-- Mobile, harter Blocker: `react-native-worklets` 0.7 -> 0.8 und damit indirekt `react-native-reanimated` 4.2 -> 4.3 bleiben bis zu einem passenden Expo-SDK vertagt.
+- Mobile: `@react-native-async-storage/async-storage` 2 -> 3 bleibt bis zu einer Expo-kompatiblen Linie vertagt.
+- Mobile, Expo-/SDK-gebunden: React `19.2.6`, `react-dom` `19.2.6`, `react-test-renderer` `19.2.6` und neuere `react-native-*` Latest-Linien werden nicht separat gezogen; Expo SDK 56 erwartet React `19.2.3` und die aktuelle SDK-Matrix ist per `expo install --check` gruen.
+- Mobile, Styling-Track: `tailwindcss` 3 -> 4 bleibt bis zu einer stabilen `NativeWind`-v5-Linie vertagt. Stand 2026-06-01: `nativewind` hat `latest=4.2.4`, `preview=5.0.0-preview.4`; kein Produktions-Update.
