@@ -1,40 +1,42 @@
 # Supabase Advisor Follow-up Tracks
 
-Stand: 2026-05-31
+Stand: 2026-06-01
 
 ## Decision
 
 Die Kern-Remediation ist abgeschlossen. Die verbleibenden Advisor-Findings
 bleiben bewusst als getrennte Follow-up-Tracks offen:
 
-- `extension_in_public`: erst Extension-Dependency-Inventar und Staging-Test,
-  dann optionaler Move.
+- `extension_in_public`: erledigt; Dependency-Inventar, Staging-Test,
+  produktive Wartungsaktion, Runtime-Smoke und Advisor-Verify sind gruen.
 - `unused_index`: erst Nutzungs-/Redundanznachweis, dann gezielte Drops.
 
-Keine der beiden Kategorien wird direkt aus dem Advisor-Hinweis heraus
-gefixt. Das folgt der Supabase-Advisor-Dokumentation: ungenutzte Indexe koennen
+`unused_index` wird nicht direkt aus dem Advisor-Hinweis heraus gefixt. Das
+folgt der Supabase-Advisor-Dokumentation: ungenutzte Indexe koennen
 Write-Overhead erzeugen, sollen aber vor dem Drop gegen kuenftige Nutzung und
-reprasentative Query-Pfade validiert werden. Supabase empfiehlt Extensions
-ausserhalb von `public`, weist aber zugleich auf Extension-Schema- und
-Zugriffsimplikationen hin.
+repraesentative Query-Pfade validiert werden.
 
 ## Agent Review
 
 Zwei kosteneffiziente Read-only-Agenten (`gpt-5.4-mini`) wurden parallel
 eingesetzt:
 
-- Agent A pruefte `vector`/`pg_trgm`: Empfehlung `erst inventarisieren, nicht
-  jetzt migrieren`.
+- Agent A pruefte `vector`/`pg_trgm`: Empfehlung `erst inventarisieren`, danach
+  Staging-Smoke vor produktiver Wartungsaktion.
 - Agent B pruefte `unused_index`: Empfehlung `nicht droppen ohne
   Nutzungs-/Redundanznachweis`; die frisch angelegten FK-Indexes muessen
   bleiben.
+- Ein weiterer Read-only-Explorer bestaetigte am 2026-06-01 fuer
+  `unused_index`: Status bleibt `hold`; keine Drops ohne Nutzungsperiode,
+  Redundanzanalyse und `EXPLAIN (ANALYZE, BUFFERS)` pro betroffenem Query-Pfad.
 
 ## Extension Track
 
-Aktueller Advisor-Stand:
+Aktueller Production-Stand 2026-06-01:
 
-- `vector` liegt in `public`.
-- `pg_trgm` liegt in `public`.
+- `vector` liegt in `extensions`.
+- `pg_trgm` liegt in `extensions`.
+- `extension_in_public` ist auf WARN-Level nicht mehr vorhanden.
 
 Staging-Stand 2026-06-01:
 
@@ -54,9 +56,18 @@ Staging-Stand 2026-06-01:
   konnten `vector` und `pg_trgm` erneut nach `extensions` verschoben werden.
   Verifiziert: 52 `public`-Tabellen, 8 relevante Search-/Vector-Indexe und
   beide Extensions in `extensions`.
+- Runtime-Smoke auf Staging ist gruen und wurde per Transaktion vollstaendig
+  zurueckgerollt: `pages`- und `content_chunks`-Search-Vector-Trigger,
+  `vector`-Dimensionen fuer `content_chunks`-Embeddings und ein
+  `pg_trgm`-Operatorpfad funktionieren mit beiden Extensions in `extensions`.
+- Security Advisor und Performance Advisor melden auf WARN-Level gegen Staging
+  keine Findings. INFO-Level enthaelt weiterhin die erwarteten
+  `rls_enabled_no_policy`-Eintraege aus dem separaten Multi-User/Data-API-Track.
+- Eine produktive Ops-/Migration-Datei liegt bereit:
+  `db/migrations/2026-06-01-move-supabase-extensions-out-of-public.sql`.
 - Einschraenkung: Die Probe deckt Schema-, Index-, Trigger- und
-  Funktionsabhaengigkeiten ab, aber keine datenabhaengigen Query-Plaene oder
-  realen Nutzungsstatistiken.
+  Funktionsabhaengigkeiten sowie einfache Runtime-Pfade ab, aber keine
+  datenabhaengigen Query-Plaene oder realen Nutzungsstatistiken.
 
 Lokales Code-Inventar:
 
@@ -81,17 +92,28 @@ Abhaengige Index-/Search-Objekte wurden ebenfalls gefunden, u.a.
 `idx_query_cache_embedding_hnsw`, `idx_takes_embedding_hnsw`,
 `idx_pages_trgm`, `idx_pages_search` und Search-Vector-Triggerfunktionen.
 
-Empfehlung:
+Produktive Wartungsaktion 2026-06-01:
 
-1. Extension-Move nicht in der laufenden Kern-Remediation ausfuehren.
-2. In Staging pruefen:
-   - `create schema if not exists extensions;`
-   - `alter extension vector set schema extensions;`
-   - `alter extension pg_trgm set schema extensions;`
-   - passende `grant usage on schema extensions ...`
-3. Danach Search-Trigger, Vector-/HNSW-Indexes, Textsuche und Advisor erneut
-   pruefen.
-4. Erst danach eine produktive Migration schreiben.
+- Migration/Ops-Datei wurde gegen Production ausgefuehrt:
+  `db/migrations/2026-06-01-move-supabase-extensions-out-of-public.sql`.
+- Vorher: `pg_trgm` und `vector` lagen in `public`.
+- Nachher: `pg_trgm` und `vector` liegen in `extensions`.
+- Produktiver Runtime-Smoke wurde per Transaktion ausgefuehrt und mit
+  `ROLLBACK` beendet:
+  `db/ops/prod-extension-runtime-smoke-2026-06-01.sql`.
+- Geprueft wurden `pages`- und `content_chunks`-Search-Vector-Trigger,
+  `extensions.vector_dims(...)` und ein `pg_trgm`-Operatorpfad.
+- Nachweise liegen unter
+  `docs/SupaBase/advisor-output/post-extension-move-2026-06-01.md`.
+- Security Advisor und Performance Advisor melden auf WARN-Level gegen
+  Production jeweils `No issues found`.
+
+Ergebnis:
+
+- Extension-Track ist abgeschlossen.
+- Rollback bleibt symmetrisch moeglich:
+   - `alter extension vector set schema public;`
+   - `alter extension pg_trgm set schema public;`
 
 ## Unused Index Track
 
@@ -132,6 +154,12 @@ Die restlichen Tabellen haben je 1-2 gemeldete Indexes.
 
 Drop-Regel:
 
+Der Advisor meldet `unused_index` nur als Kandidatenhinweis. Fuer Rezepti
+gelten FK-Support-, Search-, Vector-, Cleanup- und seltene Admin-Indexes als
+geschuetzt, bis eine repraesentative Nutzungsperiode vorliegt, Redundanz pro
+Tabelle nachgewiesen ist und die betroffenen Query-Pfade per Plananalyse
+bestaetigt wurden.
+
 Ein Index darf erst entfernt werden, wenn alle Punkte erfuellt sind:
 
 1. kein Primary-Key-, Unique-, Constraint- oder FK-Support-Index,
@@ -153,8 +181,9 @@ laufen. Jeder Drop braucht deshalb eine eigene Migrations-/Ops-Entscheidung.
 
 ## Next Gates
 
-- Extension-Track: Staging-Probe mit Rollback und Advisor-Rerun.
+- Extension-Track: abgeschlossen; nur bei Regression Rollback-Statements oben
+  verwenden.
 - Index-Track: mindestens eine Nutzungsperiode sammeln, dann Redundanzanalyse
-  pro Tabelle starten.
+  pro Tabelle starten. Aktuell kein Drop.
 - Multi-User-Track: vor Data-API-Oeffnung erneut Extension-Grants, RLS-Policies
   und Function-Execute-Rechte pruefen.
