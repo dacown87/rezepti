@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.123] – 2026-06-01
+
+
+
 ## Unreleased
 
 - Expo-SDK-56-Core-Slice umgesetzt: Mobile-App von Expo SDK 55 auf SDK 56 gehoben, React/React Native/Expo-Module ueber `expo install --fix` aktualisiert, Expo-Router-Importmigration erledigt, Splash-Konfiguration auf Config-Plugin umgestellt und TypeScript-/RNTL-Folgefixes nachgezogen. NativeWind 5/Tailwind 4 bleibt ein separater Styling-Track.
