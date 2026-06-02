@@ -2,6 +2,10 @@
 
 **Branch:** `cleanup`
 **Datum:** 2026-03-25
+**Status:** Archiviert am 2026-06-02
+
+Dieser Plan ist nicht mehr als aktive TODO-Liste zu verwenden. Audit 2026-06-02:
+Fast alle urspruenglich offenen Datei-/Script-Loeschpunkte sind bereits erledigt oder nicht mehr zutreffend. `AGENTS.md` existiert heute als aktuelle Projektanweisung mit gstack-/Codex-Instruktionen und ist kein Loeschziel mehr. `CLAUDE.md` enthaelt die Cleanup-Section bereits als abgeschlossen. Verbleibende Wartungsarbeit wird in `TODO.md` oder neueren Plaenen gefuehrt.
 
 ---
 
@@ -14,29 +18,29 @@ Repo bereinigen: toten Code, veraltete Doku, Legacy-Überbleibsel und doppelte D
 ## Dateien löschen
 
 ### Sicherheitsrelevant
-- [ ] `LoginData` — enthält Groq API Key + Northflank Token (ist gitignored, aber lokal vorhanden)
+- Archiviert: `LoginData` — existiert im Audit 2026-06-02 nicht mehr.
 
 ### Veraltete Dokumentation
-- [ ] `AGENTS.md` — Veraltet: referenziert DeepSeek V3.2, falscher Branch `ph/Test`. Vollständig von `CLAUDE.md` abgedeckt.
-- [ ] `REACT_API.md` — API-Dokumentation bereits vollständig in `CLAUDE.md` enthalten.
-- [ ] `components.md` — Versions-Tracker für Pakete, hoher Wartungsaufwand, kein praktischer Nutzen.
-- [ ] `DOCKER_DEPLOYMENT.md` — Referenziert Legacy-Profiles (`prod`, `react-prod`), teils veraltet. Relevante Infos sind in `CLAUDE.md` und `docker-compose.yml`.
+- Archiviert/nicht mehr zutreffend: `AGENTS.md` — existiert, ist aber heute die aktuelle Projektanweisung und kein Loeschziel.
+- Archiviert: `REACT_API.md` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `components.md` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `DOCKER_DEPLOYMENT.md` — existiert im Audit 2026-06-02 nicht mehr.
 
 ### Einmalige Scripts
-- [ ] `scripts/migrate-to-react-db.ts` — Einmalige Migration von Legacy-DB zu React-DB. Legacy-DB (`rezepti.db`) ist gelöscht, Script ist obsolet.
-- [ ] `scripts/` Ordner — nach Löschen der einzigen Datei leeren Ordner ebenfalls entfernen
+- Archiviert: `scripts/migrate-to-react-db.ts` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `scripts/` Ordner entfernen — nicht mehr als isolierter Loeschpunkt bewertet; aktuelle Scripts werden separat gepflegt.
 
 ### Tote Tests
-- [ ] `test/unit/key-manager.test.ts` — Importiert `key-manager.interface.ts` (bereits gelöscht). Bricht den Test-Run.
-- [ ] `test/react-components/` (ganzer Ordner) — Duplicate-Tests identisch zu `frontend/src/components/*.test.tsx`, aber mit falschen relativen Imports. Nicht im vitest include-Pattern (`.tsx` nicht als Backend-Tests inkludiert).
-- [ ] `test/utils/performance-test.ts` — Standalone-Script (kein echter Test), einziger Import in `test/fixtures/test-data.ts` als inaktive Referenz.
-- [ ] `test/setup-react.ts` — Gehörte zu `vitest.react.config.ts` (bereits gelöscht). Verwaist.
+- Archiviert: `test/unit/key-manager.test.ts` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `test/react-components/` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `test/utils/performance-test.ts` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `test/setup-react.ts` — existiert im Audit 2026-06-02 nicht mehr.
 
 ### Implementierte Pläne (bereits umgesetzt)
-- [ ] `docs/superpowers/plans/2026-03-18-cookidoo-integration.md` — Cookidoo-Fetcher implementiert in `src/fetchers/cookidoo.ts`.
-- [ ] `docs/superpowers/plans/2026-03-19-docker-setup.md` — Docker-Setup abgeschlossen.
-- [ ] `docs/superpowers/specs/2026-03-18-cookidoo-integration-design.md` — Design-Spec für implementiertes Feature.
-- [ ] `docs/superpowers/specs/2026-03-19-docker-setup-design.md` — Design-Spec für implementiertes Feature.
+- Archiviert: `docs/superpowers/plans/2026-03-18-cookidoo-integration.md` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `docs/superpowers/plans/2026-03-19-docker-setup.md` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `docs/superpowers/specs/2026-03-18-cookidoo-integration-design.md` — existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `docs/superpowers/specs/2026-03-19-docker-setup-design.md` — existiert im Audit 2026-06-02 nicht mehr.
 
 ---
 
@@ -54,25 +58,27 @@ Repo bereinigen: toten Code, veraltete Doku, Legacy-Überbleibsel und doppelte D
 ## Dateien aktualisieren
 
 ### `CLAUDE.md`
-- [ ] "Active branch"-Zeile (Zeile 129) **komplett entfernen** — ist ein Anti-Pattern, veraltet sofort und führt AI-Assistenten zu falschen Commits
-- [ ] Cleanup-Section (`## Cleanup (March 2026)`) erweitern oder als abgeschlossen markieren
-- [ ] Verweise auf gelöschte Dateien entfernen (z.B. `test/unit/db-manager.test.ts` schon drin, weitere prüfen)
+- Archiviert: "Active branch"-Zeile entfernen — im Audit 2026-06-02 nicht mehr gefunden.
+- Archiviert: Cleanup-Section (`## Cleanup (March 2026)`) — in `CLAUDE.md` bereits als abgeschlossen markiert.
+- Archiviert: Verweise auf geloeschte Dateien entfernen — keine aktive Arbeit aus diesem Plan.
 
 ### `README.md`
-- [ ] Verweis auf `DOCKER_DEPLOYMENT.md` entfernen (Zeile ~75: `Volle Dokumentation → Siehe DOCKER_DEPLOYMENT.md`)
+- Archiviert: Verweis auf `DOCKER_DEPLOYMENT.md` entfernen — im Audit 2026-06-02 nicht mehr gefunden.
 
 ### `test/fixtures/test-data.ts`
-- [ ] `performanceTestData` Export (Zeile 326) entfernen — wird nach Löschen von `performance-test.ts` zu totem Code
+- Archiviert: `performanceTestData` Export entfernen — im Audit 2026-06-02 nicht mehr gefunden.
 
 ### `package.json` (scripts)
-- [ ] `docker:legacy` entfernen — Legacy-Profil (`prod`) für alte nicht-React Version
-- [ ] `db:migrate` entfernen — Script gelöscht (`scripts/migrate-to-react-db.ts`)
-- [ ] `test:performance` entfernen — Script gelöscht (`test/utils/performance-test.ts`)
-- [ ] `docker:restore` entfernen — hartcodiertes Datum `20260322`, nie wiederverwendbar
+- Archiviert: `docker:legacy` entfernen — Script existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `db:migrate` entfernen — Script existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `test:performance` entfernen — Script existiert im Audit 2026-06-02 nicht mehr.
+- Archiviert: `docker:restore` entfernen — Script existiert im Audit 2026-06-02 nicht mehr.
 
 ---
 
-## Reihenfolge der Umsetzung
+## Historische Reihenfolge der Umsetzung
+
+Die folgende Liste ist nur noch historischer Kontext aus dem urspruenglichen Plan vom 2026-03-25.
 
 1. `LoginData` löschen (Sicherheit zuerst)
 2. Veraltete Doku löschen (AGENTS.md, REACT_API.md, components.md, DOCKER_DEPLOYMENT.md)
@@ -87,7 +93,7 @@ Repo bereinigen: toten Code, veraltete Doku, Legacy-Überbleibsel und doppelte D
 
 ---
 
-## Erwartetes Ergebnis
+## Historisch erwartetes Ergebnis
 
 - ~15 Dateien/Ordner weniger
 - Keine veralteten Branch-Referenzen

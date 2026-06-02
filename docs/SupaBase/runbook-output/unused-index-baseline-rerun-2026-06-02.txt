@@ -1,0 +1,58 @@
+== stats reset ==
+ datname  |          stats_reset          
+----------+-------------------------------
+ postgres | 2026-03-30 19:02:21.724308+00
+(1 row)
+
+== zero-scan index classification ==
+             category             | indexes | total_size 
+----------------------------------+---------+------------
+ protected_constraint_unique      |      67 | 584 kB
+ protected_fk_support             |      36 | 320 kB
+ watch_rare_admin_cleanup_partial |      29 | 304 kB
+ watch_needs_query_plan           |      12 | 96 kB
+ protected_search_vector_special  |      11 | 4272 kB
+(5 rows)
+
+== watch_needs_query_plan candidates ==
+       table_name        |            index_name             | amname |    size    |                                                            indexdef                                                            
+-------------------------+-----------------------------------+--------+------------+--------------------------------------------------------------------------------------------------------------------------------
+ code_edges_chunk        | idx_code_edges_chunk_to_symbol    | btree  | 8192 bytes | CREATE INDEX idx_code_edges_chunk_to_symbol ON public.code_edges_chunk USING btree (to_symbol_qualified, edge_type)
+ code_edges_symbol       | idx_code_edges_symbol_to          | btree  | 8192 bytes | CREATE INDEX idx_code_edges_symbol_to ON public.code_edges_symbol USING btree (to_symbol_qualified, edge_type)
+ code_traversal_cache    | code_traversal_cache_source_idx   | btree  | 8192 bytes | CREATE INDEX code_traversal_cache_source_idx ON public.code_traversal_cache USING btree (source_id)
+ eval_takes_quality_runs | eval_takes_quality_runs_trend_idx | btree  | 8192 bytes | CREATE INDEX eval_takes_quality_runs_trend_idx ON public.eval_takes_quality_runs USING btree (rubric_version, created_at DESC)
+ files                   | idx_files_hash                    | btree  | 8192 bytes | CREATE INDEX idx_files_hash ON public.files USING btree (content_hash)
+ files                   | idx_files_page                    | btree  | 8192 bytes | CREATE INDEX idx_files_page ON public.files USING btree (page_slug)
+ mcp_request_log         | idx_mcp_log_time_agent            | btree  | 8192 bytes | CREATE INDEX idx_mcp_log_time_agent ON public.mcp_request_log USING btree (created_at, token_name)
+ oauth_tokens            | idx_oauth_tokens_expiry           | btree  | 8192 bytes | CREATE INDEX idx_oauth_tokens_expiry ON public.oauth_tokens USING btree (expires_at)
+ take_grade_cache        | take_grade_cache_applied_idx      | btree  | 8192 bytes | CREATE INDEX take_grade_cache_applied_idx ON public.take_grade_cache USING btree (take_id, applied)
+ take_grade_cache        | take_grade_cache_wave_idx         | btree  | 8192 bytes | CREATE INDEX take_grade_cache_wave_idx ON public.take_grade_cache USING btree (wave_version, graded_at DESC)
+ take_nudge_log          | take_nudge_log_wave_idx           | btree  | 8192 bytes | CREATE INDEX take_nudge_log_wave_idx ON public.take_nudge_log USING btree (wave_version, fired_at DESC)
+ take_proposals          | take_proposals_run_id_idx         | btree  | 8192 bytes | CREATE INDEX take_proposals_run_id_idx ON public.take_proposals USING btree (proposal_run_id)
+(12 rows)
+
+== busiest tables by writes ==
+      table_name       | n_live_tup | n_dead_tup | seq_scan | seq_tup_read | idx_scan | n_tup_ins | n_tup_upd | n_tup_del 
+-----------------------+------------+------------+----------+--------------+----------+-----------+-----------+-----------
+ content_chunks        |        317 |         16 |       46 |         5072 |      451 |       318 |        15 |         0
+ recipes               |         34 |          1 |      184 |         3706 |      233 |       102 |        23 |        68
+ config                |          7 |          9 |     1924 |         8777 |      257 |         7 |        70 |         0
+ pages                 |         58 |          4 |       60 |         1624 |     2135 |        59 |         3 |         0
+ sources               |          2 |          9 |       18 |           24 |      215 |         3 |         8 |         0
+ gbrain_cycle_locks    |          0 |          4 |        2 |            0 |        8 |         4 |         0 |         4
+ shopping_list         |          7 |          0 |       15 |           56 |        0 |         7 |         0 |         0
+ ingest_log            |          3 |          0 |        4 |            3 |        2 |         3 |         0 |         0
+ page_versions         |          2 |          0 |        6 |            4 |        0 |         2 |         0 |         0
+ timeline_entries      |          0 |          1 |       14 |            0 |      184 |         1 |         0 |         0
+ raw_data              |          0 |          0 |        9 |            0 |        0 |         0 |         0 |         0
+ tags                  |          0 |          0 |        6 |            0 |       66 |         0 |         0 |         0
+ meal_plan             |          0 |          0 |       20 |            0 |        0 |         0 |         0 |         0
+ links                 |          0 |          0 |       28 |            0 |      234 |         0 |         0 |         0
+ oauth_clients         |          0 |          0 |        8 |            0 |        1 |         0 |         0 |         0
+ code_edges_symbol     |          0 |          0 |        5 |            0 |        0 |         0 |         0 |         0
+ mcp_request_log       |          0 |          0 |        4 |            0 |        1 |         0 |         0 |         0
+ access_tokens         |          0 |          0 |        4 |            0 |        0 |         0 |         0 |         0
+ code_edges_chunk      |          0 |          0 |        7 |            0 |        0 |         0 |         0 |         0
+ ingredient_dictionary |          0 |          0 |        2 |            0 |        0 |         0 |         0 |         0
+(20 rows)
+

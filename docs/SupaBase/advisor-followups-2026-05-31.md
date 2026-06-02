@@ -16,6 +16,16 @@ folgt der Supabase-Advisor-Dokumentation: ungenutzte Indexe koennen
 Write-Overhead erzeugen, sollen aber vor dem Drop gegen kuenftige Nutzung und
 repraesentative Query-Pfade validiert werden.
 
+Wichtig fuer die Umgebungstrennung:
+
+- Production ist die Quelle fuer echte Nutzungsstatistik
+  (`pg_stat_user_indexes`, Advisor-Findings, Nutzungsperioden).
+- Staging/Clone ist der vorgesehene Ort fuer riskante oder
+  statistikveraendernde Pruefungen: `EXPLAIN (ANALYZE, BUFFERS)`, testweise
+  `DROP INDEX`, Advisor-Smokes nach simulierten Drops und Regressionstests.
+- Production-Drops erfolgen erst danach einzeln per `DROP INDEX CONCURRENTLY`
+  mit dokumentierter Rollback-Notiz.
+
 ## Agent Review
 
 Zwei kosteneffiziente Read-only-Agenten (`gpt-5.4-mini`) wurden parallel
@@ -29,6 +39,14 @@ eingesetzt:
 - Ein weiterer Read-only-Explorer bestaetigte am 2026-06-01 fuer
   `unused_index`: Status bleibt `hold`; keine Drops ohne Nutzungsperiode,
   Redundanzanalyse und `EXPLAIN (ANALYZE, BUFFERS)` pro betroffenem Query-Pfad.
+- Ein kosteneffizienter Read-only-Baseline-Slice am 2026-06-01 klassifizierte
+  die aktuellen Zero-Scan-Indexe ohne Mutationen. Ergebnis:
+  `docs/SupaBase/unused-index-baseline-2026-06-01.md`.
+- Ein Re-Run am 2026-06-02 bestaetigte die Baseline unveraendert. Die 12
+  `watch_needs_query_plan`-Kandidaten stehen weiter bei `idx_scan = 0`; aktive
+  Rezepti-App-Callsites wurden im Code nicht gefunden. Wegen geringer Groesse,
+  Auxiliary-Tabellen und Statistikverfaelschung durch Production-Planproben
+  bleibt der Track trotzdem `hold`.
 
 ## Extension Track
 
@@ -68,6 +86,11 @@ Staging-Stand 2026-06-01:
 - Einschraenkung: Die Probe deckt Schema-, Index-, Trigger- und
   Funktionsabhaengigkeiten sowie einfache Runtime-Pfade ab, aber keine
   datenabhaengigen Query-Plaene oder realen Nutzungsstatistiken.
+- Vorgesehene weitere Nutzung: dieselbe Staging-/Clone-DB ist der richtige
+  Ort fuer den `unused_index`-Drop-Probe-Track. Production liefert nur die
+  reale Zero-Scan-/Advisor-Baseline; Plananalysen und testweise Index-Drops
+  laufen auf Staging/Clone, damit Production-Statistiken und Nutzerpfade nicht
+  beeinflusst werden.
 
 Lokales Code-Inventar:
 
@@ -122,6 +145,28 @@ Aktueller Advisor-Stand:
 - 88 `unused_index` Findings.
 - Nach dem FK-Fix sind darin auch die 5 neu angelegten FK-Support-Indexes
   enthalten.
+- Read-only-Baseline 2026-06-01:
+  - `stats_reset`: 2026-03-30 19:02:21.724308+00
+  - Zero-Scan-Indexe gesamt: 155 / 5576 kB
+  - `protected_constraint_unique`: 67 / 584 kB
+  - `protected_fk_support`: 36 / 320 kB
+  - `protected_search_vector_special`: 11 / 4272 kB
+  - `watch_rare_admin_cleanup_partial`: 29 / 304 kB
+  - `watch_needs_query_plan`: 12 / 96 kB
+  - Empfehlung: keine Index-Drops am 2026-06-01; nur Beobachtung und spaetere
+    Query-Plan-Pruefung.
+- Re-Run 2026-06-02:
+  - Klassifikation unveraendert.
+  - Alle 12 `watch_needs_query_plan`-Kandidaten weiter `idx_scan = 0`.
+  - Keine aktiven Rezepti-App-Callsites fuer die Watch-Kandidaten gefunden.
+  - Empfehlung bleibt: kein Production-Drop; erst Staging-/Clone-Pruefung oder
+    spaetere Nutzungsperiode.
+- Umgebungsentscheidung:
+  - Production bleibt fuer echte Nutzungsstatistiken und wiederholte
+    Read-only-Baselines zustaendig.
+  - Staging/Clone ist fuer `EXPLAIN (ANALYZE, BUFFERS)` und testweise
+    `DROP INDEX` vorgesehen, weil diese Schritte die Production-Index-Usage
+    verfalschen oder reale Pfade beruehren koennen.
 
 Diese 5 Indexes sind bewusst angelegt und trotz `idx_scan = 0` keine
 Drop-Kandidaten:
@@ -183,7 +228,13 @@ laufen. Jeder Drop braucht deshalb eine eigene Migrations-/Ops-Entscheidung.
 
 - Extension-Track: abgeschlossen; nur bei Regression Rollback-Statements oben
   verwenden.
-- Index-Track: mindestens eine Nutzungsperiode sammeln, dann Redundanzanalyse
-  pro Tabelle starten. Aktuell kein Drop.
+- Index-Track: Baseline und erster Re-Run sind erstellt. Aktuell kein Drop.
+  Naechstes sinnvolles Gate ist entweder eine Staging-/Clone-Pruefung fuer die
+  12 Watch-Kandidaten oder eine spaetere Production-Baseline nach echter
+  Nutzungsperiode; Production-`EXPLAIN ANALYZE` wird vermieden, solange die
+  Index-Usage-Statistik als Entscheidungsgrundlage dienen soll.
+  Die bereits angelegte `rezepti-staging`-DB ist fuer diesen Probe-Track
+  vorgesehen, sobald ein schema-/datengeeigneter Clone fuer die betroffenen
+  Auxiliary-Tabellen bereitsteht.
 - Multi-User-Track: vor Data-API-Oeffnung erneut Extension-Grants, RLS-Policies
   und Function-Execute-Rechte pruefen.

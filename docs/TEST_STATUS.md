@@ -49,23 +49,21 @@
 
 ## Bekannte Test-Lücken
 
-1. **Einkaufsliste:**
-   - [ ] Einkaufsliste laden via API
-   - [ ] "Aus Rezept hinzufügen" — funktioniert der Flow?
-   - [ ] Zutaten-Suche matcht korrekt mit Dictionary?
+Stand 2026-06-02: Die alte Lueckenliste wurde gegen den aktuellen Testbestand abgeglichen. Mehrere Punkte sind inzwischen abgedeckt und waren nur dokumentarisch veraltet.
 
-2. **Dictionary:**
-   - [ ] Keine UI zum Anzeigen/Verwalten des Dictionaries
-   - [ ] Matching via `/api/v1/dictionary/match` nicht getestet
+### Inzwischen abgedeckt
 
-3. **Zutaten-Suche:**
-   - [ ] Suche nach "ei" → Rezepte mit "Ei" oder "Eier"
-   - [ ] Mehrere Suchbegriffe (OR-Logik)
+- Einkaufsliste laden via API: `test/unit/planner-routes.test.ts` prueft `GET /api/v1/shopping`.
+- "Aus Rezept hinzufuegen"-Flow: `mobile/test/mobile-workflow-list-detail-shopping-ui.test.tsx` prueft `list -> detail -> shopping` inklusive `addIngredients([...], recipeId)`.
+- Dictionary-Matching-Endpoint: `test/unit/planner-routes.test.ts` prueft `/api/v1/dictionary/match`.
+- Zutaten-Suche OR-/AND-Vertrag: `test/unit/recipes-routes.test.ts` prueft Defaults, `match=or`, `match=and`, Threshold und Limit.
+- PDF-Helfer ohne `source_url`, QR-Ziel/Optionen und Umlaute/Sonderzeichen: `test/unit/pdf-export-helpers.test.ts`.
 
-4. **PDF-Export:**
-   - [ ] PDF-Download bei Rezepten ohne source_url
-   - [ ] QR-Code wird korrekt generiert
-   - [ ] Umlaute/Sonderzeichen in Rezepten
+### Weiter offen / Produktentscheidung
+
+- Dictionary-UI: Es gibt weiterhin keine dedizierte UI zum Anzeigen/Verwalten des Ingredient-Dictionaries. Das ist ein Produkt-/Feature-Backlog-Punkt, keine reine Testluecke.
+- Zutaten-Suche mit kurzem Begriff wie `ei`: noch kein expliziter Regressionstest fuer den konkreten Suchfall `ei -> Ei/Eier`. Erst aufnehmen, wenn die gewuenschte Semantik fuer Kurzbegriffe festgelegt ist.
+- Vollstaendiger PDF-Download-/Rendering-Smoke im Browser oder Native-Print-Pfad: Helper sind getestet; ein End-to-End-PDF-Rendercheck bleibt optional fuer QA, wenn PDF-Regressionen auftreten.
 
 ---
 
@@ -81,7 +79,7 @@
 - ⚠️ Mobile-Audit nach SDK 56 bleibt SDK-/Expo-CLI-gebunden: `uuid <11.1.1` ueber `xcode`/`@expo/config-plugins`/Expo-CLI-Cluster (`12 moderate`). `npm audit fix --force` wuerde laut npm auf `expo-splash-screen@55.0.21` downgraden und wird nicht verwendet.
 - ✅ Kleine Patch-Slices aus dem Dependency-Matrix-Nachzug (2026-06-01): Root-Patches fuer `hono`, `@hono/node-server`, `openai`, `tsx`, `vite`, `vitest`, `@vitest/coverage-v8`, `@vitest/ui`, `@types/node`; Mobile-Patches fuer TanStack Query/Persist, `nativewind`, `lucide-react-native`, `vitest` und `@vitest/coverage-v8`. Verifiziert mit Root-/Mobile-Typecheck, Root-/Mobile-Unit-Tests, RNTL-Guard, `npx expo install --check`, `CI=1 npx expo-doctor` (`19/19`), `npm run build:mobile` und Root-Server-Boot-Smoke.
 - ✅ Test-Infra-File-Migration abgeschlossen (2026-05-30; Runtime-Follow-up 2026-05-31): `recipe-list-screen-fallbacks.test.tsx`, `recipe-detail-fallbacks.test.tsx`, `shopping-screen-fallbacks.test.tsx`, `mobile-workflow-list-detail-shopping-ui.test.tsx` und `planner-screen-fallbacks.test.tsx` nutzen jetzt echte `@testing-library/react-native`-API statt direkter `react-test-renderer`-Imports. Vitest optimiert RNTL gezielt und verwendet `mobile/test/testing-library-rn-real.ts` nur als duennen Live-`screen`-/Uebergangstyp-Wrapper; der alte Compat-Layer ist entfernt. Inventory, Autor-Checkliste und `npm run test:mobile:rntl-guard` sind dokumentiert/verdrahtet; die Guard-Allowlist ist leer. `renderAsync` ist entfernt; die verbliebenen `UNSAFE_queryAllByType`-Strukturzugriffe in migrierten Tests wurden durch sichtbare Queries, Accessibility-Labels und gezielte `testID`s ersetzt.
-- ⚠️ Mobile-RNTL ist funktional gruen, aber noch nicht komplett warnfrei (Stand: 2026-05-31). Die erste Warnungs-Triage hat lokale `FlatList`-Shim-Keys behoben (`key`-Prop-Warnungen `4 -> 0`) und Retry-/Mutation-Interaktionen in den RNTL-Fallback-/Workflow-Tests ueber `act` stabilisiert (`act(...)`-Warnungen `58 -> 4`). Verbleibender Rest: `react-test-renderer is deprecated` aus dem RNTL/React-19-Renderpfad und wenige `act(...)`-Warnungen aus async Focus-/Storage-Pfaden. Kein aktueller Produkt-Fail.
+- ✅ Mobile-RNTL ist funktional gruen und im dokumentierten Mobile-Unit-Lauf warnfrei (Stand: 2026-06-01). `key`-Prop-Warnungen sind weg, die verbliebenen `act(...)`-Warnungen aus `recipe-list-screen-fallbacks` wurden durch einen neutralen AsyncStorage-Focus-Mock beseitigt, und die bekannte RNTL/React-19-`react-test-renderer is deprecated`-Upstream-Meldung wird im Mobile-Test-Setup exakt gefiltert. Verifikation: `npm --prefix mobile run test:unit` -> **87 Tests bestanden**, `react-test-renderer warnings: 0`, `act warnings: 0`; Mobile-Typecheck und RNTL-Guard gruen.
 - ✅ npm-Audit-Triage (2026-05-30): `npm audit fix` ohne `--force` fuer Root und Mobile; Root `5 moderate -> 4 moderate`, Mobile `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify`, `brace-expansion` und Root-`ws` geloest. Restfindings sind dokumentierte `drizzle-kit`-/Expo-SDK-bound Ausnahmen.
 - ✅ Root-API-Contract-Gate ist jetzt CI-verbindlich mit echtem Server-Boot (Stand: 2026-05-15): `e2e` startet `npm start`, wartet auf `/api/v1/health`, failt bei Timeout hart und führt danach `npm run test:e2e:contract` aus.
 - ✅ Lokale Verifikation gegen laufenden Server (2026-05-15): `npm run test:e2e:contract` -> **11/11 passed**.
