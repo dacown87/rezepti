@@ -89,6 +89,7 @@ Geplante Codes fuer Slice 1:
 | `auth_missing` | 401 | Kein Bearer Token |
 | `auth_invalid` | 401 | Falsches Schema, ungueltiger Token, Verifikation fehlgeschlagen |
 | `token_expired` | 401 | Token abgelaufen oder nicht refreshbar |
+| `admin_required` | 403 | User ist authentifiziert, aber kein Admin |
 | `forbidden` | 403 | User authentifiziert, aber ohne Recht fuer Ressource |
 | `setup_required` | 403 | User existiert, aber Profil/Membership fehlt |
 | `no_household` | 403 | Kein aktiver Haushalt fuer geschuetzte Shopping-/Planner-Aktion |

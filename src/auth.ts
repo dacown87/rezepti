@@ -6,6 +6,7 @@ export type AuthErrorCode =
   | "auth_missing"
   | "auth_invalid"
   | "token_expired"
+  | "admin_required"
   | "forbidden"
   | "not_found"
   | "setup_required"

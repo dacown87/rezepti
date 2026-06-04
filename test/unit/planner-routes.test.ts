@@ -249,7 +249,11 @@ describe('planner route APIs', () => {
 
       expect(res.status).toBe(403)
       await expect(res.json()).resolves.toMatchObject({
-        error: { code: 'forbidden' },
+        error: {
+          code: 'admin_required',
+          cause: 'The authenticated user is not an admin.',
+          fix: 'Sign in with an admin account before editing the dictionary.',
+        },
       })
       expect(dbMocks.addToDictionary).not.toHaveBeenCalled()
     })

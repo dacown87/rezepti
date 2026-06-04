@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getAuth, requireAuth } from "../auth.js";
+import { authErrorPayload, getAuth, requireAuth } from "../auth.js";
 import {
   getShoppingList,
   addToShoppingList,
@@ -135,7 +135,15 @@ app.post("/api/v1/dictionary", requireAuth(), async (c) => {
   try {
     const auth = getAuth(c);
     if (auth.appRole !== "admin") {
-      return c.json({ error: { code: "forbidden", message: "Dictionary writes require admin access" } }, 403);
+      return c.json(
+        authErrorPayload(
+          "admin_required",
+          "Dictionary writes require admin access",
+          "The authenticated user is not an admin.",
+          "Sign in with an admin account before editing the dictionary.",
+        ),
+        403,
+      );
     }
 
     const body = await c.req.json().catch(() => null);
