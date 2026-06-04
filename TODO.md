@@ -8,7 +8,7 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. GitHub Actions seit dem letzten Check sind gruen, inklusive Scheduled CI 2026-06-02 bis 2026-06-04, Push-CI fuer `7523b72`, Docker Build/Push und Northflank Deploy.
 
-Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` bei `8ed8801 chore: v1.0.124 [skip ci]`; lokaler `main` enthaelt darueber `dc6efa6 docs: record latest ci run status` plus den Doku-/Plan-Abschluss fuer die Multi-User-Basis. Die lokale Doku-/Ops-Linie bleibt bewusst auf `main`; neue Feature-Codearbeit startet von einem separaten Multi-User-Branch. `phase/6-multi-user` ist stale und keine aktive Basis.
+Arbeitsbasis ist geklaert: `git fetch origin` am 2026-06-04 bestaetigte `origin/main` bei `8ed8801 chore: v1.0.124 [skip ci]`. Der aktive Branch `feature/multi-user-login-first-slice` hat noch keinen Upstream, enthaelt `origin/main` vollstaendig und steht 15 Commits vor `origin/main`: 5 lokale Basis-/Security-Doku-Commits auf `main` plus 10 Multi-User-Feature-Commits. `phase/6-multi-user` ist stale und keine aktive Basis.
 
 ## Naechste Reihenfolge
 
@@ -18,7 +18,8 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
    - Plan: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 
 2. **Multi-User Branch ship-ready machen**
-   - Branch-Push/PR-CI ausloesen und `supabase-rls-smoke` im GitHub-Runner bestaetigen.
+   - Naechster kosteneffizienter Schritt: Branch mit Upstream pushen und PR-CI ausloesen; kein weiterer lokaler Review vorab, weil lokale Gates und Staging-RLS-Smoke gruen sind.
+   - Im PR `supabase-rls-smoke` im GitHub-Runner bestaetigen.
    - Review auf Recipe-Privacy-Caveat, Mobile Auth-Error-DX und Staging-Migrationen fokussieren.
    - Release-Kommunikation klar halten: Login schuetzt in diesem Slice Shopping/Planner, nicht die komplette Rezeptverwaltung.
 
@@ -71,6 +72,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 - Push-CI fuer `7523b72` (`26939939417`) war gruen: `test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` war beim Push erwartbar skipped.
 - Docker Build/Push und Northflank Deploy waren fuer `7523b72` (`26939939394`) und den nachgelagerten Version-Commit `8ed8801` (`26939952178`) gruen.
 - Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, lokaler RLS-Smoke, Staging-RLS-Smoke, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach dem RLS-Smoke-Nachzug liefen `npm run supabase:rls-smoke`, `npm run supabase:rls-smoke:staging`, Root-Unit-Auswahl und `npx tsc --noEmit` gruen.
+- Branch-/Remote-Pruefung 2026-06-04: `origin/main` und lokaler `main` sind Ancestors von `feature/multi-user-login-first-slice`; Abstand zu `origin/main` ist `0 behind / 15 ahead`, Abstand zu lokalem `main` ist `0 behind / 10 ahead`. Der Branch hat noch keinen Upstream; Push/PR-CI ist der naechste Gate.
 
 ### Dependencies
 
