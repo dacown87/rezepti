@@ -20,6 +20,7 @@ import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull }
 
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/utils/shopping-service';
+import { apiFetch } from '@/utils/api';
 import { getServerUrl } from '@/utils/server-url';
 import {
   buildRecipeIdMap,
@@ -377,8 +378,7 @@ export default function PlannerScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/planner?week=${weekStart}`);
+      const res = await apiFetch(`/api/v1/planner?week=${weekStart}`);
       const body = res.ok ? await res.json() : {};
       const entries: MealPlanEntry[] = Array.isArray(body) ? body : (body.entries ?? []);
       setMealPlan(entries);
@@ -483,7 +483,7 @@ export default function PlannerScreen() {
       const recipeId = parseInt(urlMatch[1], 10);
       if (targetDay !== null) {
         try {
-          const res = await fetch(`${serverUrl}/api/v1/planner`, {
+          const res = await apiFetch('/api/v1/planner', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
@@ -495,7 +495,7 @@ export default function PlannerScreen() {
           handlePlannerActionError(
             'Rezept konnte nicht zum Wochenplan hinzugefügt werden.',
             async () => {
-              const res2 = await fetch(`${serverUrl}/api/v1/planner`, {
+              const res2 = await apiFetch('/api/v1/planner', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
@@ -542,7 +542,7 @@ export default function PlannerScreen() {
     const saved = await recipeRes.json();
     const newId: number = saved.id;
     if (targetDay !== null) {
-      await fetch(`${serverUrl}/api/v1/planner`, {
+      await apiFetch('/api/v1/planner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId: newId, dayOfWeek: targetDay, weekStart }),
@@ -558,8 +558,7 @@ export default function PlannerScreen() {
     clearPlannerError();
     setPlannerMutationPending(true);
     try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/planner`, {
+      const res = await apiFetch('/api/v1/planner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
@@ -580,8 +579,7 @@ export default function PlannerScreen() {
     clearPlannerError();
     setPlannerMutationPending(true);
     try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/planner/${entryId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/planner/${entryId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Rezept konnte nicht entfernt werden.');
       await loadData();
     } catch {

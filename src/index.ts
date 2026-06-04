@@ -22,7 +22,7 @@ const ALLOWED_ORIGINS = [
 app.use("/api/*", cors({
   origin: (origin) => ALLOWED_ORIGINS.includes(origin ?? "") ? origin : null,
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "x-groq-key"],
+  allowHeaders: ["Content-Type", "Authorization", "x-groq-key"],
   exposeHeaders: [],
   maxAge: 86400,
 }));

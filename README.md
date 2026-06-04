@@ -98,8 +98,16 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 | `DATABASE_URL` | ✅ | Supabase PostgreSQL — **Transaction Pooler URL** (Port 6543) |
 | `STAGING_DATABASE_URL` | | Separate Supabase-Staging-Datenbank für Advisor-/Migration-Proben |
 | `RECIPE_SOURCE_AUDIT_DATABASE_URL` | | Optionale DB-URL für `scripts/get-db-urls.ts`; fällt auf `DATABASE_URL` zurück |
-| `SUPABASE_URL` | | Supabase Projekt-URL (für zukünftige Auth-Features) |
-| `SUPABASE_ANON_KEY` | | Supabase Anon Key |
+| `SUPABASE_URL` | ✅ fuer Multi-User Slice 1 | Server Supabase Projekt-URL fuer Token-Verifikation |
+| `SUPABASE_ANON_KEY` | ✅ fuer Multi-User Slice 1 | Server Supabase Anon/Publishable Key fuer Token-Verifikation |
+| `EXPO_PUBLIC_SUPABASE_URL` | ✅ fuer Mobile Auth | Mobile-public Supabase Projekt-URL |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✅ fuer Mobile Auth | Mobile-public Publishable Key; bevorzugt gegenueber Legacy-Anon-Key |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | optional | Mobile-public Legacy-Anon-Key-Fallback |
+| `STAGING_AUTH_USER_EMAIL` | | Staging-only Testuser fuer Auth-/RLS-Smokes |
+| `STAGING_AUTH_USER_PASSWORD` | | Staging-only Passwort fuer Auth-/RLS-Smokes |
+| `STAGING_AUTH_ADMIN_EMAIL` | | Staging-only Admin-Testuser |
+| `STAGING_AUTH_ADMIN_PASSWORD` | | Staging-only Admin-Passwort |
+| `STAGING_AUTH_HOUSEHOLD_SLUG` | | Staging-only Testhaushalt fuer spaetere Household-Smokes |
 | `PORT` | | Server-Port (Standard: `3000`) |
 | `GROQ_TEXT_MODEL` | | Standard: `llama-3.3-70b-versatile` |
 | `GROQ_VISION_MODEL` | | Standard: `meta-llama/llama-4-scout-17b-16e-instruct` |
@@ -112,6 +120,20 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 > URL im Supabase Dashboard: Settings → Database → Connection pooling.
 
 Echte Zugangsdaten gehören nur in `.env`, CI-/Deploy-Secrets oder den Secret Manager. Der Pre-commit-Hook blockiert hardcodierte Postgres-URLs, Supabase-Service-Role-JWTs und OpenAI-artige API-Keys in getrackten Dateien.
+
+### Multi-User Auth Env-Matrix (Phase 0.5)
+
+Der erste Multi-User-Slice macht Supabase Auth fuer Shopping/Planner verpflichtend. Die Server-API bleibt in Slice 1 die Datenzugriffsgrenze; Mobile nutzt nur `EXPO_PUBLIC_SUPABASE_URL` und `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` oder den Legacy-Fallback `EXPO_PUBLIC_SUPABASE_ANON_KEY`, um User-Sessions aufzubauen und Bearer Tokens an den Server zu senden.
+
+| Klasse | Variablen | Client-sichtbar? |
+|--------|-----------|------------------|
+| Server-only | `DATABASE_URL`, `RECIPE_SOURCE_AUDIT_DATABASE_URL`, alle Secret-/Service-Role-Keys | Nein |
+| Mobile-public | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` oder `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Ja |
+| Staging-only | `STAGING_DATABASE_URL`, `STAGING_AUTH_*` | Nein |
+
+Kein `service_role`-, Secret- oder Postgres-Passwort darf in Mobile/Web-Client-Code, Expo-Public-Env oder gebuildete Assets gelangen. Admin- und Rollenentscheidungen duerfen nicht aus user-editierbarem `user_metadata` kommen.
+
+Auth-Fehler verwenden fuer Slice 1 den JSON-Vertrag `{ "error": { "code", "message", "cause", "fix" } }`. Route-Privacy-Matrix, Testuser-Bootstrap und Staging-RLS-Smoke stehen im Runbook: `docs/auth-runbook-route-privacy.md`.
 
 ---
 
@@ -157,6 +179,7 @@ BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-B
 - `TODO.md` — Aktuelle offene Punkte, QA-Befunde und Roadmap-Notizen
 - `test/README.md` — Teststruktur und lokale Testbefehle
 - `docs/TEST_STATUS.md` — Historischer Teststatus und bekannte Testlücken
+- `docs/auth-runbook-route-privacy.md` — Multi-User Auth Phase 0.5: Env-Matrix, API-Error-Kontrakt, Route-Privacy-Matrix und Staging-Smoke
 - `docs/testing/rntl-migration-phase-0-inventory.md` — RNTL-Migrationsstand, Runtime-Blocker und verbleibende `UNSAFE_*`-Altfaelle
 - `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests waehrend der RNTL-Uebergangsphase
 - `docs/SupaBase/supabase-advisor-remediation-plan.md` — reviewed Plan fuer die naechste Supabase-Advisor-Remediation

@@ -66,6 +66,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.0.4",
+    "@supabase/supabase-js": "^2.107.0",
     "cheerio": "^1.0.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

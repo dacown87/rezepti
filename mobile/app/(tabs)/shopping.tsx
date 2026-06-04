@@ -8,13 +8,12 @@ import { useFocusEffect } from 'expo-router';
 import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
 
 import type { ShoppingListItem } from '@/db/schema';
-import { getServerUrl } from '@/utils/server-url';
+import { apiFetch } from '@/utils/api';
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 
 async function fetchItems(): Promise<ShoppingListItem[]> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping`);
+  const res = await apiFetch('/api/v1/shopping');
   if (!res.ok) throw new Error(`Shopping fetch failed (${res.status})`);
   const data = await res.json();
   const raw: Array<Record<string, unknown>> = data.items ?? data ?? [];
@@ -30,32 +29,27 @@ async function fetchItems(): Promise<ShoppingListItem[]> {
 }
 
 async function toggleItem(id: number): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/${id}`, { method: 'PATCH' });
+  const res = await apiFetch(`/api/v1/shopping/${id}`, { method: 'PATCH' });
   if (!res.ok) throw new Error(`Shopping toggle failed (${res.status})`);
 }
 
 async function deleteItem(id: number): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/${id}`, { method: 'DELETE' });
+  const res = await apiFetch(`/api/v1/shopping/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`Shopping delete failed (${res.status})`);
 }
 
 async function clearChecked(): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/checked`, { method: 'DELETE' });
+  const res = await apiFetch('/api/v1/shopping/checked', { method: 'DELETE' });
   if (!res.ok) throw new Error(`Shopping clear checked failed (${res.status})`);
 }
 
 async function clearAll(): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/all`, { method: 'DELETE' });
+  const res = await apiFetch('/api/v1/shopping/all', { method: 'DELETE' });
   if (!res.ok) throw new Error(`Shopping clear all failed (${res.status})`);
 }
 
 async function addManualItem(name: string): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping`, {
+  const res = await apiFetch('/api/v1/shopping', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ canonicalName: name, recipeId: null }),

@@ -12,9 +12,9 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 
 ## Naechste Reihenfolge
 
-1. **Multi-User Login Phase 0/1 starten**
-   - Auth-Skeleton + Request-User-Kontext bauen.
-   - Noch keine produktiven Supabase Data-API-Grants oeffnen.
+1. **Multi-User Login Phase 0/1 fortsetzen**
+   - Auth-Skeleton + Request-User-Kontext ist im Feature-Branch gestartet.
+   - Staging-RLS-Smoke und produktive Supabase Data-API-Grants bleiben noch offen.
    - Plan: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 
 2. **Household-Scoped Shopping/Planner anschliessen**
@@ -22,16 +22,21 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
    - Negative Cross-Household-Tests ergaenzen.
    - Danach RLS-Migration/Grants gegen Staging verifizieren.
 
-3. **Dependency-Patch-Drift als separaten Maintenance-Slice nachziehen**
+3. **Progressive Web App (PWA) einbauen**
+   - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
+   - Homescreen-Installationspfad fuer iOS/Android pruefen.
+   - Erst nach dem Multi-User-Basisslice starten, damit Auth-/Session-Verhalten sauber in die PWA-Caches passt.
+
+4. **Dependency-Patch-Drift als separaten Maintenance-Slice nachziehen**
    - Root: `@vitest/coverage-v8`, `@vitest/ui`, `concurrently`, `happy-dom`, `openai`, `supabase`, `vite`, `vitest`.
    - Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `@types/react`, `@vitest/coverage-v8`, `react-native-svg`, `vitest`.
    - Nicht mit Auth/RLS vermischen. Expo-/SDK-gebundene Latest-Linien nur ueber `expo install --check` und `expo-doctor`.
 
-4. **Mobile-Persistenz manuell abnehmen**
+5. **Mobile-Persistenz manuell abnehmen**
    - Settings/Theme/PDF nach App-Neustart pruefen.
    - Technische Tests sind gruen; diese manuelle Abnahme fehlt noch.
 
-5. **Spaeter oder trigger-basiert**
+6. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
    - `unused_index` erst nach Nutzungsperiode plus Staging-Plananalyse anfassen.
    - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen oder Upstream-Abkuendigung neu bewerten.
@@ -39,6 +44,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 ## Aktive Backlog / Watchlist
 
 - [ ] **Multi-User Login** — Supabase Auth + echte Household-RLS-Policies ueber Memberships; App-Requests laufen mit Supabase User-JWT als `authenticated`. Plan am 2026-06-04 aktualisiert.
+- [ ] **Progressive Web App (PWA)** — Installierbare Web-App mit Manifest, Service Worker, Offline-Grundlage und Homescreen-Installationspfad fuer iOS/Android einbauen.
 - [ ] **Dependency-Patch-Drift** — siehe Reihenfolge Punkt 4; kein Blocker fuer Multi-User Phase 0/1.
 - [ ] **Mobile-Persistenz Neustart-Pruefung** — Settings/Theme/PDF nach App-Neustart.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
@@ -63,7 +69,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 - Scheduled CI am 2026-06-02 (`26802547508`), 2026-06-03 (`26868293611`) und 2026-06-04 (`26934892387`) war gruen.
 - Push-CI fuer `7523b72` (`26939939417`) war gruen: `test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` war beim Push erwartbar skipped.
 - Docker Build/Push und Northflank Deploy waren fuer `7523b72` (`26939939394`) und den nachgelagerten Version-Commit `8ed8801` (`26939952178`) gruen.
-- Fuer aktuelle Doku-Aenderungen wurden keine Tests neu ausgefuehrt.
+- Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach der finalen TODO-/CORS-Ergaenzung liefen `git diff --check` und `npx tsc --noEmit` erneut gruen.
 
 ### Dependencies
 

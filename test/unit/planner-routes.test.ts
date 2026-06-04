@@ -18,6 +18,25 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock('../../src/db-react.js', () => dbMocks)
 
+vi.mock('../../src/auth.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/auth.js')>('../../src/auth.js')
+  return {
+    ...actual,
+    requireAuth: () => async (c: any, next: any) => {
+      c.set('auth', {
+        userId: '00000000-0000-0000-0000-000000000001',
+        email: 'user-a@example.com',
+        appRole: 'user',
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+        accessToken: 'test-token',
+        isAuthenticated: true,
+      })
+      await next()
+    },
+  }
+})
+
 const { default: plannerRouter } = await import('../../src/routes/planner.js')
 
 function jsonRequest(path: string, body: unknown, method = 'POST') {
@@ -29,6 +48,9 @@ function jsonRequest(path: string, body: unknown, method = 'POST') {
 }
 
 describe('planner route APIs', () => {
+  const householdId = '10000000-0000-0000-0000-000000000001'
+  const userId = '00000000-0000-0000-0000-000000000001'
+
   beforeEach(() => {
     vi.clearAllMocks()
     dbMocks.getShoppingList.mockResolvedValue([])
@@ -48,6 +70,7 @@ describe('planner route APIs', () => {
 
       expect(res.status).toBe(200)
       await expect(res.json()).resolves.toEqual({ items: [{ id: 1, canonical_name: 'Milch' }] })
+      expect(dbMocks.getShoppingList).toHaveBeenCalledWith(householdId)
     })
 
     it('adds an item when recipeId is explicitly null', async () => {
@@ -59,7 +82,7 @@ describe('planner route APIs', () => {
       })
 
       expect(res.status).toBe(201)
-      expect(dbMocks.addToShoppingList).toHaveBeenCalledWith(null, 'Milch', '1', 'l')
+      expect(dbMocks.addToShoppingList).toHaveBeenCalledWith(householdId, userId, null, 'Milch', '1', 'l')
     })
 
     it('returns 400 for malformed JSON', async () => {
@@ -74,7 +97,7 @@ describe('planner route APIs', () => {
       const res = await jsonRequest('/api/v1/shopping', { canonicalName: 'Milch' })
 
       expect(res.status).toBe(201)
-      expect(dbMocks.addToShoppingList).toHaveBeenCalledWith(null, 'Milch', undefined, undefined)
+      expect(dbMocks.addToShoppingList).toHaveBeenCalledWith(householdId, userId, null, 'Milch', undefined, undefined)
     })
 
     it('returns 400 when recipeId has the wrong type', async () => {
@@ -99,6 +122,7 @@ describe('planner route APIs', () => {
       expect(first.status).toBe(200)
       expect(second.status).toBe(200)
       expect(dbMocks.clearCheckedItems).toHaveBeenCalledTimes(2)
+      expect(dbMocks.clearCheckedItems).toHaveBeenCalledWith(householdId)
     })
 
     it('returns 404 for repeated delete of the same item', async () => {
@@ -109,6 +133,7 @@ describe('planner route APIs', () => {
 
       expect(first.status).toBe(200)
       expect(second.status).toBe(404)
+      expect(dbMocks.deleteShoppingItem).toHaveBeenCalledWith(householdId, 101)
     })
 
     it('is idempotent on duplicate POST — returns same id and calls db once per request', async () => {
@@ -134,8 +159,43 @@ describe('planner route APIs', () => {
 
       // db function was called for each request (conflict resolution is inside db layer).
       expect(dbMocks.addToShoppingList).toHaveBeenCalledTimes(2)
-      expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(1, 5, 'Tomate', '3', 'Stück')
-      expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(2, 5, 'Tomate', '3', 'Stück')
+      expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(1, householdId, userId, 5, 'Tomate', '3', 'Stück')
+      expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(2, householdId, userId, 5, 'Tomate', '3', 'Stück')
+    })
+  })
+
+  describe('/api/v1/planner', () => {
+    it('lists planner entries for the active household', async () => {
+      dbMocks.getMealPlanForWeek.mockResolvedValue([{ id: 9, recipe_id: 3, week_start: 1716760800 }])
+
+      const res = await plannerRouter.request('/api/v1/planner?week=1716760800')
+
+      expect(res.status).toBe(200)
+      await expect(res.json()).resolves.toEqual({
+        entries: [{ id: 9, recipe_id: 3, week_start: 1716760800 }],
+        weekStart: 1716760800,
+      })
+      expect(dbMocks.getMealPlanForWeek).toHaveBeenCalledWith(householdId, 1716760800)
+    })
+
+    it('adds a planner entry in the active household', async () => {
+      dbMocks.addRecipeToMealPlan.mockResolvedValue({ id: 10 })
+
+      const res = await jsonRequest('/api/v1/planner', {
+        recipeId: 5,
+        dayOfWeek: 2,
+        weekStart: 1716760800,
+      })
+
+      expect(res.status).toBe(201)
+      expect(dbMocks.addRecipeToMealPlan).toHaveBeenCalledWith(householdId, userId, 5, 2, 1716760800)
+    })
+
+    it('clears one week only in the active household', async () => {
+      const res = await plannerRouter.request('/api/v1/planner/week/1716760800', { method: 'DELETE' })
+
+      expect(res.status).toBe(200)
+      expect(dbMocks.clearMealPlanForWeek).toHaveBeenCalledWith(householdId, 1716760800)
     })
   })
 

@@ -1,3 +1,4 @@
+import { getAuthHeaders } from '@/utils/auth';
 import { getServerUrl } from '@/utils/server-url';
 
 export const DEFAULT_ADD_INGREDIENTS_CONCURRENCY = 4;
@@ -14,7 +15,7 @@ function normalizeConcurrency(value: number | undefined): number {
 async function postShoppingIngredient(url: string, ingredient: string, recipeId?: number): Promise<void> {
   const res = await fetch(`${url}/api/v1/shopping`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ canonicalName: ingredient, recipeId: recipeId ?? null }),
   });
   if (!res.ok) {
