@@ -41,7 +41,8 @@ Historie / verbleibendes Risiko:
 - Weil beide Passwoerter rotiert wurden, ist der alte Credential fuer neue Verbindungen nicht mehr nutzbar.
 - Die Git-Historie enthaelt den alten Wert weiterhin. Vollstaendige Bereinigung erfordert koordinierte History-Rewrite-Arbeit mit `git filter-repo` oder BFG und Force-Push fuer alle betroffenen Remotes/Clones.
 
-Noch offen:
+Abschlussentscheidung:
 
-- Supabase Dashboard Logs fuer den Zeitraum seit `997e231` pruefen: unbekannte IPs, fehlgeschlagene Logins, ungewoehnliche Queries.
-- Entscheiden, ob die Git-Historie gescrubbt wird oder ob Rotation plus dokumentierter Incident fuer dieses private Repo ausreicht.
+- Der Incident gilt nach Passwortrotation fuer Production und Staging, erfolgreicher Verifikation, gruenem Production-Healthcheck und sauberem Secret-Scan als abgeschlossen.
+- Fuer dieses private Repo reicht Rotation plus dokumentierter Incident aus; kein Git-History-Scrub als Pflichtschritt.
+- Supabase Dashboard Logs bleiben ein optionaler Nachlauf, nicht mehr Blocker fuer Multi-User-Vorbereitung.
