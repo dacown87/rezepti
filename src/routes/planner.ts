@@ -131,8 +131,13 @@ app.get("/api/v1/dictionary", async (c) => {
   }
 });
 
-app.post("/api/v1/dictionary", async (c) => {
+app.post("/api/v1/dictionary", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
+    if (auth.appRole !== "admin") {
+      return c.json({ error: { code: "forbidden", message: "Dictionary writes require admin access" } }, 403);
+    }
+
     const body = await c.req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return c.json({ error: "Invalid JSON body" }, 400);

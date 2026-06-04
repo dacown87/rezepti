@@ -1,6 +1,6 @@
 # Multi-User Auth Runbook & Route Privacy Matrix
 
-Stand: 2026-06-04. Phase 0.5 ist als Dokumentation/Env-Vorbereitung umgesetzt; der erste Auth-Code-Schnitt fuer Server, Mobile-Session und Shopping-/Planner-Household-Scoping liegt im Feature-Branch. Staging-RLS-Smoke und Bootstrap-Automation sind noch offen.
+Stand: 2026-06-04. Phase 0.5 ist als Dokumentation/Env-Vorbereitung umgesetzt; der erste Auth-Code-Schnitt fuer Server, Mobile-Session und Shopping-/Planner-Household-Scoping liegt im Feature-Branch. Ein lokaler Supabase-RLS-Smoke mit Bootstrap-Automation existiert; Cloud-/Staging-RLS-Smoke bleibt als Release-Gate offen.
 
 ## Ziel fuer Slice 1
 
@@ -25,17 +25,26 @@ Guardrails:
 
 ## Admin- und Testuser-Bootstrap
 
-Bis Bootstrap-Scripts existieren, ist der manuelle Staging-Pfad verbindlich:
+Lokal automatisiert:
+
+```bash
+npx supabase start
+npm run supabase:rls-smoke
+```
+
+Das Script liest `npx supabase status -o json`, erstellt kurzlebige User A/User B, Haushalte und Memberships, testet echte Supabase Data-API/RLS-Zugriffe und raeumt die eigenen Testdaten wieder ab.
+
+Fuer Cloud/Staging ist bis zur finalen Projektbestaetigung weiter der manuelle Pfad verbindlich:
 
 1. Zielprojekt bestaetigen: Staging-Supabase-Projekt, nicht Production.
 2. In Supabase Auth zwei Nutzer anlegen:
    - `STAGING_AUTH_USER_EMAIL`
    - `STAGING_AUTH_ADMIN_EMAIL`
 3. Admin-Rolle nicht in `user_metadata` setzen. Fuer Slice 1 braucht es eine serverseitige Rollenquelle, z. B. spaetere `user_profiles`/`household_memberships`-Tabellen oder `app_metadata`.
-4. Einen Testhaushalt mit `STAGING_AUTH_HOUSEHOLD_SLUG` vorbereiten, sobald das Household-Datenmodell existiert.
+4. Einen Testhaushalt mit `STAGING_AUTH_HOUSEHOLD_SLUG` vorbereiten oder das lokale Smoke-Script auf explizite Staging-Env-Variablen erweitern.
 5. Tokens nur lokal/Staging verwenden und nicht in Logs, Screenshots oder Issue-Texten ablegen.
 
-Offen fuer die Implementierungsphase: Script oder CLI-Runbook fuer User-, Role- und Household-Seed inklusive Token-Erzeugung.
+Offen fuer Release: Staging-sicherer Script-Modus mit expliziten Zielprojekt-Env-Variablen und menschlicher Bestaetigung, damit keine Production-Daten beruehrt werden.
 
 ## API-Error-Kontrakt
 
@@ -92,16 +101,25 @@ Geplante Codes fuer Slice 1:
 | `GET /api/v1/images/search` | Public/deferred | Public oder authenticated entscheiden | Suchanbieter-/Rate-Limit-Privacy pruefen |
 | `GET/POST/DELETE /api/v1/planner` | Authenticated | Authenticated mit active household | Slice-1-Pflichtbereich |
 | `GET/POST/DELETE /api/v1/shopping` | Authenticated | Authenticated mit active household | Slice-1-Pflichtbereich |
-| `GET/POST /api/v1/dictionary` | Backend-only | Backend-only | System-/Kanonisierungsdaten, keine Client-Freigabe |
-| `GET /api/v1/dictionary/match` | Backend-only/deferred | Backend-only oder public read explizit entscheiden | Keine breite Data-API-Freigabe in Slice 1 |
+| `GET /api/v1/dictionary` | Public read | Public read/deferred | System-/Kanonisierungsdaten lesbar, keine Data-API-Freigabe |
+| `POST /api/v1/dictionary` | Admin | Admin | Mutation nur mit serverseitigem Admin-Kontext |
+| `GET /api/v1/dictionary/match` | Public read | Public read/deferred | Keine breite Data-API-Freigabe in Slice 1 |
 | Admin-Funktionen | Admin | Admin | Admin-Quelle serverseitig modellieren, nicht `user_metadata` |
 
-## Staging-RLS-Smoke
+## RLS-Smoke
 
-Noch nicht ausgefuehrt. Fuer die Implementierungsphase braucht der Smoke mindestens:
+Lokal ausgefuehrt mit `npm run supabase:rls-smoke`. Der Smoke deckt ab:
 
 - User A darf eigene Shopping-/Planner-Zeilen lesen, schreiben, aendern und loeschen.
-- User A darf User-B-Zeilen nicht lesen, aendern oder loeschen.
-- Admin-Sicht ist nur erlaubt, wenn die serverseitige Admin-Quelle gesetzt ist.
+- User B darf User-A-Haushaltszeilen nicht lesen, aendern oder loeschen.
+- Zwei Mitglieder desselben Haushalts sehen gemeinsame Shopping-/Planner-Zeilen.
+- `anon` kann `shopping_list` nicht lesen.
+- `authenticated` kann `recipes` nicht ueber die Data API lesen.
+
+Zusaetzlich decken Unit-Tests die Serverroute ab:
+
 - Anonyme Requests auf geschuetzte Shopping-/Planner-Routen liefern `auth_missing`.
-- Abgelaufene/ungueltige Tokens liefern `token_expired` oder `auth_invalid`.
+- Ungueltige Tokens liefern `auth_invalid`.
+- Verifizierte Nutzer ohne Haushalt liefern `no_household`.
+
+Noch offen: derselbe Smoke gegen bestaetigtes Cloud-/Staging-Projekt vor Release.

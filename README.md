@@ -164,12 +164,20 @@ npx drizzle-kit push
 | `/api/v1/keys` | POST | BYOK Key speichern |
 | `/api/v1/keys/:keyHash` | DELETE | BYOK Key löschen |
 | `/api/v1/health` | GET | Server + DB Status |
-| `/api/v1/planner` | GET/POST/DELETE | Meal Planner |
-| `/api/v1/shopping` | GET/POST/DELETE | Einkaufsliste |
-| `/api/v1/dictionary` | GET/POST | Zutaten-Wörterbuch |
+| `/api/v1/planner` | GET/POST/DELETE | Meal Planner, ab Multi-User-Slice mit Supabase Bearer Token + aktivem Haushalt |
+| `/api/v1/shopping` | GET/POST/DELETE | Einkaufsliste, ab Multi-User-Slice mit Supabase Bearer Token + aktivem Haushalt |
+| `/api/v1/dictionary` | GET | Zutaten-Wörterbuch lesen |
+| `/api/v1/dictionary` | POST | Zutaten-Wörterbuch schreiben, nur Admin-Auth |
 | `/api/v1/dictionary/match` | GET | Kanonischen Zutatennamen matchen |
 
 BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-Body mitgegeben werden. Der Key wird validiert, für den Job gehasht gespeichert und explizit bis zu LLM-, Whisper-, Vision-, Nutrition- und TikTok-OCR-Aufrufen weitergereicht; die Server-Umgebungsvariable bleibt unverändert.
+
+Lokaler Supabase-RLS-Smoke fuer den Multi-User-Slice:
+
+```bash
+npx supabase start
+npm run supabase:rls-smoke
+```
 
 ---
 

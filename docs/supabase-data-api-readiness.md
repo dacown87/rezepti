@@ -37,10 +37,10 @@ Aktueller Feature-Branch-Stand fuer Multi-User Login First Slice:
 - Server nutzt `SUPABASE_URL` und `SUPABASE_ANON_KEY` oder `SUPABASE_PUBLISHABLE_KEY`, um Bearer Tokens gegen Supabase Auth zu verifizieren.
 - Mobile nutzt `EXPO_PUBLIC_SUPABASE_URL` und `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` oder `EXPO_PUBLIC_SUPABASE_ANON_KEY`, um User-Sessions aufzubauen und Bearer Tokens an den Server zu senden.
 - `DATABASE_URL`, `STAGING_DATABASE_URL`, Audit-DB-URLs und alle Service-/Secret-Keys bleiben server-only bzw. staging-only.
-- Admin-/Testuser-Bootstrap ist dokumentiert, aber noch nicht automatisiert. Admin-Rollenquelle ist serverseitig `user_profiles.app_role`, nicht `user_metadata`.
+- Lokaler Admin-/Testuser-Bootstrap ist mit `npm run supabase:rls-smoke` automatisiert. Admin-Rollenquelle ist serverseitig `user_profiles.app_role`, nicht `user_metadata`.
 - `shopping_list` und `meal_plan` sind im Feature-Branch household-scoped; `recipes` bleibt aus dem Slice-1-Schreibumbau heraus.
-- Der Staging-RLS-Smoke ist noch nicht ausgefuehrt.
-- Route-Privacy ist fuer Slice 1 inventarisiert: Shopping und Planner sind Pflichtbereich; Recipes, Import-Jobs, BYOK, Plattform-Credentials und Dictionary bleiben deferred oder backend-only, bis Ownership/Privacy explizit modelliert ist.
+- Der lokale Supabase-RLS-Smoke ist gruen; Cloud-/Staging-RLS-Smoke ist noch nicht ausgefuehrt.
+- Route-Privacy ist fuer Slice 1 inventarisiert: Shopping und Planner sind Pflichtbereich; Dictionary-Writes sind Admin-only; Recipes, Import-Jobs, BYOK und Plattform-Credentials bleiben deferred oder backend-only, bis Ownership/Privacy explizit modelliert ist.
 
 API-Fehler fuer Auth/Setup sollen diesen Vertrag nutzen:
 
@@ -200,13 +200,13 @@ Konkrete Regeln:
 
 Ziel:
 
-- Backend-only fuer diese Phase.
+- Data-API-backend-only fuer diese Phase. Server-API-Reads bleiben public/deferred, Server-API-Writes sind jetzt Admin-only.
 
 Konkrete Regeln:
 
 - keine `GRANT`s fuer `anon` oder `authenticated`
 - keine Data-API-Policies fuer diese Phase
-- spaeter nur dann lesen, wenn ein echter Client-Fall mit klarer Begruendung existiert
+- spaeter nur dann direkte Data-API-Reads erlauben, wenn ein echter Client-Fall mit klarer Begruendung existiert
 
 ## Reviewable Migrationsskizze
 
@@ -220,13 +220,22 @@ Fuer den naechsten echten Migrationsblock soll die Reihenfolge so aussehen:
 6. Backend-only-Tabellen weiterhin ohne Data-API-Grants lassen.
 7. Erst danach mit echten `authenticated`-Tokens gegen die Data API verifizieren.
 
-Empfohlene Verifikation fuer die spaetere Umsetzung:
+Lokale Verifikation:
 
-- Lesen einer eigenen Rezeptzeile
-- Lesen eines globalen Default-Rezepts
-- Insert einer eigenen Shopping-List-Zeile
-- Update einer eigenen Meal-Plan-Zeile
-- Negative Tests fuer fremde `user_id`-Zeilen
+```bash
+npx supabase start
+npm run supabase:rls-smoke
+```
+
+Der Smoke erstellt kurzlebige User A/User B, zwei getrennte Haushalte und einen gemeinsamen Haushalt. Er prueft:
+
+- `anon` kann `shopping_list` nicht lesen.
+- `authenticated` kann `recipes` nicht ueber die Data API lesen.
+- User A kann eigene Household-Zeilen in `shopping_list` und `meal_plan` anlegen, lesen, aendern und loeschen.
+- User B kann User-A-Haushaltszeilen nicht lesen, aendern oder loeschen.
+- User A und User B koennen gemeinsame Haushaltszeilen lesen, wenn beide Memberships besitzen.
+
+Noch offen fuer Release: dieselbe Smoke-Matrix gegen ein bestaetigtes Cloud-/Staging-Projekt mit expliziten Ziel-Env-Variablen.
 
 ## Reusable Draft
 

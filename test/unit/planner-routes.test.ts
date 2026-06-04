@@ -16,6 +16,10 @@ const dbMocks = vi.hoisted(() => ({
   clearMealPlanForWeek: vi.fn(),
 }))
 
+const authState = vi.hoisted(() => ({
+  appRole: 'user' as 'user' | 'admin',
+}))
+
 vi.mock('../../src/db-react.js', () => dbMocks)
 
 vi.mock('../../src/auth.js', async () => {
@@ -26,7 +30,7 @@ vi.mock('../../src/auth.js', async () => {
       c.set('auth', {
         userId: '00000000-0000-0000-0000-000000000001',
         email: 'user-a@example.com',
-        appRole: 'user',
+        appRole: authState.appRole,
         memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' }],
         activeHouseholdId: '10000000-0000-0000-0000-000000000001',
         accessToken: 'test-token',
@@ -53,6 +57,7 @@ describe('planner route APIs', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    authState.appRole = 'user'
     dbMocks.getShoppingList.mockResolvedValue([])
     dbMocks.addToShoppingList.mockResolvedValue({ id: 101 })
     dbMocks.toggleShoppingItem.mockResolvedValue(true)
@@ -201,6 +206,7 @@ describe('planner route APIs', () => {
 
   describe('/api/v1/dictionary/match', () => {
     it('creates a dictionary entry without aliases by defaulting to an empty array', async () => {
+      authState.appRole = 'admin'
       dbMocks.addToDictionary.mockResolvedValue({ id: 7 })
 
       const res = await jsonRequest('/api/v1/dictionary', {
@@ -212,6 +218,7 @@ describe('planner route APIs', () => {
     })
 
     it('creates a dictionary entry with string aliases', async () => {
+      authState.appRole = 'admin'
       dbMocks.addToDictionary.mockResolvedValue({ id: 8 })
 
       const res = await jsonRequest('/api/v1/dictionary', {
@@ -224,6 +231,7 @@ describe('planner route APIs', () => {
     })
 
     it('returns 400 when aliases is not an array of strings', async () => {
+      authState.appRole = 'admin'
       const res = await jsonRequest('/api/v1/dictionary', {
         canonicalName: 'Tomate',
         aliases: 'Paradeiser',
@@ -231,6 +239,18 @@ describe('planner route APIs', () => {
 
       expect(res.status).toBe(400)
       await expect(res.json()).resolves.toMatchObject({ error: expect.stringMatching(/aliases/i) })
+      expect(dbMocks.addToDictionary).not.toHaveBeenCalled()
+    })
+
+    it('rejects dictionary writes for non-admin users', async () => {
+      const res = await jsonRequest('/api/v1/dictionary', {
+        canonicalName: 'Tomate',
+      })
+
+      expect(res.status).toBe(403)
+      await expect(res.json()).resolves.toMatchObject({
+        error: { code: 'forbidden' },
+      })
       expect(dbMocks.addToDictionary).not.toHaveBeenCalled()
     })
 

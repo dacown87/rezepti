@@ -13,8 +13,8 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 ## Naechste Reihenfolge
 
 1. **Multi-User Login Phase 0/1 fortsetzen**
-   - Auth-Skeleton + Request-User-Kontext ist im Feature-Branch gestartet.
-   - Staging-RLS-Smoke und produktive Supabase Data-API-Grants bleiben noch offen.
+   - Auth-Skeleton, Request-User-Kontext, lokaler RLS-Smoke und Route-Auth-Tests sind im Feature-Branch gestartet.
+   - Cloud-/Staging-RLS-Smoke und produktive Supabase Data-API-Grants bleiben noch offen.
    - Plan: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 
 2. **Household-Scoped Shopping/Planner anschliessen**
@@ -57,7 +57,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 
 ### Supabase / Security
 
-- RLS ist auf den relevanten Public-Tabellen aktiviert; alte `anon`/`authenticated` REST-Grants wurden entzogen.
+- RLS ist auf den relevanten Public-Tabellen aktiviert; lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert und gruen. Cloud-/Staging-Smoke bleibt vor Release offen.
 - Data-API-RLS-/Grant-Matrix fuer Multi-User liegt als Draft vor: [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql).
 - `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
 - `rezepti-staging` existiert und ist ein plausibler Kandidat fuer RLS-Smokes, muss aber vor Auth/RLS-Tests explizit bestaetigt werden.
@@ -69,7 +69,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 - Scheduled CI am 2026-06-02 (`26802547508`), 2026-06-03 (`26868293611`) und 2026-06-04 (`26934892387`) war gruen.
 - Push-CI fuer `7523b72` (`26939939417`) war gruen: `test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` war beim Push erwartbar skipped.
 - Docker Build/Push und Northflank Deploy waren fuer `7523b72` (`26939939394`) und den nachgelagerten Version-Commit `8ed8801` (`26939952178`) gruen.
-- Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach der finalen TODO-/CORS-Ergaenzung liefen `git diff --check` und `npx tsc --noEmit` erneut gruen.
+- Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, lokaler RLS-Smoke, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach dem RLS-Smoke-Nachzug liefen `npm run supabase:rls-smoke`, Root-Unit-Auswahl und `npx tsc --noEmit` gruen.
 
 ### Dependencies
 
