@@ -8,7 +8,7 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. GitHub Actions seit dem letzten Check sind gruen, inklusive Scheduled CI 2026-06-02 bis 2026-06-04, Push-CI fuer `7523b72`, Docker Build/Push und Northflank Deploy.
 
-Arbeitsbasis ist geklaert: `git fetch origin` am 2026-06-04 bestaetigte `origin/main` bei `8ed8801 chore: v1.0.124 [skip ci]`. Der aktive Branch `feature/multi-user-login-first-slice` hat noch keinen Upstream, enthaelt `origin/main` vollstaendig und steht 15 Commits vor `origin/main`: 5 lokale Basis-/Security-Doku-Commits auf `main` plus 10 Multi-User-Feature-Commits. `phase/6-multi-user` ist stale und keine aktive Basis.
+Arbeitsbasis war vor dem Multi-User-PR geklaert: `git fetch origin` am 2026-06-04 bestaetigte `origin/main` bei `8ed8801 chore: v1.0.124 [skip ci]`. Der aktive Branch `feature/multi-user-login-first-slice` enthielt `origin/main` vollstaendig und stand 15 Commits vor `origin/main`: 5 lokale Basis-/Security-Doku-Commits auf `main` plus 10 Multi-User-Feature-Commits. `phase/6-multi-user` war stale und keine aktive Basis.
 
 ## Naechste Reihenfolge
 
@@ -73,6 +73,7 @@ Arbeitsbasis ist geklaert: `git fetch origin` am 2026-06-04 bestaetigte `origin/
 - Docker Build/Push und Northflank Deploy waren fuer `7523b72` (`26939939394`) und den nachgelagerten Version-Commit `8ed8801` (`26939952178`) gruen.
 - Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, lokaler RLS-Smoke, Staging-RLS-Smoke, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach dem RLS-Smoke-Nachzug liefen `npm run supabase:rls-smoke`, `npm run supabase:rls-smoke:staging`, Root-Unit-Auswahl und `npx tsc --noEmit` gruen.
 - Branch-/Remote-Pruefung 2026-06-04: `origin/main` und lokaler `main` sind Ancestors von `feature/multi-user-login-first-slice`; Abstand zu `origin/main` ist `0 behind / 15 ahead`, Abstand zu lokalem `main` ist `0 behind / 10 ahead`. Der Branch hat noch keinen Upstream; Push/PR-CI ist der naechste Gate.
+- Fuer die lokalen Doku-Aenderungen vor dem Multi-User-PR wurden keine Tests neu ausgefuehrt.
 
 ### Dependencies
 
