@@ -14,7 +14,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 
 1. **Multi-User Login Phase 0/1 fortsetzen**
    - Auth-Skeleton, Request-User-Kontext, lokaler RLS-Smoke und Route-Auth-Tests sind im Feature-Branch gestartet.
-   - Cloud-/Staging-RLS-Smoke und produktive Supabase Data-API-Grants bleiben noch offen.
+   - Gegateter Cloud-/Staging-RLS-Smoke ist vorbereitet; Ausfuehrung gegen bestaetigtes Staging und produktive Supabase Data-API-Grants bleiben noch offen.
    - Plan: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 
 2. **Household-Scoped Shopping/Planner anschliessen**
@@ -48,6 +48,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 - [ ] **Dependency-Patch-Drift** — siehe Reihenfolge Punkt 4; kein Blocker fuer Multi-User Phase 0/1.
 - [ ] **Mobile-Persistenz Neustart-Pruefung** — Settings/Theme/PDF nach App-Neustart.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
+- [ ] **Recipes-Privacy-Slice planen** — Server-API fuer `recipes` bleibt im ersten Auth-Slice global/deferred. Vor jeder Aussage "alle Rezeptdaten sind privat" muessen Recipe-Ownership, globale Defaults und Server-Route-Auth separat umgesetzt und getestet werden.
 - [ ] **Stale Test-Doku nachziehen** — [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen, obwohl mehrere P1/P2/P3a-Punkte abgeschlossen sind.
 - [ ] **Supabase `unused_index` Hold-Track** — keine Production-Drops ohne Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis. Details: [advisor followups](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 - [ ] **Northflank-Deploy-Pfad** — nur bei roten Deploys, Runtime-/Action-Warnungen oder `northflank/deploy-to-northflank@v1`-Abkuendigung neu bewerten.
@@ -57,7 +58,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 
 ### Supabase / Security
 
-- RLS ist auf den relevanten Public-Tabellen aktiviert; lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert und gruen. Cloud-/Staging-Smoke bleibt vor Release offen.
+- RLS ist auf den relevanten Public-Tabellen aktiviert; lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert und gruen. Ein gegateter Staging-Smoke-Befehl existiert; die Ausfuehrung gegen bestaetigtes Staging bleibt vor Release offen.
 - Data-API-RLS-/Grant-Matrix fuer Multi-User liegt als Draft vor: [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql).
 - `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
 - `rezepti-staging` existiert und ist ein plausibler Kandidat fuer RLS-Smokes, muss aber vor Auth/RLS-Tests explizit bestaetigt werden.

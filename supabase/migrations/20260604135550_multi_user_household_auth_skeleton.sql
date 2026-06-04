@@ -101,6 +101,35 @@ ON public.shopping_list (household_id);
 CREATE INDEX IF NOT EXISTS meal_plan_household_week_idx
 ON public.meal_plan (household_id, week_start);
 
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM anon, authenticated;
+
+CREATE OR REPLACE FUNCTION private.prevent_user_id_change()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.user_id IS DISTINCT FROM OLD.user_id THEN
+    RAISE EXCEPTION 'user_id cannot be changed'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS prevent_shopping_list_user_id_change ON public.shopping_list;
+CREATE TRIGGER prevent_shopping_list_user_id_change
+BEFORE UPDATE OF user_id ON public.shopping_list
+FOR EACH ROW
+EXECUTE FUNCTION private.prevent_user_id_change();
+
+DROP TRIGGER IF EXISTS prevent_meal_plan_user_id_change ON public.meal_plan;
+CREATE TRIGGER prevent_meal_plan_user_id_change
+BEFORE UPDATE OF user_id ON public.meal_plan
+FOR EACH ROW
+EXECUTE FUNCTION private.prevent_user_id_change();
+
 ALTER TABLE public.shopping_list
   DROP CONSTRAINT IF EXISTS shopping_list_household_id_fkey,
   ADD CONSTRAINT shopping_list_household_id_fkey

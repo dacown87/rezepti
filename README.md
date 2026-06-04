@@ -103,6 +103,10 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 | `EXPO_PUBLIC_SUPABASE_URL` | ✅ fuer Mobile Auth | Mobile-public Supabase Projekt-URL |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✅ fuer Mobile Auth | Mobile-public Publishable Key; bevorzugt gegenueber Legacy-Anon-Key |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | optional | Mobile-public Legacy-Anon-Key-Fallback |
+| `STAGING_SUPABASE_URL` | | Staging-only Projekt-URL fuer Cloud-RLS-Smoke |
+| `STAGING_SUPABASE_ANON_KEY` | | Staging-only Anon/Publishable Key fuer User-JWT-Smoke |
+| `STAGING_SUPABASE_SECRET_KEY` | | Staging-only Secret Key fuer Admin-Bootstrap/Cleanup; alternativ Legacy `STAGING_SUPABASE_SERVICE_ROLE_KEY` |
+| `SUPABASE_RLS_SMOKE_CONFIRM` | | Muss fuer Staging-Smoke exakt `rezepti-staging` sein |
 | `STAGING_AUTH_USER_EMAIL` | | Staging-only Testuser fuer Auth-/RLS-Smokes |
 | `STAGING_AUTH_USER_PASSWORD` | | Staging-only Passwort fuer Auth-/RLS-Smokes |
 | `STAGING_AUTH_ADMIN_EMAIL` | | Staging-only Admin-Testuser |
@@ -129,7 +133,7 @@ Der erste Multi-User-Slice macht Supabase Auth fuer Shopping/Planner verpflichte
 |--------|-----------|------------------|
 | Server-only | `DATABASE_URL`, `RECIPE_SOURCE_AUDIT_DATABASE_URL`, alle Secret-/Service-Role-Keys | Nein |
 | Mobile-public | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` oder `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Ja |
-| Staging-only | `STAGING_DATABASE_URL`, `STAGING_AUTH_*` | Nein |
+| Staging-only | `STAGING_DATABASE_URL`, `STAGING_SUPABASE_*`, `STAGING_AUTH_*`, `SUPABASE_RLS_SMOKE_CONFIRM` | Nein |
 
 Kein `service_role`-, Secret- oder Postgres-Passwort darf in Mobile/Web-Client-Code, Expo-Public-Env oder gebuildete Assets gelangen. Admin- und Rollenentscheidungen duerfen nicht aus user-editierbarem `user_metadata` kommen.
 
@@ -178,6 +182,14 @@ Lokaler Supabase-RLS-Smoke fuer den Multi-User-Slice:
 npx supabase start
 npm run supabase:rls-smoke
 ```
+
+Staging-RLS-Smoke vor Release, nur gegen bestaetigtes Staging-Projekt:
+
+```bash
+SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
+```
+
+Der Staging-Smoke nutzt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SECRET_KEY` oder den Legacy-Fallback `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Er erstellt kurzlebige Testuser und Haushalte, prueft RLS-Isolation ueber echte User-JWTs und raeumt die eigenen Testdaten wieder auf.
 
 ---
 

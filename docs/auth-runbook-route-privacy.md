@@ -8,6 +8,8 @@ Der erste Multi-User-Slice schuetzt Shopping und Planner mit Supabase Auth und s
 
 Nicht versprechen: dass bereits alle Rezepti-Daten user-privat sind. BYOK, Import-Jobs, Plattform-Credentials, globale Default-Rezepte und Dictionary-Daten brauchen eigene Folgeentscheidungen.
 
+Wichtig fuer Release-Kommunikation: Die Supabase Data API bleibt fuer `recipes` in Slice 1 geschlossen, aber die bestehende Server-API fuer Recipes ist weiterhin global/deferred. Login schuetzt in diesem Slice Shopping und Planner, nicht die komplette Rezeptverwaltung.
+
 ## Env-Matrix
 
 | Klasse | Variablen | Darf in Mobile/Web-Client? | Zweck |
@@ -15,7 +17,7 @@ Nicht versprechen: dass bereits alle Rezepti-Daten user-privat sind. BYOK, Impor
 | Server-only | `DATABASE_URL`, `RECIPE_SOURCE_AUDIT_DATABASE_URL`, alle Secret-/Service-Role-Keys | Nein | Direkter Backend-Zugriff, Migrationen, Audit-Scripts |
 | Server Auth | `SUPABASE_URL`, `SUPABASE_ANON_KEY` oder `SUPABASE_PUBLISHABLE_KEY` | Nein | Bearer-Token-Verifikation im Server |
 | Mobile-public | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` oder `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Ja | Supabase Auth Client und User-Session-Aufbau |
-| Staging-only | `STAGING_DATABASE_URL`, `STAGING_AUTH_USER_EMAIL`, `STAGING_AUTH_USER_PASSWORD`, `STAGING_AUTH_ADMIN_EMAIL`, `STAGING_AUTH_ADMIN_PASSWORD`, `STAGING_AUTH_HOUSEHOLD_SLUG` | Nein | Admin-/Testuser-Bootstrap und RLS-Smokes |
+| Staging-only | `STAGING_DATABASE_URL`, `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_ANON_KEY`, `STAGING_SUPABASE_SECRET_KEY` oder `STAGING_SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_RLS_SMOKE_CONFIRM`, `STAGING_AUTH_USER_EMAIL`, `STAGING_AUTH_USER_PASSWORD`, `STAGING_AUTH_ADMIN_EMAIL`, `STAGING_AUTH_ADMIN_PASSWORD`, `STAGING_AUTH_HOUSEHOLD_SLUG` | Nein | Admin-/Testuser-Bootstrap und RLS-Smokes |
 
 Guardrails:
 
@@ -34,17 +36,25 @@ npm run supabase:rls-smoke
 
 Das Script liest `npx supabase status -o json`, erstellt kurzlebige User A/User B, Haushalte und Memberships, testet echte Supabase Data-API/RLS-Zugriffe und raeumt die eigenen Testdaten wieder ab.
 
-Fuer Cloud/Staging ist bis zur finalen Projektbestaetigung weiter der manuelle Pfad verbindlich:
+Fuer Cloud/Staging gibt es jetzt einen gegateten Script-Pfad. Er darf nur gegen ein bestaetigtes Staging-Projekt laufen:
+
+```bash
+SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
+```
+
+Der Script-Pfad benoetigt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SECRET_KEY` oder den Legacy-Fallback `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Ohne `SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging` bricht das Script ab. URLs, die nach Production aussehen, werden ebenfalls abgelehnt.
+
+Der manuelle Pfad bleibt als Fallback verbindlich, falls Staging-Keys nicht lokal verfuegbar sind:
 
 1. Zielprojekt bestaetigen: Staging-Supabase-Projekt, nicht Production.
 2. In Supabase Auth zwei Nutzer anlegen:
    - `STAGING_AUTH_USER_EMAIL`
    - `STAGING_AUTH_ADMIN_EMAIL`
 3. Admin-Rolle nicht in `user_metadata` setzen. Fuer Slice 1 braucht es eine serverseitige Rollenquelle, z. B. spaetere `user_profiles`/`household_memberships`-Tabellen oder `app_metadata`.
-4. Einen Testhaushalt mit `STAGING_AUTH_HOUSEHOLD_SLUG` vorbereiten oder das lokale Smoke-Script auf explizite Staging-Env-Variablen erweitern.
+4. Einen Testhaushalt mit `STAGING_AUTH_HOUSEHOLD_SLUG` vorbereiten oder den gegateten Staging-Smoke verwenden.
 5. Tokens nur lokal/Staging verwenden und nicht in Logs, Screenshots oder Issue-Texten ablegen.
 
-Offen fuer Release: Staging-sicherer Script-Modus mit expliziten Zielprojekt-Env-Variablen und menschlicher Bestaetigung, damit keine Production-Daten beruehrt werden.
+Offen fuer Release: Staging-Smoke gegen das bestaetigte Projekt tatsaechlich ausfuehren und Ergebnis in `docs/TEST_STATUS.md` dokumentieren.
 
 ## API-Error-Kontrakt
 
@@ -113,6 +123,7 @@ Lokal ausgefuehrt mit `npm run supabase:rls-smoke`. Der Smoke deckt ab:
 - User A darf eigene Shopping-/Planner-Zeilen lesen, schreiben, aendern und loeschen.
 - User B darf User-A-Haushaltszeilen nicht lesen, aendern oder loeschen.
 - Zwei Mitglieder desselben Haushalts sehen gemeinsame Shopping-/Planner-Zeilen.
+- Gemeinsame Household-Zeilen duerfen von Mitgliedern aktualisiert werden, ohne dass `user_id` als Creator-/Audit-Kontext umgeschrieben werden kann.
 - `anon` kann `shopping_list` nicht lesen.
 - `authenticated` kann `recipes` nicht ueber die Data API lesen.
 

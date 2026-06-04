@@ -7,6 +7,8 @@ type SupabaseStatus = {
   SERVICE_ROLE_KEY: string;
 };
 
+type SmokeTarget = "local" | "staging";
+
 type ShoppingRow = {
   id: number;
   household_id: string;
@@ -20,6 +22,7 @@ type MealPlanRow = {
   household_id: string;
   user_id: string;
   recipe_id: number;
+  day_of_week: number;
   week_start: number;
 };
 
@@ -30,6 +33,27 @@ const userBEmail = `rls-smoke-b-${runId}@example.test`;
 
 const createdUserIds: string[] = [];
 const createdHouseholdIds: string[] = [];
+
+function readRequiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required for staging RLS smoke.`);
+  }
+  return value;
+}
+
+function readOptionalEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value || undefined;
+}
+
+function readTarget(): SmokeTarget {
+  const target = process.env.SUPABASE_RLS_SMOKE_TARGET?.trim() || "local";
+  if (target !== "local" && target !== "staging") {
+    throw new Error("SUPABASE_RLS_SMOKE_TARGET must be `local` or `staging`.");
+  }
+  return target;
+}
 
 function readLocalStatus(): SupabaseStatus {
   let raw: string;
@@ -59,6 +83,37 @@ function readLocalStatus(): SupabaseStatus {
     API_URL: status.API_URL,
     ANON_KEY: status.ANON_KEY,
     SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+  };
+}
+
+function readStagingStatus(): SupabaseStatus {
+  const confirmation = process.env.SUPABASE_RLS_SMOKE_CONFIRM?.trim();
+  if (confirmation !== "rezepti-staging") {
+    throw new Error(
+      "Refusing to run staging RLS smoke without SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging.",
+    );
+  }
+
+  const apiUrl = readRequiredEnv("STAGING_SUPABASE_URL");
+  if (/prod|production/i.test(apiUrl)) {
+    throw new Error("Refusing to run staging RLS smoke against a URL that looks like production.");
+  }
+
+  return {
+    API_URL: apiUrl,
+    ANON_KEY: readRequiredEnv("STAGING_SUPABASE_ANON_KEY"),
+    SERVICE_ROLE_KEY:
+      readOptionalEnv("STAGING_SUPABASE_SECRET_KEY")
+      ?? readOptionalEnv("STAGING_SUPABASE_SERVICE_ROLE_KEY")
+      ?? readRequiredEnv("STAGING_SUPABASE_SECRET_KEY"),
+  };
+}
+
+function readSupabaseStatus(): { target: SmokeTarget; status: SupabaseStatus } {
+  const target = readTarget();
+  return {
+    target,
+    status: target === "staging" ? readStagingStatus() : readLocalStatus(),
   };
 }
 
@@ -208,15 +263,23 @@ async function runShoppingChecks(
 
   assert(!ownUpdateError, `User A could not update own shopping row: ${ownUpdateError?.message}`);
 
+  const { error: userIdSpoofError } = await userAClient
+    .from("shopping_list")
+    .update({ user_id: ids.userB.id })
+    .eq("id", inserted.id);
+
+  assert(userIdSpoofError, "User A changed shopping row user_id through the Data API");
+
   const { data: sharedInsert, error: sharedInsertError } = await userAClient
     .from("shopping_list")
     .insert({
       household_id: ids.sharedHousehold,
       user_id: ids.userA.id,
       canonical_name: `${marker} shared`,
+      quantity: "shared-1",
     })
-    .select("id")
-    .single<Pick<ShoppingRow, "id">>();
+    .select("id, user_id")
+    .single<Pick<ShoppingRow, "id" | "user_id">>();
 
   assert(!sharedInsertError && sharedInsert, `User A could not insert shared shopping row: ${sharedInsertError?.message}`);
 
@@ -226,6 +289,24 @@ async function runShoppingChecks(
     .eq("id", sharedInsert.id);
 
   assert(!sharedReadError && sharedRows?.length === 1, "User B could not read shared household shopping row");
+
+  const { error: sharedUpdateError } = await userBClient
+    .from("shopping_list")
+    .update({ quantity: "shared-2" })
+    .eq("id", sharedInsert.id);
+
+  assert(!sharedUpdateError, `User B could not update shared household shopping row: ${sharedUpdateError?.message}`);
+
+  const { data: afterSharedUpdate, error: sharedVerifyError } = await userAClient
+    .from("shopping_list")
+    .select("user_id, quantity")
+    .eq("id", sharedInsert.id)
+    .single<Pick<ShoppingRow, "user_id" | "quantity">>();
+
+  assert(
+    !sharedVerifyError && afterSharedUpdate?.user_id === ids.userA.id && afterSharedUpdate.quantity === "shared-2",
+    "Shared shopping update changed user_id or failed to persist",
+  );
 
   const { error: ownDeleteError } = await userAClient
     .from("shopping_list")
@@ -250,7 +331,7 @@ async function runPlannerChecks(
       day_of_week: 2,
       week_start: weekStart,
     })
-    .select("id, household_id, user_id, recipe_id, week_start")
+    .select("id, household_id, user_id, recipe_id, day_of_week, week_start")
     .single<MealPlanRow>();
 
   assert(!insertError && inserted, `User A could not insert own planner row: ${insertError?.message}`);
@@ -292,6 +373,13 @@ async function runPlannerChecks(
 
   assert(!ownUpdateError, `User A could not update own planner row: ${ownUpdateError?.message}`);
 
+  const { error: userIdSpoofError } = await userAClient
+    .from("meal_plan")
+    .update({ user_id: ids.userB.id })
+    .eq("id", inserted.id);
+
+  assert(userIdSpoofError, "User A changed planner row user_id through the Data API");
+
   const { data: sharedInsert, error: sharedInsertError } = await userAClient
     .from("meal_plan")
     .insert({
@@ -301,8 +389,8 @@ async function runPlannerChecks(
       day_of_week: 4,
       week_start: weekStart,
     })
-    .select("id")
-    .single<Pick<MealPlanRow, "id">>();
+    .select("id, user_id")
+    .single<Pick<MealPlanRow, "id" | "user_id">>();
 
   assert(!sharedInsertError && sharedInsert, `User A could not insert shared planner row: ${sharedInsertError?.message}`);
 
@@ -312,6 +400,24 @@ async function runPlannerChecks(
     .eq("id", sharedInsert.id);
 
   assert(!sharedReadError && sharedRows?.length === 1, "User B could not read shared household planner row");
+
+  const { error: sharedUpdateError } = await userBClient
+    .from("meal_plan")
+    .update({ day_of_week: 5 })
+    .eq("id", sharedInsert.id);
+
+  assert(!sharedUpdateError, `User B could not update shared household planner row: ${sharedUpdateError?.message}`);
+
+  const { data: afterSharedUpdate, error: sharedVerifyError } = await userAClient
+    .from("meal_plan")
+    .select("user_id, day_of_week")
+    .eq("id", sharedInsert.id)
+    .single<Pick<MealPlanRow, "user_id" | "day_of_week">>();
+
+  assert(
+    !sharedVerifyError && afterSharedUpdate?.user_id === ids.userA.id && afterSharedUpdate.day_of_week === 5,
+    "Shared planner update changed user_id or failed to persist",
+  );
 
   const { error: ownDeleteError } = await userAClient
     .from("meal_plan")
@@ -338,7 +444,7 @@ async function cleanup(admin: SupabaseClient) {
 }
 
 async function main() {
-  const status = readLocalStatus();
+  const { target, status } = readSupabaseStatus();
   const admin = createClient(status.API_URL, status.SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -356,12 +462,13 @@ async function main() {
     await runShoppingChecks(userAClient, userBClient, ids);
     await runPlannerChecks(userAClient, userBClient, ids);
 
-    console.log("Supabase local RLS smoke passed:");
+    console.log(`Supabase ${target} RLS smoke passed:`);
     console.log(`- anon cannot read shopping_list`);
     console.log(`- authenticated users cannot access recipes through the Data API`);
     console.log(`- User A can CRUD own household shopping/planner rows`);
     console.log(`- User B cannot read/update/delete User A household rows`);
     console.log(`- shared household rows are visible to both members`);
+    console.log(`- shared household updates cannot rewrite creator user_id`);
   } finally {
     await cleanup(admin);
   }
