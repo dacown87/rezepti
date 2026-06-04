@@ -97,6 +97,7 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 | `GROQ_API_KEY` | ✅ | Server-Fallback für Groq; einzelne Extraktionsjobs können per BYOK überschreiben |
 | `DATABASE_URL` | ✅ | Supabase PostgreSQL — **Transaction Pooler URL** (Port 6543) |
 | `STAGING_DATABASE_URL` | | Separate Supabase-Staging-Datenbank für Advisor-/Migration-Proben |
+| `RECIPE_SOURCE_AUDIT_DATABASE_URL` | | Optionale DB-URL für `scripts/get-db-urls.ts`; fällt auf `DATABASE_URL` zurück |
 | `SUPABASE_URL` | | Supabase Projekt-URL (für zukünftige Auth-Features) |
 | `SUPABASE_ANON_KEY` | | Supabase Anon Key |
 | `PORT` | | Server-Port (Standard: `3000`) |
@@ -109,6 +110,8 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 > **DATABASE_URL:** Die direkte Supabase-URL (`db.[ref].supabase.co:5432`) funktioniert nur lokal.
 > Für Production immer den Transaction Pooler verwenden.
 > URL im Supabase Dashboard: Settings → Database → Connection pooling.
+
+Echte Zugangsdaten gehören nur in `.env`, CI-/Deploy-Secrets oder den Secret Manager. Der Pre-commit-Hook blockiert hardcodierte Postgres-URLs, Supabase-Service-Role-JWTs und OpenAI-artige API-Keys in getrackten Dateien.
 
 ---
 

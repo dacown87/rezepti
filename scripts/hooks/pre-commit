@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+node scripts/security/secret-scan.mjs --staged
+
 phantoms=$(git ls-files --stage | awk '$1 == "160000" { print $4 }')
 if [ -z "$phantoms" ]; then
   exit 0

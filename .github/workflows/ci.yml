@@ -62,6 +62,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Secret scan
+        run: npm run security:secrets
+
       - name: Push schema to test DB
         run: npx drizzle-kit push --force
         env:

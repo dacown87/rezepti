@@ -47,6 +47,7 @@
     "test:local": "bash test/scripts/test-local.sh",
     "test:docker-full": "bash test/scripts/test-docker.sh",
     "test:all": "npm run test:unit && npm run test:e2e && npm run test:docker",
+    "security:secrets": "node scripts/security/secret-scan.mjs",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "docker:dev": "docker compose up rezepti",

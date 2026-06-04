@@ -1,6 +1,10 @@
 import postgres from "postgres";
 
-const DB_URL = "postgresql://postgres:rddwXP42WZsbpsATW68wn2tO4KA4xH@db.zdiqtnljdxuhinqzgcnd.supabase.co:5432/postgres";
+const DB_URL = process.env.RECIPE_SOURCE_AUDIT_DATABASE_URL ?? process.env.DATABASE_URL;
+if (!DB_URL) {
+  throw new Error("RECIPE_SOURCE_AUDIT_DATABASE_URL or DATABASE_URL environment variable is required");
+}
+
 const sql = postgres(DB_URL);
 
 const rows = await sql`
