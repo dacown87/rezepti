@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { detectCategory, CATEGORY_KEYWORDS, resolvePostgresSsl } from '../../src/db-react.js'
+import { chooseActiveHouseholdId, detectCategory, CATEGORY_KEYWORDS, resolvePostgresSsl } from '../../src/db-react.js'
 
 // ─── detectCategory (pure function — always run) ──────────────────────────────
 
@@ -97,6 +97,24 @@ describe('resolvePostgresSsl', () => {
 
   it('requires SSL for non-local database hosts', () => {
     expect(resolvePostgresSsl('postgresql://postgres:postgres@db.example.com:5432/rezepti')).toBe('require')
+  })
+})
+
+describe('chooseActiveHouseholdId', () => {
+  it('prefers owner memberships deterministically by household id', () => {
+    expect(chooseActiveHouseholdId([
+      { householdId: '30000000-0000-0000-0000-000000000003', role: 'member' },
+      { householdId: '20000000-0000-0000-0000-000000000002', role: 'owner' },
+      { householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' },
+    ])).toBe('10000000-0000-0000-0000-000000000001')
+  })
+
+  it('falls back to the lowest member household id and handles empty memberships', () => {
+    expect(chooseActiveHouseholdId([
+      { householdId: '30000000-0000-0000-0000-000000000003', role: 'member' },
+      { householdId: '20000000-0000-0000-0000-000000000002', role: 'member' },
+    ])).toBe('20000000-0000-0000-0000-000000000002')
+    expect(chooseActiveHouseholdId([])).toBeNull()
   })
 })
 

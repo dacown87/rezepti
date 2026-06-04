@@ -386,6 +386,20 @@ function normalizeHouseholdRole(role: string | null | undefined): HouseholdRole 
   return role === "owner" ? "owner" : "member";
 }
 
+function compareHouseholdMemberships(
+  a: { householdId: string; role: HouseholdRole },
+  b: { householdId: string; role: HouseholdRole },
+) {
+  if (a.role !== b.role) return a.role === "owner" ? -1 : 1;
+  return a.householdId.localeCompare(b.householdId);
+}
+
+export function chooseActiveHouseholdId(
+  memberships: Array<{ householdId: string; role: HouseholdRole }>,
+): string | null {
+  return [...memberships].sort(compareHouseholdMemberships)[0]?.householdId ?? null;
+}
+
 export async function loadUserAuthorization(userId: string, email?: string | null): Promise<UserAuthorization> {
   const db = getDb();
   const [profile] = await db
@@ -412,12 +426,9 @@ export async function loadUserAuthorization(userId: string, email?: string | nul
   const normalizedMemberships = memberships.map((membership) => ({
     householdId: membership.householdId,
     role: normalizeHouseholdRole(membership.role),
-  }));
+  })).sort(compareHouseholdMemberships);
 
-  const activeHouseholdId =
-    normalizedMemberships.find((membership) => membership.role === "owner")?.householdId
-    ?? normalizedMemberships[0]?.householdId
-    ?? null;
+  const activeHouseholdId = chooseActiveHouseholdId(normalizedMemberships);
 
   return {
     appRole: normalizeAppRole(profile?.appRole),
