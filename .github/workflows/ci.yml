@@ -162,6 +162,46 @@ jobs:
           path: /tmp/rezepti-server.log
           if-no-files-found: warn
 
+  supabase-rls-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.15.0'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local Supabase
+        run: npx supabase start
+
+      - name: Reset local Supabase DB to migrations
+        run: npx supabase db reset --local --yes
+
+      - name: Run Supabase RLS smoke
+        run: npm run supabase:rls-smoke
+
+      - name: Dump Supabase diagnostics
+        if: failure()
+        run: |
+          npx supabase status || true
+          docker ps -a --filter 'name=supabase_' || true
+          for container in $(docker ps -a --filter 'name=supabase_' --format '{{.Names}}'); do
+            echo "::group::${container}"
+            docker logs --tail 200 "${container}" || true
+            echo "::endgroup::"
+          done
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx supabase stop --no-backup || true
+
   e2e-legacy-soak:
     if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_e2e_legacy_soak == 'true') }}
     runs-on: ubuntu-latest

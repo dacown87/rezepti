@@ -58,7 +58,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 
 ### Supabase / Security
 
-- RLS ist auf den relevanten Public-Tabellen aktiviert; lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert und gruen. Ein gegateter Staging-Smoke-Befehl existiert; die Ausfuehrung gegen bestaetigtes Staging bleibt vor Release offen.
+- RLS ist auf den relevanten Public-Tabellen aktiviert; lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert, lokal gruen und als eigener CI-Job vorbereitet. Ein gegateter Staging-Smoke-Befehl existiert; die Ausfuehrung gegen bestaetigtes Staging bleibt vor Release offen.
 - Data-API-RLS-/Grant-Matrix fuer Multi-User liegt als Draft vor: [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql).
 - `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
 - `rezepti-staging` existiert und ist ein plausibler Kandidat fuer RLS-Smokes, muss aber vor Auth/RLS-Tests explizit bestaetigt werden.
