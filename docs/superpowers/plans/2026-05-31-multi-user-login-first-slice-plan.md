@@ -1,7 +1,48 @@
 # Multi-User Login First Slice Plan
 
 Datum: 2026-05-31
-Status: Draft, approved direction
+Urspruenglich erstellt: 2026-05-31, Commit `1484052` (`Plan multi-user login first slice`)
+Letztes Review/Update: 2026-06-04
+Status: Aktualisierte Richtung, Umsetzung noch offen
+
+## Update 2026-06-04
+
+Seit der urspruenglichen Planerstellung am 2026-05-31 um 19:37 sind mehrere
+Vorarbeiten auf `main` gelandet. Sie verbessern die Startbedingungen fuer den
+Multi-User-Track, ersetzen ihn aber nicht:
+
+- Supabase Advisor Kern-Remediation war zum Zeitpunkt des Plan-Commits schon
+  praktisch abgeschlossen; der finale Stand ist dokumentiert und auf `main`.
+- `vector` und `pg_trgm` wurden am 2026-06-01 produktiv aus `public` nach
+  `extensions` verschoben. Staging-Probe, Runtime-Smoke und Advisor-Verify sind
+  gruen. `extension_in_public` ist damit kein vorgelagerter Blocker mehr.
+- Eine `rezepti-staging`-DB existiert und wurde fuer Extension-/Advisor-Proben
+  genutzt. Sie ist ein plausibler Kandidat fuer den spaeteren RLS-Smoke, muss
+  aber vor Auth/RLS-Tests nochmal explizit als Ziel-DB bestaetigt werden.
+- `unused_index` wurde als Hold-Track klassifiziert. Das ist kein Blocker fuer
+  Multi-User, solange keine Index-Drops in denselben Slice gezogen werden.
+- Expo SDK 56, React Native 0.85 und Mobile-TypeScript-6 sind gelandet. Der
+  Mobile-Auth-Slice muss deshalb gegen den aktuellen Expo-SDK-56-Stand gebaut
+  werden, nicht gegen den Stand vom 2026-05-31.
+- Der Branch `phase/6-multi-user` ist stale und zeigt auf den alten Phase-5-
+  Stand. Fuer diese Arbeit sollte er nicht als relevante Implementierungsbasis
+  behandelt werden.
+- Der lokale `main` war beim Review am 2026-06-04 vier Commits vor
+  `origin/main`; vor Shipping muss erneut synchronisiert und entschieden werden,
+  ob diese lokalen Doku-/Ops-Commits zuerst gepusht oder in den Feature-Branch
+  aufgenommen werden.
+
+Was unveraendert offen ist:
+
+- [src/auth.ts](/home/patrick/Projekte/rezepti/src/auth.ts) ist weiterhin ein
+  Stub.
+- CORS erlaubt noch kein `Authorization`.
+- Server-DB-Funktionen fuer `shopping_list` und `meal_plan` sind noch nicht
+  owner-scoped.
+- Mobile hat noch keinen Supabase Auth Client, keine App-Session-Schicht und
+  keine Bearer-Header-Injection.
+- Die RLS-/Grant-Matrix liegt weiter als SQL-Template vor, nicht als
+  ausgefuehrte Migration.
 
 ## Ausgangslage
 
@@ -13,7 +54,9 @@ Rezepti ist fuer Multi-User vorbereitet, aber noch nicht darauf umgestellt:
 - [src/schema.ts](/home/patrick/Projekte/rezepti/src/schema.ts) enthaelt `user_id` bereits fuer `recipes`, `shopping_list`, `meal_plan` und `api_keys`.
 - `ingredient_dictionary` ist systemnah und bleibt fuer diesen Track backend-only.
 - [docs/supabase-data-api-readiness.md](/home/patrick/Projekte/rezepti/docs/supabase-data-api-readiness.md) und [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql) definieren bereits die RLS-/Grant-Matrix, sind aber noch keine ausgefuehrte Migration.
-- Mobile hat noch keinen Supabase-Client, keinen Session-Store, keine `Authorization`-Header-Injection und keinen user-scoped Query-Cache.
+- Mobile hat trotz Expo-SDK-56-Upgrade noch keinen Supabase-Client, keinen Auth-Session-Store, keine `Authorization`-Header-Injection und keinen user-scoped Query-Cache.
+- Supabase-Extension-Follow-up ist erledigt: `vector` und `pg_trgm` liegen in `extensions`; WARN-Level Advisor-Smokes waren nach dem Move gruen.
+- Staging existiert, ist aber fuer den Auth/RLS-Slice noch nicht als Ziel-DB final festgelegt.
 
 Offizielle Supabase-Leitplanken fuer diesen Plan:
 
@@ -44,7 +87,8 @@ Nach Abschluss dieses Slice soll gelten:
 - Keine Umstellung aller Import-Jobs, BYOK-Keys oder Plattform-Credentials auf per-user Ownership.
 - Kein `service_role`-Key im Mobile- oder Web-Client.
 - Kein produktiver DB-Grant ohne vorherige Staging-/Ziel-DB-Verifikation.
-- Kein Push auf `main`; der lokale Branch ist aktuell ahead/behind und muss vor Shipping separat integriert werden.
+- Kein Push auf `main` aus dem Feature-Slice heraus; lokaler `main` war beim 2026-06-04-Review vier Commits vor `origin/main` und muss vor Shipping bewusst integriert werden.
+- Kein Vermischen mit dem `unused_index`-Cleanup; Index-Drops bleiben ein eigener Hold-Track.
 
 ## Empfohlene Architektur
 
@@ -138,7 +182,7 @@ Betroffene Dateien:
 
 Aufgaben:
 
-- Supabase Auth Client einbauen.
+- Supabase Auth Client einbauen. Dabei Publishable-/Anon-Key plus User-JWT nutzen; kein Secret oder `service_role` im Client.
 - Native Session sicher speichern; `expo-secure-store` ist bereits vorhanden.
 - Web-Fallback fuer Session-Speicher bewusst dokumentieren.
 - Zentralen API-Fetch-Wrapper schaffen, der den Bearer Token injiziert.
@@ -159,20 +203,22 @@ Nicht im ersten Mobile-Slice:
 Aufgaben:
 
 - `git fetch` und ahead/behind gegen `origin/main` sowie vorhandenen `phase/6-multi-user`-Ast pruefen.
-- Keine parallele Auth-Branch-Welt aufmachen, bevor klar ist, ob `phase/6-multi-user` relevante Arbeit enthaelt.
-- Ziel-DB fuer Auth/RLS-Smoke festlegen: Staging oder bewusst konfigurierte Dev-DB.
+- `phase/6-multi-user` nicht als aktive Basis verwenden, solange er weiter auf den alten Phase-5-Stand zeigt.
+- Lokale Doku-/Ops-Commits auf `main` einordnen: erst pushen, in Feature-Branch aufnehmen oder bewusst aus dem Auth-Slice heraushalten.
+- Ziel-DB fuer Auth/RLS-Smoke festlegen: bevorzugt die vorhandene `rezepti-staging`-DB, falls sie fuer Auth-Testnutzer und Datenform passt; sonst bewusst konfigurierte Dev-DB.
 - Keine produktive RLS-/Grant-Migration ohne Export/Backup- und Rollback-Plan.
 
 Akzeptanz:
 
 - Zielbranch und Ziel-DB sind dokumentiert.
+- `phase/6-multi-user` ist entweder nachweislich irrelevant oder explizit integriert; am 2026-06-04 war er stale.
 - Keine unabsichtlichen Deploy-/main-Push-Nebenwirkungen.
 
 ### Phase 1: Server Auth Skeleton
 
 Aufgaben:
 
-- Supabase JS Server Dependency im Root ergaenzen, falls noch nicht vorhanden.
+- Supabase JS Server Dependency im Root ergaenzen, falls noch nicht vorhanden. Aktuell ist nur die Supabase CLI als Root-Dependency vorhanden, nicht `@supabase/supabase-js`.
 - `src/auth.ts` vom Stub zu echter Token-Verifikation umbauen.
 - Hono Middleware oder Helper fuer geschuetzte Routen erstellen.
 - CORS `Authorization` erlauben.
@@ -241,11 +287,12 @@ npm --prefix mobile run typecheck
 
 Aufgaben:
 
-- Migration mit Supabase CLI erzeugen, nicht per frei erfundenem Dateinamen.
+- Migration mit Supabase CLI erzeugen, nicht per frei erfundenem Dateinamen. Lokaler CLI-Stand war zuletzt `2.102.0`.
 - Datenform fuer `shopping_list` und `meal_plan` pruefen.
 - Backfill/Legacy-Entscheidung dokumentieren.
 - Policies und Grants fuer `shopping_list` und `meal_plan` anwenden.
 - `recipes` nur lesen oder noch gar nicht in diese Migration aufnehmen, falls Default-Semantik nicht voll getestet ist.
+- Vor dem Anwenden erneut pruefen, dass Extension-Grants nach dem Move nach `extensions` weiter passend sind und keine neuen Advisor-Warnungen aus dem Extension-Track zurueckgekommen sind.
 
 Akzeptanz:
 
@@ -310,7 +357,7 @@ Akzeptanz:
 - Ein breiter Auth-Schalter kann Import-, Job- und Key-Flows brechen, bevor deren Ownership geklaert ist.
 - `recipes` hat globale Defaults; owner-only waere fachlich falsch.
 - Mobile Query-Persistenz kann Daten zwischen Accounts leaken, wenn sie nicht user-scoped wird.
-- Branch ist aktuell nicht linear zu `origin/main`; vor Shipping muss integriert werden.
+- Lokaler `main` kann Doku-/Ops-Commits vor `origin/main` enthalten; vor Shipping muss klar sein, welche Basis der Feature-Branch wirklich hat.
 
 ## Offene Entscheidungen
 

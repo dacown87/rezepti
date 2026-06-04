@@ -1,343 +1,84 @@
+# TODO
 
-## 🎯 Aktueller Stand (2026-06-02)
-
-**Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-File-Migrationsslice, der Matrix-Nachzug inkl. Restupdates und der Expo-SDK-56-Core-Slice sind durch und auf `main` gelandet. CI, Docker Build/Push und Northflank Deploy sind gruen. Multi-User Login bleibt der naechste Haupttrack.**
-
-### Naechste Reihenfolge (priorisiert, Stand 2026-06-02)
-
-1. **Multi-User Login umsetzen** (Auth + RLS + App auf `authenticated`-Key). Erster Slice ist geplant: [docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
-2. **Supabase Advisor Follow-ups beobachten** — Kern-Remediation ist abgeschlossen; `vector`/`pg_trgm` wurden nach Staging-Probe produktiv aus `public` nach `extensions` verschoben, Runtime-Smoke wurde zurueckgerollt und Security-/Performance-Advisor melden auf WARN-Level `No issues found`. Offen bleibt nur `unused_index`: Production nur fuer echte Nutzungsstatistik/Baselines, Staging/Clone fuer Query-Plan- und Drop-Proben; aktuell kein Production-Drop. Details: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
-3. Styling-Resttrack separat planen: NativeWind 5/Tailwind 4 bleibt nach dem Expo-SDK-56-Core-Slice bewusst vertagt.
-
-### Backlog / Watchlist
-
-- [ ] **Northflank-Deploy-Pfad separat neu bewerten** — aktuell kein aktiver Next-Step, weil Docker Build/Push und Northflank Deploy zuletzt gruen waren. Nur aufgreifen, wenn Northflank-Deploys rot werden, Runtime-/Action-Deprecation-Warnungen auftreten oder Northflank selbst `northflank/deploy-to-northflank@v1` abkuendigt. Dann als eigenen Infra-Track pruefen statt in Upgrade-/Feature-PRs mitzuziehen.
-- [ ] **Dependency-Patch-Drift beobachten/nachziehen (Audit 2026-06-02)** — `npm outdated --depth=0` meldet wieder sichere Root-Patches: `@vitest/coverage-v8`, `@vitest/ui`, `concurrently`, `openai`, `supabase`, `vite`, `vitest`. Mobile meldet sichere Patch-Kandidaten `@types/react`, `@vitest/coverage-v8`, `react-native-svg`, `vitest`; Expo-/SDK-gebundene Pakete (`react`, `react-dom`, `react-native-*`, `react-test-renderer`) weiter nur ueber Expo-Kompatibilitaetscheck ziehen. Kein Blocker fuer Multi-User, aber als kleiner Maintenance-Slice geeignet.
-- [ ] **Manuelle App-Neustart-Pruefung fuer Mobile-Persistenz** — aus Batch 3 noch nicht voll abgenommen: Settings/Theme/PDF nach App-Neustart pruefen. Technische Tests sind gruen; diese manuelle Abnahme war bisher nur in einem erledigten Abschnitt versteckt.
-- [x] **Produkt-/QA-Reste aus `docs/TEST_STATUS.md` entschieden/geplant (2026-06-02)** — gemeinsamer Decision-Plan liegt unter [docs/superpowers/plans/2026-06-02-product-qa-rest-decisions-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-02-product-qa-rest-decisions-plan.md): keine aktive Dictionary-UI, Kurzbegriff-Suche nur mit expliziter Short-Term-Semantik, PDF-E2E nur als optionaler Trigger-Smoke.
-- [x] **Bekannte manuelle Test-Luecken aus `docs/TEST_STATUS.md` geprueft/aktualisiert (2026-06-02)** — alte Checkbox-Liste gegen aktuelle Tests abgeglichen. Abgedeckte Punkte sind jetzt mit Testdateien dokumentiert; echte Restpunkte sind als Produktentscheidung/optionale QA abgegrenzt.
-- [x] **Historischen `docs/cleanup-plan.md` geschlossen/archiviert (2026-06-02)** — Plan als nicht aktive TODO-Liste markiert; stale Checkboxen entfernt und Audit-Ergebnis dokumentiert. `AGENTS.md` bleibt als aktuelle Projektanweisung erhalten.
-
-### Erledigt 2026-06-01
-
-- [x] **Supabase Advisor Follow-up Extension-Move produktiv abgeschlossen (2026-06-01)** — `vector` und `pg_trgm` wurden in Production aus `public` nach `extensions` verschoben (`db/migrations/2026-06-01-move-supabase-extensions-out-of-public.sql`). Produktiver Runtime-Smoke lief in einer Transaktion und wurde mit `ROLLBACK` beendet; Search-Vector-Trigger, `vector`-Funktionsauflösung und `pg_trgm`-Operatorpfad sind gruen. Security- und Performance-Advisor melden auf WARN-Level `No issues found`. `unused_index` bleibt bewusst Hold: keine Drops ohne Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis.
-- [x] **SDK-56-Branch gelandet und CI-verifiziert (2026-06-01)** — `chore/expo-sdk-56-slice` wurde in `main` gemergt und gepusht. Der automatische Version-Workflow hat `v1.0.123` erzeugt. GitHub Actions fuer den Merge sind gruen: CI (`test`, `mobile-release-gate`, `e2e`, `performance-audit`), `Build & Push Docker Image` und Northflank Deploy. Lokaler Stand ist mit `origin/main` synchron auf `db68113 chore: v1.0.123 [skip ci]`.
-- [x] **Expo-SDK-56-Core-Slice umgesetzt (2026-06-01)** — Mobile von Expo SDK 55 auf SDK 56 gehoben (`expo@~56.0.8`, `expo-router@~56.2.8`, React `19.2.3`, React Native `0.85.3`, Expo-Module, Reanimated `4.3.1`, Worklets `0.8.3`, TypeScript `~6.0.3`). SDK-56-Router-Blocker entfernt: App-Code importiert Navigation-Theme jetzt ueber `expo-router/react-navigation`, direkte `@react-navigation/native`-Dependency ist raus. Alte Top-Level-`splash`-Config wurde in das `expo-splash-screen`-Config-Plugin verschoben. TypeScript-6-/RN-0.85-Folgefixes: Lucide-Tab-Icon-Farben normalisiert, `StyleSheet.absoluteFill` statt nicht mehr typisiertem `absoluteFillObject`, `react-test-renderer@19.2.3` passend zu React. NativeWind 5/Tailwind 4 bleibt separat vertagt. Verifiziert mit Mobile-Typecheck, Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`21/21`), Mobile-Web-Build, Root-Typecheck und Root-Unit-Tests (`448 passed`, `13 skipped`).
-- [x] **Restupdates nach SDK-56-Slice umgesetzt (2026-06-01)** — Root-`concurrently` `9.2.1 -> 10.0.1`, Mobile-`@types/react` `19.2.14 -> 19.2.15`, `react-test-renderer` exakt auf `19.2.3` gepinnt, damit RNTL nicht ueber eine `^`-Range von React `19.2.3` wegdriftet. Verifiziert mit Root-/Mobile-Typecheck, Root-Unit-Tests (`448 passed`, `13 skipped`), Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` (`21/21`) und kurzem `npm run dev:mobile`-Smoke (`concurrently` startet Root-Dev-Server und Expo Metro; Timeout beendet erwartbar).
-- [x] **SDK-56-Audit-Rest klassifiziert (2026-06-01)** — Mobile-Audit zeigt nach dem SDK-Sprung weiterhin den Expo-CLI-/Config-Plugins-Cluster `uuid <11.1.1` ueber `xcode` (`12 moderate`). `npm audit fix --force` wuerde auf `expo-splash-screen@55.0.21` downgraden und wird nicht genutzt; Rest bleibt Expo-upstream-/SDK-gebunden.
-- [x] **Kleine Patch-Slices aus Matrix-Nachzug umgesetzt (2026-06-01)** — Root-Patches fuer `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai` und `@types/node` eingespielt. Mobile-Patches fuer TanStack Query/Persist, `nativewind` v4, `lucide-react-native` und Vitest-Patch wurden zuerst innerhalb SDK 55 nachgezogen; der Expo-/React-Native-/Worklets-Track ist danach im SDK-56-Core-Slice erledigt. Tailwind-4/NativeWind-5 bleibt bewusst separat vertagt. Verifiziert mit Root-Typecheck, Root-Unit-Tests (`448 passed`, `13 skipped`), Mobile-Typecheck, Mobile-Unit-Tests (`87 passed`), RNTL-Guard, `expo install --check`, `expo-doctor` und Mobile-Web-Build.
-
-### Erledigt 2026-05-31
-
-- [x] **Supabase Advisor Kern-Remediation abgeschlossen** — Supabase CLI lokal auf `2.102.0` aktualisiert, Preflight gegen Ziel-DB ausgefuehrt, Runtime-Rolle/Data-API-Grants dokumentiert, `function_search_path_mutable` fuer vier interne Helper behoben, `anon`/`authenticated` EXECUTE fuer diese Helper revoked, 5 fehlende FK-Indexes angelegt und verifiziert, 52 RLS-ohne-Policy Tabellen klassifiziert und Advisor erneut exportiert. Ergebnis: `function_search_path_mutable` und `unindexed_foreign_keys` sind weg; verbleibende `extension_in_public` und `unused_index` Findings sind als separate Follow-up-Tracks dokumentiert.
-- [x] **Mobile-Testwarnungen reduziert** — lokale `FlatList`-Testshims in den RNTL-Fallback-/Workflow-Tests geben gerenderte Items jetzt mit stabilen Keys weiter; Retry-/Mutation-Interaktionen laufen ueber kleine `act`-Wrapper. Verifiziert mit `npm --prefix mobile run test:unit` (`87 passed`), `npm --prefix mobile run typecheck` und `npm run test:mobile:rntl-guard`. Warnungszaehlung: `key`-Prop `4 -> 0`, `act(...)` `58 -> 4`, `react-test-renderer is deprecated` bleibt `23 -> 23` als RNTL/React-19-Upstream-Rest.
-
-### Erledigt 2026-05-30
+Stand: 2026-06-04
 
-- [x] **RNTL Runtime-Fix abgeschlossen** — Vitest optimiert echte `@testing-library/react-native` gezielt, `react-native` bleibt auf dem bestehenden Test-Shim, und `mobile/test/testing-library-rn-real.ts` kapselt nur noch den CJS-`screen`-Live-Export sowie Uebergangstypen. Der alte `testing-library-rn-compat.ts` wurde entfernt. Verifiziert mit `npm run test:mobile:rntl-guard`, `npm --prefix mobile run test:unit` (`87 passed`) und `npm --prefix mobile run typecheck`.
-- [x] **RNTL Strukturzugriffe abgebaut** — die verbliebenen `UNSAFE_queryAllByType`-Zugriffe in den migrierten Fallback-/Workflow-Tests wurden durch sichtbare Queries, Accessibility-Labels und gezielte `testID`s ersetzt. Produktseitig wurden nur kleine testbare Semantik-Hooks an realen UI-Aktionen/Ladezustaenden ergaenzt. Verifiziert mit fokussiertem Lauf ueber die fuenf migrierten Tests (`22 passed`).
-- [x] **RNTL Compat-only Cleanup abgeschlossen** — `renderAsync` wurde aus `mobile/test/recipe-detail-fallbacks.test.tsx` entfernt; die zwei async Detail-Fallbacks nutzen jetzt `render` plus den offiziellen `waitFor`-Pfad aus `@testing-library/react-native`. Der damalige React-Native-Flow-Blocker ist durch den Runtime-Fix vom 2026-05-31 geloest; die verbliebenen `UNSAFE_queryAllByType`-Tests wurden auf Accessibility-/TestID-Hooks umgestellt.
-- [x] **RNTL Phase 0/1 ausgefuehrt** — Inventory und Test-Autoren-Checkliste liegen unter `docs/testing/`; `npm run test:mobile:rntl-guard` blockiert neue direkte `react-test-renderer`-Imports und ist im Mobile-CI-Gate verdrahtet. Der initiale Real-RNTL-Spike reproduzierte den React-Native-Flow-Blocker, der Runtime-Follow-up vom 2026-05-31 hat ihn mit gezielter Vitest-Optimierung geloest.
-- [x] **RNTL Shopping-Slice migriert** — `mobile/test/shopping-screen-fallbacks.test.tsx` importiert jetzt `render`, `screen`, `fireEvent` und `waitFor` aus `@testing-library/react-native` statt direkt `react-test-renderer`. Die damals im Compat-Layer nachgebildeten TextInput-/Event-Pfade laufen nach dem Runtime-Fix gegen echte RNTL.
-- [x] **RNTL Workflow-Slice migriert** — `mobile/test/mobile-workflow-list-detail-shopping-ui.test.tsx` importiert jetzt `render`, `screen`, `fireEvent` und `waitFor` aus `@testing-library/react-native` statt direkt `react-test-renderer`. Der Test bleibt ehrlich ein Two-Step-Smoke (`list -> detail -> shopping`) ohne Router-Harness.
-- [x] **RNTL Planner-Slice migriert** — `mobile/test/planner-screen-fallbacks.test.tsx` importiert jetzt die `@testing-library/react-native`-API statt direktem `react-test-renderer`. Die Guard-Allowlist ist leer; neue direkte Renderer-Imports in Mobile-Testdateien werden blockiert. Verifiziert mit fokussiertem Planner-Test (`9 passed`).
-- [x] **Test-Infra-Migration Punkt 3 gestartet und reviewed** — `recipe-list-screen-fallbacks.test.tsx` und `recipe-detail-fallbacks.test.tsx` wurden als erster Slice auf `@testing-library/react-native`-API umgestellt. Das `/autoplan`-Review zog den Runtime-Gate vor die weiteren File-Migrationen; Phase 0 Inventory/Guardrail, Real-RNTL-Spike und Runtime-Follow-up sind inzwischen erledigt. Plan: [docs/superpowers/plans/2026-05-30-test-infra-rntl-migration-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-30-test-infra-rntl-migration-plan.md).
-- [x] **npm-Audit-Findings triagiert** — `npm audit fix` ohne `--force` fuer Root und Mobile ausgefuehrt. Root reduziert `5 moderate -> 4 moderate`; `ws` ist geloest, uebrig bleibt der `drizzle-kit`/`@esbuild-kit`/`esbuild`-Dev-Tool-Cluster, dessen Audit-Fix einen SemVer-Major-/Downgrade-Pfad (`drizzle-kit@0.18.1`) vorschlaegt und deshalb nicht erzwungen wurde. Mobile reduziert `14 total (13 moderate, 1 high) -> 11 moderate`; `@xmldom/xmldom` high, `dompurify` und `brace-expansion` sind geloest, uebrig bleibt der Expo-SDK-gebundene `uuid`/`xcode`/Expo-Cluster. Verifiziert mit `npm ci`, `npm --prefix mobile ci`, `npx tsc --noEmit`, `npm --prefix mobile run typecheck`, `cd mobile && CI=1 npx expo-doctor` (`19/19`), `cd mobile && npx expo install --check`, `npm run test:unit` (`448 passed`, `13 skipped`) und `npm --prefix mobile run test:unit` (`87 passed`). Details: [docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-25-npm-audit-triage-plan.md).
+Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigte Details stehen in [docs/todo-history.md](/home/patrick/Projekte/rezepti/docs/todo-history.md).
 
-### Erledigt 2026-05-25
+## Aktueller Stand
 
-- [x] **Node-24-Upgrade verifiziert** — Lokale Runtime `node v24.15.0` / `npm 11.12.1`; Root und Mobile `npm ci` gruen; Root-Typecheck, Mobile-Typecheck, `expo-doctor` (`19/19`), Root-Unit-Tests (`448 passed`, `13 skipped`) und Mobile-Unit-Tests (`87 passed`) gruen. Voller Production-Docker-Build `docker build --target production -t rezepti-node24-check .` gruen; gebautes Image meldet ebenfalls `node v24.15.0` / `npm 11.12.1`.
+Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. CI, Docker Build/Push und Northflank Deploy waren zuletzt gruen.
 
-### Erledigt 2026-05-24
+Lokaler Stand nach `git fetch`: `main` ist 4 Commits vor `origin/main`. Der Worktree enthaelt Doku-Aenderungen. Vor neuer Feature-Codearbeit muss die Basis bewusst geklaert werden.
 
-- [x] **Nightly-Strict-Beobachtungsperiode nach Remediation abgeschlossen** — Commit `951d09e` auf `main` gepusht; Push-Run `26364298737` und Baseline-Dispatch `26364301389` komplett gruen. Anschliessend drei explizite Strict-Dispatch-Runs (`26364421549`, `26364422800`, `26364424167`) als kosten- und zeit-effiziente Verifikationsserie auf demselben `workflow_dispatch`-Strict-Pfad wie der Nightly-Run ausgefuehrt; alle drei komplett gruen inkl. `performance-audit` unter `perf_enforcement=strict`.
-- [x] **Nightly-Strict-Code-Remediation umgesetzt** — `mobile-release-gate` wieder auf Expo-SDK-55-Stand gebracht (`expo-doctor` 19/19, `expo install --check` gruen, Mobile-Typecheck/Web-Build/Coverage lokal gruen); `validate-status.mjs` wertet Strict-Findings jetzt typisiert aus und stuft `ready=false` als `observation_blocked` statt pauschal als Nightly-Fail ein; Performance-History-Cache in `.github/workflows/ci.yml` auf `performance-history-v5` angehoben und per Unit-Test abgesichert.
-- [x] **GitHub Docker-Build repariert (Node-Engine-Mismatch)** — `Dockerfile` `base` und `web-builder` auf `node:24.15.0-slim` angehoben, damit `mobile/package.json`-Engines (`node >=24.15.0`, `npm >=11`) mit dem Build-Container uebereinstimmen. Lokaler Gegencheck: `npm --prefix mobile ci` laeuft wieder sauber. (Commit `1a142da`)
-- [x] **Next-Priority-Plan erstellt und umgesetzt** — [docs/superpowers/plans/2026-05-24-next-priority-work-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-24-next-priority-work-plan.md) fuehrt Coverage, `JobManager` und Supabase-Readiness zusammen.
-- [x] **Coverage-Gates nach Vitest-4-Migration wieder angezogen** — Root und Mobile stehen wieder auf Mindest-Floors `30` fuer lines/statements/functions/branches; `COVERAGE_RATCHET_MIN` bleibt als Anhebungsmechanismus aktiv. Verifiziert mit `npm run test:coverage` und `npm run test:mobile:coverage`.
-- [x] **`JobManager`-Tests auf reale Laufzeitlogik umgestellt** — `test/unit/job-manager.test.ts` prueft jetzt echte Methodenpfade aus `src/job-manager.ts` inkl. `create/start/update/complete/fail`, Event-Polling, `getRecentJobs`, `getActiveJobs`, `isUrlProcessing` und Cleanup. Fokustest und Root-Coverage gruen.
-- [x] **Supabase Data API Readiness fuer Multi-User konkretisiert** — [docs/supabase-data-api-readiness.md](/home/patrick/Projekte/rezepti/docs/supabase-data-api-readiness.md) enthaelt jetzt eine konkrete RLS-/Grant-Matrix; [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql) ist als reviewbarer SQL-Draft angelegt. Keine DB-Migration ausgefuehrt.
+## Naechste Reihenfolge
 
-### Erledigt 2026-05-13
+1. **Arbeitsbasis klaeren**
+   - Entscheiden, ob lokale Doku-/Ops-Commits gepusht, in einen Feature-Branch uebernommen oder bewusst separat gehalten werden.
+   - Danach neuen Multi-User-Branch von einer klaren Basis starten.
+   - `phase/6-multi-user` ist stale und keine aktive Basis.
 
-- [x] **2. Strict-Probe-Run** ✅ — Run `25781366107`, performance-audit grün in 7m39s, `enforcement=strict`, `lighthouse=ok`, `readiness ready=true 10/10`.
-- [x] **Strict-Schedule eskaliert** — `.github/workflows/ci.yml`: `schedule` (nightly cron 02:00 UTC) läuft jetzt `strict`; `push`/`pull_request` bleiben `warn`; `workflow_dispatch` wahlweise. Runbook + CLAUDE.md aktualisiert. (Commit `7bf820e`)
-- [x] **Supabase RLS aktiviert** — RLS auf 5 Tabellen + REST-Grants für anon/authenticated entzogen + `rls_auto_enable()` REST-EXECUTE revoked. Supabase Advisor clean.
-- [x] **M3 — Dockerfile changelog-Stage** — `COPY public/changelog.json` durch BuildKit-`RUN --mount=type=bind` mit JSON-Fallback (`{"version":"0.0.0","entries":[]}`) ersetzt. Squash-Merge ohne `public/changelog.json` rötet den Docker-Build nicht mehr. Lokal mit beiden Szenarien verifiziert. (Commit `0642e8c`)
-- [x] **P1 — Pre-commit-Hook gegen Phantom-Submodule** — `scripts/hooks/pre-commit` blockt Mode-160000-Entries ohne `.gitmodules`-Eintrag. Aktivierung via `npm install` (`prepare`-Script setzt `core.hooksPath`). Mit 3 Szenarien lokal verifiziert. (Commit `75c5482`)
-- [x] **Mobile-Plan Code-Review-Findings (alle 6) abgearbeitet** — Plan-Sektionen "Findings — Phase 1–3" jetzt alle `RESOLVED`:
-    - **P2 canonicalName Length-Limit** — war schon umgesetzt (`src/routes/planner.ts:53-55`), nur Plan-Status nachgezogen.
-    - **P3 `^`-Constraints React/RN pinnen** — `mobile/package.json`: react/react-dom/react-native/react-native-svg/react-test-renderer auf exakte Expo-SDK-55-Versionen gepinnt. `expo-doctor` war zum damaligen Stand weiter 18/18; aktueller Stand 2026-05-30: 19/19.
-    - **P3 Chrome-Versions-Pin in CI** — `.github/workflows/ci.yml:193`: `chrome-version: '150'` (Major-Pin, weil beide grünen Strict-Probes auf Chromium 150 liefen).
-    - **P3 Coverage-Schwellenwert effektiv 1%** — `vitest.config.ts` + `mobile/vitest.config.ts`: per-Metrik-Floors statt globaler 1% (Root lines/statements/functions=30, branches=60; Mobile lines/statements=30, functions=35, branches=55). Beide Coverage-Runs grün.
-    - **P3 Perf-History-Cache Cross-Branch** — durch früheren `v4-`-Cache-Umstieg + Strict-nur-auf-Schedule bereits entschärft; nur Plan-Status korrigiert.
-    - **Info E2E ohne `continue-on-error`** — empirisch resolved: 30/30 E2E-Runs grün; alle 5 Failures lagen in `test`/`performance-audit`.
+2. **Multi-User Login Phase 0/1 starten**
+   - Auth-Skeleton + Request-User-Kontext bauen.
+   - Noch keine produktiven Supabase Data-API-Grants oeffnen.
+   - Plan: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 
-### Offen / Folgearbeit
+3. **Owner-Scoped Shopping/Planner anschliessen**
+   - DB-Helper und Routen auf `user_id` scopen.
+   - Negative Cross-User-Tests ergaenzen.
+   - Danach RLS-Migration/Grants gegen Staging verifizieren.
 
-- [ ] **Multi-User Login** (naechste grosse Phase) — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`, App auf `authenticated`-Key umstellen. Siehe Abschnitt „Naechste grosse Phase — Multi-User Login" weiter unten.
-    - [x] Ersten Multi-User-Login-Slice geplant: Auth-Grundlage, Mobile-Session-Schicht, owner-sichere `shopping_list`/`meal_plan`-Pfade und RLS-Verifikation vor produktiven Grants.
-    - [ ] Phase 0/1 starten: Branch-/Ziel-DB klaeren und Server-Auth-Skeleton mit Tests bauen.
-- [x] **Supabase Advisor Remediation** — [reviewed Plan](/home/patrick/Projekte/rezepti/docs/SupaBase/supabase-advisor-remediation-plan.md) abgearbeitet; Kern-Remediation abgeschlossen, Restpunkte als eigene Follow-up-Tracks dokumentiert:
-    - [x] Preflight gegen Ziel-DB ausfuehren: finaler Lauf unter `docs/SupaBase/runbook-output/preflight-2026-05-31-184128.txt`.
-    - [x] Runtime-Rolle, `rolsuper`/`rolbypassrls` und Data-API-Grants dokumentieren; Preflight prueft jetzt auch Schema-, Sequence- und Function-Execute-Rechte.
-    - [x] `search_path` fuer `auto_enable_rls`, `notify_minion_job_change`, `update_chunk_search_vector`, `update_page_search_vector` fixen; `anon`/`authenticated` EXECUTE fuer diese internen Helper revoked.
-    - [x] Fehlende FK-Indexes nach linksfuehrender Index-Pruefung ergaenzen; alle 5 Ziel-FKs haben valide/bereite Indexes.
-    - [x] Alle 52 RLS-ohne-Policy Tabellen klassifizieren; Produkt-Backend-Tabellen bleiben ohne `anon`/`authenticated` Grants, Aux-Tabellen sind als separater Owner-/Grant-Hardening-Track dokumentiert: [docs/SupaBase/rls-no-policy-classification-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/rls-no-policy-classification-2026-05-31.md).
-    - [x] Advisor erneut laufen lassen und neue Ergebnisse unter `docs/SupaBase/` ablegen: [summary-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-output/summary-2026-05-31.md), JSON-Exports unter `docs/SupaBase/advisor-output/`. Ergebnis: `function_search_path_mutable` und `unindexed_foreign_keys` sind weg; uebrig sind 52 `rls_enabled_no_policy`, 2 `extension_in_public`, 88 `unused_index`.
-    - [x] Extension-Move (`vector`, `pg_trgm`) und unused-index Cleanup als separate Follow-up-Tracks offen halten, nicht in der Kern-Remediation mitziehen: [docs/SupaBase/advisor-followups-2026-05-31.md](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
-- [ ] **Supabase Advisor Follow-ups** — separate Tracks aus der Remediation:
-    - [x] `vector`/`pg_trgm` Staging-Probe, Dependency-Inventar, produktive Wartungsaktion, Runtime-Smoke und Advisor-Verify abgeschlossen.
-    - [x] `unused_index` Baseline-Slice erstellt (2026-06-01): Read-only-Katalogabfrage, Schutzklassen und Watch-Kandidaten dokumentiert; keine Sofort-Drops. Siehe [docs/SupaBase/unused-index-baseline-2026-06-01.md](/home/patrick/Projekte/rezepti/docs/SupaBase/unused-index-baseline-2026-06-01.md).
-    - [x] `unused_index` Re-Run/Code-Abgleich (2026-06-02): Baseline unveraendert, 12 Watch-Kandidaten weiter `idx_scan = 0`, keine aktiven Rezepti-App-Callsites gefunden; keine Production-Drops, weil Kandidaten klein sind und `EXPLAIN ANALYZE` die Index-Usage-Statistik verfaelschen wuerde.
-    - [ ] `unused_index` Cleanup erst nach Staging-/Clone-Pruefung oder weiterer Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis starten; die bereits angelegte `rezepti-staging`-DB ist fuer Plananalyse/testweise Drops vorgesehen, Production bleibt fuer echte Nutzungsstatistiken.
-- [x] **Mobile-Testwarnungen nach Real-RNTL final eingeordnet/abgebaut (2026-06-01)** — `act(...)`-Restwarnungen aus `recipe-list-screen-fallbacks` durch neutralen AsyncStorage-Focus-Mock beseitigt; bekannte `react-test-renderer is deprecated`-Upstream-Meldung aus RNTL/React-19 im Mobile-Test-Setup exakt gefiltert, ohne allgemeine React-/act-Warnungen zu unterdruecken. Verifiziert: `npm --prefix mobile run test:unit` (`87 passed`) mit `react-test-renderer warnings: 0`, `act warnings: 0`; `npm --prefix mobile run typecheck` und `npm run test:mobile:rntl-guard` gruen.
+4. **Dependency-Patch-Drift als separaten Maintenance-Slice nachziehen**
+   - Root: `@vitest/coverage-v8`, `@vitest/ui`, `concurrently`, `happy-dom`, `openai`, `supabase`, `vite`, `vitest`.
+   - Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `@types/react`, `@vitest/coverage-v8`, `react-native-svg`, `vitest`.
+   - Nicht mit Auth/RLS vermischen. Expo-/SDK-gebundene Latest-Linien nur ueber `expo install --check` und `expo-doctor`.
 
----
+5. **Mobile-Persistenz manuell abnehmen**
+   - Settings/Theme/PDF nach App-Neustart pruefen.
+   - Technische Tests sind gruen; diese manuelle Abnahme fehlt noch.
 
-## 🚨 Sicherheit — RLS aktivieren ✅ ABGESCHLOSSEN (2026-05-13)
+6. **Spaeter oder trigger-basiert**
+   - NativeWind 5/Tailwind 4 separat planen.
+   - `unused_index` erst nach Nutzungsperiode plus Staging-Plananalyse anfassen.
+   - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen oder Upstream-Abkuendigung neu bewerten.
 
-- [x] **Supabase Advisor-Warnung: `rls_disabled_in_public`** behoben — `db/migrations/2026-05-12-enable-rls.sql` über SQL Editor ausgeführt: RLS auf `recipes`, `ingredient_dictionary`, `shopping_list`, `meal_plan`, `api_keys` aktiviert + REST-Grants für anon/authenticated entzogen.
-- [x] **Zusatz-Advisor `rls_auto_enable` SECURITY DEFINER** behoben — `REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon, authenticated, public` ausgeführt. Event-Trigger-Funktion bleibt funktional (läuft via DDL, nicht REST). Statement im Migration-File ergänzt.
-- Backend nutzt weiter `DATABASE_URL` mit postgres-Superuser → RLS wird automatisch umgangen, App-Funktion unverändert.
-- **Spätere Multi-User-Phase:** echte Policies mit `auth.uid() = user_id` schreiben und App auf `authenticated`-Key umstellen (siehe „Nächste große Phase — Multi-User Login" unten)
+## Aktive Backlog / Watchlist
 
----
+- [ ] **Multi-User Login** — Supabase Auth + echte RLS-Policies mit `auth.uid() = user_id`; App-Requests laufen mit Supabase User-JWT als `authenticated`. Plan am 2026-06-04 aktualisiert.
+- [ ] **Dependency-Patch-Drift** — siehe Reihenfolge Punkt 4; kein Blocker fuer Multi-User Phase 0/1.
+- [ ] **Mobile-Persistenz Neustart-Pruefung** — Settings/Theme/PDF nach App-Neustart.
+- [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
+- [ ] **Stale Test-Doku nachziehen** — [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen, obwohl mehrere P1/P2/P3a-Punkte abgeschlossen sind.
+- [ ] **Supabase `unused_index` Hold-Track** — keine Production-Drops ohne Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis. Details: [advisor followups](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
+- [ ] **Northflank-Deploy-Pfad** — nur bei roten Deploys, Runtime-/Action-Warnungen oder `northflank/deploy-to-northflank@v1`-Abkuendigung neu bewerten.
+- [ ] **Styling-Track** — NativeWind 5/Tailwind 4 bleibt nach Expo-SDK-56 bewusst vertagt.
 
-## Phase 9 — Quality & Stability ✅ ABGESCHLOSSEN (2026-04-16)
+## Kurzstatus
 
-- **9a** — CLAUDE.md auf PostgreSQL/Supabase aktualisiert
-- **9b** — `db-react.test.ts` neugeschrieben: `detectCategory` pure tests (19), DB-Integration-Tests mit `skipIf(!TEST_DATABASE_URL)` (4); `.github/workflows/ci.yml` mit `postgres:15` + `drizzle-kit push --force`
-- **9c** — React Query v5 + AsyncStorage-Persistenz (`PersistQueryClientProvider`); `useRecipes`/`useRecipe`/`useUpdateRecipe`/`useDeleteRecipe` Hooks; `OfflineBanner`; `index.tsx` auf stale-while-revalidate umgestellt
-- **9d** — QR-Scanner: jsQR-Fallback für Firefox/Safari; dreistufiger Autofokus (getUserMedia + onloadeddata-Timing + direct applyConstraints)
-- **9e** — `user_id` UUID nullable in recipes/shoppingList/mealPlan/apiKeys; `src/auth.ts` Stub (`getCurrentUserId`/`isAuthenticated`)
-- **9f** — `youtube.test.ts` (10), `schema-org.test.ts` (22), `chefkoch.test.ts` (14); Fix: `parseGermanPortions` Regex für "1 Person" (Singular)
-- **Chefkoch tags bug** — `recipeCategory`/`recipeCuisine` als `string | string[]` typisiert, vor Spread normalisiert
-- **Connection pool** — `connect_timeout: 10, idle_timeout: 30` in `src/db-react.ts`
+### Supabase / Security
 
----
+- RLS ist auf den relevanten Public-Tabellen aktiviert; alte `anon`/`authenticated` REST-Grants wurden entzogen.
+- Data-API-RLS-/Grant-Matrix fuer Multi-User liegt als Draft vor: [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql).
+- `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
+- `rezepti-staging` existiert und ist ein plausibler Kandidat fuer RLS-Smokes, muss aber vor Auth/RLS-Tests explizit bestaetigt werden.
 
-## Bugfixes nach Phase 9 ✅ (2026-04-16)
+### Tests / CI
 
-- **QR-PDF nicht scannbar** — `width: 80→400px` + `errorCorrectionLevel: L`; QR enkodiert jetzt URL (`<serverUrl>/recipe/<id>`) statt JSON → Version 2 statt 20+, trivial scannbar
-- **QR-Scan öffnet Rezept direkt** — Scanner erkennt URL-Muster `/recipe/<id>` und navigiert direkt; Legacy-JSON-Format als Fallback
-- **Planer komplett leer** — zwei Bugs: Client sendete `?weekStart=` statt `?week=`; Server-Response `{ entries }` wurde als Array geparsed → beide Fixes in `planner.tsx`
-- **Planer TS-Fehler** — doppeltes `showsHorizontalScrollIndicator` Attribut entfernt
-
----
-
-## Migration: SQLite → Supabase — ✅ ABGESCHLOSSEN (2026-04-16)
-
-Phase 1 (Mobile: expo-sqlite entfernt) und Phase 2 (Server: PostgreSQL via Supabase) sind vollständig umgesetzt und in Produktion.
-
----
-
-## Bildauswahl nach Foto-Import — ✅ ABGESCHLOSSEN (2026-04-14)
-
-- Modal erscheint immer nach Foto-Import
-- Rezeptname wird automatisch in Suchleiste vorausgefüllt + Auto-Search
-- Settings: Bildanzahl konfigurierbar (4/8/16, default 4)
-- Backend `GET /api/v1/images/search?q=&limit=N`
-
----
-
-## Phase 10 — ingredientGroups + universelle Bild-Auswahl ✅ ABGESCHLOSSEN (2026-04-25)
+- Zuletzt dokumentiert: Root Unit Tests `448 passed`, `13 skipped`; Mobile Unit Tests `87 passed` (2026-06-01).
+- Mobile RNTL Guard ist gruen; direkte `react-test-renderer`-Imports in Mobile-Testdateien bleiben blockiert.
+- CI, Docker Build/Push und Northflank Deploy waren nach dem Expo-SDK-56-Merge gruen.
+- Fuer aktuelle Doku-Aenderungen wurden keine Tests neu ausgefuehrt.
 
-- **10a** — Datenmodell: `ingredientGroups` in `RecipeDataSchema` + `ContentBundle`; Spalte `ingredient_groups text` in DB; Supabase-Migration deployed; Save/Update/Deserialize in `db-react.ts`
-- **10b** — LLM: SYSTEM_PROMPT + `normalizeGroupsToIngredients` in `llm.ts`
-- **10c** — Cookidoo DOM-Extraktion + `pipeline.ts`-Injection
-- **10d** — Gruppenanzeige + Edit-Modus + „Bild ändern"-Overlay in `mobile/app/recipe/[id].tsx`
-- **10e** — Universelle Bildauswahl nach jedem Import (Bedingung vereinfacht)
-- **Bugfix** — `onSkip`-Prop in `ImagePickerModal` auf Rezeptdetailseite (`74c5413`, v1.0.95)
+### Dependencies
 
----
+- Node bleibt `>=24.15.0 <25`, npm `>=11`.
+- Expo SDK 56 ist die gueltige Mobile-Achse: React `19.2.3`, React Native `0.85.3`, Reanimated `4.3.1`, Worklets `0.8.3`.
+- Nicht direkt ziehen: React `19.2.7`, `react-dom` `19.2.7`, `react-test-renderer` `19.2.7`, AsyncStorage `3.1.1`, neuere `react-native-*` Latest-Linien, Tailwind 4.
 
-## Phase 11 + Social-Media-Fixes — ✅ ABGESCHLOSSEN (2026-04-29)
+## Wichtige Links
 
-- **11a** ✅ HTML-Cleanup in `extractMainText()`: Ads/Kommentare/Social/Newsletter entfernt; WPRM + Tasty-Recipes als Priorität; 6000 Zeichen Limit
-- **11b** ✅ `parseNutritionInfo()` war bereits implementiert; `SchemaOrgRecipe.nutrition`-Typ auf alle Felder erweitert (kein Cast mehr)
-- **11c** ✅ `decodeHtmlEntities()` für named/dezimale/hex Entities; Zutaten + Schritte werden dekodiert
-- **11d** ✅ `twitter:image` als drittes Bild-Fallback mit URL-Auflösung
-- **Instagram** ✅ Web-Scraping-Fallback: mehr Selektoren + Embedded-JSON-Extraktion
-- **TikTok** ✅ ffmpeg-Verfügbarkeits-Check; OCR auf `extractRecipeFromText()` umgestellt
-- **Pinterest** ✅ `findOriginalUrl()` sucht in `__PWS_DATA__`, Script-Tags und `"link"`-Regex
-
-## Phase 12 — Social Media Erweiterungen
-
-- **12a** ✅ Facebook als Quelltype: `classifier.ts`, `src/fetchers/facebook.ts` (yt-dlp + OG-Fallback + Cookie-Management), Pipeline-Case — bereits vollständig implementiert
-- **12b** ✅ Cobalt.tools als Fallback zu yt-dlp für Instagram/TikTok/Facebook — `src/fetchers/cobalt.ts`; API `api.cobalt.tools`; `COBALT_API_URL` + `COBALT_API_KEY` in `.env`; öffentliche Instanz funktioniert ohne Key (Turnstile-Fehler werden still ignoriert)
-
----
-
-## Phase 13 — Import-Qualität (reviewed 2026-04-29, Plan: `docs/phase-13-reviewed.md`)
-
-> Review-Entscheidungen: 13j zuerst in Welle 4 · parsedIngredients ephemer · Sample-Test vor 13a · ReDoS-Schutz + Block-Cap eingebaut
-
-### Vorarbeit (vor 13a)
-- **Sample-Test** ✅ ABGESCHLOSSEN (2026-04-29) — 19 URLs getestet. Ergebnisse: `scripts/sample-test-analysis.md`, Rohdaten: `scripts/sample-test-results.json`
-  - **53%** JSON-LD vollständig (ohne LLM nutzbar)
-  - **26%** CSS-Fallback nötig (LLM-Extraktion aus Text)
-  - **16%** HTTP 403 (Bot-Schutz — kein Schema-Problem)
-  - **5%** Body-Fallback (lidl-kochen.de, kein strukturierter Inhalt)
-  - **Befund:** ichkoche.at hat **Microdata** (kein JSON-LD) → 13b hat klaren ROI
-  - **Befund:** Wild-Mode (13e) — 0 Kandidaten im Sample → niedrigere Priorität
-  - **Befund:** Bot-403 → neue Fehlerkategorie für 13c: "Website erlaubt kein Abrufen (Bot-Schutz)"
-  - **Prioritätsänderung:** 13b als erste Priorität in Wave 2; 13e nachrangig
-
-### Vorarbeit ✅ ABGESCHLOSSEN (2026-04-30)
-- **Regressions-Unit-Tests aus DB-Rezepten** ✅ — `test/unit/web-regression.test.ts` + `scripts/generate-regression-fixtures.ts`; läuft mit `TEST_NETWORK=1`
-
-### Welle 1 — Sofort-Wins ✅ ABGESCHLOSSEN (2026-04-30)
-- **13a** ✅ — CSS-Selektor-Erweiterung in `src/fetchers/web.ts:extractMainText()`: 30+ Klassen (Mediavine, Food Network, hrecipe, Wildcard-Selektoren)
-- **13c** ✅ — Fehlermeldungen in `toUserFriendlyError()`: Bot-403, HTTP 404, YouTube ohne Untertitel, TikTok privat, Instagram/TikTok kein Login, Timeout mit Sekunden
-- **13f** ✅ — `PipelineResult.qualityWarnings?: string[]`; Pipeline prüft name/ingredients/steps; dismissibler gelber Badge in `extract.tsx`
-
-### Welle 2 — Schema-Erweiterungen ✅ ABGESCHLOSSEN (2026-04-30 / 13e: 2026-04-30)
-- **13b** ✅ — `extractMicrodataRecipe()` in `src/fetchers/web.ts`: itemprop-Parsing (HowToStep, meta/datetime attrs, img src); Fallback nach JSON-LD; 6 Tests in `test/unit/web.test.ts`
-- **13e** ✅ — `extractWildJsonLd()` in `src/fetchers/web.ts`: Script-Tags ohne korrekten type + `window.__NUXT__/__NEXT_DATA__`; `deepFindRecipe()` für beliebig verschachteltes JSON; **ReDoS-Schutz: `html.slice(0, 100_000)`**; 4 Tests in `web.test.ts`
-
-### Welle 3 — Neue Features
-- **13g** ✅ — `POST /api/v1/extract/text`; dritter Tab in `extract.tsx` (URL · Text · Foto, Icon: `Type`); multiline TextInput mit Zeichen-Zähler; min 50 Zeichen Validation
-- **13d** ✅ — Ingredient-Parser `src/processors/ingredient-parser.ts`: `parseIngredient()` → `{amount, unit, food, note}`; Unicode-Brüche (½¼¾⅓...), gemischte Zahlen (1 1/2), Ranges (3-4 → note), Klammer- und Komma-notes; 23 Tests in `ingredient-parser.test.ts`
-- **13i** ✅ — `estimateNutrition()` in `llm.ts`; Pipeline schätzt Kalorien nach Extraktion wenn leer; `nutritionEstimated: true` im Job-Result (kein DB-Feld); Frontend: `~X kcal (KI-Schätzung)` auf Bild-Review- + Success-Screen
-
-### Welle 4 — Komplexe Features
-- **13j** ✅ — Plugin-Architektur: `web/base.ts` (Utilities + `WebScraperPlugin`), `web/chefkoch.ts` (Domain-Override), `web/index.ts` (Registry + Dispatcher); `web.ts` → Re-Export; Code-Duplikation in `chefkoch.ts` eliminiert
-- **13h** ✅ — ML-Fallback: `extractDomBlocks()` mit DOM-Block-Cap max 10; Feature-Flag `ENABLE_ML_FALLBACK=true`; nur aktiv bei Body-Fallback; Tests in `test/unit/web.test.ts`
-
-### Backlog (interessant für später)
-- Supadata.ai API für Instagram-Transkripte (kostenloses Free-Tier)
-- OpenRouter als BYOK-LLM-Alternative (1B Token/Monat gratis, Llama 4 Scout, DeepSeek V3)
-- Ollama als lokaler LLM-Fallback für Self-Hosted-User
-- Llama 4 Scout auch für Textextraktion (bereits für Vision: 1.5× günstiger — nur `.env`-Änderung)
-- Bild-Optimierung beim Import: WebP-Konvertierung + Resizing (Mealie-Pattern, braucht Sharp)
-- Vision-basierte Rezeptkarten-Erkennung via Llama 4 Scout (Pinterest-Karten, Buchseiten)
-- Rezept-Qualitäts-Scoring: automatischer Score → LLM-Refinement nur wenn Score < Threshold
-- **Open Food Facts Barcode-API** — EAN/UPC scannen → Produktname + Nährwerte + Bild via `openfoodfacts.org/api/v2/product/{barcode}`; QR-Scanner-Erweiterung
-- **PDF-Import** — PDF hochladen → Text extrahieren (pdf-parse) → LLM → Rezept; wir haben die LLM-Pipeline schon
-- **Format-Import** — Paprika (.paprikarecipes = ZIP mit JSON), Nextcloud Cookbook (JSON-LD-Dateien) als Upload-Formate für Migrations-Usecase
-- **Bessere Bildauswahl** — mehrere Bild-Kandidaten nach Auflösung/Größe ranken statt erstes nehmen (recipe-scrapers `BEST_IMAGE_SELECTION`-Pattern)
-- **AI-Schritt-Sortierung** — LLM prüft ob Zubereitungsschritte in logischer Reihenfolge sind und sortiert ggf. um (Tandoor-Pattern)
-- **Cooklang-Import** — `.cook`-Dateien hochladen und importieren; einfaches Format, kleine aber treue Community
-- **Weitere Migrations-Formate** — Copy Me That, Pepperplate, Evernote, Cookmate als Import-Formate (über Paprika/Nextcloud hinaus, RecipeSage-Pattern)
-- **CSV-Export** — Rezept-Sammlung als Tabelle exportieren (Spreadsheets, Backup)
-- **Markdown-Export** — einzelnes Rezept als `.md`-Datei (Obsidian, Notion, etc.)
-- **Phase 5 Trigger praezisieren (deferred)** — Web Vitals bleiben ausdruecklich **nicht** Teil des Performance-Strict-Gates. Phase 4c liefert jetzt Lab-Daten; ein sinnvoller Trigger waere nur noch: Feldmetrik starten, wenn CI-/Lab-Daten und echte Nutzerberichte auseinanderlaufen oder `simulate`/`devtools` nach 10 stabilen Runs wieder stark divergieren. Aktuell kein Blocker. _Plan: Phase 5 (deferred)_
-- **Code-Hygiene: `mobile/app/recipe/[id].tsx` (1092 Zeilen) modularisieren** — `CookModal` (line 127-225), `DeleteModal` (line 104-126), `StarRow`, `normalizeRecipe`, `parseJSON`, `splitIngredientDisplay` in eigene Dateien unter `mobile/components/recipe/` ziehen. Pattern existiert bereits (`ImagePickerModal.tsx`, 160 Zeilen, eigene Datei). Vorteil: Wartbarkeit und Test-Granularitaet. Nach Phase 4c ist das kein Performance-Blocker mehr, weil Outcome Z den LCP geloest hat. _Plan: „Additional Improvements" / Screen-Refactoring nach Messwerten_
----
-
-## Offene Punkte nach QA + Code-Review (2026-05-01)
-
-- **Cleanup-Plan:** `docs/superpowers/plans/2026-05-05-cleanup-punkte-3-4-5-6-7-8-9-12-13.md`
-- **Stand 2026-05-06:** Code-Punkte 3, 4, 5, 6, 7, 8, 9 und 12 committed (5617a12); Punkt 13 wurde als separater manueller Supabase-Ops-Schritt gegen die konfigurierte `rezepti-dev`-Datenbank ausgefuehrt.
-- **Punkt 13 Ergebnis:** Vorab-Pruefung fuer `recipes.id = 36` ergab bereits keinen Datensatz mehr; `meal_plan` und `shopping_list` standen ebenfalls auf `0`. Der transaktionale Delete lief damit als verifizierter No-Op, die Nachpruefung blieb bei `0/0/0`.
-
-### Erledigte/veraltete QA-Punkte (geprüft 2026-05-05)
-
-- **Frontend-Build fehlt** — überholt: `npm run build:mobile` wurde laut `docs/TEST_STATUS.md` am 2026-05-04 erfolgreich ausgeführt; `public/` enthält den Expo-Web-Build inklusive `extract.html`.
-- **Phase-13-Plan gegenlesen** — erledigt: 13g Freitext-Tab, 13h ML-Fallback und 13i Nährwert-Anzeige sind im Code vorhanden; Restpunkte bleiben separat als Chefkoch-Plugin-Dead-Code und TikTok-OCR-Optimierung stehen.
-- **Logo-Asset 404** — im Workspace behoben: enger `/assets/Logo*.png`-Fallback, vorhandene hashed Assets bleiben direkt erreichbar, fremde fehlende Assets liefern weiter 404.
-- **chefkoch Plugin dead code** — im Workspace behoben: unerreichbares Plugin entfernt, Chefkoch bleibt dedizierter Fetcher-Pfad.
-- **TikTok OCR doppelter LLM-Aufruf** — im Workspace behoben: Plaintext-Vision-Helper statt Recipe-Schema-Extraktion fuer OCR-Frames.
-
----
-
-## Nächste große Phase — Multi-User Login
-
-- Supabase Auth (JWT/Session), `user_id` in allen Tabellen, RLS, Auth-Middleware
-- Rezept-Sharing via Link (ersetzt QR-Code-JSON-Sharing)
-- **Vorarbeit (9e):** `user_id` nullable UUID ins Schema — erleichtert späteren Auth-Umbau
-
----
-
-## Test-Status (2026-05-31)
-
-- Root Unit Tests: zuletzt dokumentiert 448 bestanden + 13 skipped
-- Mobile Unit Tests: zuletzt dokumentiert 87 bestanden
-- Mobile RNTL Guard: `npm run test:mobile:rntl-guard` gruen; direkte `react-test-renderer`-Imports in Mobile-Testdateien bleiben blockiert.
-- Cleanup-Commit (5617a12): Planner-Routes, Shopping-Vertrag, PDF-Helper, Native-PDF-Wiring, Static Assets, TikTok-OCR, Chefkoch-Routing — alle grün
-- DB-Integration: weiter unter `TEST_DATABASE_URL`, im lokalen Default-Lauf geskippt
-- E2E Contract-Gate: CI startet echten Server und fuehrt `npm run test:e2e:contract` aus; Legacy-E2E bleibt separater Soak.
-- Regressions-Tests: `TEST_NETWORK=1 npx vitest run test/unit/web-regression.test.ts`
-- Root-Unit-Lauf ohne E2E: `npm test -- --run --exclude="test/e2e/**"`
-## Mobile Testing & Performance
-
-> **Plan:** [`docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`](docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md) (Stand 2026-05-13). Items unten = Umsetzung der Plan-Phasen.
-
-- [x] Mobile Release Gate + CI-Job stabil (`mobile:typecheck`, `build:web`, `test:unit`)
-- [x] Phase-2 Reliability-Basis (Hooks/Contracts/QueryClient) steht
-- [x] UI-Fallback-Tests für Recipe List, Shopping und Recipe Detail ergänzt
-- [x] Shopping-Screen: sichtbarer Error + Retry statt stillem Empty-State bei API-Fehler
-- [x] UI-naher End-to-End-Workflow-Test `list -> detail -> shopping` (screennah, interaktionsgetrieben)
-- [x] Planner-/Shopping-Recovery weiter ausgebaut: Planner-Load-Retry sichtbar, Shopping-Refresh hält gecachte Items nutzbar
-- [x] Query-Cache-Recovery gehärtet: korruptes AsyncStorage-Persist wird verworfen statt den App-Start zu kippen
-- [x] `addIngredients` in testbaren Service mit bounded concurrency verschoben (`mobile/utils/shopping-service.ts`)
-- [x] Phase-4 Slice 1: Recipe-List-Derived-Data entkoppelt (`mobile/utils/recipe-list-screen-data.ts`, `useDeferredValue`, stabilere `FlatList`-Configs)
-- [x] Phase-4 Slice 1: deterministischer 300-1000-Rezepte-Fixture-Harness (`mobile/test/fixtures/recipe-performance-fixture.ts`)
-- [x] Phase-4 Slice 1: Shopping-/Recipe-Detail-Hotspots reduziert (vorbereitete Anzeige-Daten, weniger wiederholte Ableitungen)
-- [x] Phase 2 Restlücken final geschlossen: Planner-Mutationsstates (`add/remove pending`) und sichtbare Rescue-Pfade
-- [x] Phase 3 Code-Härtung abgeschlossen: echter Chrome im CI, History-/Readiness-Auswertung und cache-basierte Run-Historie aktiv
-- [x] Review-Bugfixes Phase 1–3 gefixt (2026-05-07): `canonicalName`-Length-Limit, `planner.tsx`-Fehlerbehandlung, `query-client`-cleanup-guard, Lighthouse-API-Mock fuer parametrisierte Pfade, LCP/CLS-Budget-Checks in `validate-status.mjs`
-- [x] Phase-4 Slice 2 abgeschlossen (2026-05-07): `mobile/utils/planner-screen-data.ts` (pure Utility), `mobile/test/planner-screen-data.test.ts` (12 Tests), Integration in `planner.tsx` (`useDeferredValue`, `useMemo`-`entriesByDay`, `React.memo` auf `DayColumn`, `useCallback` fuer `handleRemoveEntry`)
-- [x] Phase-4 Backend/Search-Follow-up dokumentiert: bei realistischem Datensatz (10–300 Rezepte) ist `searchRecipesByIngredientsAdvanced` (`src/db-react.ts:133-181`) keine Performance-Bremse — kein Backend-Refactor gerechtfertigt; Phase 4 damit erfuellt
-- [x] Phase 3 empirisch abgeschlossen (2026-05-08): 10 lokale Runs geseedet, `artifacts/performance/readiness.json` auf `ready=true` mit allen 4 Checks gruen (`minRunsMet`, `warningRateMet`, `fullCoverageMet`, `metricStabilityMet`). LCP-Spread <= 2% pro Route. `history.json` + `readiness.json` jetzt versioniert (siehe `.gitignore`).
-- [x] Folgearbeit API-Mock erledigt (Commit `3c2c7fd`, 2026-05-09): `matchApiRoute()` extrahiert, `/api/v1/recipes/:id` + `/api/v1/shopping/:id|checked|all` abgedeckt, 17 Unit-Tests. Mock antwortet korrekt — aber LCP-Befund war tiefer (siehe naechster Punkt).
-- [x] Phase-4b Spinner-zu-Skelett-Refactor erledigt (Commit `04ca16e`, 2026-05-09): `shopping.tsx` + `recipe/[id].tsx` rendern Header-Shell + Skelett-Container ab erstem React-Frame. Real-Device-UX verbessert; Lighthouse-LCP unveraendert (~25 s) — Bottleneck ist Bundle-Hydration, nicht Render-Pattern.
-- [x] **Phase 4c — Throttling Validation + One Optimization Slice** abgeschlossen (2026-05-11): `LIGHTHOUSE_THROTTLING=simulate|devtools`, `perf:lighthouse:compare`, `throttling-comparison.json`, methodenfaehige Budgets, gzip-JS-Metriken und JS-Ausfuehrungszeit-Budget umgesetzt. Outcome Y als Bundle-Slice erledigt (PDF-Export lazy-loaded); Outcome Z als finaler LCP-Fix validiert (`mobile/app/+html.tsx` rendert route-aware statische App-Shell). Mobile p50 LCP nach Vergleich: `/` 903/1450 ms, `/shopping` 902/1448 ms, `/recipe/1` 1052/1414 ms (`simulate`/`devtools`). Kanonisch: `docs/performance/throttling-analysis.md` und `docs/superpowers/plans/2026-05-06-mobile-testing-and-performance-plan.md`.
-- [x] **Performance Strict-Hardening Tooling-Slice (2026-05-11):** `perf:stability:seed` automatisiert die 10 echten Runs, `validate-status` schreibt eindeutige methodenmarkierte History-Eintraege, `perf:budget:suggest` berechnet Budget-Vorschlaege aus vollstaendigen Runs (`p95 * 1.10`). Fokussierte Tests gruen.
-- [x] **Performance Strict-Probe freigeben** ✅ (2026-05-12 + 2026-05-13) — beide Probe-Runs grün (`25742783313`, `25781366107`). Nightly-Schedule danach auf `strict` eskaliert. _Plan-Phase 3 + Strict-Probe-Gate_
-- [x] Test-Infra-File-Migration von direktem `react-test-renderer` auf `@testing-library/react-native` abgeschlossen. `recipe-list-screen-fallbacks`, `recipe-detail-fallbacks`, `shopping-screen-fallbacks`, `mobile-workflow-list-detail-shopping-ui` und `planner-screen-fallbacks` nutzen jetzt die RNTL-API; `npm run test:mobile:rntl-guard` hat eine leere Legacy-Allowlist. Der Runtime-Fixpfad ist erledigt: echte RNTL laeuft unter Vitest ueber gezielte Dependency-Optimierung und einen duennen Real-RNTL-Wrapper. Der begruendete `UNSAFE_queryAllByType`-Rest wurde durch Accessibility-/`testID`-Queries ersetzt. Warnungs-Triage ist abgeschlossen: `key`-Prop-Warnungen sind weg, `act(...)`-Warnungen sind weg, die bekannte RNTL/React-19-`react-test-renderer is deprecated`-Meldung wird im Mobile-Test-Setup exakt gefiltert. _Plan: [2026-05-30-test-infra-rntl-migration-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-30-test-infra-rntl-migration-plan.md); Inventory: [rntl-migration-phase-0-inventory.md](/home/patrick/Projekte/rezepti/docs/testing/rntl-migration-phase-0-inventory.md)_
-- [x] Coverage-Thresholds schrittweise anheben — Start-Gate 1% am 2026-05-13 auf per-Metrik-Floors angehoben (Root lines/statements/functions=30, branches=60; Mobile lines/statements=30, functions=35, branches=55). Weitere Ratchet-Schritte manuell über `COVERAGE_RATCHET_MIN`-Env oder Baseline-Anhebung in den Config-Files.
-- [x] Lighthouse/Bundles Baseline stabilisieren und Enforce-Pfad schrittweise scharf schalten (warn auf push/PR, strict auf nightly/dispatch)
-- [x] Runtime-/Toolchain-Upgrade abgeschlossen: Node 24.15.0 (Projekt/CI/Docker-Pinning), Expo SDK 55, React 19.2, React Native 0.83; am 2026-05-25 lokal und per Production-Docker-Build erneut verifiziert.
-- [x] Expo-Konfigurationshygiene abgeschlossen: `expo-doctor` war beim Abschluss 18/18 gruen; aktueller Stand 2026-05-30: 19/19. `.expo/` korrekt ignoriert, App-Assets fuer Icon/Splash/Favicon vorhanden
-
-## Dependency-Update-Status (2026-06-01)
-
-- Vollstaendige Zielmatrix und Upgrade-Reihenfolge: [docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md)
-- Entscheidungsregel: so modern wie sinnvoll, aber nur auf stabilen Linien und nie gegen Expo-/SDK-Support oder Major-Migrationsrisiken. Matrix wurde am 2026-05-31 gegen `npm outdated`, `expo install --check`, Supabase CLI und Workflow-Actions nachgezogen.
-
-### Umsetzung des Upgrade-Plans
-
-- [x] **Batch 0 — CI Runtime Hygiene** abgeschlossen fuer GitHub-eigene Workflows (2026-05-25 nachverifiziert) — `.github/workflows/ci.yml`, `.github/workflows/docker-publish.yml` und `.github/workflows/changelog-update.yml` nutzen Node-24-kompatible Action-Linien (`actions/checkout@v5`, `actions/setup-node@v5`, `docker/login-action@v4`, `docker/build-push-action@v7`) und pinnen Node auf `24.15.0`, wo eine Node-Runtime installiert wird. **Separat offen:** `northflank/deploy-to-northflank@v1` bleibt ein dokumentierter Upstream-Sonderfall und gehoert in den eigenen Northflank-Infra-Track.
-- [x] **Batch 1 — Kleinster Code-Track** abgeschlossen (2026-05-14, Mobile-Nachkorrektur 2026-05-24) — `@hono/node-server` `^1.19.14 -> ^2.0.2`; der zwischenzeitliche Mobile-Compiler-Schritt auf TypeScript 6 wurde fuer Expo-SDK-55-Kompatibilitaet wieder auf die Doctor-kompatible 5.9-Linie zurueckgenommen. Verifiziert mit Mobile-Typecheck und `expo-doctor`.
-- [x] **Batch 2 — Tooling-Welle** abgeschlossen (2026-05-14 / nachgezogen 2026-05-24) — Root/Mobile `vitest` und `@vitest/coverage-v8` auf `4.1.6`, Root `@vitest/ui` auf `4.1.6`. Test-Mocks fuer Vitest-4-Konstruktorverhalten repariert, Mobile-Resolver fuer `@`-Aliases und `*.native/* .web`-Dateien gehaertet. API-E2E-Contract-Gate wurde am 2026-05-15 echt gebootet; Coverage-Floors wurden am 2026-05-24 wieder auf mindestens `30` angezogen.
-- [x] **Batch 3 — Mobile Persistenz** technisch abgeschlossen (2026-05-14, SDK-55-Nachkorrektur 2026-05-24) — der zwischenzeitliche Schritt auf `@react-native-async-storage/async-storage` `3.0.2` wurde fuer Expo-SDK-55-Doctor-Kompatibilitaet wieder auf `2.2.0` zurueckgenommen. Persistenztests, UI-Workflow-Regressionen und Mobile-Coverage bleiben gruen. **Restoffen:** manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF bleibt ausstehend; Batch 3 ist damit dokumentarisch nur technisch fertig, aber noch nicht voll abgenommen.
-- [x] **Batch 4a — Expo-SDK-56-Core-Slice** abgeschlossen (2026-06-01) — Expo-SDK-Sprung, SDK-gefuehrte Expo-Module, React/React Native, `react-native-*`, `react-native-worklets`/`reanimated`, TypeScript 6, Router-Importmigration und Splash-Config-Migration erledigt. **Separat offen:** Styling-Track (`tailwindcss 4`, `nativewind 5`, `react-native-css`) bleibt bewusst vertagt.
-- [x] **Kleine Patch-Slices aus Matrix-Nachzug 2026-05-31** abgeschlossen (2026-06-01) — Root: `hono`, `@hono/node-server`, `vite`, `vitest`/`@vitest/*`, `tsx`, `openai`, `@types/node`; Mobile innerhalb SDK 55: TanStack-Patches, `nativewind` v4-Patch, `lucide-react-native`, Vitest-Patch. `@react-navigation/native` wurde nicht ueber die Expo-SDK-55-Range hinaus im Manifest angehoben. Nicht mit Multi-User/Auth vermischt.
-
-### Follow-up aus Eng-Review (2026-05-14)
-
-- [x] **Root-API-E2E-Contract-Gate in CI echt booten** abgeschlossen (2026-05-15) — `.github/workflows/ci.yml` startet im `e2e`-Job den Root-Server mit `npm start`, wartet aktiv auf `/api/v1/health` und failt bei Timeout hart. Contract-Gate läuft jetzt über `npm run test:e2e:contract`; Server-Log wird immer als Artifact hochgeladen.
-- [x] **Historische Root-E2E-Suite aufräumen und Pflicht-Gate vom Soak-Test trennen** abgeschlossen (2026-05-15) — Pflicht-Gate nutzt nur noch den stabilen Contract-Slice (`test/e2e/contract-api.test.ts`). Legacy-Suite läuft separat über `test:e2e:legacy*`; in CI wurde dafür `e2e-legacy-soak` als separater Nightly-/manueller Soak-Job ergänzt.
-- [x] **Legacy-Soak Reporting standardisiert** abgeschlossen (2026-05-15) — CI-Soak nutzt jetzt `npm run test:e2e:legacy:ci` mit Vitest-`junit`-Reporter und schreibt `artifacts/test-reports/e2e-legacy-junit.xml`; Server-Log + Testreport werden als Artifact hochgeladen. Flake-Triage bleibt als laufende Betriebsroutine aktiv.
-- [x] **P1 (sofort) Legacy-E2E Polling stabilisieren** abgeschlossen (2026-05-15) — `test/e2e/react-api.test.ts` nutzt jetzt gruppenweit zentrale Polling-Parameter (`LEGACY_E2E_POLLING`) und robuste Endzustands-Assertions (`completed|failed` plus Fehlerkontext), statt fragiler impliziter Erwartungen.
-- [x] **P1 (sofort) Performance-Soak als Signal entkoppeln** abgeschlossen (2026-05-15) — Legacy-Performance-Checks sind als non-gating Signal mit Soft-Budgets und Spike-Erkennung umgesetzt (kein harter Merge-Blocker durch einzelne Runner-Latenzspitzen).
-- [x] **P2a Legacy-Server-Skip-Welle klassifizieren (Prozess eingefuehrt)** — Owner: TBD (rotierend, jeweils On-Call der Woche). Umgesetzt: deterministisches Skip-Signal aus CI (`artifacts/test-reports/e2e-legacy-skip-signal.json`) + verbindlicher Tagesablauf inkl. SLA (`Start bis 12:00 CET`, `finale Klassifikation bis 18:00 CET`) in `docs/testing/e2e-legacy-flake-inventory.md` und `docs/e2e-legacy-modernization-plan.md`. Abnahmekriterium: jeder Nightly-Lauf mit Skips wird innerhalb eines Arbeitstags als `infra` oder `test` klassifiziert und mit Repro-Hinweis dokumentiert.
-- [x] **P2 Legacy-DB-Mutationen testisoliert machen** abgeschlossen (2026-05-15) — Legacy-CRUD-Pfade in `test/e2e/react-api.test.ts` nutzen jetzt deterministische, pro Test isolierte Fixtures (scoped URLs/Recipe-Metadaten), expliziten Recipe-Cleanup-Lifecycle (`register...`/`mark...`) und Cleanup-Diagnostik pro Testlauf. Abnahmekriterium verifiziert: `test:e2e:legacy:db` lief lokal 10/10 hintereinander gruen.
-- [x] **P3a Docker-/Umgebungsdiagnostik vom Legacy-API-Vertrag trennen** abgeschlossen (2026-05-15) — Runbook/Doku in `docs/TEST_STATUS.md`, `docs/testing/e2e-legacy-flake-inventory.md` und `docs/e2e-legacy-modernization-plan.md` geschaerft: verbindliche Klassifikationsregeln (`infra` first fuer Docker/Host), Erst-15-Minuten-Checklist und Pflichtformulierung gegen False-Positive-Labeling (`keine Produktregression vor abgeschlossener Environment-Diagnostik`).
-- [x] **`JobManager`-Tests wieder auf reale Laufzeitlogik ziehen** — abgeschlossen 2026-05-24: `test/unit/job-manager.test.ts` prueft echte Runtime-Pfade ueber einen expliziten Test-Seam in `src/job-manager.ts`; Fokustest und Root-Coverage gruen.
-- [x] **Coverage-Gates nach Vitest-4-Migration wieder anziehen** — abgeschlossen 2026-05-24: Root und Mobile stehen wieder auf Mindest-Floors `30`; Root-Coverage und Mobile-Coverage gruen.
-- [x] **Northflank-Deploy-Pfad in Backlog/Watchlist verschoben (2026-06-02)** — Der Review-Plan hat den Northflank-Sonderfall bewusst **nicht** in die aktuelle Remediation gezogen. Kontext: `docker-publish.yml` ist bereits auf der Node-24-kompatiblen Linie, `northflank/deploy-to-northflank@v1` bleibt aber ein Upstream-Sonderfall. Aktuell kein aktiver Next-Step; bei Deploy-Fehlern, Runtime-/Action-Warnungen oder Upstream-Abkuendigung als eigener Infra-Track bearbeiten.
-
-### Patch-safe (jetzt updatebar; innerhalb `wanted`)
-
-- Root: sichere Root-Patches und der `concurrently@10`-Major sind eingespielt; Audit 2026-06-02 zeigt wieder kleine Patch-Drift-Kandidaten (`@vitest/*`, `vitest`, `vite`, `openai`, `supabase`, `concurrently`), siehe Backlog/Watchlist.
-- Mobile: sichere Mobile-Patches fuer `@tanstack/*`, `nativewind`, `lucide-react-native` und Vitest sind eingespielt; Audit 2026-06-02 zeigt wieder kleine Patch-Kandidaten (`@types/react`, `@vitest/coverage-v8`, `react-native-svg`, `vitest`). Der SDK-56-Core-Slice hat die direkte `@react-navigation/native`-Dependency entfernt und nutzt die Expo-Router-kompatiblen Navigation-Theme-Exports.
-- **Umsetzung 2026-05-13 / Nachkorrektur 2026-05-24 / Abschluss 2026-06-01:** sichere Root-Patches eingespielt (`@types/node`, `lighthouse`, `openai`, `vite`) und Mobile auf die Expo-SDK-56-Kompatibilitaetslinie gebracht.
-- **Peer-/SDK-Blocker geloest:** `react-native-reanimated` und `react-native-worklets` wurden zusammen auf die Expo-SDK-56-kompatible Linie (`4.3.1`/`0.8.3`) gehoben.
-- **Aktueller Compatibility-Status (`expo-doctor`):** `21/21` Checks gruen.
-- **Build-Fix:** `mobile/assets/images/favicon.png` war inhaltlich eine ICO-Datei mit falscher `.png`-Endung und blockierte `expo export` mit `Unsupported MIME type: image/x-icon`; Asset wurde durch eine echte PNG-Datei ersetzt, `npm run mobile:build:web` laeuft wieder erfolgreich.
-
-### SDK-gebunden (nur mit Expo-Kompatibilitätscheck)
-
-- `react`, `react-dom`, `react-native` sowie `react-native-*` Kernpakete nur im Rahmen der Expo-SDK-Kompatibilität aktualisieren (`expo install`/`expo-doctor` als Gate)
-- Alle `expo*` Pakete bleiben SDK-geführt und werden nicht separat "hochgezogen"
-- `expo-doctor` ist Teil des CI-Release-Gates; SDK-/Asset-/Config-Drift blockiert damit nicht mehr nur lokal, sondern auch im Mobile-Job.
-
-### Major / später (bewusst vertagt)
-
-- Root: keine bekannten Major-Upgrade-Blocker aus der frueheren Matrix offen; `@hono/node-server` 1 -> 2 und Vitest 3 -> 4 sind erledigt. Aktuelle Root-Reste sind Patch-Drift, siehe Backlog/Watchlist.
-- Mobile: `@react-native-async-storage/async-storage` 2 -> 3 bleibt bis zu einer Expo-kompatiblen Linie vertagt.
-- Mobile, Expo-/SDK-gebunden: React `19.2.6`, `react-dom` `19.2.6`, `react-test-renderer` `19.2.6` und neuere `react-native-*` Latest-Linien werden nicht separat gezogen; Expo SDK 56 erwartet React `19.2.3` und die aktuelle SDK-Matrix ist per `expo install --check` gruen.
-- Mobile, Styling-Track: `tailwindcss` 3 -> 4 bleibt bis zu einer stabilen `NativeWind`-v5-Linie vertagt. Stand 2026-06-02: `nativewind` hat weiter `latest=4.2.4`, `preview=5.0.0-preview.4`; `tailwindcss@latest` ist `4.3.0`, aber `react-native-css-interop@0.2.4` peert weiter `tailwindcss ~3`. Kein Produktions-Update.
+- [Multi-User Login First Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md)
+- [Supabase Data API Readiness](/home/patrick/Projekte/rezepti/docs/supabase-data-api-readiness.md)
+- [Supabase Advisor Follow-ups](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md)
+- [Dependency Upgrade Matrix](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-13-full-stack-upgrade-target-matrix.md)
+- [Test Status](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md)
+- [TODO History Archive](/home/patrick/Projekte/rezepti/docs/todo-history.md)
