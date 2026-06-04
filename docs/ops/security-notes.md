@@ -21,3 +21,27 @@ Noch manuell erforderlich:
 4. Wenn die Historie geteilt wurde, Git-Historie mit `git filter-repo` oder BFG bereinigen und den Force-Push mit allen Worktrees/Clones koordinieren.
 
 Wichtig: Das Entfernen aus `HEAD` rotiert den Credential nicht. Bis zur Rotation bleibt der alte Wert als kompromittiert zu betrachten.
+
+### Status 2026-06-04
+
+Erledigt:
+
+- Production-DB-Passwort wurde rotiert.
+- Staging-DB-Passwort wurde rotiert.
+- Lokale `DATABASE_URL`-Verbindung wurde mit `psql` verifiziert.
+- Lokale `STAGING_DATABASE_URL`-Verbindung wurde mit `psql` verifiziert.
+- Northflank `DATABASE_URL` wurde auf den Supabase Transaction Pooler mit neuem Passwort aktualisiert.
+- Production-Healthcheck war danach gruen: `/api/v1/health` meldete `status: "healthy"` und `recipeCount: 34`.
+- `npm run security:secrets` war gruen.
+- Aktuelle `pg_stat_activity` zeigte nur erwartete Supabase-Systemrollen, PostgREST/Supavisor und den eigenen `psql`-Check.
+
+Historie / verbleibendes Risiko:
+
+- Commit `997e231` liegt auf `origin/main` und `origin/feature/byok-extraction-docs`; die Historie muss deshalb als geteilt behandelt werden.
+- Weil beide Passwoerter rotiert wurden, ist der alte Credential fuer neue Verbindungen nicht mehr nutzbar.
+- Die Git-Historie enthaelt den alten Wert weiterhin. Vollstaendige Bereinigung erfordert koordinierte History-Rewrite-Arbeit mit `git filter-repo` oder BFG und Force-Push fuer alle betroffenen Remotes/Clones.
+
+Noch offen:
+
+- Supabase Dashboard Logs fuer den Zeitraum seit `997e231` pruefen: unbekannte IPs, fehlgeschlagene Logins, ungewoehnliche Queries.
+- Entscheiden, ob die Git-Historie gescrubbt wird oder ob Rotation plus dokumentierter Incident fuer dieses private Repo ausreicht.
