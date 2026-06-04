@@ -8,36 +8,30 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. GitHub Actions seit dem letzten Check sind gruen, inklusive Scheduled CI 2026-06-02 bis 2026-06-04, Push-CI fuer `7523b72`, Docker Build/Push und Northflank Deploy.
 
-Arbeitsbasis war vor dem Multi-User-PR geklaert: `git fetch origin` am 2026-06-04 bestaetigte `origin/main` bei `8ed8801 chore: v1.0.124 [skip ci]`. Der aktive Branch `feature/multi-user-login-first-slice` enthielt `origin/main` vollstaendig und stand 15 Commits vor `origin/main`: 5 lokale Basis-/Security-Doku-Commits auf `main` plus 10 Multi-User-Feature-Commits. `phase/6-multi-user` war stale und keine aktive Basis.
+Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/main` gelandet; der automatische Version-Commit steht bei `v1.0.125`. `phase/6-multi-user` ist stale und keine aktive Basis.
 
 ## Naechste Reihenfolge
 
-1. **Multi-User Login Phase 0/1 fortsetzen**
-   - Auth-Skeleton, Request-User-Kontext, lokaler RLS-Smoke, Staging-RLS-Smoke und Route-Auth-Tests sind im Feature-Branch gruen.
-   - Staging wurde am 2026-06-04 mit der Multi-User-Migration und der Recipe-Data-API-Schliessungsmigration verifiziert; vor Release bleiben Branch-Push/PR-CI und Review offen.
-   - Plan: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
+1. **Recipes-Privacy-Slice planen**
+   - Der gelandete Login-Slice schuetzt Shopping/Planner, nicht die komplette Rezeptverwaltung.
+   - Vor jeder Aussage "alle Rezeptdaten sind privat" muessen Recipe-Ownership, globale Defaults und Server-Route-Auth separat umgesetzt und getestet werden.
+   - Plan-Basis: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 
-2. **Multi-User Branch ship-ready machen**
-   - Naechster kosteneffizienter Schritt: Branch mit Upstream pushen und PR-CI ausloesen; kein weiterer lokaler Review vorab, weil lokale Gates und Staging-RLS-Smoke gruen sind.
-   - Im PR `supabase-rls-smoke` im GitHub-Runner bestaetigen.
-   - Review auf Recipe-Privacy-Caveat, Mobile Auth-Error-DX und Staging-Migrationen fokussieren.
-   - Release-Kommunikation klar halten: Login schuetzt in diesem Slice Shopping/Planner, nicht die komplette Rezeptverwaltung.
-
-3. **Progressive Web App (PWA) einbauen**
+2. **Progressive Web App (PWA) einbauen**
    - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
    - Homescreen-Installationspfad fuer iOS/Android pruefen.
    - Erst nach dem Multi-User-Basisslice starten, damit Auth-/Session-Verhalten sauber in die PWA-Caches passt.
 
-4. **Dependency-Patch-Drift als separaten Maintenance-Slice nachziehen**
+3. **Dependency-Patch-Drift als separaten Maintenance-Slice nachziehen**
    - Root: `@vitest/coverage-v8`, `@vitest/ui`, `concurrently`, `happy-dom`, `openai`, `supabase`, `vite`, `vitest`.
    - Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `@types/react`, `@vitest/coverage-v8`, `react-native-svg`, `vitest`.
    - Nicht mit Auth/RLS vermischen. Expo-/SDK-gebundene Latest-Linien nur ueber `expo install --check` und `expo-doctor`.
 
-5. **Mobile-Persistenz manuell abnehmen**
+4. **Mobile-Persistenz manuell abnehmen**
    - Settings/Theme/PDF nach App-Neustart pruefen.
    - Technische Tests sind gruen; diese manuelle Abnahme fehlt noch.
 
-6. **Spaeter oder trigger-basiert**
+5. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
    - `unused_index` erst nach Nutzungsperiode plus Staging-Plananalyse anfassen.
    - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen oder Upstream-Abkuendigung neu bewerten.
