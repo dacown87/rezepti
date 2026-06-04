@@ -20,7 +20,7 @@ import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull }
 
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/utils/shopping-service';
-import { apiFetch } from '@/utils/api';
+import { apiFetch, assertApiOk } from '@/utils/api';
 import { getServerUrl } from '@/utils/server-url';
 import {
   buildRecipeIdMap,
@@ -379,7 +379,8 @@ export default function PlannerScreen() {
   const loadData = useCallback(async () => {
     try {
       const res = await apiFetch(`/api/v1/planner?week=${weekStart}`);
-      const body = res.ok ? await res.json() : {};
+      await assertApiOk(res, `Planner fetch failed (${res.status})`);
+      const body = await res.json();
       const entries: MealPlanEntry[] = Array.isArray(body) ? body : (body.entries ?? []);
       setMealPlan(entries);
 
@@ -488,7 +489,7 @@ export default function PlannerScreen() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
           });
-          if (!res.ok) throw new Error(`Planner POST failed (${res.status})`);
+          await assertApiOk(res, `Planner POST failed (${res.status})`);
           await loadData();
           Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
         } catch {
@@ -500,7 +501,7 @@ export default function PlannerScreen() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
               });
-              if (!res2.ok) throw new Error(`Planner POST failed (${res2.status})`);
+              await assertApiOk(res2, `Planner POST failed (${res2.status})`);
               await loadData();
               Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
             },
@@ -542,11 +543,12 @@ export default function PlannerScreen() {
     const saved = await recipeRes.json();
     const newId: number = saved.id;
     if (targetDay !== null) {
-      await apiFetch('/api/v1/planner', {
+      const plannerRes = await apiFetch('/api/v1/planner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId: newId, dayOfWeek: targetDay, weekStart }),
       });
+      await assertApiOk(plannerRes, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
     }
     await loadData();
     Alert.alert('Importiert', `"${data.name}" wurde importiert und zum Planer hinzugefügt.`);
@@ -563,7 +565,7 @@ export default function PlannerScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
       });
-      if (!res.ok) throw new Error('Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
+      await assertApiOk(res, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
       await loadData();
     } catch {
       handlePlannerActionError(
@@ -580,7 +582,7 @@ export default function PlannerScreen() {
     setPlannerMutationPending(true);
     try {
       const res = await apiFetch(`/api/v1/planner/${entryId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Rezept konnte nicht entfernt werden.');
+      await assertApiOk(res, 'Rezept konnte nicht entfernt werden.');
       await loadData();
     } catch {
       handlePlannerActionError(

@@ -27,6 +27,27 @@ export interface ApiRecipe {
   created_at?: string | null;
 }
 
+export interface ApiErrorEnvelope {
+  error?: {
+    code?: string;
+    message?: string;
+    cause?: string;
+    fix?: string;
+  };
+}
+
+export class ApiRequestError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly code?: string,
+    public readonly causeText?: string,
+    public readonly fix?: string,
+  ) {
+    super(code ? `${message} (${code})` : message);
+  }
+}
+
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const serverUrl = await getServerUrl();
   const headers = await getAuthHeaders(init?.headers);
@@ -34,16 +55,40 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   return fetch(`${serverUrl}${path}`, nextInit);
 }
 
+export async function readApiError(response: Response, fallbackMessage: string): Promise<ApiRequestError> {
+  try {
+    const body = await response.clone().json() as ApiErrorEnvelope;
+    const error = body?.error;
+    if (error?.message || error?.code) {
+      return new ApiRequestError(
+        response.status,
+        error.message ?? fallbackMessage,
+        error.code,
+        error.cause,
+        error.fix,
+      );
+    }
+  } catch {
+    // Fall back to the route-specific message when the response is not JSON.
+  }
+
+  return new ApiRequestError(response.status, fallbackMessage);
+}
+
+export async function assertApiOk(response: Response, fallbackMessage: string): Promise<void> {
+  if (!response.ok) throw await readApiError(response, fallbackMessage);
+}
+
 export async function fetchRecipes(): Promise<ApiRecipe[]> {
   const res = await apiFetch('/api/v1/recipes');
-  if (!res.ok) throw new Error(`Server-Fehler ${res.status}`);
+  await assertApiOk(res, `Server-Fehler ${res.status}`);
   const data = await res.json();
   return Array.isArray(data) ? data : (data.recipes ?? []);
 }
 
 export async function fetchRecipeById(id: number): Promise<ApiRecipe> {
   const res = await apiFetch(`/api/v1/recipes/${id}`);
-  if (!res.ok) throw new Error(`Rezept nicht gefunden (${res.status})`);
+  await assertApiOk(res, `Rezept nicht gefunden (${res.status})`);
   return res.json();
 }
 
@@ -53,10 +98,10 @@ export async function patchRecipe(id: number, fields: Record<string, unknown>): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(fields),
   });
-  if (!res.ok) throw new Error(`PATCH fehlgeschlagen (${res.status})`);
+  await assertApiOk(res, `PATCH fehlgeschlagen (${res.status})`);
 }
 
 export async function deleteRecipe(id: number): Promise<void> {
   const res = await apiFetch(`/api/v1/recipes/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`DELETE fehlgeschlagen (${res.status})`);
+  await assertApiOk(res, `DELETE fehlgeschlagen (${res.status})`);
 }
