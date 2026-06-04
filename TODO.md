@@ -6,9 +6,9 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 ## Aktueller Stand
 
-Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. CI, Docker Build/Push und Northflank Deploy waren zuletzt gruen.
+Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. GitHub Actions seit dem letzten Check sind gruen, inklusive Scheduled CI 2026-06-02 bis 2026-06-04, Push-CI fuer `7523b72`, Docker Build/Push und Northflank Deploy.
 
-Lokaler Stand nach `git fetch`: `main` ist 4 Commits vor `origin/main`. Der Worktree enthaelt Doku-Aenderungen. Vor neuer Feature-Codearbeit muss die Basis bewusst geklaert werden.
+Lokaler Stand nach `git fetch`: `origin/main` ist durch den automatischen Version-Commit `8ed8801 chore: v1.0.124 [skip ci]` einen Commit vor lokalem `main`. Der Worktree enthaelt weiter die lokale `AGENTS.md`-Aenderung. Vor neuer Feature-Codearbeit muss die Basis bewusst geklaert werden.
 
 ## Naechste Reihenfolge
 
@@ -65,7 +65,9 @@ Lokaler Stand nach `git fetch`: `main` ist 4 Commits vor `origin/main`. Der Work
 
 - Zuletzt dokumentiert: Root Unit Tests `448 passed`, `13 skipped`; Mobile Unit Tests `87 passed` (2026-06-01).
 - Mobile RNTL Guard ist gruen; direkte `react-test-renderer`-Imports in Mobile-Testdateien bleiben blockiert.
-- CI, Docker Build/Push und Northflank Deploy waren nach dem Expo-SDK-56-Merge gruen.
+- Scheduled CI am 2026-06-02 (`26802547508`), 2026-06-03 (`26868293611`) und 2026-06-04 (`26934892387`) war gruen.
+- Push-CI fuer `7523b72` (`26939939417`) war gruen: `test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` war beim Push erwartbar skipped.
+- Docker Build/Push und Northflank Deploy waren fuer `7523b72` (`26939939394`) und den nachgelagerten Version-Commit `8ed8801` (`26939952178`) gruen.
 - Fuer aktuelle Doku-Aenderungen wurden keine Tests neu ausgefuehrt.
 
 ### Dependencies

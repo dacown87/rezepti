@@ -69,6 +69,8 @@ Stand 2026-06-02: Die alte Lueckenliste wurde gegen den aktuellen Testbestand ab
 
 ## Durchgeführte Tests
 
+- ✅ GitHub Actions nach Doku-/TODO-Push (2026-06-04): Push-CI `26939939417` fuer `7523b72` gruen (`test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` beim Push erwartbar skipped). Docker-/Deploy-Run `26939939394` gruen, inklusive Docker Build/Push und Northflank Deploy. Automatischer Changelog-/Version-Workflow `26939939535` gruen und erzeugte `8ed8801 chore: v1.0.124 [skip ci]`; nachgelagerter Docker-/Northflank-Run `26939952178` auf `8ed8801` ebenfalls gruen.
+- ✅ Scheduled CI seit dem letzten dokumentierten Stand (2026-06-02 bis 2026-06-04): Runs `26802547508`, `26868293611` und `26934892387` alle gruen. Jeweils gruen: `test`, `mobile-release-gate`, `e2e`, `e2e-legacy-soak` und `performance-audit`; Nightly/Schedule-Performance lief im Strict-Pfad inklusive Browser-Readiness-Enforcement.
 - ✅ GitHub Actions nach Merge auf `main` (2026-06-01): CI-Run `26739588618` gruen (`test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` erwartbar skipped). Docker-/Deploy-Runs `26739588567` und `26739599281` gruen, inklusive Docker Build/Push und Northflank Deploy. Automatischer Version-Workflow `26739588576` gruen und erzeugte `v1.0.123`.
 - ✅ `npm run build:mobile` — baut die Expo-Web-App nach `public/`
 - ✅ `npx tsc --noEmit` — TypeScript-Check (Root + Mobile)
