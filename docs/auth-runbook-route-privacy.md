@@ -30,11 +30,13 @@ Guardrails:
 Lokal automatisiert:
 
 ```bash
+npm run test:auth
 npx supabase start
+npx supabase db reset --local --yes
 npm run supabase:rls-smoke
 ```
 
-Das Script liest `npx supabase status -o json`, erstellt kurzlebige User A/User B, Haushalte und Memberships, testet echte Supabase Data-API/RLS-Zugriffe und raeumt die eigenen Testdaten wieder ab.
+`npm run test:auth` ist der schnelle Unit-/Route-Vertrag fuer AuthContext, aktive Haushalte und Shopping-/Planner-Route-Scoping. Das RLS-Script liest danach `npx supabase status -o json`, erstellt kurzlebige User A/User B, Haushalte und Memberships, testet echte Supabase Data-API/RLS-Zugriffe und raeumt die eigenen Testdaten wieder ab.
 
 Fuer Cloud/Staging gibt es jetzt einen gegateten Script-Pfad. Er darf nur gegen ein bestaetigtes Staging-Projekt laufen:
 

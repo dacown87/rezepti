@@ -179,7 +179,9 @@ BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-B
 Lokaler Supabase-RLS-Smoke fuer den Multi-User-Slice:
 
 ```bash
+npm run test:auth
 npx supabase start
+npx supabase db reset --local --yes
 npm run supabase:rls-smoke
 ```
 
