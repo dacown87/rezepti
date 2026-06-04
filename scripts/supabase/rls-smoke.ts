@@ -101,7 +101,10 @@ function readStagingStatus(): SupabaseStatus {
 
   return {
     API_URL: apiUrl,
-    ANON_KEY: readRequiredEnv("STAGING_SUPABASE_ANON_KEY"),
+    ANON_KEY:
+      readOptionalEnv("STAGING_SUPABASE_PUBLISHABLE_KEY")
+      ?? readOptionalEnv("STAGING_SUPABASE_ANON_KEY")
+      ?? readRequiredEnv("STAGING_SUPABASE_PUBLISHABLE_KEY"),
     SERVICE_ROLE_KEY:
       readOptionalEnv("STAGING_SUPABASE_SECRET_KEY")
       ?? readOptionalEnv("STAGING_SUPABASE_SERVICE_ROLE_KEY")

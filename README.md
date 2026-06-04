@@ -104,7 +104,8 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✅ fuer Mobile Auth | Mobile-public Publishable Key; bevorzugt gegenueber Legacy-Anon-Key |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | optional | Mobile-public Legacy-Anon-Key-Fallback |
 | `STAGING_SUPABASE_URL` | | Staging-only Projekt-URL fuer Cloud-RLS-Smoke |
-| `STAGING_SUPABASE_ANON_KEY` | | Staging-only Anon/Publishable Key fuer User-JWT-Smoke |
+| `STAGING_SUPABASE_PUBLISHABLE_KEY` | | Staging-only Publishable Key fuer User-JWT-Smoke |
+| `STAGING_SUPABASE_ANON_KEY` | optional | Staging-only Legacy-Anon-Key-Fallback |
 | `STAGING_SUPABASE_SECRET_KEY` | | Staging-only Secret Key fuer Admin-Bootstrap/Cleanup; alternativ Legacy `STAGING_SUPABASE_SERVICE_ROLE_KEY` |
 | `SUPABASE_RLS_SMOKE_CONFIRM` | | Muss fuer Staging-Smoke exakt `rezepti-staging` sein |
 | `STAGING_AUTH_USER_EMAIL` | | Staging-only Testuser fuer Auth-/RLS-Smokes |
@@ -191,7 +192,7 @@ Staging-RLS-Smoke vor Release, nur gegen bestaetigtes Staging-Projekt:
 SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
 ```
 
-Der Staging-Smoke nutzt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SECRET_KEY` oder den Legacy-Fallback `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Er erstellt kurzlebige Testuser und Haushalte, prueft RLS-Isolation ueber echte User-JWTs und raeumt die eigenen Testdaten wieder auf.
+Der Staging-Smoke nutzt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KEY` und `STAGING_SUPABASE_SECRET_KEY`. Legacy-Fallbacks sind `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Er erstellt kurzlebige Testuser und Haushalte, prueft RLS-Isolation ueber echte User-JWTs und raeumt die eigenen Testdaten wieder auf.
 
 ---
 
