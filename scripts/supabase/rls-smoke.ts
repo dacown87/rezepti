@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { execFileSync } from "node:child_process";
 
@@ -150,6 +151,25 @@ async function signIn(url: string, anonKey: string, email: string) {
   }
 
   return client;
+}
+
+async function assertRequiredTables(admin: SupabaseClient) {
+  const requiredTables = [
+    "user_profiles",
+    "households",
+    "household_memberships",
+    "shopping_list",
+    "meal_plan",
+  ];
+
+  for (const table of requiredTables) {
+    const { error } = await admin.from(table).select("*", { head: true, count: "exact" }).limit(1);
+    if (error) {
+      throw new Error(
+        `Target schema is not ready for RLS smoke: public.${table} is unavailable (${error.message}). Apply the multi-user migration to the confirmed target project first.`,
+      );
+    }
+  }
 }
 
 async function insertHousehold(admin: SupabaseClient, name: string, createdBy: string) {
@@ -456,6 +476,7 @@ async function main() {
   });
 
   try {
+    await assertRequiredTables(admin);
     const ids = await bootstrap(admin);
     const userAClient = await signIn(status.API_URL, status.ANON_KEY, userAEmail);
     const userBClient = await signIn(status.API_URL, status.ANON_KEY, userBEmail);

@@ -1,4 +1,5 @@
 import { getAuthHeaders } from '@/utils/auth';
+import { readApiError } from '@/utils/api';
 import { getServerUrl } from '@/utils/server-url';
 
 export const DEFAULT_ADD_INGREDIENTS_CONCURRENCY = 4;
@@ -19,7 +20,7 @@ async function postShoppingIngredient(url: string, ingredient: string, recipeId?
     body: JSON.stringify({ canonicalName: ingredient, recipeId: recipeId ?? null }),
   });
   if (!res.ok) {
-    throw new Error(`Shopping add failed (${res.status})`);
+    throw await readApiError(res, `Shopping add failed (${res.status})`);
   }
 }
 

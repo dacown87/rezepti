@@ -13,14 +13,14 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 ## Naechste Reihenfolge
 
 1. **Multi-User Login Phase 0/1 fortsetzen**
-   - Auth-Skeleton, Request-User-Kontext, lokaler RLS-Smoke und Route-Auth-Tests sind im Feature-Branch gestartet.
-   - Gegateter Cloud-/Staging-RLS-Smoke ist vorbereitet; Ausfuehrung gegen bestaetigtes Staging und produktive Supabase Data-API-Grants bleiben noch offen.
+   - Auth-Skeleton, Request-User-Kontext, lokaler RLS-Smoke, Staging-RLS-Smoke und Route-Auth-Tests sind im Feature-Branch gruen.
+   - Staging wurde am 2026-06-04 mit der Multi-User-Migration und der Recipe-Data-API-Schliessungsmigration verifiziert; vor Release bleiben Branch-Push/PR-CI und Review offen.
    - Plan: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
 
-2. **Household-Scoped Shopping/Planner anschliessen**
-   - DB-Helper und Routen auf `household_id` scopen.
-   - Negative Cross-Household-Tests ergaenzen.
-   - Danach RLS-Migration/Grants gegen Staging verifizieren.
+2. **Multi-User Branch ship-ready machen**
+   - Branch-Push/PR-CI ausloesen und `supabase-rls-smoke` im GitHub-Runner bestaetigen.
+   - Review auf Recipe-Privacy-Caveat, Mobile Auth-Error-DX und Staging-Migrationen fokussieren.
+   - Release-Kommunikation klar halten: Login schuetzt in diesem Slice Shopping/Planner, nicht die komplette Rezeptverwaltung.
 
 3. **Progressive Web App (PWA) einbauen**
    - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
@@ -58,10 +58,10 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 
 ### Supabase / Security
 
-- RLS ist auf den relevanten Public-Tabellen aktiviert; `npm run test:auth` deckt den schnellen Auth-/Route-Vertrag ab. Lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert, lokal gruen und als eigener CI-Job vorbereitet. Ein gegateter Staging-Smoke-Befehl existiert; die Ausfuehrung gegen bestaetigtes Staging bleibt vor Release offen.
-- Data-API-RLS-/Grant-Matrix fuer Multi-User liegt als Draft vor: [db/templates/public-multi-user-data-api-rls.sql](/home/patrick/Projekte/rezepti/db/templates/public-multi-user-data-api-rls.sql).
+- RLS ist auf den relevanten Public-Tabellen aktiviert; `npm run test:auth` deckt den schnellen Auth-/Route-Vertrag ab. Lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert, lokal gruen und als eigener CI-Job vorbereitet. Der gegatete Staging-Smoke lief am 2026-06-04 gegen `rezepti-staging` gruen.
+- Data-API-RLS-/Grant-Matrix fuer Multi-User ist fuer Slice 1 umgesetzt: Shopping/Planner sind household-scoped, `recipes` ist fuer `anon`/`authenticated` ueber die Data API geschlossen und bleibt serverseitig/global-deferred.
 - `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
-- `rezepti-staging` existiert und ist ein plausibler Kandidat fuer RLS-Smokes, muss aber vor Auth/RLS-Tests explizit bestaetigt werden.
+- `rezepti-staging` wurde als RLS-Smoke-Ziel bestaetigt und migriert.
 
 ### Tests / CI
 
@@ -70,7 +70,7 @@ Arbeitsbasis ist geklaert: `git fetch` am 2026-06-04 bestaetigte `origin/main` b
 - Scheduled CI am 2026-06-02 (`26802547508`), 2026-06-03 (`26868293611`) und 2026-06-04 (`26934892387`) war gruen.
 - Push-CI fuer `7523b72` (`26939939417`) war gruen: `test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` war beim Push erwartbar skipped.
 - Docker Build/Push und Northflank Deploy waren fuer `7523b72` (`26939939394`) und den nachgelagerten Version-Commit `8ed8801` (`26939952178`) gruen.
-- Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, lokaler RLS-Smoke, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach dem RLS-Smoke-Nachzug liefen `npm run supabase:rls-smoke`, Root-Unit-Auswahl und `npx tsc --noEmit` gruen.
+- Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, lokaler RLS-Smoke, Staging-RLS-Smoke, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach dem RLS-Smoke-Nachzug liefen `npm run supabase:rls-smoke`, `npm run supabase:rls-smoke:staging`, Root-Unit-Auswahl und `npx tsc --noEmit` gruen.
 
 ### Dependencies
 

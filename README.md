@@ -99,7 +99,8 @@ Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Prob
 | `STAGING_DATABASE_URL` | | Separate Supabase-Staging-Datenbank für Advisor-/Migration-Proben |
 | `RECIPE_SOURCE_AUDIT_DATABASE_URL` | | Optionale DB-URL für `scripts/get-db-urls.ts`; fällt auf `DATABASE_URL` zurück |
 | `SUPABASE_URL` | ✅ fuer Multi-User Slice 1 | Server Supabase Projekt-URL fuer Token-Verifikation |
-| `SUPABASE_ANON_KEY` | ✅ fuer Multi-User Slice 1 | Server Supabase Anon/Publishable Key fuer Token-Verifikation |
+| `SUPABASE_PUBLISHABLE_KEY` | ✅ fuer Multi-User Slice 1 | Server Supabase Publishable Key fuer Token-Verifikation |
+| `SUPABASE_ANON_KEY` | optional | Server Supabase Legacy-Anon-Key-Fallback |
 | `EXPO_PUBLIC_SUPABASE_URL` | ✅ fuer Mobile Auth | Mobile-public Supabase Projekt-URL |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✅ fuer Mobile Auth | Mobile-public Publishable Key; bevorzugt gegenueber Legacy-Anon-Key |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | optional | Mobile-public Legacy-Anon-Key-Fallback |

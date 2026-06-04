@@ -1,6 +1,6 @@
 # Multi-User Auth Runbook & Route Privacy Matrix
 
-Stand: 2026-06-04. Phase 0.5 ist als Dokumentation/Env-Vorbereitung umgesetzt; der erste Auth-Code-Schnitt fuer Server, Mobile-Session und Shopping-/Planner-Household-Scoping liegt im Feature-Branch. Ein lokaler Supabase-RLS-Smoke mit Bootstrap-Automation existiert; Cloud-/Staging-RLS-Smoke bleibt als Release-Gate offen.
+Stand: 2026-06-04. Phase 0.5 ist als Dokumentation/Env-Vorbereitung umgesetzt; der erste Auth-Code-Schnitt fuer Server, Mobile-Session und Shopping-/Planner-Household-Scoping liegt im Feature-Branch. Lokaler Supabase-RLS-Smoke und gegateter Staging-RLS-Smoke gegen `rezepti-staging` sind gruen.
 
 ## Ziel fuer Slice 1
 
@@ -15,7 +15,7 @@ Wichtig fuer Release-Kommunikation: Die Supabase Data API bleibt fuer `recipes` 
 | Klasse | Variablen | Darf in Mobile/Web-Client? | Zweck |
 |---|---|---:|---|
 | Server-only | `DATABASE_URL`, `RECIPE_SOURCE_AUDIT_DATABASE_URL`, alle Secret-/Service-Role-Keys | Nein | Direkter Backend-Zugriff, Migrationen, Audit-Scripts |
-| Server Auth | `SUPABASE_URL`, `SUPABASE_ANON_KEY` oder `SUPABASE_PUBLISHABLE_KEY` | Nein | Bearer-Token-Verifikation im Server |
+| Server Auth | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` oder Legacy-Fallback `SUPABASE_ANON_KEY` | Nein | Bearer-Token-Verifikation im Server |
 | Mobile-public | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` oder `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Ja | Supabase Auth Client und User-Session-Aufbau |
 | Staging-only | `STAGING_DATABASE_URL`, `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KEY`, `STAGING_SUPABASE_SECRET_KEY`, Legacy-Fallbacks `STAGING_SUPABASE_ANON_KEY` oder `STAGING_SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_RLS_SMOKE_CONFIRM`, `STAGING_AUTH_USER_EMAIL`, `STAGING_AUTH_USER_PASSWORD`, `STAGING_AUTH_ADMIN_EMAIL`, `STAGING_AUTH_ADMIN_PASSWORD`, `STAGING_AUTH_HOUSEHOLD_SLUG` | Nein | Admin-/Testuser-Bootstrap und RLS-Smokes |
 
@@ -44,7 +44,7 @@ Fuer Cloud/Staging gibt es jetzt einen gegateten Script-Pfad. Er darf nur gegen 
 SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
 ```
 
-Der Script-Pfad benoetigt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KEY` und `STAGING_SUPABASE_SECRET_KEY`. Legacy-Fallbacks sind `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Ohne `SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging` bricht das Script ab. URLs, die nach Production aussehen, werden ebenfalls abgelehnt.
+Der Script-Pfad liest `.env`, benoetigt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KEY` und `STAGING_SUPABASE_SECRET_KEY`. Legacy-Fallbacks sind `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Ohne `SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging` bricht das Script ab. URLs, die nach Production aussehen, werden ebenfalls abgelehnt.
 
 Der manuelle Pfad bleibt als Fallback verbindlich, falls Staging-Keys nicht lokal verfuegbar sind:
 
@@ -56,7 +56,7 @@ Der manuelle Pfad bleibt als Fallback verbindlich, falls Staging-Keys nicht loka
 4. Einen Testhaushalt mit `STAGING_AUTH_HOUSEHOLD_SLUG` vorbereiten oder den gegateten Staging-Smoke verwenden.
 5. Tokens nur lokal/Staging verwenden und nicht in Logs, Screenshots oder Issue-Texten ablegen.
 
-Offen fuer Release: Staging-Smoke gegen das bestaetigte Projekt tatsaechlich ausfuehren und Ergebnis in `docs/TEST_STATUS.md` dokumentieren.
+Staging-Status 2026-06-04: `rezepti-staging` wurde mit der Multi-User-Migration und `20260604203218_close_recipes_data_api_for_auth_slice.sql` aktualisiert; `npm run supabase:rls-smoke:staging` lief gruen.
 
 ## API-Error-Kontrakt
 
