@@ -92,11 +92,12 @@ Nach Abschluss soll gelten:
 - optional `updated_at timestamptz not null default now()` falls der Slice
   ohnehin Recipe-Mutationen beruehrt
 
-Die bestehende `user_id`-Spalte soll nicht mehr Sichtbarkeitsquelle bleiben.
-Sie kann in der Migrationsphase in `created_by` ueberfuehrt und danach
-entfernt oder als technische Altspalte durch `created_by` ersetzt werden. Die
-konkrete mechanische Entscheidung faellt beim Migrationsentwurf, aber neue
-Route-Logik darf nicht weiter auf `user_id is null` fuer Sichtbarkeit setzen.
+Die bestehende `user_id`-Spalte wird in der Ownership-Migration entfernt. Falls
+vor dem harten Reset noch `user_id is not null` Daten behalten werden, werden
+sie vorher nach `owner_user_id` und `created_by` ueberfuehrt. Danach sind
+`owner_user_id` und `created_by` die einzigen User-Bezuege auf `recipes`; neue
+Route-Logik darf nicht weiter auf `user_id` oder `user_id is null` fuer
+Sichtbarkeit setzen.
 
 ### Constraints
 
@@ -141,27 +142,55 @@ Die Migration ist bewusst hart:
 4. Neue Owner-Spalten hinzufuegen.
 5. Bestehende `user_id is not null` Rezepte als private Rezepte uebernehmen:
    `owner_type = 'user'`, `owner_user_id = user_id`, `created_by = user_id`.
-6. Strenge Constraints setzen.
-7. Servercode auf neue Owner-Helper umstellen.
+6. `recipes.user_id` aus DB, Drizzle-Schema, Code und Tests entfernen.
+7. Strenge Constraints setzen.
+8. Servercode auf neue Owner-Helper umstellen.
 
 Kein Serverpfad behaelt Legacy-Null-Kompatibilitaet.
+
+### Migration-Smoke
+
+Die harte Migration bekommt einen automatisierten lokalen Smoke, nicht nur eine
+manuelle Checkliste. Mindest-Gate:
+
+```bash
+npx supabase db reset --local --yes
+npm run supabase:rls-smoke
+```
+
+Zusaetzliche SQL-/Script-Assertions:
+
+- `public.recipes` enthaelt keine `user_id` Spalte mehr.
+- `owner_type`, `owner_user_id`, `household_id` und `created_by` existieren.
+- Es gibt keine Recipe-Zeile ohne gueltigen Owner.
+- Der Owner-Check-Constraint lehnt doppelte oder fehlende Owner ab.
+- `meal_plan.recipe_id` und nicht-null `shopping_list.recipe_id` zeigen nur auf
+  existierende Recipes.
+- Planner-/Shopping-RLS-Smoke lehnt private oder fremde Household-Recipe-IDs ab.
+
+Wenn Staging vor Release genutzt wird, muss derselbe Smoke gegen
+`rezepti-staging` laufen oder die Ziel-DB-Abweichung explizit dokumentiert
+werden.
 
 ## Server-Design
 
 ### Sichtbarkeitsregeln
 
-Route-Reads akzeptieren optional Auth nur fuer App-Shell-Kompatibilitaet:
+Recipe-Reads sind auth-pflichtig. Ohne globale Rezepte gibt es keinen
+fachlichen Public-Fallback mehr; eine leere anonyme Liste wuerde wie Datenverlust
+aussehen.
 
-- Ohne Auth: keine privaten oder Haushaltsrezepte ausgeben.
-- Mit Auth: private eigene Rezepte plus Haushaltsrezepte der eigenen
-  Memberships.
-
-Falls die App fachlich Login fuer Recipes erzwingen soll, kann `GET
-/api/v1/recipes` in diesem Slice auth-pflichtig werden. Das ist
-produktseitig sauberer, bricht aber unauthenticated E2E-/Web-Smokes. Empfehlung
-fuer diesen Slice: unauthenticated Reads liefern eine leere Liste oder einen
-klaren Auth-Fehler nur dort, wo Mobile den Login-State sauber behandelt. Keine
-globalen Rezeptdaten mehr als Fallback.
+- `GET /api/v1/recipes`, Ingredient-Search, Detail und Bildroute verlangen
+  Bearer Auth.
+- Ohne Auth liefern diese Routen den stabilen `auth_missing` Fehler.
+- Mit Auth sieht der User private eigene Rezepte plus Haushaltsrezepte der
+  eigenen Memberships.
+- App/Web-Smokes und Mobile-Empty-States muessen auf Login/Auth-Fehler
+  umgestellt werden, statt globale oder leere Daten zu erwarten.
+- Ingredient-Search bleibt fuer diesen Slice owner-gefiltert und in-memory,
+  bekommt aber ein hartes API-Limit von maximal 100 Rueckgaben. Wenn sichtbare
+  Rezeptmengen spaeter groesser werden, wird DB-backed Search ein eigener
+  Performance-Slice.
 
 ### Mutationsregeln
 
@@ -181,6 +210,10 @@ type RecipeOwner =
   | { type: "user"; userId: string }
   | { type: "household"; householdId: string };
 
+recipeVisibilityForAuth(auth);
+canMutateRecipeForAuth(auth);
+isHouseholdRecipeFor(householdId);
+
 saveRecipeToReactDb(recipe, sourceUrl, transcript, {
   owner,
   createdBy,
@@ -195,6 +228,12 @@ copyRecipeToOwner(id, authContext, targetOwner);
 
 Die Route-Schicht soll keinen rohen `userId` mehr als einzige
 Sichtbarkeitsgrenze weiterreichen.
+
+Die Owner-Praedikate muessen zentrale Helper sein, nicht pro Route neu
+zusammengesetzt. `visibleRecipesFor(userId)` aus dem aktuellen Diff wird durch
+Owner-Helper ersetzt, die dieselbe Regel fuer Liste, Detail, Bild,
+Ingredient-Search, Update/Delete und Planner-/Shopping-Referenzvalidierung
+verwenden.
 
 ## Planner und Shopping
 
@@ -262,6 +301,41 @@ Solange `meal_plan` und `shopping_list` ueber die Data API fuer
 Haushaltsrezept desselben Haushalts ist. Andernfalls koennte ein User eine
 fremde, nur nach ID bekannte Recipe in eigene Haushaltsdaten referenzieren.
 
+Da `recipes` in diesem Slice fuer `authenticated` geschlossen bleibt, duerfen
+Shopping-/Planner-Policies diese Tabelle nicht einfach direkt per Subquery als
+normaler User lesen. Stattdessen bekommt die Migration einen kleinen privaten
+RLS-Helper:
+
+```sql
+create or replace function private.recipe_belongs_to_household(
+  target_recipe_id integer,
+  target_household_id uuid
+)
+returns boolean
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.recipes r
+    where r.id = target_recipe_id
+      and r.owner_type = 'household'
+      and r.household_id = target_household_id
+  );
+$$;
+```
+
+Helper-Regeln:
+
+- Funktion liegt in `private`, nicht in einem exponierten Schema.
+- `EXECUTE` wird von `public`, `anon` und `authenticated` revoked.
+- Sie wird nur in RLS-Policies genutzt, nicht als PostgREST-RPC freigegeben.
+- `supabase db advisors` oder der Advisor-Fallback muss nach der Migration
+  laufen, mit besonderem Blick auf Security-Definer- und Search-Path-Warnungen.
+- RLS-Smoke prueft, dass fremde oder private `recipe_id`s in `meal_plan` und
+  `shopping_list` abgelehnt werden.
+
 Supabase-Sicherheitsregeln:
 
 - RLS bleibt auf `recipes` aktiviert.
@@ -289,10 +363,25 @@ Supabase-Sicherheitsregeln:
 - `POST /api/v1/recipes` ohne Token liefert `auth_missing`.
 - `POST /api/v1/recipes` mit Token erstellt privates Rezept.
 - optionaler Haushalt beim Create verlangt Membership.
-- `GET /api/v1/recipes` ohne Token liefert keine globalen Daten.
+- `GET /api/v1/recipes`, Detail, Bildroute und Ingredient-Search ohne Token
+  liefern `auth_missing`.
 - Detail fremder Rezepte liefert `404`.
 - Bildroute fremder Rezepte liefert `404`.
 - Ingredient-Search nutzt dieselbe Owner-Sicht wie Recipe-Liste.
+- Ingredient-Search respektiert `limit <= 100` und liefert keine Daten
+  ausserhalb der Owner-Sicht.
+
+### Mobile
+
+- Recipe-Liste zeigt bei `auth_missing` einen Login-/Session-Zustand, keine
+  leere Rezeptliste.
+- Recipe-Detail zeigt bei `auth_missing` einen klaren Login-/Retry-Zustand.
+- Import-/Create-Speichern behandelt `auth_missing` sichtbar und verschluckt den
+  Fehler nicht.
+- Planner-Flow fuer private Rezepte fuehrt zur Haushaltskopie oder zu einem
+  klaren Blocker, nicht zu stillem Planner-Insert.
+- API-Wrapper-Tests bestaetigen, dass `auth_missing`, `no_household` und `404`
+  als stabile Codes erhalten bleiben.
 
 ### Planner / Shopping
 
@@ -350,3 +439,103 @@ Er muss aber vor Shipping umgebaut werden:
 - UX fuer "privates Rezept im Haushalt verwenden".
 - Optional spaetere Data-API-RLS-Oeffnung fuer `recipes`.
 - BYOK/API-Key-Ownership und Plattform-Credentials.
+- DB-backed Recipe-/Ingredient-Search, sobald reale sichtbare Rezeptmengen oder
+  Performance-Messungen das noetig machen.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | not run | Ownership decisions were made directly with user input before this review |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | not run | Outside voice skipped for this plan review |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues resolved | 7 issues found, 0 critical gaps after plan updates |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | not run | UI behavior noted for mobile auth states; no visual review run |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | not run | No DX review run |
+
+- **UNRESOLVED:** 0
+- **VERDICT:** ENG CLEARED — ready to implement Ownership Core.
+
+### Eng Review Summary
+
+- Step 0: Scope Challenge — scope accepted as Ownership Core, not Interim.
+- Architecture Review: 3 issues found and resolved.
+- Code Quality Review: 1 issue found and resolved.
+- Test Review: coverage diagram produced; 2 gaps identified and resolved in plan.
+- Performance Review: 1 issue found and resolved.
+- NOT in scope: global templates, public recipe catalog, admin recipe editor,
+  legacy claim flow, pro-recipe roles, direct Recipes Data API, share UX,
+  favorites/collections, BYOK/platform credential ownership, DB-backed search.
+- What already exists: Supabase AuthContext, household memberships,
+  shopping/planner RLS smoke, mobile `apiFetch`, route auth tests, DB helper
+  tests. Plan reuses these and replaces only the old `user_id is null`
+  visibility rule.
+- TODOS.md updates: no new TODO proposals; existing TODO already points to this
+  Ownership Slice and follow-up sharing/favorites slices.
+- Failure modes: 0 silent critical gaps after adding auth-required reads,
+  private RLS helper, migration smoke, mobile auth-error UX tests, and search
+  cap.
+- Outside voice: skipped.
+- Parallelization: 3 lanes possible. Lane A schema/DB/RLS, Lane B server routes
+  and helper predicates after schema shape is fixed, Lane C mobile UX tests after
+  auth error contract is fixed. Merge A before final B/C verification.
+- Lake Score: 7/7 recommendations chose complete option.
+
+### Coverage Diagram
+
+```text
+CODE PATHS                                              USER FLOWS
+[+] supabase/migrations recipes ownership               [+] First app open after login
+  ├── [GAP->PLAN] add owner columns/constraints             ├── [GAP->PLAN] recipe list requires auth
+  ├── [GAP->PLAN] drop recipes.user_id                      ├── [GAP->PLAN] auth_missing shows login state
+  ├── [GAP->PLAN] reject missing/double owner               └── [GAP->PLAN] no global empty-list confusion
+  └── [GAP->PLAN] private RLS helper for refs
+
+[+] src/db-react.ts recipe helpers                       [+] Recipe ownership
+  ├── [GAP->PLAN] private owner visibility                  ├── [GAP->PLAN] create private by default
+  ├── [GAP->PLAN] household member visibility               ├── [GAP->PLAN] household create needs membership
+  ├── [GAP->PLAN] mutate private owner only                 ├── [GAP->PLAN] household member edits recipe
+  ├── [GAP->PLAN] mutate household member only              └── [GAP->PLAN] foreign recipe returns 404
+  └── [GAP->PLAN] ingredient search owner + limit
+
+[+] src/routes/planner.ts / shopping                    [+] Planner/shopping
+  ├── [GAP->PLAN] reject private recipe_id                  ├── [GAP->PLAN] private recipe needs copy first
+  ├── [GAP->PLAN] reject foreign household recipe_id        └── [GAP->PLAN] household recipe can be planned
+  └── [GAP->PLAN] accept active-household recipe_id
+
+COVERAGE TARGET: all listed paths need tests before ship.
+QUALITY TARGET: root unit + migration smoke + RLS smoke + mobile auth UX tests.
+```
+
+### Implementation Tasks
+
+Synthesized from this review's findings. Each task derives from a specific
+finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+- [ ] **T1 (P1, human: ~1h / CC: ~10min)** — recipes — Make recipe reads auth-required in the plan and implementation.
+  - Surfaced by: Architecture Issue 1 — anonymous recipe reads were ambiguous after global templates were removed.
+  - Files: `src/routes/recipes.ts`, `mobile/app/(tabs)/index.tsx`, `mobile/app/recipe/[id].tsx`
+  - Verify: `npm run test:auth`, `npm --prefix mobile run test:unit`
+- [ ] **T2 (P1, human: ~2h / CC: ~20min)** — rls — Use a private RLS helper for planner/shopping recipe ownership checks.
+  - Surfaced by: Architecture Issue 2 — shopping/planner Data API policies cannot directly rely on closed recipes table access.
+  - Files: `supabase/migrations`, `scripts/supabase/rls-smoke.ts`
+  - Verify: `npx supabase db reset --local --yes`, `npm run supabase:rls-smoke`
+- [ ] **T3 (P2, human: ~1h / CC: ~10min)** — recipes — Centralize recipe ownership predicates.
+  - Surfaced by: Architecture Issue 3 — helper signatures did not guarantee one source of truth for private and household visibility.
+  - Files: `src/db-react.ts`, `src/routes/recipes.ts`, `src/routes/planner.ts`
+  - Verify: `npm run test:unit -- --run test/unit/db-react.test.ts test/unit/recipes-routes.test.ts test/unit/planner-routes.test.ts`
+- [ ] **T4 (P2, human: ~45min / CC: ~10min)** — schema — Drop `recipes.user_id` during ownership migration.
+  - Surfaced by: Code Quality Issue 4 — keeping `user_id` around preserves stale global/unauthenticated semantics.
+  - Files: `src/schema.ts`, `supabase/migrations`, `test/unit/db-react.test.ts`
+  - Verify: `npx tsc --noEmit`, migration smoke
+- [ ] **T5 (P1, human: ~2h / CC: ~20min)** — migration — Add automated ownership migration smoke.
+  - Surfaced by: Test Issue 5 — hard reset/drop-user_id migration needed direct assertions, not only route tests.
+  - Files: `scripts/supabase/rls-smoke.ts`, `supabase/migrations`
+  - Verify: `npm run supabase:rls-smoke`
+- [ ] **T6 (P2, human: ~1.5h / CC: ~15min)** — mobile — Add mobile auth-error UX tests for recipe flows.
+  - Surfaced by: Test Issue 6 — auth-required recipe reads need visible mobile login/session states.
+  - Files: `mobile/test`, `mobile/app/(tabs)/index.tsx`, `mobile/app/recipe/[id].tsx`
+  - Verify: `npm --prefix mobile run test:unit`, `npm run test:mobile:rntl-guard`
+- [ ] **T7 (P2, human: ~30min / CC: ~5min)** — performance — Cap ingredient search and test owner-scoped limits.
+  - Surfaced by: Performance Issue 7 — in-memory ingredient search needed explicit bounds under ownership filtering.
+  - Files: `src/db-react.ts`, `src/routes/recipes.ts`, `test/unit/recipes-routes.test.ts`
+  - Verify: `npm run test:unit -- --run test/unit/recipes-routes.test.ts`
