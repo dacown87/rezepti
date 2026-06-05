@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build:web": "node ../scripts/mobile/expo-export-web.mjs --output-dir ../public",
     "test:unit": "vitest run -c vitest.config.ts",
-    "test:coverage": "vitest run -c vitest.config.ts --coverage",
+    "test:coverage": "vitest run -c vitest.config.ts --coverage --coverage.reportsDirectory=../artifacts/coverage/mobile",
     "test:watch": "vitest -c vitest.config.ts"
   },
   "dependencies": {

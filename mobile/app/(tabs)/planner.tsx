@@ -20,7 +20,7 @@ import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull }
 
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/utils/shopping-service';
-import { apiFetch, assertApiOk } from '@/utils/api';
+import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 import { getServerUrl } from '@/utils/server-url';
 import {
   buildRecipeIdMap,
@@ -94,7 +94,7 @@ function parseJSON<T>(json: string | null, fallback: T): T {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return error instanceof ApiRequestError && error.code ? error.message : fallback;
 }
 
 // ─── Recipe Picker Modal ─────────────────────────────────────────────────────

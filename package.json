@@ -32,7 +32,7 @@
     "perf:validate:warn": "PERF_ENFORCEMENT_LEVEL=warn node scripts/performance/validate-status.mjs",
     "perf:validate:strict": "PERF_ENFORCEMENT_LEVEL=strict node scripts/performance/validate-status.mjs",
     "perf:audit": "npm run build:mobile && npm run perf:bundle && npm run perf:lighthouse",
-    "test:coverage": "vitest run test/unit --coverage",
+    "test:coverage": "vitest run test/unit --coverage --coverage.reportsDirectory=artifacts/coverage/root",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:auth": "vitest run test/unit/auth.test.ts test/unit/planner-auth-routes.test.ts test/unit/planner-routes.test.ts test/unit/db-react.test.ts",

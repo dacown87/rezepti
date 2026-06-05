@@ -8,7 +8,7 @@ import { useFocusEffect } from 'expo-router';
 import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
 
 import type { ShoppingListItem } from '@/db/schema';
-import { apiFetch, assertApiOk } from '@/utils/api';
+import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ async function addManualItem(name: string): Promise<void> {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return error instanceof ApiRequestError && error.code ? error.message : fallback;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ export default function ShoppingScreen() {
       setItems(await fetchItems());
     } catch (error) {
       setItems((prev) => (prev.length === 0 ? [] : prev));
-      setLoadError(error instanceof Error ? error.message : 'Shopping fetch failed');
+      setLoadError(errorMessage(error, 'Einkaufsliste konnte nicht geladen werden'));
     } finally {
       setLoading(false);
     }
