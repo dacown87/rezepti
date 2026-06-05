@@ -57,6 +57,10 @@ async function addManualItem(name: string): Promise<void> {
   await assertApiOk(res, `Shopping add failed (${res.status})`);
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ShoppingScreen() {
@@ -123,10 +127,10 @@ export default function ShoppingScreen() {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: i.checked ? 0 : 1 } : i));
     try {
       await toggleItem(item.id);
-    } catch {
+    } catch (error) {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
       handleMutationError(
-        'Status konnte nicht aktualisiert werden.',
+        errorMessage(error, 'Status konnte nicht aktualisiert werden.'),
         async () => handleToggle(item),
       );
     }
@@ -138,10 +142,10 @@ export default function ShoppingScreen() {
     setItems(prev => prev.filter(i => i.id !== id));
     try {
       await deleteItem(id);
-    } catch {
+    } catch (error) {
       setItems(previousItems);
       handleMutationError(
-        'Artikel konnte nicht gelöscht werden.',
+        errorMessage(error, 'Artikel konnte nicht gelöscht werden.'),
         async () => handleDelete(id),
       );
     }
@@ -152,9 +156,9 @@ export default function ShoppingScreen() {
     try {
       await clearChecked();
       await load();
-    } catch {
+    } catch (error) {
       handleMutationError(
-        'Erledigte Einträge konnten nicht entfernt werden.',
+        errorMessage(error, 'Erledigte Einträge konnten nicht entfernt werden.'),
         async () => handleClearChecked(),
       );
     }
@@ -168,9 +172,9 @@ export default function ShoppingScreen() {
     try {
       await clearAll();
       await load();
-    } catch {
+    } catch (error) {
       handleMutationError(
-        'Einkaufsliste konnte nicht geleert werden.',
+        errorMessage(error, 'Einkaufsliste konnte nicht geleert werden.'),
         async () => confirmClearAll(),
       );
     }
@@ -184,10 +188,10 @@ export default function ShoppingScreen() {
     try {
       await addManualItem(name);
       await load();
-    } catch {
+    } catch (error) {
       setNewItem(name);
       handleMutationError(
-        'Artikel konnte nicht hinzugefügt werden.',
+        errorMessage(error, 'Artikel konnte nicht hinzugefügt werden.'),
         async () => {
           await addManualItem(name);
           await load();
@@ -220,7 +224,7 @@ export default function ShoppingScreen() {
   if (loadError && items.length === 0 && !loading) {
     return (
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center px-8">
-        <Text className="text-red-500 text-center">Einkaufsliste konnte nicht geladen werden</Text>
+        <Text className="text-red-500 text-center">{loadError}</Text>
         <Pressable onPress={() => load()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
           <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
         </Pressable>

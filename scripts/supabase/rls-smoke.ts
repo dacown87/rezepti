@@ -293,6 +293,13 @@ async function runShoppingChecks(
 
   assert(userIdSpoofError, "User A changed shopping row user_id through the Data API");
 
+  const { error: householdIdSpoofError } = await userAClient
+    .from("shopping_list")
+    .update({ household_id: ids.sharedHousehold })
+    .eq("id", inserted.id);
+
+  assert(householdIdSpoofError, "User A changed shopping row household_id through the Data API");
+
   const { data: sharedInsert, error: sharedInsertError } = await userAClient
     .from("shopping_list")
     .insert({
@@ -403,6 +410,13 @@ async function runPlannerChecks(
 
   assert(userIdSpoofError, "User A changed planner row user_id through the Data API");
 
+  const { error: householdIdSpoofError } = await userAClient
+    .from("meal_plan")
+    .update({ household_id: ids.sharedHousehold })
+    .eq("id", inserted.id);
+
+  assert(householdIdSpoofError, "User A changed planner row household_id through the Data API");
+
   const { data: sharedInsert, error: sharedInsertError } = await userAClient
     .from("meal_plan")
     .insert({
@@ -492,7 +506,7 @@ async function main() {
     console.log(`- User A can CRUD own household shopping/planner rows`);
     console.log(`- User B cannot read/update/delete User A household rows`);
     console.log(`- shared household rows are visible to both members`);
-    console.log(`- shared household updates cannot rewrite creator user_id`);
+    console.log(`- shared household updates cannot rewrite creator user_id or household scope`);
   } finally {
     await cleanup(admin);
   }

@@ -93,6 +93,10 @@ function parseJSON<T>(json: string | null, fallback: T): T {
   try { return JSON.parse(json) as T; } catch { return fallback; }
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 // ─── Recipe Picker Modal ─────────────────────────────────────────────────────
 
 function RecipePickerModal({
@@ -119,9 +123,9 @@ function RecipePickerModal({
     try {
       const rows = await loadAllRecipes();
       setRecipes(rows);
-    } catch {
+    } catch (error) {
       setRecipes([]);
-      setLoadError('Rezepte konnten nicht geladen werden.');
+      setLoadError(errorMessage(error, 'Rezepte konnten nicht geladen werden.'));
     } finally {
       setLoading(false);
     }
@@ -394,12 +398,13 @@ export default function PlannerScreen() {
       const all = await loadAllRecipes();
       setRecipes(pickRecipesByIds(all, usedIds));
       clearPlannerError();
-    } catch {
+    } catch (error) {
+      const message = errorMessage(error, 'Wochenplan konnte nicht geladen werden.');
       handlePlannerActionError(
-        'Wochenplan konnte nicht geladen werden.',
+        message,
         async () => loadData(),
       );
-      throw new Error('Wochenplan konnte nicht geladen werden.');
+      throw new Error(message);
     }
   }, [weekStart]);
 
@@ -465,9 +470,9 @@ export default function PlannerScreen() {
       if (ingredients.length === 0) return;
       await addIngredients(ingredients);
       router.navigate('/(tabs)/shopping' as never);
-    } catch {
+    } catch (error) {
       handlePlannerActionError(
-        'Einkaufsliste konnte nicht erstellt werden.',
+        errorMessage(error, 'Einkaufsliste konnte nicht erstellt werden.'),
         async () => handleAddWeekToShopping(),
       );
     }
@@ -492,9 +497,9 @@ export default function PlannerScreen() {
           await assertApiOk(res, `Planner POST failed (${res.status})`);
           await loadData();
           Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
-        } catch {
+        } catch (error) {
           handlePlannerActionError(
-            'Rezept konnte nicht zum Wochenplan hinzugefügt werden.',
+            errorMessage(error, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.'),
             async () => {
               const res2 = await apiFetch('/api/v1/planner', {
                 method: 'POST',
@@ -567,9 +572,9 @@ export default function PlannerScreen() {
       });
       await assertApiOk(res, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
       await loadData();
-    } catch {
+    } catch (error) {
       handlePlannerActionError(
-        'Rezept konnte nicht zum Wochenplan hinzugefügt werden.',
+        errorMessage(error, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.'),
         async () => handleAddRecipe(recipeId, targetDay),
       );
     } finally {
@@ -584,9 +589,9 @@ export default function PlannerScreen() {
       const res = await apiFetch(`/api/v1/planner/${entryId}`, { method: 'DELETE' });
       await assertApiOk(res, 'Rezept konnte nicht entfernt werden.');
       await loadData();
-    } catch {
+    } catch (error) {
       handlePlannerActionError(
-        'Rezept konnte nicht entfernt werden.',
+        errorMessage(error, 'Rezept konnte nicht entfernt werden.'),
         async () => retryRemoveEntry(entryId),
       );
     } finally {

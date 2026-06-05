@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc, and, isNull } from "drizzle-orm";
+import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import {
   recipes,
   ingredientDictionary,
@@ -494,16 +494,12 @@ export async function addToShoppingList(
 
 export async function toggleShoppingItem(householdId: string, id: number): Promise<boolean> {
   const db = getDb();
-  const items = await db
-    .select()
-    .from(shoppingList)
-    .where(and(eq(shoppingList.householdId, householdId), eq(shoppingList.id, id)));
-  if (!items[0]) return false;
-  await db
+  const rows = await db
     .update(shoppingList)
-    .set({ checked: !items[0].checked })
-    .where(and(eq(shoppingList.householdId, householdId), eq(shoppingList.id, id)));
-  return true;
+    .set({ checked: sql`NOT ${shoppingList.checked}` })
+    .where(and(eq(shoppingList.householdId, householdId), eq(shoppingList.id, id)))
+    .returning({ id: shoppingList.id });
+  return rows.length > 0;
 }
 
 export async function deleteShoppingItem(householdId: string, id: number): Promise<boolean> {
