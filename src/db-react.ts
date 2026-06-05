@@ -1,7 +1,16 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc, and, isNull } from "drizzle-orm";
-import { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } from "./schema.js";
+import { eq, desc, and, isNull, sql } from "drizzle-orm";
+import {
+  recipes,
+  ingredientDictionary,
+  shoppingList,
+  mealPlan,
+  apiKeys,
+  userProfiles,
+  households,
+  householdMemberships,
+} from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
 import {
@@ -41,7 +50,18 @@ function getDb() {
       connect_timeout: 10,
       idle_timeout: 30,
     });
-    _db = drizzle(_client, { schema: { recipes, ingredientDictionary, shoppingList, mealPlan, apiKeys } });
+    _db = drizzle(_client, {
+      schema: {
+        recipes,
+        ingredientDictionary,
+        shoppingList,
+        mealPlan,
+        apiKeys,
+        userProfiles,
+        households,
+        householdMemberships,
+      },
+    });
   }
   return _db;
 }
@@ -347,15 +367,91 @@ export async function findCanonicalBySimilarity(name: string) {
   return null;
 }
 
+// ── AuthZ Context ─────────────────────────────────────────────────────────────
+
+export type AppRole = "user" | "admin";
+export type HouseholdRole = "owner" | "member";
+
+export interface UserAuthorization {
+  appRole: AppRole;
+  memberships: Array<{ householdId: string; role: HouseholdRole }>;
+  activeHouseholdId: string | null;
+}
+
+function normalizeAppRole(role: string | null | undefined): AppRole {
+  return role === "admin" ? "admin" : "user";
+}
+
+function normalizeHouseholdRole(role: string | null | undefined): HouseholdRole {
+  return role === "owner" ? "owner" : "member";
+}
+
+function compareHouseholdMemberships(
+  a: { householdId: string; role: HouseholdRole },
+  b: { householdId: string; role: HouseholdRole },
+) {
+  if (a.role !== b.role) return a.role === "owner" ? -1 : 1;
+  return a.householdId.localeCompare(b.householdId);
+}
+
+export function chooseActiveHouseholdId(
+  memberships: Array<{ householdId: string; role: HouseholdRole }>,
+): string | null {
+  return [...memberships].sort(compareHouseholdMemberships)[0]?.householdId ?? null;
+}
+
+export async function loadUserAuthorization(userId: string, email?: string | null): Promise<UserAuthorization> {
+  const db = getDb();
+  const [profile] = await db
+    .select({ appRole: userProfiles.appRole })
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+
+  if (!profile) {
+    await db
+      .insert(userProfiles)
+      .values({ userId, email: email ?? null, appRole: "user" })
+      .onConflictDoNothing({ target: userProfiles.userId });
+  }
+
+  const memberships = await db
+    .select({
+      householdId: householdMemberships.householdId,
+      role: householdMemberships.role,
+    })
+    .from(householdMemberships)
+    .where(eq(householdMemberships.userId, userId));
+
+  const normalizedMemberships = memberships.map((membership) => ({
+    householdId: membership.householdId,
+    role: normalizeHouseholdRole(membership.role),
+  })).sort(compareHouseholdMemberships);
+
+  const activeHouseholdId = chooseActiveHouseholdId(normalizedMemberships);
+
+  return {
+    appRole: normalizeAppRole(profile?.appRole),
+    memberships: normalizedMemberships,
+    activeHouseholdId,
+  };
+}
+
 // ── Shopping List ─────────────────────────────────────────────────────────────
 
-export async function getShoppingList() {
+export async function getShoppingList(householdId: string) {
   const db = getDb();
-  const rows = await db.select().from(shoppingList).orderBy(shoppingList.createdAt);
+  const rows = await db
+    .select()
+    .from(shoppingList)
+    .where(eq(shoppingList.householdId, householdId))
+    .orderBy(shoppingList.createdAt);
   return rows.map(serializeShoppingItem);
 }
 
 export async function addToShoppingList(
+  householdId: string,
+  userId: string,
   recipeId: number | null,
   canonicalName: string,
   quantity?: string,
@@ -363,14 +459,14 @@ export async function addToShoppingList(
 ): Promise<{ id: number }> {
   const db = getDb();
 
-  // Insert with conflict guard: the unique index on (user_id, recipe_id, canonical_name)
+  // Insert with conflict guard: the unique index on (household_id, recipe_id, canonical_name)
   // with NULLS NOT DISTINCT blocks duplicate entries at DB level.
   // When a conflict is detected Postgres skips the insert and returns an empty rows array.
   const rows = await db
     .insert(shoppingList)
-    .values({ recipeId, canonicalName, quantity, unit })
+    .values({ householdId, userId, recipeId, canonicalName, quantity, unit })
     .onConflictDoNothing({
-      target: [shoppingList.userId, shoppingList.recipeId, shoppingList.canonicalName],
+      target: [shoppingList.householdId, shoppingList.recipeId, shoppingList.canonicalName],
     })
     .returning({ id: shoppingList.id });
 
@@ -386,7 +482,7 @@ export async function addToShoppingList(
   const existing = await db
     .select({ id: shoppingList.id })
     .from(shoppingList)
-    .where(and(isNull(shoppingList.userId), recipeCondition, eq(shoppingList.canonicalName, canonicalName)))
+    .where(and(eq(shoppingList.householdId, householdId), recipeCondition, eq(shoppingList.canonicalName, canonicalName)))
     .limit(1);
 
   if (!existing[0]) {
@@ -396,53 +492,67 @@ export async function addToShoppingList(
   return existing[0];
 }
 
-export async function toggleShoppingItem(id: number): Promise<boolean> {
+export async function toggleShoppingItem(householdId: string, id: number): Promise<boolean> {
   const db = getDb();
-  const items = await db.select().from(shoppingList).where(eq(shoppingList.id, id));
-  if (!items[0]) return false;
-  await db.update(shoppingList).set({ checked: !items[0].checked }).where(eq(shoppingList.id, id));
-  return true;
-}
-
-export async function deleteShoppingItem(id: number): Promise<boolean> {
-  const db = getDb();
-  const rows = await db.delete(shoppingList).where(eq(shoppingList.id, id)).returning({ id: shoppingList.id });
+  const rows = await db
+    .update(shoppingList)
+    .set({ checked: sql`NOT ${shoppingList.checked}` })
+    .where(and(eq(shoppingList.householdId, householdId), eq(shoppingList.id, id)))
+    .returning({ id: shoppingList.id });
   return rows.length > 0;
 }
 
-export async function clearCheckedItems() {
+export async function deleteShoppingItem(householdId: string, id: number): Promise<boolean> {
   const db = getDb();
-  await db.delete(shoppingList).where(eq(shoppingList.checked, true));
+  const rows = await db
+    .delete(shoppingList)
+    .where(and(eq(shoppingList.householdId, householdId), eq(shoppingList.id, id)))
+    .returning({ id: shoppingList.id });
+  return rows.length > 0;
 }
 
-export async function clearAllShoppingItems() {
+export async function clearCheckedItems(householdId: string) {
   const db = getDb();
-  await db.delete(shoppingList);
+  await db.delete(shoppingList).where(and(eq(shoppingList.householdId, householdId), eq(shoppingList.checked, true)));
+}
+
+export async function clearAllShoppingItems(householdId: string) {
+  const db = getDb();
+  await db.delete(shoppingList).where(eq(shoppingList.householdId, householdId));
 }
 
 // ── Meal Plan ─────────────────────────────────────────────────────────────────
 
-export async function getMealPlanForWeek(weekStart: number) {
+export async function getMealPlanForWeek(householdId: string, weekStart: number) {
   const db = getDb();
-  const rows = await db.select().from(mealPlan).where(eq(mealPlan.weekStart, weekStart));
+  const rows = await db
+    .select()
+    .from(mealPlan)
+    .where(and(eq(mealPlan.householdId, householdId), eq(mealPlan.weekStart, weekStart)));
   return rows.map(serializeMealPlanEntry);
 }
 
-export async function addRecipeToMealPlan(recipeId: number, dayOfWeek: number, weekStart: number) {
+export async function addRecipeToMealPlan(householdId: string, userId: string, recipeId: number, dayOfWeek: number, weekStart: number) {
   const db = getDb();
-  const rows = await db.insert(mealPlan).values({ recipeId, dayOfWeek, weekStart }).returning({ id: mealPlan.id });
+  const rows = await db
+    .insert(mealPlan)
+    .values({ householdId, userId, recipeId, dayOfWeek, weekStart })
+    .returning({ id: mealPlan.id });
   return rows[0];
 }
 
-export async function removeRecipeFromMealPlan(id: number): Promise<boolean> {
+export async function removeRecipeFromMealPlan(householdId: string, id: number): Promise<boolean> {
   const db = getDb();
-  const rows = await db.delete(mealPlan).where(eq(mealPlan.id, id)).returning({ id: mealPlan.id });
+  const rows = await db
+    .delete(mealPlan)
+    .where(and(eq(mealPlan.householdId, householdId), eq(mealPlan.id, id)))
+    .returning({ id: mealPlan.id });
   return rows.length > 0;
 }
 
-export async function clearMealPlanForWeek(weekStart: number) {
+export async function clearMealPlanForWeek(householdId: string, weekStart: number) {
   const db = getDb();
-  await db.delete(mealPlan).where(eq(mealPlan.weekStart, weekStart));
+  await db.delete(mealPlan).where(and(eq(mealPlan.householdId, householdId), eq(mealPlan.weekStart, weekStart)));
 }
 
 // ── API Keys ──────────────────────────────────────────────────────────────────

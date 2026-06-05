@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { deleteRecipe, fetchRecipeById, fetchRecipes, patchRecipe } from '@/utils/api';
+import {
+  ApiRequestError,
+  assertApiOk,
+  deleteRecipe,
+  fetchRecipeById,
+  fetchRecipes,
+  patchRecipe,
+  readApiError,
+} from '@/utils/api';
 
 vi.mock('@/utils/server-url', () => ({
   getServerUrl: vi.fn().mockResolvedValue('https://api.test'),
@@ -39,6 +47,33 @@ describe('utils/api', () => {
   it('fetchRecipes throws on non-ok responses', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
     await expect(fetchRecipes()).rejects.toThrow('Server-Fehler 503');
+  });
+
+  it('readApiError preserves stable auth error codes from the server envelope', async () => {
+    const response = new Response(JSON.stringify({
+      error: {
+        code: 'no_household',
+        message: 'User has no active household',
+        cause: 'Shopping and planner endpoints are household-scoped',
+        fix: 'Create a default household and membership for this user',
+      },
+    }), { status: 403 });
+
+    const error = await readApiError(response, 'Fallback');
+    expect(error).toBeInstanceOf(ApiRequestError);
+    expect(error.status).toBe(403);
+    expect(error.code).toBe('no_household');
+    expect(error.causeText).toBe('Shopping and planner endpoints are household-scoped');
+    expect(error.fix).toBe('Create a default household and membership for this user');
+    expect(error.message).toBe('User has no active household (no_household)');
+  });
+
+  it('assertApiOk falls back when the response is not a JSON error envelope', async () => {
+    const response = new Response('Service unavailable', { status: 503 });
+    await expect(assertApiOk(response, 'Server-Fehler 503')).rejects.toMatchObject({
+      status: 503,
+      message: 'Server-Fehler 503',
+    });
   });
 
   it('fetchRecipes returns empty array for malformed successful payloads', async () => {

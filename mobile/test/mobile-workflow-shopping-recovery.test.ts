@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiToRecipe } from '@/utils/recipe-mapper';
-import type { ApiRecipe } from '@/utils/api';
+import { ApiRequestError, type ApiRecipe } from '@/utils/api';
 
 let useRecipes: () => unknown;
 let useRecipe: (id: number) => unknown;
@@ -19,12 +19,16 @@ vi.mock('@tanstack/react-query', () => {
   };
 });
 
-vi.mock('@/utils/api', () => ({
-  fetchRecipes: vi.fn(),
-  fetchRecipeById: vi.fn(),
-  patchRecipe: vi.fn(),
-  deleteRecipe: vi.fn(),
-}));
+vi.mock('@/utils/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/api')>();
+  return {
+    ...actual,
+    fetchRecipes: vi.fn(),
+    fetchRecipeById: vi.fn(),
+    patchRecipe: vi.fn(),
+    deleteRecipe: vi.fn(),
+  };
+});
 
 vi.mock('@/utils/server-url', () => ({
   getServerUrl: vi.fn(async () => 'http://localhost:3000'),
@@ -181,9 +185,30 @@ describe('mobile workflow: list -> detail -> shopping with recovery', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('fails when shopping API responds with non-ok status', async () => {
+  it('preserves server auth error codes when shopping API responds with non-ok status', async () => {
     const fetchMock = vi.mocked(fetch);
-    fetchMock.mockResolvedValue({ ok: false, status: 500 } as Response);
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        code: 'no_household',
+        message: 'User has no active household',
+        cause: 'Shopping endpoints require an active household',
+        fix: 'Create a default household and membership for this user',
+      },
+    }), { status: 403 }));
+
+    await expect(addIngredients(['Milch'], 11)).rejects.toMatchObject({
+      status: 403,
+      code: 'no_household',
+      causeText: 'Shopping endpoints require an active household',
+      fix: 'Create a default household and membership for this user',
+    });
+    await expect(addIngredients(['Milch'], 11)).rejects.toBeInstanceOf(ApiRequestError);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back when shopping API non-ok response is not a JSON error envelope', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(new Response('Server error', { status: 500 }));
 
     await expect(addIngredients(['Milch'], 11)).rejects.toThrow('Shopping add failed (500)');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -193,7 +218,7 @@ describe('mobile workflow: list -> detail -> shopping with recovery', () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce({ ok: true, status: 201 } as Response)
-      .mockResolvedValueOnce({ ok: false, status: 409 } as Response);
+      .mockResolvedValueOnce(new Response('Conflict', { status: 409 }));
 
     await expect(addIngredients(['Milch', 'Brot'], 11)).rejects.toThrow('Shopping add failed (409)');
     expect(fetchMock).toHaveBeenCalledTimes(2);

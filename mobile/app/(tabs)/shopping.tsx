@@ -8,14 +8,13 @@ import { useFocusEffect } from 'expo-router';
 import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
 
 import type { ShoppingListItem } from '@/db/schema';
-import { getServerUrl } from '@/utils/server-url';
+import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 
 async function fetchItems(): Promise<ShoppingListItem[]> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping`);
-  if (!res.ok) throw new Error(`Shopping fetch failed (${res.status})`);
+  const res = await apiFetch('/api/v1/shopping');
+  await assertApiOk(res, `Shopping fetch failed (${res.status})`);
   const data = await res.json();
   const raw: Array<Record<string, unknown>> = data.items ?? data ?? [];
   return raw.map(r => ({
@@ -30,37 +29,36 @@ async function fetchItems(): Promise<ShoppingListItem[]> {
 }
 
 async function toggleItem(id: number): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/${id}`, { method: 'PATCH' });
-  if (!res.ok) throw new Error(`Shopping toggle failed (${res.status})`);
+  const res = await apiFetch(`/api/v1/shopping/${id}`, { method: 'PATCH' });
+  await assertApiOk(res, `Shopping toggle failed (${res.status})`);
 }
 
 async function deleteItem(id: number): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Shopping delete failed (${res.status})`);
+  const res = await apiFetch(`/api/v1/shopping/${id}`, { method: 'DELETE' });
+  await assertApiOk(res, `Shopping delete failed (${res.status})`);
 }
 
 async function clearChecked(): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/checked`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Shopping clear checked failed (${res.status})`);
+  const res = await apiFetch('/api/v1/shopping/checked', { method: 'DELETE' });
+  await assertApiOk(res, `Shopping clear checked failed (${res.status})`);
 }
 
 async function clearAll(): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping/all`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Shopping clear all failed (${res.status})`);
+  const res = await apiFetch('/api/v1/shopping/all', { method: 'DELETE' });
+  await assertApiOk(res, `Shopping clear all failed (${res.status})`);
 }
 
 async function addManualItem(name: string): Promise<void> {
-  const url = await getServerUrl();
-  const res = await fetch(`${url}/api/v1/shopping`, {
+  const res = await apiFetch('/api/v1/shopping', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ canonicalName: name, recipeId: null }),
   });
-  if (!res.ok) throw new Error(`Shopping add failed (${res.status})`);
+  await assertApiOk(res, `Shopping add failed (${res.status})`);
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiRequestError && error.code ? error.message : fallback;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -82,7 +80,7 @@ export default function ShoppingScreen() {
       setItems(await fetchItems());
     } catch (error) {
       setItems((prev) => (prev.length === 0 ? [] : prev));
-      setLoadError(error instanceof Error ? error.message : 'Shopping fetch failed');
+      setLoadError(errorMessage(error, 'Einkaufsliste konnte nicht geladen werden'));
     } finally {
       setLoading(false);
     }
@@ -129,10 +127,10 @@ export default function ShoppingScreen() {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: i.checked ? 0 : 1 } : i));
     try {
       await toggleItem(item.id);
-    } catch {
+    } catch (error) {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
       handleMutationError(
-        'Status konnte nicht aktualisiert werden.',
+        errorMessage(error, 'Status konnte nicht aktualisiert werden.'),
         async () => handleToggle(item),
       );
     }
@@ -144,10 +142,10 @@ export default function ShoppingScreen() {
     setItems(prev => prev.filter(i => i.id !== id));
     try {
       await deleteItem(id);
-    } catch {
+    } catch (error) {
       setItems(previousItems);
       handleMutationError(
-        'Artikel konnte nicht gelöscht werden.',
+        errorMessage(error, 'Artikel konnte nicht gelöscht werden.'),
         async () => handleDelete(id),
       );
     }
@@ -158,9 +156,9 @@ export default function ShoppingScreen() {
     try {
       await clearChecked();
       await load();
-    } catch {
+    } catch (error) {
       handleMutationError(
-        'Erledigte Einträge konnten nicht entfernt werden.',
+        errorMessage(error, 'Erledigte Einträge konnten nicht entfernt werden.'),
         async () => handleClearChecked(),
       );
     }
@@ -174,9 +172,9 @@ export default function ShoppingScreen() {
     try {
       await clearAll();
       await load();
-    } catch {
+    } catch (error) {
       handleMutationError(
-        'Einkaufsliste konnte nicht geleert werden.',
+        errorMessage(error, 'Einkaufsliste konnte nicht geleert werden.'),
         async () => confirmClearAll(),
       );
     }
@@ -190,10 +188,10 @@ export default function ShoppingScreen() {
     try {
       await addManualItem(name);
       await load();
-    } catch {
+    } catch (error) {
       setNewItem(name);
       handleMutationError(
-        'Artikel konnte nicht hinzugefügt werden.',
+        errorMessage(error, 'Artikel konnte nicht hinzugefügt werden.'),
         async () => {
           await addManualItem(name);
           await load();
@@ -226,7 +224,7 @@ export default function ShoppingScreen() {
   if (loadError && items.length === 0 && !loading) {
     return (
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center px-8">
-        <Text className="text-red-500 text-center">Einkaufsliste konnte nicht geladen werden</Text>
+        <Text className="text-red-500 text-center">{loadError}</Text>
         <Pressable onPress={() => load()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
           <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
         </Pressable>

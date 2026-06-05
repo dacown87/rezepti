@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { authErrorPayload, getAuth, requireAuth } from "../auth.js";
 import {
   getShoppingList,
   addToShoppingList,
@@ -18,9 +19,10 @@ import {
 const app = new Hono();
 
 // Shopping List
-app.get("/api/v1/shopping", async (c) => {
+app.get("/api/v1/shopping", requireAuth(), async (c) => {
   try {
-    const items = await getShoppingList();
+    const auth = getAuth(c);
+    const items = await getShoppingList(auth.activeHouseholdId);
     return c.json({ items });
   } catch (error) {
     console.error("Error fetching shopping list:", error);
@@ -28,8 +30,9 @@ app.get("/api/v1/shopping", async (c) => {
   }
 });
 
-app.post("/api/v1/shopping", async (c) => {
+app.post("/api/v1/shopping", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const body = await c.req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return c.json({ error: "Invalid JSON body" }, 400);
@@ -54,7 +57,7 @@ app.post("/api/v1/shopping", async (c) => {
       return c.json({ error: "canonicalName too long (max 500 chars)" }, 400);
     }
 
-    const result = await addToShoppingList(recipeId ?? null, canonicalName, quantity, unit);
+    const result = await addToShoppingList(auth.activeHouseholdId, auth.userId, recipeId ?? null, canonicalName, quantity, unit);
     return c.json({ success: true, id: result.id }, 201);
   } catch (error) {
     console.error("Error adding to shopping list:", error);
@@ -62,12 +65,13 @@ app.post("/api/v1/shopping", async (c) => {
   }
 });
 
-app.patch("/api/v1/shopping/:id", async (c) => {
+app.patch("/api/v1/shopping/:id", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const toggled = await toggleShoppingItem(id);
+    const toggled = await toggleShoppingItem(auth.activeHouseholdId, id);
     if (!toggled) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });
@@ -78,9 +82,10 @@ app.patch("/api/v1/shopping/:id", async (c) => {
 });
 
 // Specific routes before wildcard to avoid shadowing
-app.delete("/api/v1/shopping/checked", async (c) => {
+app.delete("/api/v1/shopping/checked", requireAuth(), async (c) => {
   try {
-    await clearCheckedItems();
+    const auth = getAuth(c);
+    await clearCheckedItems(auth.activeHouseholdId);
     return c.json({ success: true });
   } catch (error) {
     console.error("Error clearing checked items:", error);
@@ -88,9 +93,10 @@ app.delete("/api/v1/shopping/checked", async (c) => {
   }
 });
 
-app.delete("/api/v1/shopping/all", async (c) => {
+app.delete("/api/v1/shopping/all", requireAuth(), async (c) => {
   try {
-    await clearAllShoppingItems();
+    const auth = getAuth(c);
+    await clearAllShoppingItems(auth.activeHouseholdId);
     return c.json({ success: true });
   } catch (error) {
     console.error("Error clearing shopping list:", error);
@@ -98,12 +104,13 @@ app.delete("/api/v1/shopping/all", async (c) => {
   }
 });
 
-app.delete("/api/v1/shopping/:id", async (c) => {
+app.delete("/api/v1/shopping/:id", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const deleted = await deleteShoppingItem(id);
+    const deleted = await deleteShoppingItem(auth.activeHouseholdId, id);
     if (!deleted) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });
@@ -124,8 +131,21 @@ app.get("/api/v1/dictionary", async (c) => {
   }
 });
 
-app.post("/api/v1/dictionary", async (c) => {
+app.post("/api/v1/dictionary", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
+    if (auth.appRole !== "admin") {
+      return c.json(
+        authErrorPayload(
+          "admin_required",
+          "Dictionary writes require admin access",
+          "The authenticated user is not an admin.",
+          "Sign in with an admin account before editing the dictionary.",
+        ),
+        403,
+      );
+    }
+
     const body = await c.req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return c.json({ error: "Invalid JSON body" }, 400);
@@ -167,8 +187,9 @@ app.get("/api/v1/dictionary/match", async (c) => {
 });
 
 // Meal Plan
-app.get("/api/v1/planner", async (c) => {
+app.get("/api/v1/planner", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const queryWeek = c.req.query("week");
     let weekStart: number;
 
@@ -183,7 +204,7 @@ app.get("/api/v1/planner", async (c) => {
       weekStart = Math.floor(monday.getTime() / 1000);
     }
 
-    const entries = await getMealPlanForWeek(weekStart);
+    const entries = await getMealPlanForWeek(auth.activeHouseholdId, weekStart);
     return c.json({ entries, weekStart });
   } catch (error) {
     console.error("Error fetching meal plan:", error);
@@ -191,15 +212,16 @@ app.get("/api/v1/planner", async (c) => {
   }
 });
 
-app.post("/api/v1/planner", async (c) => {
+app.post("/api/v1/planner", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const { recipeId, dayOfWeek, weekStart } = await c.req.json();
 
     if (!recipeId || dayOfWeek === undefined || !weekStart) {
       return c.json({ error: "recipeId, dayOfWeek, and weekStart are required" }, 400);
     }
 
-    const result = await addRecipeToMealPlan(recipeId, dayOfWeek, weekStart);
+    const result = await addRecipeToMealPlan(auth.activeHouseholdId, auth.userId, recipeId, dayOfWeek, weekStart);
     return c.json({ success: true, id: result.id }, 201);
   } catch (error) {
     console.error("Error adding to meal plan:", error);
@@ -207,12 +229,13 @@ app.post("/api/v1/planner", async (c) => {
   }
 });
 
-app.delete("/api/v1/planner/week/:weekStart", async (c) => {
+app.delete("/api/v1/planner/week/:weekStart", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const weekStart = parseInt(c.req.param("weekStart"), 10);
     if (isNaN(weekStart)) return c.json({ error: "Invalid weekStart" }, 400);
 
-    await clearMealPlanForWeek(weekStart);
+    await clearMealPlanForWeek(auth.activeHouseholdId, weekStart);
     return c.json({ success: true });
   } catch (error) {
     console.error("Error clearing meal plan:", error);
@@ -220,12 +243,13 @@ app.delete("/api/v1/planner/week/:weekStart", async (c) => {
   }
 });
 
-app.delete("/api/v1/planner/:id", async (c) => {
+app.delete("/api/v1/planner/:id", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const removed = await removeRecipeFromMealPlan(id);
+    const removed = await removeRecipeFromMealPlan(auth.activeHouseholdId, id);
     if (!removed) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });

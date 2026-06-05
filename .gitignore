@@ -12,6 +12,7 @@ screensshots/
 .opencode/
 .playwright-mcp/
 .expo/
+supabase/.branches/
 supabase/.temp/
 .claude/worktrees/
 .claude/settings.local.json

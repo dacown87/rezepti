@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { detectCategory, CATEGORY_KEYWORDS, resolvePostgresSsl } from '../../src/db-react.js'
+import { chooseActiveHouseholdId, detectCategory, CATEGORY_KEYWORDS, resolvePostgresSsl } from '../../src/db-react.js'
 
 // ─── detectCategory (pure function — always run) ──────────────────────────────
 
@@ -100,6 +100,24 @@ describe('resolvePostgresSsl', () => {
   })
 })
 
+describe('chooseActiveHouseholdId', () => {
+  it('prefers owner memberships deterministically by household id', () => {
+    expect(chooseActiveHouseholdId([
+      { householdId: '30000000-0000-0000-0000-000000000003', role: 'member' },
+      { householdId: '20000000-0000-0000-0000-000000000002', role: 'owner' },
+      { householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' },
+    ])).toBe('10000000-0000-0000-0000-000000000001')
+  })
+
+  it('falls back to the lowest member household id and handles empty memberships', () => {
+    expect(chooseActiveHouseholdId([
+      { householdId: '30000000-0000-0000-0000-000000000003', role: 'member' },
+      { householdId: '20000000-0000-0000-0000-000000000002', role: 'member' },
+    ])).toBe('20000000-0000-0000-0000-000000000002')
+    expect(chooseActiveHouseholdId([])).toBeNull()
+  })
+})
+
 // ─── DB integration tests (requires TEST_DATABASE_URL) ────────────────────────
 //
 // These tests run against a real Postgres database.
@@ -107,6 +125,8 @@ describe('resolvePostgresSsl', () => {
 // In CI:           set via services.postgres in ci.yml
 
 const hasTestDb = !!process.env.TEST_DATABASE_URL
+const TEST_HOUSEHOLD_ID = '10000000-0000-0000-0000-000000000001'
+const TEST_USER_ID = '20000000-0000-0000-0000-000000000002'
 
 describe.skipIf(!hasTestDb)('DB integration', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -233,10 +253,10 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
 
   it('supports shopping CRUD and checked clear', async () => {
     const marker = `__test__ shopping ${Date.now()}`
-    const created = await db.addToShoppingList(null, marker, '2', 'Stück')
+    const created = await db.addToShoppingList(TEST_HOUSEHOLD_ID, TEST_USER_ID, null, marker, '2', 'Stück')
     expect(created.id).toBeGreaterThan(0)
 
-    let items = await db.getShoppingList()
+    let items = await db.getShoppingList(TEST_HOUSEHOLD_ID)
     let item = items.find((candidate: { id: number }) => candidate.id === created.id)
     expect(item).toMatchObject({
       recipe_id: null,
@@ -246,25 +266,25 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       checked: false,
     })
 
-    expect(await db.toggleShoppingItem(created.id)).toBe(true)
-    items = await db.getShoppingList()
+    expect(await db.toggleShoppingItem(TEST_HOUSEHOLD_ID, created.id)).toBe(true)
+    items = await db.getShoppingList(TEST_HOUSEHOLD_ID)
     item = items.find((candidate: { id: number }) => candidate.id === created.id)
     expect(item?.checked).toBe(true)
 
-    await db.clearCheckedItems()
-    items = await db.getShoppingList()
+    await db.clearCheckedItems(TEST_HOUSEHOLD_ID)
+    items = await db.getShoppingList(TEST_HOUSEHOLD_ID)
     expect(items.some((candidate: { id: number }) => candidate.id === created.id)).toBe(false)
   })
 
-  it('keeps duplicate shopping inserts idempotent when recipeId and userId are null', async () => {
+  it('keeps duplicate shopping inserts idempotent when recipeId is null', async () => {
     const marker = `__test__ shopping duplicate ${Date.now()}`
-    const first = await db.addToShoppingList(null, marker, '2', 'Stück')
+    const first = await db.addToShoppingList(TEST_HOUSEHOLD_ID, TEST_USER_ID, null, marker, '2', 'Stück')
 
     try {
-      const second = await db.addToShoppingList(null, marker, '2', 'Stück')
+      const second = await db.addToShoppingList(TEST_HOUSEHOLD_ID, TEST_USER_ID, null, marker, '2', 'Stück')
       expect(second.id).toBe(first.id)
 
-      const items = await db.getShoppingList()
+      const items = await db.getShoppingList(TEST_HOUSEHOLD_ID)
       const matches = items.filter((candidate: {
         id: number
         recipe_id: number | null
@@ -274,7 +294,7 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       expect(matches).toHaveLength(1)
       expect(matches[0]?.id).toBe(first.id)
     } finally {
-      await db.deleteShoppingItem(first.id)
+      await db.deleteShoppingItem(TEST_HOUSEHOLD_ID, first.id)
     }
   })
 

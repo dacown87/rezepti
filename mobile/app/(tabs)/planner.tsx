@@ -20,6 +20,7 @@ import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull }
 
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/utils/shopping-service';
+import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 import { getServerUrl } from '@/utils/server-url';
 import {
   buildRecipeIdMap,
@@ -92,6 +93,10 @@ function parseJSON<T>(json: string | null, fallback: T): T {
   try { return JSON.parse(json) as T; } catch { return fallback; }
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiRequestError && error.code ? error.message : fallback;
+}
+
 // ─── Recipe Picker Modal ─────────────────────────────────────────────────────
 
 function RecipePickerModal({
@@ -118,9 +123,9 @@ function RecipePickerModal({
     try {
       const rows = await loadAllRecipes();
       setRecipes(rows);
-    } catch {
+    } catch (error) {
       setRecipes([]);
-      setLoadError('Rezepte konnten nicht geladen werden.');
+      setLoadError(errorMessage(error, 'Rezepte konnten nicht geladen werden.'));
     } finally {
       setLoading(false);
     }
@@ -377,9 +382,9 @@ export default function PlannerScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/planner?week=${weekStart}`);
-      const body = res.ok ? await res.json() : {};
+      const res = await apiFetch(`/api/v1/planner?week=${weekStart}`);
+      await assertApiOk(res, `Planner fetch failed (${res.status})`);
+      const body = await res.json();
       const entries: MealPlanEntry[] = Array.isArray(body) ? body : (body.entries ?? []);
       setMealPlan(entries);
 
@@ -393,12 +398,13 @@ export default function PlannerScreen() {
       const all = await loadAllRecipes();
       setRecipes(pickRecipesByIds(all, usedIds));
       clearPlannerError();
-    } catch {
+    } catch (error) {
+      const message = errorMessage(error, 'Wochenplan konnte nicht geladen werden.');
       handlePlannerActionError(
-        'Wochenplan konnte nicht geladen werden.',
+        message,
         async () => loadData(),
       );
-      throw new Error('Wochenplan konnte nicht geladen werden.');
+      throw new Error(message);
     }
   }, [weekStart]);
 
@@ -464,9 +470,9 @@ export default function PlannerScreen() {
       if (ingredients.length === 0) return;
       await addIngredients(ingredients);
       router.navigate('/(tabs)/shopping' as never);
-    } catch {
+    } catch (error) {
       handlePlannerActionError(
-        'Einkaufsliste konnte nicht erstellt werden.',
+        errorMessage(error, 'Einkaufsliste konnte nicht erstellt werden.'),
         async () => handleAddWeekToShopping(),
       );
     }
@@ -483,24 +489,24 @@ export default function PlannerScreen() {
       const recipeId = parseInt(urlMatch[1], 10);
       if (targetDay !== null) {
         try {
-          const res = await fetch(`${serverUrl}/api/v1/planner`, {
+          const res = await apiFetch('/api/v1/planner', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
           });
-          if (!res.ok) throw new Error(`Planner POST failed (${res.status})`);
+          await assertApiOk(res, `Planner POST failed (${res.status})`);
           await loadData();
           Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
-        } catch {
+        } catch (error) {
           handlePlannerActionError(
-            'Rezept konnte nicht zum Wochenplan hinzugefügt werden.',
+            errorMessage(error, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.'),
             async () => {
-              const res2 = await fetch(`${serverUrl}/api/v1/planner`, {
+              const res2 = await apiFetch('/api/v1/planner', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
               });
-              if (!res2.ok) throw new Error(`Planner POST failed (${res2.status})`);
+              await assertApiOk(res2, `Planner POST failed (${res2.status})`);
               await loadData();
               Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
             },
@@ -542,11 +548,12 @@ export default function PlannerScreen() {
     const saved = await recipeRes.json();
     const newId: number = saved.id;
     if (targetDay !== null) {
-      await fetch(`${serverUrl}/api/v1/planner`, {
+      const plannerRes = await apiFetch('/api/v1/planner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId: newId, dayOfWeek: targetDay, weekStart }),
       });
+      await assertApiOk(plannerRes, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
     }
     await loadData();
     Alert.alert('Importiert', `"${data.name}" wurde importiert und zum Planer hinzugefügt.`);
@@ -558,17 +565,16 @@ export default function PlannerScreen() {
     clearPlannerError();
     setPlannerMutationPending(true);
     try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/planner`, {
+      const res = await apiFetch('/api/v1/planner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
       });
-      if (!res.ok) throw new Error('Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
+      await assertApiOk(res, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
       await loadData();
-    } catch {
+    } catch (error) {
       handlePlannerActionError(
-        'Rezept konnte nicht zum Wochenplan hinzugefügt werden.',
+        errorMessage(error, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.'),
         async () => handleAddRecipe(recipeId, targetDay),
       );
     } finally {
@@ -580,13 +586,12 @@ export default function PlannerScreen() {
     clearPlannerError();
     setPlannerMutationPending(true);
     try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/planner/${entryId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Rezept konnte nicht entfernt werden.');
+      const res = await apiFetch(`/api/v1/planner/${entryId}`, { method: 'DELETE' });
+      await assertApiOk(res, 'Rezept konnte nicht entfernt werden.');
       await loadData();
-    } catch {
+    } catch (error) {
       handlePlannerActionError(
-        'Rezept konnte nicht entfernt werden.',
+        errorMessage(error, 'Rezept konnte nicht entfernt werden.'),
         async () => retryRemoveEntry(entryId),
       );
     } finally {

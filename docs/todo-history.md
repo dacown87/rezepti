@@ -17,7 +17,22 @@ Am 2026-06-04 wurde `TODO.md` auf eine token-effiziente Steuerdatei reduziert. D
 
 ## Erledigt 2026-06-02 bis 2026-06-04
 
+- Arbeitsbasis fuer Multi-User geklaert:
+  - `git fetch` bestaetigte `origin/main` bei `8ed8801 chore: v1.0.124 [skip ci]`.
+  - Lokaler `main` fuehrt bewusst die Doku-/Ops-Linie weiter, inklusive `dc6efa6 docs: record latest ci run status` und dem Multi-User-Planabschluss.
+  - Neue Feature-Codearbeit startet von einem separaten Multi-User-Branch; `phase/6-multi-user` bleibt stale und wird nicht als Basis genutzt.
 - Multi-User-Plan gegen neue Ausgangslage aktualisiert: Supabase Extension-Follow-up erledigt, Staging-DB vorhanden, Expo-SDK-56-Core-Slice gelandet, `phase/6-multi-user` als stale erkannt.
+- TODO auf token-effiziente aktive Steuerdatei reduziert; alte Details in dieses Archiv ausgelagert.
+- Doku-/TODO-Push `7523b72` geprueft:
+  - Push-CI `26939939417` gruen.
+  - Docker-/Northflank-Run `26939939394` gruen.
+  - Changelog-/Version-Workflow `26939939535` gruen.
+  - Automatischer Version-Commit `8ed8801 chore: v1.0.124 [skip ci]`.
+  - Nachgelagerter Docker-/Northflank-Run `26939952178` gruen.
+- Scheduled CI seit dem letzten dokumentierten Stand gruen:
+  - 2026-06-02: `26802547508`.
+  - 2026-06-03: `26868293611`.
+  - 2026-06-04: `26934892387`.
 - Produkt-/QA-Reste aus [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) entschieden/geplant:
   - keine aktive Dictionary-UI,
   - Kurzbegriff-Suche nur mit expliziter Short-Term-Semantik,

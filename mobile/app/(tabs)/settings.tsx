@@ -14,8 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon } from 'lucide-react-native';
+import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User, LogIn, LogOut } from 'lucide-react-native';
 import { useTheme } from '@/utils/use-theme';
+import { getAuthSession, getSupabaseClient, signInWithPassword, signOut } from '@/utils/auth';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 
 const SECURE_KEY_GROQ = 'groq_key';
@@ -249,6 +250,15 @@ export default function SettingsScreen() {
   // Theme
   const { isDark, setTheme } = useTheme();
 
+  // Account
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
+  const [authSessionEmail, setAuthSessionEmail] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authConfigured, setAuthConfigured] = useState(false);
+
   // GROQ API Key
   const [groqKey, setGroqKey] = useState('');
   const [groqKeyStored, setGroqKeyStored] = useState(false);
@@ -349,6 +359,20 @@ export default function SettingsScreen() {
     }
   }, []);
 
+  const loadAuthSession = useCallback(async () => {
+    setAuthConfigured(getSupabaseClient() !== null);
+    setAuthLoading(true);
+    try {
+      const session = await getAuthSession();
+      setAuthSessionEmail(session?.user.email ?? null);
+      if (session?.user.email) setAuthEmail(session.user.email);
+    } catch {
+      setAuthSessionEmail(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
   const loadCookidooStatus = useCallback(async () => {
     setLoadingCookidooStatus(true);
     try {
@@ -369,8 +393,54 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadSettings();
+    loadAuthSession();
     loadCookidooStatus();
-  }, [loadSettings, loadCookidooStatus]);
+  }, [loadSettings, loadAuthSession, loadCookidooStatus]);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return undefined;
+
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      setAuthSessionEmail(session?.user.email ?? null);
+      if (session?.user.email) setAuthEmail(session.user.email);
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const handleAuthLogin = async () => {
+    if (!authEmail.trim() || !authPassword.trim()) {
+      Alert.alert('Fehler', 'Bitte E-Mail und Passwort eingeben.');
+      return;
+    }
+
+    setAuthBusy(true);
+    try {
+      const session = await signInWithPassword(authEmail.trim(), authPassword);
+      setAuthSessionEmail(session.user.email ?? authEmail.trim());
+      setAuthPassword('');
+      Alert.alert('Angemeldet', 'Deine Session ist aktiv.');
+    } catch (error) {
+      Alert.alert('Login fehlgeschlagen', error instanceof Error ? error.message : 'Bitte Zugangsdaten prüfen.');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleAuthLogout = async () => {
+    setAuthBusy(true);
+    try {
+      await signOut();
+      setAuthSessionEmail(null);
+      setAuthPassword('');
+      Alert.alert('Abgemeldet', 'Session und Account-Cache wurden getrennt.');
+    } catch (error) {
+      Alert.alert('Logout fehlgeschlagen', error instanceof Error ? error.message : 'Bitte erneut versuchen.');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
 
   // ── GROQ Key handlers ─────────────────────────────────────────────────────────
 
@@ -554,6 +624,88 @@ export default function SettingsScreen() {
         <View className="mb-6">
           <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">Einstellungen</Text>
           <Text className="text-warm-500 dark:text-warm-400 mt-1">API-Keys, Server & Integrationen</Text>
+        </View>
+
+        {/* ── Account ── */}
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center">
+              <User size={18} color="#8B7355" />
+              <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-2">Account</Text>
+            </View>
+            {authLoading ? (
+              <ActivityIndicator size="small" color="#C84B31" />
+            ) : authSessionEmail ? (
+              <View className="bg-green-100 rounded-full px-3 py-1">
+                <Text className="text-xs font-semibold text-green-700">Aktiv</Text>
+              </View>
+            ) : (
+              <View className="bg-warm-100 dark:bg-espresso-700 rounded-full px-3 py-1">
+                <Text className="text-xs font-semibold text-warm-600 dark:text-warm-300">Nicht angemeldet</Text>
+              </View>
+            )}
+          </View>
+
+          {!authConfigured ? (
+            <Text className="text-sm text-warm-600 dark:text-warm-300 leading-5">
+              Supabase Auth ist noch nicht konfiguriert.
+            </Text>
+          ) : authSessionEmail ? (
+            <>
+              <Text className="text-sm text-warm-600 dark:text-warm-300 mb-1">{authSessionEmail}</Text>
+              <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
+                Rolle und Haushalt werden vom Server geprüft.
+              </Text>
+              <TouchableOpacity
+                onPress={handleAuthLogout}
+                disabled={authBusy}
+                className="bg-warm-100 dark:bg-espresso-700 rounded-xl py-3 items-center flex-row justify-center"
+              >
+                {authBusy ? <ActivityIndicator size="small" color="#8B7355" /> : <LogOut size={16} color="#8B7355" />}
+                <Text className="text-warm-700 dark:text-warm-200 font-semibold ml-2">Abmelden</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TextInput
+                value={authEmail}
+                onChangeText={setAuthEmail}
+                placeholder="E-Mail"
+                placeholderTextColor="#9E8878"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                className="bg-warm-50 dark:bg-espresso-900 border border-warm-200 dark:border-warm-700 rounded-xl px-4 py-3 text-warm-900 dark:text-warm-50 mb-3"
+              />
+              <View className="relative mb-4">
+                <TextInput
+                  value={authPassword}
+                  onChangeText={setAuthPassword}
+                  placeholder="Passwort"
+                  placeholderTextColor="#9E8878"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry={!showAuthPassword}
+                  className="bg-warm-50 dark:bg-espresso-900 border border-warm-200 dark:border-warm-700 rounded-xl px-4 py-3 pr-12 text-warm-900 dark:text-warm-50"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowAuthPassword(!showAuthPassword)}
+                  className="absolute right-3 top-3"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {showAuthPassword ? <EyeOff size={20} color="#9E8878" /> : <Eye size={20} color="#9E8878" />}
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                onPress={handleAuthLogin}
+                disabled={authBusy}
+                className="bg-primary-500 rounded-xl py-3 items-center flex-row justify-center"
+              >
+                {authBusy ? <ActivityIndicator size="small" color="#fff" /> : <LogIn size={16} color="#fff" />}
+                <Text className="text-white font-semibold ml-2">Anmelden</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* ── GROQ Help Modal ── */}

@@ -18,9 +18,31 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock('../../src/db-react.js', () => dbMocks)
 
+vi.mock('../../src/auth.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/auth.js')>('../../src/auth.js')
+  return {
+    ...actual,
+    requireAuth: () => async (c: any, next: any) => {
+      c.set('auth', {
+        userId: '00000000-0000-0000-0000-000000000001',
+        email: 'user-a@example.com',
+        appRole: 'user',
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+        accessToken: 'test-token',
+        isAuthenticated: true,
+      })
+      await next()
+    },
+  }
+})
+
 const { default: plannerRouter } = await import('../../src/routes/planner.js')
 
 describe('shopping add request contract', () => {
+  const householdId = '10000000-0000-0000-0000-000000000001'
+  const userId = '00000000-0000-0000-0000-000000000001'
+
   beforeEach(() => {
     vi.clearAllMocks()
     dbMocks.addToShoppingList.mockResolvedValue({ id: 101 })
@@ -34,6 +56,6 @@ describe('shopping add request contract', () => {
     })
 
     expect(res.status).toBe(201)
-    expect(dbMocks.addToShoppingList).toHaveBeenCalledWith(null, 'Milch', undefined, undefined)
+    expect(dbMocks.addToShoppingList).toHaveBeenCalledWith(householdId, userId, null, 'Milch', undefined, undefined)
   })
 })
