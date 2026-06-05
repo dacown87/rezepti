@@ -417,19 +417,71 @@ Er muss aber vor Shipping umgebaut werden:
 - Migration/Schema fuer explizite Owner-Spalten planen, bevor die neue Route-
   Semantik als abgeschlossen gilt.
 
+## Phasen
+
+### Phase 1: Schema, Migration, RLS
+
+Ziel: `recipes` bekommt explizite Ownership, die alte `user_id`-Semantik geht
+weg, und die DB kann private vs. household Recipes eindeutig unterscheiden.
+
+- Recipe-Owner-Spalten definieren.
+- `recipes.user_id` aus DB, Schema und Tests entfernen.
+- Harte Migration mit Reset/Backfill fuer Null-Owner-Daten umsetzen.
+- Privaten RLS-Helper fuer Rezept-zu-Haushalt-Referenzen einbauen.
+- Migration-Smoke gegen lokale DB und gegebenenfalls Staging laufen lassen.
+
+### Phase 2: Server Ownership Layer
+
+Ziel: Recipe-Liste, Detail, Bild, Search, Create, Update und Delete verwenden
+zentralisierte Owner-Predicate-Helper statt der alten `visibleRecipesFor`
+Logik.
+
+- `RecipeOwner`-Helper und Auth-bewusste Sichtbarkeitsfunktionen bauen.
+- Recipe-Reads auth-pflichtig machen.
+- Create standardmaessig privat machen.
+- Household-Create nur fuer aktive Membership erlauben.
+- Ingredient-Search auf Owner-Sicht plus Limit begrenzen.
+
+### Phase 3: Planner und Shopping Guardrails
+
+Ziel: Haushaltsdaten duerfen nur Haushaltsrezepte desselben Haushalts
+referenzieren.
+
+- `POST /api/v1/planner` auf Haushaltsrezepte begrenzen.
+- `POST /api/v1/shopping` auf Haushaltsrezepte begrenzen, wenn `recipe_id`
+  gesetzt ist.
+- Private Rezepte erst per Kopie in einen Haushalt bringen.
+- RLS-Smoke um fremde/private `recipe_id`-Faelle erweitern.
+
+### Phase 4: Mobile Auth UX
+
+Ziel: Auth-Fehler werden sichtbar und nutzbar behandelt, statt als leere
+Rezepte oder stilles Versagen aufzutauchen.
+
+- Recipe-Liste und Detail auf `auth_missing`-States umstellen.
+- Import/Create-Fehler sichtbar machen.
+- Planner-Flow fuer private Rezepte auf Copy-or-Blocker umstellen.
+- Mobile-Tests fuer Recipe-Auth-Fehlerpfade ergaenzen.
+
+### Phase 5: Verification und Ship-Gate
+
+Ziel: Ein kompletter Ownership-Slice wird mit harten Gates verifiziert, bevor
+er als erledigt gilt.
+
+- `npm run test:auth`
+- relevante Root-Unit-Tests
+- `npm --prefix mobile run test:unit`
+- `npx tsc --noEmit`
+- `npm run supabase:rls-smoke`
+- `npm run security:secrets`
+
 ## Implementierungsreihenfolge
 
-1. Diesen Plan gegen die neue Ownership-Spec als Quelle der Wahrheit committen.
-2. Aktuellen Diff in zwei Teile trennen:
-   - behalten: Auth-Mutation-Grenze, Job-Ownership, Mobile-Auth-Fehlerpfade
-   - ersetzen: globale Default-Read-Semantik
-3. Migration fuer Recipe-Owner-Spalten mit Supabase CLI planen.
-4. Schema und DB-Helper auf `RecipeOwner` umstellen.
-5. Routes auf neues Sichtbarkeitsmodell umstellen.
-6. Planner-/Shopping-Referenzvalidierung auf Haushaltsrezepte begrenzen.
-7. Tests umschreiben: keine globalen Defaults mehr als erwartetes Verhalten.
-8. `npm run test:auth`, relevante Unit-Tests, `npx tsc --noEmit`,
-   `npm run supabase:rls-smoke` und Secret-Scan ausfuehren.
+1. Phase 1 mit Schema, Migration und RLS abschliessen.
+2. Phase 2 auf den neuen Ownership-Helper umstellen.
+3. Phase 3 fuer Planner und Shopping absichern.
+4. Phase 4 fuer Mobile-Auth-UX und Fehlerzustand bauen.
+5. Phase 5 als gemeinsames Ship-Gate laufen lassen.
 
 ## Offene Folge-Slices
 
