@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.128] – 2026-06-06
+
+- harden private trigger function search paths
+- add recipe ownership model
+
 ## [1.0.127] – 2026-06-06
 
 - scope recipes and extraction jobs by user

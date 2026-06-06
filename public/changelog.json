@@ -1,6 +1,14 @@
 {
-  "version": "1.0.127",
+  "version": "1.0.128",
   "entries": [
+    {
+      "version": "1.0.128",
+      "date": "2026-06-06",
+      "changes": [
+        "harden private trigger function search paths",
+        "add recipe ownership model"
+      ]
+    },
     {
       "version": "1.0.127",
       "date": "2026-06-06",
@@ -153,6 +161,6 @@
   ],
   "lastUpdated": {
     "date": "2026-06-06",
-    "time": "09:05"
+    "time": "19:36"
   }
 }
