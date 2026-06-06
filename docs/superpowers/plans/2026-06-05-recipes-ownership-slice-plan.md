@@ -2,7 +2,7 @@
 
 Datum: 2026-06-05
 Branch: `recipes-ownership-slice`
-Status: Lokal implementiert und verifiziert am 2026-06-06; Commit noch nicht erstellt
+Status: Implementiert, lokal verifiziert und committed am 2026-06-06 (`e67c3b2`); vor Release bleibt nur optionaler Staging-Smoke
 Verbindliche Spec: [Recipes Household Ownership Design](/home/patrick/Projekte/rezepti/docs/superpowers/specs/2026-06-05-recipes-household-ownership-design.md)
 
 ## Kurzentscheidung
