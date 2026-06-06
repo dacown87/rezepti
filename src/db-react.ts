@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc, and, isNull, or, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   recipes,
   ingredientDictionary,
@@ -20,6 +20,52 @@ import {
 } from "./ingredient-category-domain.js";
 
 export { CATEGORY_KEYWORDS, detectCategory };
+
+export type RecipeOwner =
+  | { type: "user"; userId: string }
+  | { type: "household"; householdId: string };
+
+export interface RecipeAuthContext {
+  userId: string;
+  memberships: Array<{ householdId: string }>;
+}
+
+function recipeOwnerValues(owner: RecipeOwner, createdBy: string) {
+  if (owner.type === "user") {
+    return {
+      ownerType: "user",
+      ownerUserId: owner.userId,
+      householdId: null,
+      createdBy,
+    };
+  }
+
+  return {
+    ownerType: "household",
+    ownerUserId: null,
+    householdId: owner.householdId,
+    createdBy,
+  };
+}
+
+function householdIdsForAuth(auth: RecipeAuthContext) {
+  return auth.memberships.map((membership) => membership.householdId);
+}
+
+function recipeVisibilityForAuth(auth: RecipeAuthContext) {
+  const householdIds = householdIdsForAuth(auth);
+  const privateOwner = and(eq(recipes.ownerType, "user"), eq(recipes.ownerUserId, auth.userId));
+  if (householdIds.length === 0) return privateOwner;
+
+  return or(
+    privateOwner,
+    and(eq(recipes.ownerType, "household"), inArray(recipes.householdId, householdIds)),
+  );
+}
+
+function canMutateRecipeForAuth(auth: RecipeAuthContext) {
+  return recipeVisibilityForAuth(auth);
+}
 
 // ── DB connection (lazy singleton) ────────────────────────────────────────────
 
@@ -78,8 +124,12 @@ export async function saveRecipeToReactDb(
   recipe: RecipeData,
   sourceUrl: string,
   transcript?: string,
-  userId?: string | null,
+  ownership?: { owner: RecipeOwner; createdBy: string },
 ): Promise<number> {
+  if (!ownership) {
+    throw new Error("Recipe ownership is required");
+  }
+
   const db = getDb();
   const flatIngredients = recipe.ingredientGroups?.length
     ? recipe.ingredientGroups.flatMap(g => g.items)
@@ -101,25 +151,19 @@ export async function saveRecipeToReactDb(
     ingredient_groups: recipe.ingredientGroups ? JSON.stringify(recipe.ingredientGroups) : null,
     category:    detectCategory(recipe.tags, recipe.name),
     transcript,
-    user_id:     userId ?? null,
+    ...recipeOwnerValues(ownership.owner, ownership.createdBy),
   }).returning({ id: recipes.id });
 
   return rows[0].id;
 }
 
-function visibleRecipesFor(userId?: string | null) {
-  return userId
-    ? or(isNull(recipes.user_id), eq(recipes.user_id, userId))
-    : isNull(recipes.user_id);
-}
-
-export async function getAllRecipesFromReactDb(userId?: string | null) {
+export async function getAllRecipesFromReactDb(auth: RecipeAuthContext) {
   const db = getDb();
-  const rows = await db.select().from(recipes).where(visibleRecipesFor(userId)).orderBy(recipes.created_at);
+  const rows = await db.select().from(recipes).where(recipeVisibilityForAuth(auth)).orderBy(recipes.created_at);
   return rows.map(deserialize);
 }
 
-export async function getRecipeListFromReactDb(userId?: string | null) {
+export async function getRecipeListFromReactDb(auth: RecipeAuthContext) {
   const db = getDb();
   const rows = await db
     .select({
@@ -135,7 +179,7 @@ export async function getRecipeListFromReactDb(userId?: string | null) {
       created_at: recipes.created_at,
     })
     .from(recipes)
-    .where(visibleRecipesFor(userId))
+    .where(recipeVisibilityForAuth(auth))
     .orderBy(desc(recipes.created_at));
   return rows.map(deserializeListItem);
 }
@@ -180,10 +224,10 @@ export interface SearchRecipesOptions {
 
 export async function searchRecipesByIngredientsAdvanced(
   options: SearchRecipesOptions,
-  userId?: string | null,
+  auth: RecipeAuthContext,
 ): Promise<RecipeSearchResult[]> {
   const db = getDb();
-  const allRows = await db.select().from(recipes).where(visibleRecipesFor(userId));
+  const allRows = await db.select().from(recipes).where(recipeVisibilityForAuth(auth));
   const allRecipes = allRows.map(deserialize);
 
   const { ingredients, match = "or", threshold = 0 } = options;
@@ -230,9 +274,9 @@ export async function searchRecipesByIngredientsAdvanced(
 }
 
 /** @deprecated Use searchRecipesByIngredientsAdvanced */
-export async function searchRecipesByIngredients(ingredients: string[], userId?: string | null) {
+export async function searchRecipesByIngredients(ingredients: string[], auth: RecipeAuthContext) {
   const db = getDb();
-  const allRows = await db.select().from(recipes).where(visibleRecipesFor(userId));
+  const allRows = await db.select().from(recipes).where(recipeVisibilityForAuth(auth));
   const allRecipes = allRows.map(deserialize);
 
   if (ingredients.length === 0) return allRecipes;
@@ -249,16 +293,16 @@ export async function searchRecipesByIngredients(ingredients: string[], userId?:
   });
 }
 
-export async function getRecipeByIdFromReactDb(id: number, userId?: string | null) {
+export async function getRecipeByIdFromReactDb(id: number, auth: RecipeAuthContext) {
   const db = getDb();
   const rows = await db
     .select()
     .from(recipes)
-    .where(and(eq(recipes.id, id), visibleRecipesFor(userId)));
+    .where(and(eq(recipes.id, id), recipeVisibilityForAuth(auth)));
   return rows[0] ? deserialize(rows[0]) : null;
 }
 
-export async function updateRecipeInReactDb(id: number, userId: string, fields: Partial<RecipeData>): Promise<boolean> {
+export async function updateRecipeInReactDb(id: number, auth: RecipeAuthContext, fields: Partial<RecipeData>): Promise<boolean> {
   const db = getDb();
   const values: Record<string, unknown> = {};
   if (fields.name        !== undefined) values.name        = fields.name;
@@ -282,20 +326,35 @@ export async function updateRecipeInReactDb(id: number, userId: string, fields: 
   if ((fields as any).category    !== undefined) values.category    = (fields as any).category;
   if ((fields as any).pdf_created !== undefined) values.pdf_created = (fields as any).pdf_created;
   if (Object.keys(values).length === 0) return false;
+  values.updated_at = sql`now()`;
   const rows = await db
     .update(recipes)
     .set(values)
-    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
+    .where(and(eq(recipes.id, id), canMutateRecipeForAuth(auth)))
     .returning({ id: recipes.id });
   return rows.length > 0;
 }
 
-export async function deleteRecipeFromReactDb(id: number, userId: string): Promise<boolean> {
+export async function deleteRecipeFromReactDb(id: number, auth: RecipeAuthContext): Promise<boolean> {
   const db = getDb();
   const rows = await db
     .delete(recipes)
-    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
+    .where(and(eq(recipes.id, id), canMutateRecipeForAuth(auth)))
     .returning({ id: recipes.id });
+  return rows.length > 0;
+}
+
+export async function recipeBelongsToHousehold(recipeId: number, householdId: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db
+    .select({ id: recipes.id })
+    .from(recipes)
+    .where(and(
+      eq(recipes.id, recipeId),
+      eq(recipes.ownerType, "household"),
+      eq(recipes.householdId, householdId),
+    ))
+    .limit(1);
   return rows.length > 0;
 }
 

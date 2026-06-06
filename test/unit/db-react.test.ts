@@ -127,6 +127,14 @@ describe('chooseActiveHouseholdId', () => {
 const hasTestDb = !!process.env.TEST_DATABASE_URL
 const TEST_HOUSEHOLD_ID = '10000000-0000-0000-0000-000000000001'
 const TEST_USER_ID = '20000000-0000-0000-0000-000000000002'
+const TEST_AUTH = {
+  userId: TEST_USER_ID,
+  memberships: [{ householdId: TEST_HOUSEHOLD_ID }],
+}
+const TEST_PRIVATE_OWNER = {
+  owner: { type: 'user' as const, userId: TEST_USER_ID },
+  createdBy: TEST_USER_ID,
+}
 
 describe.skipIf(!hasTestDb)('DB integration', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -191,18 +199,18 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       },
       'https://example.com/test',
       undefined,
-      TEST_USER_ID
+      TEST_PRIVATE_OWNER
     )
     expect(id).toBeGreaterThan(0)
 
-    const recipe = await db.getRecipeByIdFromReactDb(id, TEST_USER_ID)
+    const recipe = await db.getRecipeByIdFromReactDb(id, TEST_AUTH)
     expect(recipe).not.toBeNull()
     expect(recipe!.name).toBe('__test__ DB Integration')
     expect(recipe!.ingredients).toEqual(['100g Salz'])
     expect(recipe!.tags).toEqual(['test'])
 
     // cleanup
-    await db.deleteRecipeFromReactDb(id, TEST_USER_ID)
+    await db.deleteRecipeFromReactDb(id, TEST_AUTH)
   })
 
   it('updates a recipe field', async () => {
@@ -217,17 +225,17 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       },
       'https://example.com/update-test',
       undefined,
-      TEST_USER_ID
+      TEST_PRIVATE_OWNER
     )
 
-    const updated = await db.updateRecipeInReactDb(id, TEST_USER_ID, { name: '__test__ Updated Name' })
+    const updated = await db.updateRecipeInReactDb(id, TEST_AUTH, { name: '__test__ Updated Name' })
     expect(updated).toBe(true)
 
-    const recipe = await db.getRecipeByIdFromReactDb(id, TEST_USER_ID)
+    const recipe = await db.getRecipeByIdFromReactDb(id, TEST_AUTH)
     expect(recipe!.name).toBe('__test__ Updated Name')
 
     // cleanup
-    await db.deleteRecipeFromReactDb(id, TEST_USER_ID)
+    await db.deleteRecipeFromReactDb(id, TEST_AUTH)
   })
 
   it('deletes a recipe', async () => {
@@ -242,18 +250,18 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       },
       'https://example.com/delete-test',
       undefined,
-      TEST_USER_ID
+      TEST_PRIVATE_OWNER
     )
 
-    const deleted = await db.deleteRecipeFromReactDb(id, TEST_USER_ID)
+    const deleted = await db.deleteRecipeFromReactDb(id, TEST_AUTH)
     expect(deleted).toBe(true)
 
-    const recipe = await db.getRecipeByIdFromReactDb(id)
+    const recipe = await db.getRecipeByIdFromReactDb(id, TEST_AUTH)
     expect(recipe).toBeNull()
   })
 
   it('returns false when deleting non-existent recipe', async () => {
-    const deleted = await db.deleteRecipeFromReactDb(999999999, TEST_USER_ID)
+    const deleted = await db.deleteRecipeFromReactDb(999999999, TEST_AUTH)
     expect(deleted).toBe(false)
   })
 
@@ -337,7 +345,7 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       },
       `https://example.com/search-pasta-${marker}`,
       undefined,
-      TEST_USER_ID
+      TEST_PRIVATE_OWNER
     )
     const soupId = await db.saveRecipeToReactDb(
       {
@@ -350,14 +358,14 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       },
       `https://example.com/search-soup-${marker}`,
       undefined,
-      TEST_USER_ID
+      TEST_PRIVATE_OWNER
     )
 
     try {
       const orResults = await db.searchRecipesByIngredientsAdvanced({
         ingredients: ['tomaten', 'nudeln'],
         match: 'or',
-      }, TEST_USER_ID)
+      }, TEST_AUTH)
       expect(orResults.map((result: { recipe: { id: number } }) => result.recipe.id)).toEqual(
         expect.arrayContaining([pastaId, soupId])
       )
@@ -365,7 +373,7 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
       const andResults = await db.searchRecipesByIngredientsAdvanced({
         ingredients: ['tomaten', 'nudeln'],
         match: 'and',
-      }, TEST_USER_ID)
+      }, TEST_AUTH)
       expect(andResults.map((result: { recipe: { id: number } }) => result.recipe.id)).toContain(pastaId)
       expect(andResults.map((result: { recipe: { id: number } }) => result.recipe.id)).not.toContain(soupId)
 
@@ -373,12 +381,12 @@ describe.skipIf(!hasTestDb)('DB integration', async () => {
         ingredients: ['tomaten', 'nudeln'],
         match: 'or',
         threshold: 100,
-      }, TEST_USER_ID)
+      }, TEST_AUTH)
       expect(thresholdResults.map((result: { recipe: { id: number } }) => result.recipe.id)).toContain(pastaId)
       expect(thresholdResults.map((result: { recipe: { id: number } }) => result.recipe.id)).not.toContain(soupId)
     } finally {
-      await db.deleteRecipeFromReactDb(pastaId, TEST_USER_ID)
-      await db.deleteRecipeFromReactDb(soupId, TEST_USER_ID)
+      await db.deleteRecipeFromReactDb(pastaId, TEST_AUTH)
+      await db.deleteRecipeFromReactDb(soupId, TEST_AUTH)
     }
   })
 })

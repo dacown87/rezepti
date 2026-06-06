@@ -29,7 +29,7 @@ type EventCallback = (event: PipelineEvent) => void | Promise<void>;
 
 interface PipelineOptions {
   apiKey?: string;
-  userId?: string | null;
+  userId?: string;
 }
 
 export function buildQualityWarnings(recipe: Partial<RecipeData>, sourceUrl?: string): string[] {
@@ -169,7 +169,14 @@ export async function processURL(
       message: "Rezept wird in Datenbank gespeichert...",
     });
 
-    const recipeId = await saveRecipeToReactDb(recipe, classified.url, transcript, options.userId);
+    if (!options.userId) {
+      throw new Error("Authenticated user is required to save a recipe");
+    }
+
+    const recipeId = await saveRecipeToReactDb(recipe, classified.url, transcript, {
+      owner: { type: "user", userId: options.userId },
+      createdBy: options.userId,
+    });
     
     await emit(onEvent, {
       stage: "exporting",

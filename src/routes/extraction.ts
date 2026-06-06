@@ -8,7 +8,7 @@ import { classifyURL } from "../classifier.js";
 import { saveRecipeToReactDb } from "../db-react.js";
 import type { PipelineEvent } from "../types.js";
 import { searchRecipeImages } from "../utils/image-search.js";
-import { AuthFlowError, authErrorResponse, extractBearerToken, resolveAuthContext } from "../auth.js";
+import { AuthFlowError, authErrorResponse, getUserAuth, requireUserAuth, resolveUserAuthContext } from "../auth.js";
 import type { ExtractionJob } from "../job-manager.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
@@ -34,16 +34,9 @@ async function validateOptionalApiKey(apiKey: string | undefined): Promise<strin
   return BYOKValidator.hashKey(apiKey);
 }
 
-async function resolveOptionalAuthUserId(c: { req: { header: (name: string) => string | undefined } }): Promise<string | null> {
-  const authorization = c.req.header("Authorization");
-  if (!extractBearerToken(authorization)) return null;
-  const auth = await resolveAuthContext(authorization);
-  return auth.userId;
-}
-
 async function authorizeJobAccess(c: { req: { header: (name: string) => string | undefined } }, job: ExtractionJob): Promise<void> {
   if (!job.userId) return;
-  const auth = await resolveAuthContext(c.req.header("Authorization"));
+  const auth = await resolveUserAuthContext(c.req.header("Authorization"));
   if (auth.userId !== job.userId) {
     throw new AuthFlowError(
       "not_found",
@@ -55,12 +48,12 @@ async function authorizeJobAccess(c: { req: { header: (name: string) => string |
 }
 
 // Start a new recipe extraction job
-app.post("/api/v1/extract/react", async (c) => {
+app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
   try {
+    const auth = getUserAuth(c);
     const body = await c.req.json() as Record<string, unknown>;
     const url = typeof body.url === "string" ? body.url : "";
     const apiKey = getApiKeyFromRequest(c, body);
-    const userId = await resolveOptionalAuthUserId(c);
 
     if (!url) {
       return c.json({ error: "URL is required" }, 400);
@@ -105,7 +98,7 @@ app.post("/api/v1/extract/react", async (c) => {
     }
 
     const userAgent = c.req.header("User-Agent");
-    const job = jobManager.createJob(url, userAgent, apiKeyHash, userId);
+    const job = jobManager.createJob(url, userAgent, apiKeyHash, auth.userId);
 
     setTimeout(() => {
       processJobInBackground(job.id, apiKey).catch(console.error);
@@ -202,13 +195,13 @@ app.delete("/api/v1/extract/react/:jobId", async (c) => {
 });
 
 // List recent jobs
-app.get("/api/v1/extract/jobs", async (c) => {
+app.get("/api/v1/extract/jobs", requireUserAuth(), async (c) => {
   try {
+    const auth = getUserAuth(c);
     const limit = parseInt(c.req.query("limit") || "50");
-    const userId = await resolveOptionalAuthUserId(c);
     const jobs = jobManager
       .getRecentJobs(limit)
-      .filter((job) => !job.userId || job.userId === userId);
+      .filter((job) => job.userId === auth.userId);
 
     return c.json({
       jobs,
@@ -228,12 +221,12 @@ app.get("/api/v1/extract/jobs", async (c) => {
 });
 
 // Photo extraction endpoint
-app.post("/api/v1/extract/photo", async (c) => {
+app.post("/api/v1/extract/photo", requireUserAuth(), async (c) => {
   try {
+    const auth = getUserAuth(c);
     const formData = await c.req.formData();
     const file = formData.get("file") as File | null;
     const apiKey = getApiKeyFromRequest(c);
-    const userId = await resolveOptionalAuthUserId(c);
 
     if (!file) return c.json({ error: "Keine Datei angegeben" }, 400);
 
@@ -263,8 +256,8 @@ app.post("/api/v1/extract/photo", async (c) => {
 
     const userAgent = c.req.header("User-Agent");
     const job = apiKeyHash
-      ? jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, apiKeyHash, userId)
-      : jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, undefined, userId);
+      ? jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, apiKeyHash, auth.userId)
+      : jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, undefined, auth.userId);
     photoDataStore.set(job.id, dataUrl);
 
     setTimeout(() => {
@@ -314,8 +307,12 @@ async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
     }
 
     jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
-    const userId = jobManager.getJob(jobId)?.userId ?? null;
-    const recipeId = await saveRecipeToReactDb(recipeData, "photo://upload", undefined, userId);
+    const userId = jobManager.getJob(jobId)?.userId;
+    if (!userId) throw new Error("Authenticated job owner is required to save a recipe");
+    const recipeId = await saveRecipeToReactDb(recipeData, "photo://upload", undefined, {
+      owner: { type: "user", userId },
+      createdBy: userId,
+    });
     jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData, imageSuggestions });
 
   } catch (error) {
@@ -328,12 +325,12 @@ async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
 }
 
 // Free text extraction endpoint
-app.post("/api/v1/extract/text", async (c) => {
+app.post("/api/v1/extract/text", requireUserAuth(), async (c) => {
   try {
+    const auth = getUserAuth(c);
     const body = await c.req.json().catch(() => ({}));
     const text = typeof body.text === "string" ? body.text.trim() : "";
     const apiKey = getApiKeyFromRequest(c, body);
-    const userId = await resolveOptionalAuthUserId(c);
 
     if (!text) {
       return c.json({ error: "Text ist erforderlich" }, 400);
@@ -356,7 +353,7 @@ app.post("/api/v1/extract/text", async (c) => {
     }
 
     const userAgent = c.req.header("User-Agent");
-    const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent, apiKeyHash, userId);
+    const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent, apiKeyHash, auth.userId);
     textDataStore.set(job.id, text);
 
     setTimeout(() => {
@@ -395,8 +392,12 @@ async function processTextJobInBackground(jobId: string, apiKey?: string) {
     const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
 
     jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
-    const userId = jobManager.getJob(jobId)?.userId ?? null;
-    const recipeId = await saveRecipeToReactDb(recipeData, "text://manual", undefined, userId);
+    const userId = jobManager.getJob(jobId)?.userId;
+    if (!userId) throw new Error("Authenticated job owner is required to save a recipe");
+    const recipeId = await saveRecipeToReactDb(recipeData, "text://manual", undefined, {
+      owner: { type: "user", userId },
+      createdBy: userId,
+    });
 
     const qualityWarnings = buildQualityWarnings(recipeData, "text://manual");
 
@@ -459,6 +460,10 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
     };
 
     try {
+      if (!job.userId) {
+        throw new Error("Authenticated job owner is required to process an extraction job");
+      }
+
       const result = await processURL(job.url, onEvent, { apiKey: userApiKey, userId: job.userId });
 
       if (result.success) {

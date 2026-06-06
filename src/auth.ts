@@ -22,6 +22,16 @@ export interface AuthContext {
   isAuthenticated: true;
 }
 
+export interface UserAuthContext {
+  userId: string;
+  email: string | null;
+  appRole: AppRole;
+  memberships: Array<{ householdId: string; role: HouseholdRole }>;
+  activeHouseholdId: string | null;
+  accessToken: string;
+  isAuthenticated: true;
+}
+
 export interface AuthenticatedUser {
   id: string;
   email: string | null;
@@ -133,7 +143,7 @@ async function verifySupabaseAccessToken(accessToken: string): Promise<Authentic
   };
 }
 
-export async function resolveAuthContext(authorizationHeader: string | null | undefined): Promise<AuthContext> {
+export async function resolveUserAuthContext(authorizationHeader: string | null | undefined): Promise<UserAuthContext> {
   const accessToken = extractBearerToken(authorizationHeader);
   if (!accessToken) {
     throw new AuthFlowError(
@@ -148,16 +158,6 @@ export async function resolveAuthContext(authorizationHeader: string | null | un
   const user = await verifyAccessToken(accessToken);
   const authorization = await loadAuthorization(user);
 
-  if (!authorization.activeHouseholdId) {
-    throw new AuthFlowError(
-      "no_household",
-      "User has no active household",
-      403,
-      "Shopping and planner endpoints are household-scoped in this slice",
-      "Create a default household and membership for this user",
-    );
-  }
-
   return {
     userId: user.id,
     email: user.email,
@@ -169,6 +169,25 @@ export async function resolveAuthContext(authorizationHeader: string | null | un
   };
 }
 
+export async function resolveAuthContext(authorizationHeader: string | null | undefined): Promise<AuthContext> {
+  const auth = await resolveUserAuthContext(authorizationHeader);
+
+  if (!auth.activeHouseholdId) {
+    throw new AuthFlowError(
+      "no_household",
+      "User has no active household",
+      403,
+      "Shopping and planner endpoints are household-scoped in this slice",
+      "Create a default household and membership for this user",
+    );
+  }
+
+  return {
+    ...auth,
+    activeHouseholdId: auth.activeHouseholdId,
+  };
+}
+
 export function getAuth(c: Context): AuthContext {
   const auth = c.get("auth");
   if (!auth) {
@@ -177,10 +196,37 @@ export function getAuth(c: Context): AuthContext {
   return auth as AuthContext;
 }
 
+export function getUserAuth(c: Context): UserAuthContext {
+  const auth = c.get("auth");
+  if (!auth) {
+    throw new AuthFlowError("auth_missing", "Auth context is missing", 401);
+  }
+  return auth as UserAuthContext;
+}
+
 export function requireAuth(): MiddlewareHandler {
   return async (c, next) => {
     try {
       const auth = await resolveAuthContext(c.req.header("Authorization"));
+      c.set("auth", auth);
+      await next();
+    } catch (error) {
+      if (error instanceof AuthFlowError) {
+        return authErrorResponse(c, error);
+      }
+      console.error("Unexpected auth error:", error);
+      return c.json(
+        authErrorPayload("auth_invalid", "Authentication failed", error instanceof Error ? error.message : undefined),
+        401,
+      );
+    }
+  };
+}
+
+export function requireUserAuth(): MiddlewareHandler {
+  return async (c, next) => {
+    try {
+      const auth = await resolveUserAuthContext(c.req.header("Authorization"));
       c.set("auth", auth);
       await next();
     } catch (error) {

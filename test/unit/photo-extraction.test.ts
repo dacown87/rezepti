@@ -74,11 +74,16 @@ vi.mock('../../src/byok-validator.js', () => ({
 
 const { default: extractionRouter } = await import('../../src/routes/extraction.js')
 
+const userId = '00000000-0000-0000-0000-000000000001'
+const householdId = '10000000-0000-0000-0000-000000000001'
+const authHeaders = { Authorization: 'Bearer valid-token' }
+
 function makePhotoRequest(file: File | null, fieldName = 'file') {
   const formData = new FormData()
   if (file) formData.append(fieldName, file)
   return extractionRouter.request('/api/v1/extract/photo', {
     method: 'POST',
+    headers: authHeaders,
     body: formData,
   })
 }
@@ -92,6 +97,15 @@ describe('photo extraction route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsUrlProcessing.mockReturnValue(false)
+    mockGetJob.mockReturnValue({ id: 'test-job', userId })
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId, role: 'owner' }],
+        activeHouseholdId: householdId,
+      }),
+    })
   })
 
   afterEach(() => {
@@ -183,7 +197,7 @@ describe('photo extraction route', () => {
         expect.stringContaining('mein-rezept.jpg'),
         undefined,
         undefined,
-        null,
+        userId,
       )
     })
   })
@@ -193,6 +207,15 @@ describe('URL extraction route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsUrlProcessing.mockReturnValue(false)
+    mockGetJob.mockReturnValue({ id: 'test-job', userId })
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId, role: 'owner' }],
+        activeHouseholdId: householdId,
+      }),
+    })
   })
 
   afterEach(() => {
@@ -202,7 +225,7 @@ describe('URL extraction route', () => {
   it('returns 400 when URL is missing', async () => {
     const res = await extractionRouter.request('/api/v1/extract/react', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     })
     expect(res.status).toBe(400)
@@ -213,7 +236,7 @@ describe('URL extraction route', () => {
   it('returns 400 for invalid URL format', async () => {
     const res = await extractionRouter.request('/api/v1/extract/react', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: 'not-a-url' }),
     })
     expect(res.status).toBe(400)
@@ -225,7 +248,7 @@ describe('URL extraction route', () => {
     mockIsUrlProcessing.mockReturnValue(true)
     const res = await extractionRouter.request('/api/v1/extract/react', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: 'https://example.com/recipe' }),
     })
     expect(res.status).toBe(409)
@@ -237,13 +260,39 @@ describe('URL extraction route', () => {
     mockCreateJob.mockReturnValue({ id: 'url-job-1' })
     const res = await extractionRouter.request('/api/v1/extract/react', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: 'https://example.com/recipe' }),
     })
     expect(res.status).toBe(202)
     const body = await res.json()
     expect(body.jobId).toBe('url-job-1')
     expect(body.pollUrl).toBe('/api/v1/extract/react/url-job-1')
+  })
+
+  it('creates user-owned URL extraction jobs without an active household', async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [],
+        activeHouseholdId: null,
+      }),
+    })
+    mockCreateJob.mockReturnValue({ id: 'url-job-no-household' })
+
+    const res = await extractionRouter.request('/api/v1/extract/react', {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com/private-recipe' }),
+    })
+
+    expect(res.status).toBe(202)
+    expect(mockCreateJob).toHaveBeenCalledWith(
+      'https://example.com/private-recipe',
+      undefined,
+      undefined,
+      userId,
+    )
   })
 
   it('requires auth to poll user-owned jobs', async () => {
@@ -264,7 +313,6 @@ describe('URL extraction route', () => {
   })
 
   it('polls user-owned jobs for the matching authenticated user', async () => {
-    const userId = '00000000-0000-0000-0000-000000000001'
     mockGetJob.mockReturnValue({
       id: 'private-job',
       url: 'https://example.com/recipe',
@@ -291,7 +339,6 @@ describe('URL extraction route', () => {
   })
 
   it('hides other users private jobs from the job list', async () => {
-    const userId = '00000000-0000-0000-0000-000000000001'
     mockGetRecentJobs.mockReturnValue([
       { id: 'public-job', userId: null },
       { id: 'own-job', userId },
@@ -312,8 +359,8 @@ describe('URL extraction route', () => {
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toMatchObject({
-      jobs: [{ id: 'public-job' }, { id: 'own-job' }],
-      total: 2,
+      jobs: [{ id: 'own-job' }],
+      total: 1,
     })
   })
 })

@@ -27,6 +27,13 @@ type MealPlanRow = {
   week_start: number;
 };
 
+type RecipeFixtures = {
+  privateA: number;
+  householdA: number;
+  householdB: number;
+  sharedHousehold: number;
+};
+
 const password = "RlsSmoke-2026-Local-Only!";
 const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userAEmail = `rls-smoke-a-${runId}@example.test`;
@@ -34,6 +41,7 @@ const userBEmail = `rls-smoke-b-${runId}@example.test`;
 
 const createdUserIds: string[] = [];
 const createdHouseholdIds: string[] = [];
+const createdRecipeIds: number[] = [];
 
 function readRequiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -158,6 +166,7 @@ async function assertRequiredTables(admin: SupabaseClient) {
     "user_profiles",
     "households",
     "household_memberships",
+    "recipes",
     "shopping_list",
     "meal_plan",
   ];
@@ -170,6 +179,23 @@ async function assertRequiredTables(admin: SupabaseClient) {
       );
     }
   }
+}
+
+async function assertRecipeOwnershipSchema(admin: SupabaseClient) {
+  const requiredRecipeColumns = "id, owner_type, owner_user_id, household_id, created_by";
+  const { error: ownerColumnsError } = await admin
+    .from("recipes")
+    .select(requiredRecipeColumns)
+    .limit(1);
+
+  assert(!ownerColumnsError, `recipes ownership columns are missing or inaccessible: ${ownerColumnsError?.message}`);
+
+  const { error: legacyUserIdError } = await admin
+    .from("recipes")
+    .select("user_id")
+    .limit(1);
+
+  assert(legacyUserIdError, "recipes.user_id still exists after ownership migration");
 }
 
 async function insertHousehold(admin: SupabaseClient, name: string, createdBy: string) {
@@ -218,6 +244,72 @@ async function bootstrap(admin: SupabaseClient) {
   return { userA, userB, householdA, householdB, sharedHousehold };
 }
 
+async function insertRecipe(
+  admin: SupabaseClient,
+  row: {
+    name: string;
+    owner_type: "user" | "household";
+    owner_user_id?: string | null;
+    household_id?: string | null;
+    created_by: string;
+  },
+) {
+  const { data, error } = await admin
+    .from("recipes")
+    .insert({
+      name: row.name,
+      emoji: "🍽️",
+      tags: "[]",
+      ingredients: JSON.stringify(["1 Testzutat"]),
+      steps: JSON.stringify(["Testen."]),
+      owner_type: row.owner_type,
+      owner_user_id: row.owner_user_id ?? null,
+      household_id: row.household_id ?? null,
+      created_by: row.created_by,
+    })
+    .select("id")
+    .single<{ id: number }>();
+
+  if (error || !data) {
+    throw new Error(`Could not create recipe fixture ${row.name}: ${error?.message ?? "missing row"}`);
+  }
+
+  createdRecipeIds.push(data.id);
+  return data.id;
+}
+
+async function bootstrapRecipes(admin: SupabaseClient, ids: Awaited<ReturnType<typeof bootstrap>>): Promise<RecipeFixtures> {
+  const privateA = await insertRecipe(admin, {
+    name: `RLS Smoke Private A ${runId}`,
+    owner_type: "user",
+    owner_user_id: ids.userA.id,
+    created_by: ids.userA.id,
+  });
+
+  const householdA = await insertRecipe(admin, {
+    name: `RLS Smoke Household A ${runId}`,
+    owner_type: "household",
+    household_id: ids.householdA,
+    created_by: ids.userA.id,
+  });
+
+  const householdB = await insertRecipe(admin, {
+    name: `RLS Smoke Household B ${runId}`,
+    owner_type: "household",
+    household_id: ids.householdB,
+    created_by: ids.userB.id,
+  });
+
+  const sharedHousehold = await insertRecipe(admin, {
+    name: `RLS Smoke Shared ${runId}`,
+    owner_type: "household",
+    household_id: ids.sharedHousehold,
+    created_by: ids.userA.id,
+  });
+
+  return { privateA, householdA, householdB, sharedHousehold };
+}
+
 async function expectAnonBlocked(anon: SupabaseClient) {
   const { data, error } = await anon.from("shopping_list").select("id").limit(1);
   assert(error || (data?.length ?? 0) === 0, "anon unexpectedly read shopping_list rows");
@@ -232,6 +324,7 @@ async function runShoppingChecks(
   userAClient: SupabaseClient,
   userBClient: SupabaseClient,
   ids: Awaited<ReturnType<typeof bootstrap>>,
+  recipeFixtures: RecipeFixtures,
 ) {
   const marker = `RLS smoke shopping ${runId}`;
   const { data: inserted, error: insertError } = await userAClient
@@ -338,6 +431,44 @@ async function runShoppingChecks(
     "Shared shopping update changed user_id or failed to persist",
   );
 
+  const { error: privateRecipeInsertError } = await userAClient
+    .from("shopping_list")
+    .insert({
+      household_id: ids.householdA,
+      user_id: ids.userA.id,
+      recipe_id: recipeFixtures.privateA,
+      canonical_name: `${marker} private recipe`,
+    });
+
+  assert(privateRecipeInsertError, "User A inserted shopping row with a private recipe_id");
+
+  const { error: foreignRecipeInsertError } = await userAClient
+    .from("shopping_list")
+    .insert({
+      household_id: ids.householdA,
+      user_id: ids.userA.id,
+      recipe_id: recipeFixtures.householdB,
+      canonical_name: `${marker} foreign household recipe`,
+    });
+
+  assert(foreignRecipeInsertError, "User A inserted shopping row with a foreign household recipe_id");
+
+  const { data: householdRecipeInsert, error: householdRecipeInsertError } = await userAClient
+    .from("shopping_list")
+    .insert({
+      household_id: ids.householdA,
+      user_id: ids.userA.id,
+      recipe_id: recipeFixtures.householdA,
+      canonical_name: `${marker} household recipe`,
+    })
+    .select("id")
+    .single<Pick<ShoppingRow, "id">>();
+
+  assert(
+    !householdRecipeInsertError && householdRecipeInsert,
+    `User A could not insert shopping row with household recipe_id: ${householdRecipeInsertError?.message}`,
+  );
+
   const { error: ownDeleteError } = await userAClient
     .from("shopping_list")
     .delete()
@@ -350,6 +481,7 @@ async function runPlannerChecks(
   userAClient: SupabaseClient,
   userBClient: SupabaseClient,
   ids: Awaited<ReturnType<typeof bootstrap>>,
+  recipeFixtures: RecipeFixtures,
 ) {
   const weekStart = 1810000000;
   const { data: inserted, error: insertError } = await userAClient
@@ -357,7 +489,7 @@ async function runPlannerChecks(
     .insert({
       household_id: ids.householdA,
       user_id: ids.userA.id,
-      recipe_id: 123456,
+      recipe_id: recipeFixtures.householdA,
       day_of_week: 2,
       week_start: weekStart,
     })
@@ -422,7 +554,7 @@ async function runPlannerChecks(
     .insert({
       household_id: ids.sharedHousehold,
       user_id: ids.userA.id,
-      recipe_id: 654321,
+      recipe_id: recipeFixtures.sharedHousehold,
       day_of_week: 4,
       week_start: weekStart,
     })
@@ -456,6 +588,30 @@ async function runPlannerChecks(
     "Shared planner update changed user_id or failed to persist",
   );
 
+  const { error: privateRecipeInsertError } = await userAClient
+    .from("meal_plan")
+    .insert({
+      household_id: ids.householdA,
+      user_id: ids.userA.id,
+      recipe_id: recipeFixtures.privateA,
+      day_of_week: 1,
+      week_start: weekStart + 1,
+    });
+
+  assert(privateRecipeInsertError, "User A inserted planner row with a private recipe_id");
+
+  const { error: foreignRecipeInsertError } = await userAClient
+    .from("meal_plan")
+    .insert({
+      household_id: ids.householdA,
+      user_id: ids.userA.id,
+      recipe_id: recipeFixtures.householdB,
+      day_of_week: 1,
+      week_start: weekStart + 2,
+    });
+
+  assert(foreignRecipeInsertError, "User A inserted planner row with a foreign household recipe_id");
+
   const { error: ownDeleteError } = await userAClient
     .from("meal_plan")
     .delete()
@@ -465,6 +621,10 @@ async function runPlannerChecks(
 }
 
 async function cleanup(admin: SupabaseClient) {
+  if (createdRecipeIds.length > 0) {
+    await admin.from("recipes").delete().in("id", createdRecipeIds);
+  }
+
   if (createdHouseholdIds.length > 0) {
     await admin.from("meal_plan").delete().in("household_id", createdHouseholdIds);
     await admin.from("shopping_list").delete().in("household_id", createdHouseholdIds);
@@ -491,22 +651,26 @@ async function main() {
 
   try {
     await assertRequiredTables(admin);
+    await assertRecipeOwnershipSchema(admin);
     const ids = await bootstrap(admin);
+    const recipeFixtures = await bootstrapRecipes(admin, ids);
     const userAClient = await signIn(status.API_URL, status.ANON_KEY, userAEmail);
     const userBClient = await signIn(status.API_URL, status.ANON_KEY, userBEmail);
 
     await expectAnonBlocked(anon);
     await expectRecipesClosed(userAClient);
-    await runShoppingChecks(userAClient, userBClient, ids);
-    await runPlannerChecks(userAClient, userBClient, ids);
+    await runShoppingChecks(userAClient, userBClient, ids, recipeFixtures);
+    await runPlannerChecks(userAClient, userBClient, ids, recipeFixtures);
 
     console.log(`Supabase ${target} RLS smoke passed:`);
     console.log(`- anon cannot read shopping_list`);
     console.log(`- authenticated users cannot access recipes through the Data API`);
+    console.log(`- recipes ownership columns exist and legacy recipes.user_id is gone`);
     console.log(`- User A can CRUD own household shopping/planner rows`);
     console.log(`- User B cannot read/update/delete User A household rows`);
     console.log(`- shared household rows are visible to both members`);
     console.log(`- shared household updates cannot rewrite creator user_id or household scope`);
+    console.log(`- planner/shopping reject private or foreign household recipe_id references`);
   } finally {
     await cleanup(admin);
   }

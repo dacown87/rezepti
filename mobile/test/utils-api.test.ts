@@ -49,6 +49,22 @@ describe('utils/api', () => {
     await expect(fetchRecipes()).rejects.toThrow('Server-Fehler 503');
   });
 
+  it('fetchRecipes preserves auth_missing for login-required recipe reads', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        code: 'auth_missing',
+        message: 'Missing Authorization Bearer token',
+        fix: 'Sign in and retry with the session access token',
+      },
+    }), { status: 401 })));
+
+    await expect(fetchRecipes()).rejects.toMatchObject({
+      status: 401,
+      code: 'auth_missing',
+      message: 'Missing Authorization Bearer token (auth_missing)',
+    });
+  });
+
   it('readApiError preserves stable auth error codes from the server envelope', async () => {
     const response = new Response(JSON.stringify({
       error: {
