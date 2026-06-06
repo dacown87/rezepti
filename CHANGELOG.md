@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.127] – 2026-06-06
+
+- scope recipes and extraction jobs by user
+
 ## [1.0.126] – 2026-06-05
 
 

@@ -1,6 +1,13 @@
 {
-  "version": "1.0.126",
+  "version": "1.0.127",
   "entries": [
+    {
+      "version": "1.0.127",
+      "date": "2026-06-06",
+      "changes": [
+        "scope recipes and extraction jobs by user"
+      ]
+    },
     {
       "version": "1.0.126",
       "date": "2026-06-05",
@@ -145,7 +152,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-06-05",
-    "time": "08:29"
+    "date": "2026-06-06",
+    "time": "09:05"
   }
 }
