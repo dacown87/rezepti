@@ -2,7 +2,7 @@
 
 Datum: 2026-06-05
 Branch: `recipes-ownership-slice`
-Status: Implementiert, lokal verifiziert und committed am 2026-06-06 (`e67c3b2`); vor Release bleibt nur optionaler Staging-Smoke
+Status: Vollstaendig implementiert, lokal und auf `rezepti-staging` verifiziert, committed am 2026-06-06 (`e67c3b2`, Follow-ups `229eadf`, `8e48bbf`, `53ecdb1`)
 Verbindliche Spec: [Recipes Household Ownership Design](/home/patrick/Projekte/rezepti/docs/superpowers/specs/2026-06-05-recipes-household-ownership-design.md)
 
 ## Kurzentscheidung
@@ -440,7 +440,7 @@ weg, und die DB kann private vs. household Recipes eindeutig unterscheiden.
 - [x] Harte Migration mit Reset/Backfill fuer Null-Owner-Daten umsetzen.
 - [x] Privaten RLS-Helper fuer Rezept-zu-Haushalt-Referenzen einbauen.
 - [x] Migration-Smoke gegen lokale DB laufen lassen.
-- [ ] Staging-Smoke bei Bedarf vor Release laufen lassen.
+- [x] Staging-Smoke gegen `rezepti-staging` laufen lassen.
 
 ### Phase 2: Server Ownership Layer — abgeschlossen 2026-06-06
 
@@ -478,7 +478,7 @@ Rezepte oder stilles Versagen aufzutauchen.
 - [ ] Voller Copy-or-Blocker-UX fuer private Rezepte bleibt Folge-Slice mit
   Copy-/Share-Flow.
 
-### Phase 5: Verification und Ship-Gate — lokal gruen 2026-06-06
+### Phase 5: Verification und Ship-Gate — lokal und staging gruen 2026-06-06
 
 Ziel: Ein kompletter Ownership-Slice wird mit harten Gates verifiziert, bevor
 er als erledigt gilt.
@@ -492,6 +492,8 @@ er als erledigt gilt.
 - [x] `npm run supabase:rls-smoke`
 - [x] `npx supabase db lint --local`
 - [x] `npm run security:secrets`
+- [x] `npm run supabase:rls-smoke:staging`
+- [x] `npx supabase db advisors --type security --level warn --fail-on none --output-format json` lokal und gegen `STAGING_DATABASE_URL`
 
 ## Implementierungsreihenfolge
 
