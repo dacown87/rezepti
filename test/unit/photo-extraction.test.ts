@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { configureAuthForTests, resetAuthAdaptersForTests } from '../../src/auth.js'
 
 // Mock all external dependencies before importing the route
 const mockCreateJob = vi.fn()
@@ -8,6 +9,8 @@ const mockCompleteJob = vi.fn()
 const mockFailJob = vi.fn()
 const mockGetJob = vi.fn()
 const mockIsUrlProcessing = vi.fn().mockReturnValue(false)
+const mockJobToEvent = vi.fn()
+const mockGetRecentJobs = vi.fn()
 
 vi.mock('../../src/job-manager.js', () => ({
   jobManager: {
@@ -17,9 +20,9 @@ vi.mock('../../src/job-manager.js', () => ({
     completeJob: mockCompleteJob,
     failJob: mockFailJob,
     getJob: mockGetJob,
-    jobToEvent: vi.fn(),
+    jobToEvent: mockJobToEvent,
     getJobEventsSince: vi.fn(),
-    getRecentJobs: vi.fn(),
+    getRecentJobs: mockGetRecentJobs,
     isUrlProcessing: mockIsUrlProcessing,
   },
 }))
@@ -38,6 +41,7 @@ vi.mock('../../src/processors/llm.js', () => ({
 
 vi.mock('../../src/db-react.js', () => ({
   saveRecipeToReactDb: vi.fn().mockReturnValue(42),
+  loadUserAuthorization: vi.fn(),
 }))
 
 vi.mock('../../src/pipeline.js', () => ({
@@ -88,6 +92,10 @@ describe('photo extraction route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsUrlProcessing.mockReturnValue(false)
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
   })
 
   describe('input validation', () => {
@@ -173,7 +181,9 @@ describe('photo extraction route', () => {
       await makePhotoRequest(file)
       expect(mockCreateJob).toHaveBeenCalledWith(
         expect.stringContaining('mein-rezept.jpg'),
-        undefined
+        undefined,
+        undefined,
+        null,
       )
     })
   })
@@ -183,6 +193,10 @@ describe('URL extraction route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsUrlProcessing.mockReturnValue(false)
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
   })
 
   it('returns 400 when URL is missing', async () => {
@@ -230,5 +244,76 @@ describe('URL extraction route', () => {
     const body = await res.json()
     expect(body.jobId).toBe('url-job-1')
     expect(body.pollUrl).toBe('/api/v1/extract/react/url-job-1')
+  })
+
+  it('requires auth to poll user-owned jobs', async () => {
+    mockGetJob.mockReturnValue({
+      id: 'private-job',
+      url: 'https://example.com/recipe',
+      status: 'completed',
+      progress: 100,
+      userId: '00000000-0000-0000-0000-000000000001',
+    })
+
+    const res = await extractionRouter.request('/api/v1/extract/react/private-job')
+
+    expect(res.status).toBe(401)
+    const body = await res.json()
+    expect(body.error.code).toBe('auth_missing')
+    expect(mockJobToEvent).not.toHaveBeenCalled()
+  })
+
+  it('polls user-owned jobs for the matching authenticated user', async () => {
+    const userId = '00000000-0000-0000-0000-000000000001'
+    mockGetJob.mockReturnValue({
+      id: 'private-job',
+      url: 'https://example.com/recipe',
+      status: 'completed',
+      progress: 100,
+      userId,
+    })
+    mockJobToEvent.mockReturnValue({ id: 'private-job', status: 'completed', progress: 100 })
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+      }),
+    })
+
+    const res = await extractionRouter.request('/api/v1/extract/react/private-job', {
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({ id: 'private-job', status: 'completed', progress: 100 })
+  })
+
+  it('hides other users private jobs from the job list', async () => {
+    const userId = '00000000-0000-0000-0000-000000000001'
+    mockGetRecentJobs.mockReturnValue([
+      { id: 'public-job', userId: null },
+      { id: 'own-job', userId },
+      { id: 'foreign-job', userId: '00000000-0000-0000-0000-000000000002' },
+    ])
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+      }),
+    })
+
+    const res = await extractionRouter.request('/api/v1/extract/jobs', {
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({
+      jobs: [{ id: 'public-job' }, { id: 'own-job' }],
+      total: 2,
+    })
   })
 })

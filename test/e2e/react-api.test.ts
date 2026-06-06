@@ -408,31 +408,17 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       expect(Array.isArray(result.data)).toBe(true);
     });
 
-    it('should get recipe by ID', async () => {
-      const fixture = makeRecipeFixture('get-by-id');
-      const createResult = await testRunner.testEndpoint(
+    it('should require auth for recipe creation', async () => {
+      const result = await testRunner.testEndpoint(
         'POST',
         '/api/v1/recipes',
-        fixture,
-        'Create recipe fixture for ID test',
-        201
-      );
-
-      expect(createResult.success).toBe(true);
-      expect(typeof createResult.data?.id).toBe('number');
-
-      const recipeId = createResult.data?.id as number;
-      registerRecipeForCleanup(createdRecipeIds, recipeId);
-      const result = await testRunner.testEndpoint(
-        'GET',
-        `/api/v1/recipes/${recipeId}`,
-        null,
-        'Get recipe by ID'
+        makeRecipeFixture('create-auth-required'),
+        'Create recipe requires auth',
+        401
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.id).toBe(recipeId);
-      expect(result.data?.name).toBe(fixture.recipe.name);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
     it('should handle non-existent recipe ID', async () => {
@@ -447,78 +433,30 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       expect(result.data?.error).toBeDefined();
     });
 
-    it('should update recipe metadata', async () => {
-      const createResult = await testRunner.testEndpoint(
-        'POST',
-        '/api/v1/recipes',
-        makeRecipeFixture('update'),
-        'Create recipe fixture for update test',
-        201
-      );
-
-      expect(createResult.success).toBe(true);
-      const recipeId = createResult.data?.id as number;
-      registerRecipeForCleanup(createdRecipeIds, recipeId);
-      const newName = `${RECIPE_FIXTURE.recipe.name} Updated`;
-
+    it('should require auth for recipe metadata updates', async () => {
       const result = await testRunner.testEndpoint(
         'PATCH',
-        `/api/v1/recipes/${recipeId}`,
-        { name: newName },
-        'Update recipe name',
-        200
+        `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
+        { name: `${RECIPE_FIXTURE.recipe.name} Updated` },
+        'Update recipe requires auth',
+        401
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.success).toBe(true);
-
-      const verifyResult = await testRunner.testEndpoint(
-        'GET',
-        `/api/v1/recipes/${recipeId}`,
-        null,
-        'Verify recipe update via detail endpoint',
-        200
-      );
-
-      expect(verifyResult.success).toBe(true);
-      expect(verifyResult.data?.id).toBe(recipeId);
-      expect(verifyResult.data?.name).toBe(newName);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should delete recipe', async () => {
-      const createResult = await testRunner.testEndpoint(
-        'POST',
-        '/api/v1/recipes',
-        makeRecipeFixture('delete'),
-        'Create recipe fixture for delete test',
-        201
-      );
-
-      expect(createResult.success).toBe(true);
-      const recipeId = createResult.data?.id as number;
-      registerRecipeForCleanup(createdRecipeIds, recipeId);
-
+    it('should require auth for recipe deletion', async () => {
       const result = await testRunner.testEndpoint(
         'DELETE',
-        `/api/v1/recipes/${recipeId}`,
+        `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
         null,
-        'Delete recipe',
-        200
+        'Delete recipe requires auth',
+        401
       );
 
       expect(result.success).toBe(true);
-
-      // Verify deletion with expected 404 contract.
-      const verifyResult = await testRunner.testEndpoint(
-        'GET',
-        `/api/v1/recipes/${recipeId}`,
-        null,
-        'Verify recipe deletion',
-        404
-      );
-      expect(verifyResult.success).toBe(true);
-      expect(verifyResult.data?.error).toBeDefined();
-      markRecipeCleanupHandled(createdRecipeIds, recipeId);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
   }, TEST_TIMEOUT);
 

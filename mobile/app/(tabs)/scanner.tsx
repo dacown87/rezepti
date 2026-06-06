@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import ScannerCamera from '@/components/ScannerCamera'
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr'
 import type { RecipeQRData } from '@/utils/recipe-qr'
-import { getServerUrl } from '@/utils/server-url'
+import { apiFetch } from '@/utils/api'
 
 export default function ScannerScreen() {
   const { autoOpen } = useLocalSearchParams<{ autoOpen?: string }>()
@@ -18,7 +18,6 @@ export default function ScannerScreen() {
     setShowCamera(false)
 
     // Direktlink aus PDF/Karte: "<serverUrl>/recipe/<id>"
-    const serverUrl = await getServerUrl()
     const recipeUrlPattern = /\/recipe\/(\d+)$/
     const urlMatch = value.match(recipeUrlPattern)
     if (urlMatch) {
@@ -40,7 +39,7 @@ export default function ScannerScreen() {
 
     // Prüfen ob Rezept schon vorhanden → direkt navigieren
     try {
-      const res = await fetch(`${serverUrl}/api/v1/recipes`)
+      const res = await apiFetch('/api/v1/recipes')
       if (res.ok) {
         const data = await res.json()
         const list: Array<{ id: number; name: string }> = Array.isArray(data) ? data : (data.recipes ?? [])
@@ -62,18 +61,20 @@ export default function ScannerScreen() {
 
     setImporting(true)
     try {
-      const serverUrl = await getServerUrl()
-      const res = await fetch(`${serverUrl}/api/v1/recipes`, {
+      const res = await apiFetch('/api/v1/recipes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: scannedRecipe.name,
-          emoji: scannedRecipe.emoji ?? '🍽️',
-          ingredients: scannedRecipe.ingredients,
-          steps: scannedRecipe.steps,
-          tags: scannedRecipe.tags ?? [],
-          servings: scannedRecipe.servings ?? null,
-          duration: scannedRecipe.duration ?? null,
+          recipe: {
+            name: scannedRecipe.name,
+            emoji: scannedRecipe.emoji ?? '🍽️',
+            ingredients: scannedRecipe.ingredients,
+            steps: scannedRecipe.steps,
+            tags: scannedRecipe.tags ?? [],
+            servings: scannedRecipe.servings ?? null,
+            duration: scannedRecipe.duration ?? null,
+          },
+          sourceUrl: 'qr://compact',
         }),
       })
       if (!res.ok) throw new Error(`Server-Fehler ${res.status}`)

@@ -29,6 +29,7 @@ type EventCallback = (event: PipelineEvent) => void | Promise<void>;
 
 interface PipelineOptions {
   apiKey?: string;
+  userId?: string | null;
 }
 
 export function buildQualityWarnings(recipe: Partial<RecipeData>, sourceUrl?: string): string[] {
@@ -168,7 +169,7 @@ export async function processURL(
       message: "Rezept wird in Datenbank gespeichert...",
     });
 
-    const recipeId = await saveRecipeToReactDb(recipe, classified.url, transcript);
+    const recipeId = await saveRecipeToReactDb(recipe, classified.url, transcript, options.userId);
     
     await emit(onEvent, {
       stage: "exporting",

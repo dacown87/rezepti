@@ -23,6 +23,7 @@ export interface ExtractionJob {
   completedAt?: number;
   apiKeyHash?: string;
   userAgent?: string;
+  userId?: string | null;
 }
 
 export interface JobEvent {
@@ -65,12 +66,12 @@ export class JobManager {
     });
   }
 
-  createJob(url: string, userAgent?: string, apiKeyHash?: string): ExtractionJob {
+  createJob(url: string, userAgent?: string, apiKeyHash?: string, userId?: string | null): ExtractionJob {
     const id = `job_${this.deps.now()}_${this.deps.random().toString(36).substring(2, 11)}`;
     const now = this.deps.now();
     const job: ExtractionJob = {
       id, url, status: "pending", progress: 0,
-      createdAt: now, updatedAt: now, userAgent, apiKeyHash,
+      createdAt: now, updatedAt: now, userAgent, apiKeyHash, userId: userId ?? null,
     };
     this.jobs.set(id, job);
     return job;

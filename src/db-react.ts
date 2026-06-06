@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc, and, isNull, sql } from "drizzle-orm";
+import { eq, desc, and, isNull, or, sql } from "drizzle-orm";
 import {
   recipes,
   ingredientDictionary,
@@ -77,7 +77,8 @@ export function ensureReactSchema() {
 export async function saveRecipeToReactDb(
   recipe: RecipeData,
   sourceUrl: string,
-  transcript?: string
+  transcript?: string,
+  userId?: string | null,
 ): Promise<number> {
   const db = getDb();
   const flatIngredients = recipe.ingredientGroups?.length
@@ -100,18 +101,25 @@ export async function saveRecipeToReactDb(
     ingredient_groups: recipe.ingredientGroups ? JSON.stringify(recipe.ingredientGroups) : null,
     category:    detectCategory(recipe.tags, recipe.name),
     transcript,
+    user_id:     userId ?? null,
   }).returning({ id: recipes.id });
 
   return rows[0].id;
 }
 
-export async function getAllRecipesFromReactDb() {
+function visibleRecipesFor(userId?: string | null) {
+  return userId
+    ? or(isNull(recipes.user_id), eq(recipes.user_id, userId))
+    : isNull(recipes.user_id);
+}
+
+export async function getAllRecipesFromReactDb(userId?: string | null) {
   const db = getDb();
-  const rows = await db.select().from(recipes).orderBy(recipes.created_at);
+  const rows = await db.select().from(recipes).where(visibleRecipesFor(userId)).orderBy(recipes.created_at);
   return rows.map(deserialize);
 }
 
-export async function getRecipeListFromReactDb() {
+export async function getRecipeListFromReactDb(userId?: string | null) {
   const db = getDb();
   const rows = await db
     .select({
@@ -127,6 +135,7 @@ export async function getRecipeListFromReactDb() {
       created_at: recipes.created_at,
     })
     .from(recipes)
+    .where(visibleRecipesFor(userId))
     .orderBy(desc(recipes.created_at));
   return rows.map(deserializeListItem);
 }
@@ -170,10 +179,11 @@ export interface SearchRecipesOptions {
 }
 
 export async function searchRecipesByIngredientsAdvanced(
-  options: SearchRecipesOptions
+  options: SearchRecipesOptions,
+  userId?: string | null,
 ): Promise<RecipeSearchResult[]> {
   const db = getDb();
-  const allRows = await db.select().from(recipes);
+  const allRows = await db.select().from(recipes).where(visibleRecipesFor(userId));
   const allRecipes = allRows.map(deserialize);
 
   const { ingredients, match = "or", threshold = 0 } = options;
@@ -220,9 +230,9 @@ export async function searchRecipesByIngredientsAdvanced(
 }
 
 /** @deprecated Use searchRecipesByIngredientsAdvanced */
-export async function searchRecipesByIngredients(ingredients: string[]) {
+export async function searchRecipesByIngredients(ingredients: string[], userId?: string | null) {
   const db = getDb();
-  const allRows = await db.select().from(recipes);
+  const allRows = await db.select().from(recipes).where(visibleRecipesFor(userId));
   const allRecipes = allRows.map(deserialize);
 
   if (ingredients.length === 0) return allRecipes;
@@ -239,13 +249,16 @@ export async function searchRecipesByIngredients(ingredients: string[]) {
   });
 }
 
-export async function getRecipeByIdFromReactDb(id: number) {
+export async function getRecipeByIdFromReactDb(id: number, userId?: string | null) {
   const db = getDb();
-  const rows = await db.select().from(recipes).where(eq(recipes.id, id));
+  const rows = await db
+    .select()
+    .from(recipes)
+    .where(and(eq(recipes.id, id), visibleRecipesFor(userId)));
   return rows[0] ? deserialize(rows[0]) : null;
 }
 
-export async function updateRecipeInReactDb(id: number, fields: Partial<RecipeData>): Promise<boolean> {
+export async function updateRecipeInReactDb(id: number, userId: string, fields: Partial<RecipeData>): Promise<boolean> {
   const db = getDb();
   const values: Record<string, unknown> = {};
   if (fields.name        !== undefined) values.name        = fields.name;
@@ -269,13 +282,20 @@ export async function updateRecipeInReactDb(id: number, fields: Partial<RecipeDa
   if ((fields as any).category    !== undefined) values.category    = (fields as any).category;
   if ((fields as any).pdf_created !== undefined) values.pdf_created = (fields as any).pdf_created;
   if (Object.keys(values).length === 0) return false;
-  const rows = await db.update(recipes).set(values).where(eq(recipes.id, id)).returning({ id: recipes.id });
+  const rows = await db
+    .update(recipes)
+    .set(values)
+    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
+    .returning({ id: recipes.id });
   return rows.length > 0;
 }
 
-export async function deleteRecipeFromReactDb(id: number): Promise<boolean> {
+export async function deleteRecipeFromReactDb(id: number, userId: string): Promise<boolean> {
   const db = getDb();
-  const rows = await db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id });
+  const rows = await db
+    .delete(recipes)
+    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
+    .returning({ id: recipes.id });
   return rows.length > 0;
 }
 

@@ -21,6 +21,8 @@
 
 ## Unreleased
 
+- Rezeptdaten und Extraktionsjobs sind jetzt an den authentifizierten Benutzer gebunden; die mobilen API-Aufrufe nutzen die gemeinsame `apiFetch`-Schicht, und Planner-/Shopping-Flows prüfen Rezeptsichtbarkeit vor dem Schreiben.
+
 ## [1.0.122] – 2026-05-25
 
 

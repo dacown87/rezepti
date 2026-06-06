@@ -1,6 +1,6 @@
 # TODO
 
-Stand: 2026-06-04
+Stand: 2026-06-05
 
 Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigte Details stehen in [docs/todo-history.md](/home/patrick/Projekte/rezepti/docs/todo-history.md).
 
@@ -12,10 +12,12 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/
 
 ## Naechste Reihenfolge
 
-1. **Recipes-Privacy-Slice planen**
-   - Der gelandete Login-Slice schuetzt Shopping/Planner, nicht die komplette Rezeptverwaltung.
-   - Vor jeder Aussage "alle Rezeptdaten sind privat" muessen Recipe-Ownership, globale Defaults und Server-Route-Auth separat umgesetzt und getestet werden.
+1. **Recipes-Ownership-Slice gegen neue Spec umbauen**
+   - Der aktuelle Branch enthaelt brauchbare Auth-/Mutation-/Job-Ownership-Bausteine, darf aber nicht mit globalen Default-Reads als Zielzustand geshippt werden.
+   - Neue Zielentscheidung: Rezepte gehoeren privat einem User oder einem Haushalt; keine globalen Templates; Teilen erzeugt Kopien; `user_id is null` Daten duerfen resetet/geloescht werden.
    - Plan-Basis: [Multi-User Login First Slice](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-05-31-multi-user-login-first-slice-plan.md).
+   - Ziel-Spec: [Recipes Household Ownership Design](/home/patrick/Projekte/rezepti/docs/superpowers/specs/2026-06-05-recipes-household-ownership-design.md).
+   - Umsetzungsplan: [Recipes Ownership Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-05-recipes-ownership-slice-plan.md).
 
 2. **Progressive Web App (PWA) einbauen**
    - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
@@ -43,7 +45,8 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/
 - [ ] **Dependency-Patch-Drift** — siehe Reihenfolge Punkt 4; kein Blocker fuer Multi-User Phase 0/1.
 - [ ] **Mobile-Persistenz Neustart-Pruefung** — Settings/Theme/PDF nach App-Neustart.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
-- [ ] **Recipes-Privacy-Slice planen** — Server-API fuer `recipes` bleibt im ersten Auth-Slice global/deferred. Vor jeder Aussage "alle Rezeptdaten sind privat" muessen Recipe-Ownership, globale Defaults und Server-Route-Auth separat umgesetzt und getestet werden.
+- [ ] **Recipes-Ownership-Slice umsetzen** — Server-API fuer `recipes` auf explizites Owner-Modell umbauen: private User-Rezepte, Haushaltsrezepte, keine globalen Templates, keine Null-Owner-Kompatibilitaet. Plan: [Recipes Ownership Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-05-recipes-ownership-slice-plan.md).
+- [ ] **Recipes Sharing/Favorites Folgeslices planen** — Teilen erzeugt Kopien; Favoriten/Collections werden eigene private oder haushaltsbezogene Owner-Objekte. Nicht in den aktuellen Ownership-Slice ziehen.
 - [ ] **Stale Test-Doku nachziehen** — [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen, obwohl mehrere P1/P2/P3a-Punkte abgeschlossen sind.
 - [ ] **Supabase `unused_index` Hold-Track** — keine Production-Drops ohne Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis. Details: [advisor followups](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 - [ ] **Northflank-Deploy-Pfad** — nur bei roten Deploys, Runtime-/Action-Warnungen oder `northflank/deploy-to-northflank@v1`-Abkuendigung neu bewerten.
@@ -54,7 +57,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/
 ### Supabase / Security
 
 - RLS ist auf den relevanten Public-Tabellen aktiviert; `npm run test:auth` deckt den schnellen Auth-/Route-Vertrag ab. Lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert, lokal gruen und als eigener CI-Job vorbereitet. Der gegatete Staging-Smoke lief am 2026-06-04 gegen `rezepti-staging` gruen.
-- Data-API-RLS-/Grant-Matrix fuer Multi-User ist fuer Slice 1 umgesetzt: Shopping/Planner sind household-scoped, `recipes` ist fuer `anon`/`authenticated` ueber die Data API geschlossen und bleibt serverseitig/global-deferred.
+- Data-API-RLS-/Grant-Matrix fuer Multi-User ist fuer Slice 1 umgesetzt: Shopping/Planner sind household-scoped, `recipes` ist fuer `anon`/`authenticated` ueber die Data API geschlossen und bleibt bis zum expliziten Owner-Modell serverseitig.
 - `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
 - `rezepti-staging` wurde als RLS-Smoke-Ziel bestaetigt und migriert.
 

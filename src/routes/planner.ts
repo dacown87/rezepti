@@ -14,6 +14,7 @@ import {
   addRecipeToMealPlan,
   removeRecipeFromMealPlan,
   clearMealPlanForWeek,
+  getRecipeByIdFromReactDb,
 } from "../db-react.js";
 
 const app = new Hono();
@@ -55,6 +56,11 @@ app.post("/api/v1/shopping", requireAuth(), async (c) => {
 
     if (canonicalName.length > 500) {
       return c.json({ error: "canonicalName too long (max 500 chars)" }, 400);
+    }
+
+    if (recipeId !== undefined && recipeId !== null) {
+      const recipe = await getRecipeByIdFromReactDb(recipeId, auth.userId);
+      if (!recipe) return c.json({ error: "Recipe not found" }, 404);
     }
 
     const result = await addToShoppingList(auth.activeHouseholdId, auth.userId, recipeId ?? null, canonicalName, quantity, unit);
@@ -217,9 +223,12 @@ app.post("/api/v1/planner", requireAuth(), async (c) => {
     const auth = getAuth(c);
     const { recipeId, dayOfWeek, weekStart } = await c.req.json();
 
-    if (!recipeId || dayOfWeek === undefined || !weekStart) {
+    if (!Number.isInteger(recipeId) || dayOfWeek === undefined || !weekStart) {
       return c.json({ error: "recipeId, dayOfWeek, and weekStart are required" }, 400);
     }
+
+    const recipe = await getRecipeByIdFromReactDb(recipeId, auth.userId);
+    if (!recipe) return c.json({ error: "Recipe not found" }, 404);
 
     const result = await addRecipeToMealPlan(auth.activeHouseholdId, auth.userId, recipeId, dayOfWeek, weekStart);
     return c.json({ success: true, id: result.id }, 201);

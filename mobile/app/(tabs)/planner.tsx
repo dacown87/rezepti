@@ -21,7 +21,6 @@ import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull }
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/utils/shopping-service';
 import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
-import { getServerUrl } from '@/utils/server-url';
 import {
   buildRecipeIdMap,
   filterPickerRecipes,
@@ -32,8 +31,7 @@ import {
 // ─── Server API helpers ───────────────────────────────────────────────────────
 
 async function loadAllRecipes(): Promise<Recipe[]> {
-  const serverUrl = await getServerUrl();
-  const res = await fetch(`${serverUrl}/api/v1/recipes`);
+  const res = await apiFetch('/api/v1/recipes');
   if (!res.ok) return [];
   const data: Array<Record<string, unknown>> = await res.json();
   return data.map(r => ({
@@ -481,7 +479,6 @@ export default function PlannerScreen() {
   const handleQRScanned = async (value: string) => {
     const targetDay = qrDay;
     setQrDay(null);
-    const serverUrl = await getServerUrl();
 
     // Neues Format: direkter Rezept-Link "<serverUrl>/recipe/<id>"
     const urlMatch = value.match(/\/recipe\/(\d+)$/);
@@ -528,17 +525,20 @@ export default function PlannerScreen() {
     }
     const data = parseCompactRecipeToFull(decoded);
 
-    const recipeRes = await fetch(`${serverUrl}/api/v1/recipes`, {
+    const recipeRes = await apiFetch('/api/v1/recipes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: data.name,
-        emoji: data.emoji ?? '🍽️',
-        ingredients: data.ingredients,
-        steps: data.steps,
-        tags: data.tags ?? [],
-        servings: data.servings ?? null,
-        duration: data.duration ?? null,
+        recipe: {
+          name: data.name,
+          emoji: data.emoji ?? '🍽️',
+          ingredients: data.ingredients,
+          steps: data.steps,
+          tags: data.tags ?? [],
+          servings: data.servings ?? null,
+          duration: data.duration ?? null,
+        },
+        sourceUrl: 'qr://compact',
       }),
     });
     if (!recipeRes.ok) {

@@ -13,8 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Recipe } from '@/db/schema';
-import { getServerUrl } from '@/utils/server-url';
-import type { ApiRecipe } from '@/utils/api';
+import { apiFetch, type ApiRecipe } from '@/utils/api';
 import { useRecipes } from '@/hooks/useRecipes';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { apiToRecipe } from '@/utils/recipe-mapper';
@@ -238,10 +237,7 @@ export default function RecipeListScreen() {
       const terms = input.split(',').map(t => t.trim()).filter(Boolean);
       if (!terms.length) return;
       try {
-        const serverUrl = await getServerUrl();
-        const res = await fetch(
-          `${serverUrl}/api/v1/recipes?ingredients=${encodeURIComponent(terms.join(','))}&match=or`
-        );
+        const res = await apiFetch(`/api/v1/recipes?ingredients=${encodeURIComponent(terms.join(','))}&match=or`);
         if (!res.ok) return;
         const data = await res.json();
         const list: ApiRecipe[] = Array.isArray(data.recipes) ? data.recipes : [];
