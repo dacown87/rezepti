@@ -15,6 +15,7 @@ const dbMocks = vi.hoisted(() => ({
   removeRecipeFromMealPlan: vi.fn(),
   clearMealPlanForWeek: vi.fn(),
   getRecipeByIdFromReactDb: vi.fn(),
+  recipeBelongsToHousehold: vi.fn(),
 }))
 
 const authState = vi.hoisted(() => ({
@@ -67,6 +68,7 @@ describe('planner route APIs', () => {
     dbMocks.clearAllShoppingItems.mockResolvedValue(undefined)
     dbMocks.findCanonicalBySimilarity.mockResolvedValue(null)
     dbMocks.getRecipeByIdFromReactDb.mockResolvedValue({ id: 5, name: 'Visible Recipe' })
+    dbMocks.recipeBelongsToHousehold.mockResolvedValue(true)
   })
 
   describe('/api/v1/shopping', () => {
@@ -168,11 +170,11 @@ describe('planner route APIs', () => {
       expect(dbMocks.addToShoppingList).toHaveBeenCalledTimes(2)
       expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(1, householdId, userId, 5, 'Tomate', '3', 'Stück')
       expect(dbMocks.addToShoppingList).toHaveBeenNthCalledWith(2, householdId, userId, 5, 'Tomate', '3', 'Stück')
-      expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(5, userId)
+      expect(dbMocks.recipeBelongsToHousehold).toHaveBeenCalledWith(5, householdId)
     })
 
-    it('rejects shopping items for recipes not visible to the user', async () => {
-      dbMocks.getRecipeByIdFromReactDb.mockResolvedValue(null)
+    it('rejects shopping items for recipes outside the active household', async () => {
+      dbMocks.recipeBelongsToHousehold.mockResolvedValue(false)
 
       const res = await jsonRequest('/api/v1/shopping', {
         recipeId: 99,
@@ -181,7 +183,7 @@ describe('planner route APIs', () => {
 
       expect(res.status).toBe(404)
       await expect(res.json()).resolves.toEqual({ error: 'Recipe not found' })
-      expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(99, userId)
+      expect(dbMocks.recipeBelongsToHousehold).toHaveBeenCalledWith(99, householdId)
       expect(dbMocks.addToShoppingList).not.toHaveBeenCalled()
     })
   })
@@ -210,12 +212,12 @@ describe('planner route APIs', () => {
       })
 
       expect(res.status).toBe(201)
-      expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(5, userId)
+      expect(dbMocks.recipeBelongsToHousehold).toHaveBeenCalledWith(5, householdId)
       expect(dbMocks.addRecipeToMealPlan).toHaveBeenCalledWith(householdId, userId, 5, 2, 1716760800)
     })
 
-    it('rejects planner entries for recipes not visible to the user', async () => {
-      dbMocks.getRecipeByIdFromReactDb.mockResolvedValue(null)
+    it('rejects planner entries for recipes outside the active household', async () => {
+      dbMocks.recipeBelongsToHousehold.mockResolvedValue(false)
 
       const res = await jsonRequest('/api/v1/planner', {
         recipeId: 99,
@@ -225,7 +227,7 @@ describe('planner route APIs', () => {
 
       expect(res.status).toBe(404)
       await expect(res.json()).resolves.toEqual({ error: 'Recipe not found' })
-      expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(99, userId)
+      expect(dbMocks.recipeBelongsToHousehold).toHaveBeenCalledWith(99, householdId)
       expect(dbMocks.addRecipeToMealPlan).not.toHaveBeenCalled()
     })
 

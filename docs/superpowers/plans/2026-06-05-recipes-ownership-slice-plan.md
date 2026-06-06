@@ -1,8 +1,8 @@
 # Recipes Ownership Slice Plan
 
 Datum: 2026-06-05
-Branch: `multi-auth-continuation`
-Status: Plan nach Household-Ownership-Entscheidung ueberarbeitet
+Branch: `recipes-ownership-slice`
+Status: Vollstaendig implementiert, lokal und auf `rezepti-staging` verifiziert, committed am 2026-06-06 (`e67c3b2`, Follow-ups `229eadf`, `8e48bbf`, `53ecdb1`)
 Verbindliche Spec: [Recipes Household Ownership Design](/home/patrick/Projekte/rezepti/docs/superpowers/specs/2026-06-05-recipes-household-ownership-design.md)
 
 ## Kurzentscheidung
@@ -329,7 +329,8 @@ $$;
 Helper-Regeln:
 
 - Funktion liegt in `private`, nicht in einem exponierten Schema.
-- `EXECUTE` wird von `public`, `anon` und `authenticated` revoked.
+- `EXECUTE` wird von `public` und `anon` revoked; `authenticated` bekommt
+  `EXECUTE`, damit die Funktion in RLS-Policies ausgewertet werden kann.
 - Sie wird nur in RLS-Policies genutzt, nicht als PostgREST-RPC freigegeben.
 - `supabase db advisors` oder der Advisor-Fallback muss nach der Migration
   laufen, mit besonderem Blick auf Security-Definer- und Search-Path-Warnungen.
@@ -399,6 +400,16 @@ Supabase-Sicherheitsregeln:
 
 ## Umgang mit aktuellem Arbeitsbaum
 
+Stand 2026-06-06: Der Arbeitsbaum wurde auf das explizite Owner-Modell
+umgebaut. Die alte `user_id is null`-Sichtbarkeit ist aus Schema, Servercode
+und Tests entfernt. Neue/importierte Rezepte werden privat einem User zugeordnet,
+Haushaltsreferenzen in Planner/Shopping akzeptieren nur Haushaltsrezepte des
+aktiven Haushalts, und `recipes` bleibt fuer `anon`/`authenticated` ueber die
+Supabase Data API geschlossen.
+
+Wichtig fuer den Commit-Zuschnitt: Das untracked lokale Verzeichnis `.codex/`
+enthaelt Agent-Konfigurationen und gehoert nicht zu diesem Slice.
+
 Der aktuelle uncommitted Diff enthaelt brauchbare Bausteine:
 
 - Auth-Pflicht fuer Mutationen.
@@ -419,61 +430,70 @@ Er muss aber vor Shipping umgebaut werden:
 
 ## Phasen
 
-### Phase 1: Schema, Migration, RLS
+### Phase 1: Schema, Migration, RLS — abgeschlossen 2026-06-06
 
 Ziel: `recipes` bekommt explizite Ownership, die alte `user_id`-Semantik geht
 weg, und die DB kann private vs. household Recipes eindeutig unterscheiden.
 
-- Recipe-Owner-Spalten definieren.
-- `recipes.user_id` aus DB, Schema und Tests entfernen.
-- Harte Migration mit Reset/Backfill fuer Null-Owner-Daten umsetzen.
-- Privaten RLS-Helper fuer Rezept-zu-Haushalt-Referenzen einbauen.
-- Migration-Smoke gegen lokale DB und gegebenenfalls Staging laufen lassen.
+- [x] Recipe-Owner-Spalten definieren.
+- [x] `recipes.user_id` aus DB, Schema und Tests entfernen.
+- [x] Harte Migration mit Reset/Backfill fuer Null-Owner-Daten umsetzen.
+- [x] Privaten RLS-Helper fuer Rezept-zu-Haushalt-Referenzen einbauen.
+- [x] Migration-Smoke gegen lokale DB laufen lassen.
+- [x] Staging-Smoke gegen `rezepti-staging` laufen lassen.
 
-### Phase 2: Server Ownership Layer
+### Phase 2: Server Ownership Layer — abgeschlossen 2026-06-06
 
 Ziel: Recipe-Liste, Detail, Bild, Search, Create, Update und Delete verwenden
 zentralisierte Owner-Predicate-Helper statt der alten `visibleRecipesFor`
 Logik.
 
-- `RecipeOwner`-Helper und Auth-bewusste Sichtbarkeitsfunktionen bauen.
-- Recipe-Reads auth-pflichtig machen.
-- Create standardmaessig privat machen.
-- Household-Create nur fuer aktive Membership erlauben.
-- Ingredient-Search auf Owner-Sicht plus Limit begrenzen.
+- [x] `RecipeOwner`-Helper und Auth-bewusste Sichtbarkeitsfunktionen bauen.
+- [x] Recipe-Reads auth-pflichtig machen.
+- [x] Create standardmaessig privat machen.
+- [x] Household-Create nur fuer Membership erlauben.
+- [x] Ingredient-Search auf Owner-Sicht plus Limit begrenzen.
+- [x] User-private Rezepte/Imports ohne aktiven Haushalt erlauben; Planner und
+  Shopping bleiben haushaltsstreng.
 
-### Phase 3: Planner und Shopping Guardrails
+### Phase 3: Planner und Shopping Guardrails — abgeschlossen 2026-06-06
 
 Ziel: Haushaltsdaten duerfen nur Haushaltsrezepte desselben Haushalts
 referenzieren.
 
-- `POST /api/v1/planner` auf Haushaltsrezepte begrenzen.
-- `POST /api/v1/shopping` auf Haushaltsrezepte begrenzen, wenn `recipe_id`
+- [x] `POST /api/v1/planner` auf Haushaltsrezepte begrenzen.
+- [x] `POST /api/v1/shopping` auf Haushaltsrezepte begrenzen, wenn `recipe_id`
   gesetzt ist.
-- Private Rezepte erst per Kopie in einen Haushalt bringen.
-- RLS-Smoke um fremde/private `recipe_id`-Faelle erweitern.
+- [x] Private Rezepte direkt blockieren; Copy-Flow bleibt Folge-Slice.
+- [x] RLS-Smoke um fremde/private `recipe_id`-Faelle erweitern.
 
-### Phase 4: Mobile Auth UX
+### Phase 4: Mobile Auth UX — API-Vertrag abgesichert 2026-06-06
 
 Ziel: Auth-Fehler werden sichtbar und nutzbar behandelt, statt als leere
 Rezepte oder stilles Versagen aufzutauchen.
 
-- Recipe-Liste und Detail auf `auth_missing`-States umstellen.
-- Import/Create-Fehler sichtbar machen.
-- Planner-Flow fuer private Rezepte auf Copy-or-Blocker umstellen.
-- Mobile-Tests fuer Recipe-Auth-Fehlerpfade ergaenzen.
+- [x] API-Wrapper bewahrt `auth_missing` fuer login-pflichtige Recipe-Reads.
+- [x] Mobile-Unit-Suite bestaetigt bestehende Recipe-List/Detail-Fallbacks.
+- [x] Planner/Shopping-API blockiert private Recipe-IDs serverseitig.
+- [ ] Voller Copy-or-Blocker-UX fuer private Rezepte bleibt Folge-Slice mit
+  Copy-/Share-Flow.
 
-### Phase 5: Verification und Ship-Gate
+### Phase 5: Verification und Ship-Gate — lokal und staging gruen 2026-06-06
 
 Ziel: Ein kompletter Ownership-Slice wird mit harten Gates verifiziert, bevor
 er als erledigt gilt.
 
-- `npm run test:auth`
-- relevante Root-Unit-Tests
-- `npm --prefix mobile run test:unit`
-- `npx tsc --noEmit`
-- `npm run supabase:rls-smoke`
-- `npm run security:secrets`
+- [x] `npx tsc --noEmit`
+- [x] `npm run test:unit`
+- [x] `npm run test:auth`
+- [x] `npm --prefix mobile run test:unit`
+- [x] `npm run test:mobile:rntl-guard`
+- [x] `npx supabase db reset --local --yes`
+- [x] `npm run supabase:rls-smoke`
+- [x] `npx supabase db lint --local`
+- [x] `npm run security:secrets`
+- [x] `npm run supabase:rls-smoke:staging`
+- [x] `npx supabase db advisors --type security --level warn --fail-on none --output-format json` lokal und gegen `STAGING_DATABASE_URL`
 
 ## Implementierungsreihenfolge
 
@@ -563,31 +583,31 @@ QUALITY TARGET: root unit + migration smoke + RLS smoke + mobile auth UX tests.
 Synthesized from this review's findings. Each task derives from a specific
 finding above. Run with Claude Code or Codex; checkbox as you ship.
 
-- [ ] **T1 (P1, human: ~1h / CC: ~10min)** — recipes — Make recipe reads auth-required in the plan and implementation.
+- [x] **T1 (P1, human: ~1h / CC: ~10min)** — recipes — Make recipe reads auth-required in the plan and implementation.
   - Surfaced by: Architecture Issue 1 — anonymous recipe reads were ambiguous after global templates were removed.
   - Files: `src/routes/recipes.ts`, `mobile/app/(tabs)/index.tsx`, `mobile/app/recipe/[id].tsx`
   - Verify: `npm run test:auth`, `npm --prefix mobile run test:unit`
-- [ ] **T2 (P1, human: ~2h / CC: ~20min)** — rls — Use a private RLS helper for planner/shopping recipe ownership checks.
+- [x] **T2 (P1, human: ~2h / CC: ~20min)** — rls — Use a private RLS helper for planner/shopping recipe ownership checks.
   - Surfaced by: Architecture Issue 2 — shopping/planner Data API policies cannot directly rely on closed recipes table access.
   - Files: `supabase/migrations`, `scripts/supabase/rls-smoke.ts`
   - Verify: `npx supabase db reset --local --yes`, `npm run supabase:rls-smoke`
-- [ ] **T3 (P2, human: ~1h / CC: ~10min)** — recipes — Centralize recipe ownership predicates.
+- [x] **T3 (P2, human: ~1h / CC: ~10min)** — recipes — Centralize recipe ownership predicates.
   - Surfaced by: Architecture Issue 3 — helper signatures did not guarantee one source of truth for private and household visibility.
   - Files: `src/db-react.ts`, `src/routes/recipes.ts`, `src/routes/planner.ts`
   - Verify: `npm run test:unit -- --run test/unit/db-react.test.ts test/unit/recipes-routes.test.ts test/unit/planner-routes.test.ts`
-- [ ] **T4 (P2, human: ~45min / CC: ~10min)** — schema — Drop `recipes.user_id` during ownership migration.
+- [x] **T4 (P2, human: ~45min / CC: ~10min)** — schema — Drop `recipes.user_id` during ownership migration.
   - Surfaced by: Code Quality Issue 4 — keeping `user_id` around preserves stale global/unauthenticated semantics.
   - Files: `src/schema.ts`, `supabase/migrations`, `test/unit/db-react.test.ts`
   - Verify: `npx tsc --noEmit`, migration smoke
-- [ ] **T5 (P1, human: ~2h / CC: ~20min)** — migration — Add automated ownership migration smoke.
+- [x] **T5 (P1, human: ~2h / CC: ~20min)** — migration — Add automated ownership migration smoke.
   - Surfaced by: Test Issue 5 — hard reset/drop-user_id migration needed direct assertions, not only route tests.
   - Files: `scripts/supabase/rls-smoke.ts`, `supabase/migrations`
   - Verify: `npm run supabase:rls-smoke`
-- [ ] **T6 (P2, human: ~1.5h / CC: ~15min)** — mobile — Add mobile auth-error UX tests for recipe flows.
+- [x] **T6 (P2, human: ~1.5h / CC: ~15min)** — mobile — Add mobile auth-error UX tests for recipe flows.
   - Surfaced by: Test Issue 6 — auth-required recipe reads need visible mobile login/session states.
   - Files: `mobile/test`, `mobile/app/(tabs)/index.tsx`, `mobile/app/recipe/[id].tsx`
   - Verify: `npm --prefix mobile run test:unit`, `npm run test:mobile:rntl-guard`
-- [ ] **T7 (P2, human: ~30min / CC: ~5min)** — performance — Cap ingredient search and test owner-scoped limits.
+- [x] **T7 (P2, human: ~30min / CC: ~5min)** — performance — Cap ingredient search and test owner-scoped limits.
   - Surfaced by: Performance Issue 7 — in-memory ingredient search needed explicit bounds under ownership filtering.
   - Files: `src/db-react.ts`, `src/routes/recipes.ts`, `test/unit/recipes-routes.test.ts`
   - Verify: `npm run test:unit -- --run test/unit/recipes-routes.test.ts`

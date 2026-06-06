@@ -16,6 +16,14 @@ vi.mock('../../src/db-react.js', () => dbMocks)
 
 const { default: recipesRouter } = await import('../../src/routes/recipes.js')
 
+const userId = '00000000-0000-0000-0000-000000000001'
+const householdId = '10000000-0000-0000-0000-000000000001'
+const authHeaders = { Authorization: 'Bearer valid-token' }
+const expectedAuth = expect.objectContaining({
+  userId,
+  memberships: [expect.objectContaining({ householdId })],
+})
+
 describe('recipes route ingredient search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -24,6 +32,14 @@ describe('recipes route ingredient search', () => {
       { recipe: { id: 1, name: 'Pasta' }, matchScore: 100, matchedIngredients: ['tomate', 'nudeln'], missingIngredients: [] },
       { recipe: { id: 2, name: 'Salat' }, matchScore: 50, matchedIngredients: ['nudeln'], missingIngredients: ['tomate'] },
     ])
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId, role: 'owner' }],
+        activeHouseholdId: householdId,
+      }),
+    })
   })
 
   afterEach(() => {
@@ -31,7 +47,7 @@ describe('recipes route ingredient search', () => {
   })
 
   it('delegates ingredient search with defaults', async () => {
-    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate,nudeln')
+    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate,nudeln', { headers: authHeaders })
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toMatchObject({
@@ -47,11 +63,11 @@ describe('recipes route ingredient search', () => {
       ingredients: ['tomate', 'nudeln'],
       match: 'or',
       threshold: 0,
-    }, null)
+    }, expectedAuth)
   })
 
   it('supports AND mode, threshold, and limit', async () => {
-    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate,nudeln&match=and&threshold=80&limit=1')
+    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate,nudeln&match=and&threshold=80&limit=1', { headers: authHeaders })
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toMatchObject({
@@ -64,18 +80,18 @@ describe('recipes route ingredient search', () => {
       ingredients: ['tomate', 'nudeln'],
       match: 'and',
       threshold: 80,
-    }, null)
+    }, expectedAuth)
   })
 
   it('returns 400 for empty ingredients', async () => {
-    const res = await recipesRouter.request('/api/v1/recipes?ingredients=%20,%20')
+    const res = await recipesRouter.request('/api/v1/recipes?ingredients=%20,%20', { headers: authHeaders })
 
     expect(res.status).toBe(400)
     expect(dbMocks.searchRecipesByIngredientsAdvanced).not.toHaveBeenCalled()
   })
 
   it('returns 400 for invalid threshold', async () => {
-    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&threshold=abc')
+    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&threshold=abc', { headers: authHeaders })
 
     expect(res.status).toBe(400)
     await expect(res.json()).resolves.toMatchObject({ error: expect.stringMatching(/threshold/i) })
@@ -83,14 +99,14 @@ describe('recipes route ingredient search', () => {
   })
 
   it('returns 400 for threshold outside range', async () => {
-    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&threshold=101')
+    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&threshold=101', { headers: authHeaders })
 
     expect(res.status).toBe(400)
     expect(dbMocks.searchRecipesByIngredientsAdvanced).not.toHaveBeenCalled()
   })
 
   it('returns 400 for invalid limit', async () => {
-    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&limit=0')
+    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&limit=0', { headers: authHeaders })
 
     expect(res.status).toBe(400)
     await expect(res.json()).resolves.toMatchObject({ error: expect.stringMatching(/limit/i) })
@@ -98,14 +114,14 @@ describe('recipes route ingredient search', () => {
   })
 
   it('returns 400 for invalid match mode', async () => {
-    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&match=xor')
+    const res = await recipesRouter.request('/api/v1/recipes?ingredients=tomate&match=xor', { headers: authHeaders })
 
     expect(res.status).toBe(400)
     expect(dbMocks.searchRecipesByIngredientsAdvanced).not.toHaveBeenCalled()
   })
 
   it('returns 400 for overly long ingredients query', async () => {
-    const res = await recipesRouter.request(`/api/v1/recipes?ingredients=${'a'.repeat(501)}`)
+    const res = await recipesRouter.request(`/api/v1/recipes?ingredients=${'a'.repeat(501)}`, { headers: authHeaders })
 
     expect(res.status).toBe(400)
     expect(dbMocks.searchRecipesByIngredientsAdvanced).not.toHaveBeenCalled()
@@ -113,8 +129,6 @@ describe('recipes route ingredient search', () => {
 })
 
 describe('recipes route mutation auth boundary', () => {
-  const userId = '00000000-0000-0000-0000-000000000001'
-
   beforeEach(() => {
     vi.clearAllMocks()
     dbMocks.saveRecipeToReactDb.mockResolvedValue(123)
@@ -124,8 +138,8 @@ describe('recipes route mutation auth boundary', () => {
       verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
       loadAuthorization: async () => ({
         appRole: 'user',
-        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' }],
-        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+        memberships: [{ householdId, role: 'owner' }],
+        activeHouseholdId: householdId,
       }),
     })
   })
@@ -134,14 +148,12 @@ describe('recipes route mutation auth boundary', () => {
     resetAuthAdaptersForTests()
   })
 
-  it('keeps recipe list public', async () => {
-    dbMocks.getRecipeListFromReactDb.mockResolvedValue([{ id: 1, name: 'Public Default' }])
-
+  it('requires auth for recipe list reads', async () => {
     const res = await recipesRouter.request('/api/v1/recipes')
 
-    expect(res.status).toBe(200)
-    await expect(res.json()).resolves.toEqual([{ id: 1, name: 'Public Default' }])
-    expect(dbMocks.getRecipeListFromReactDb).toHaveBeenCalledWith(null)
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'auth_missing' } })
+    expect(dbMocks.getRecipeListFromReactDb).not.toHaveBeenCalled()
   })
 
   it('passes authenticated user id to recipe list reads', async () => {
@@ -153,7 +165,7 @@ describe('recipes route mutation auth boundary', () => {
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual([{ id: 2, name: 'Own Recipe' }])
-    expect(dbMocks.getRecipeListFromReactDb).toHaveBeenCalledWith(userId)
+    expect(dbMocks.getRecipeListFromReactDb).toHaveBeenCalledWith(expectedAuth)
   })
 
   it('passes authenticated user id to ingredient search reads', async () => {
@@ -166,7 +178,7 @@ describe('recipes route mutation auth boundary', () => {
       ingredients: ['tomate'],
       match: 'or',
       threshold: 0,
-    }, userId)
+    }, expectedAuth)
   })
 
   it('returns auth_invalid for invalid tokens on recipe reads', async () => {
@@ -194,27 +206,21 @@ describe('recipes route mutation auth boundary', () => {
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({ id: 7, name: 'Own Recipe' })
-    expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(7, userId)
+    expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(7, expectedAuth)
   })
 
-  it('uses public cache only for global recipe images', async () => {
-    dbMocks.getRecipeByIdFromReactDb.mockResolvedValue({
-      id: 8,
-      user_id: null,
-      image_url: 'data:image/png;base64,SGVsbG8=',
-    })
-
+  it('requires auth for recipe images', async () => {
     const res = await recipesRouter.request('/api/v1/recipes/8/image')
 
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
-    expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(8, null)
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'auth_missing' } })
+    expect(dbMocks.getRecipeByIdFromReactDb).not.toHaveBeenCalled()
   })
 
-  it('uses private cache for authenticated private recipe images', async () => {
+  it('uses private cache for authenticated recipe images', async () => {
     dbMocks.getRecipeByIdFromReactDb.mockResolvedValue({
       id: 9,
-      user_id: userId,
+      owner_type: 'user',
       image_url: 'data:image/png;base64,SGVsbG8=',
     })
 
@@ -224,7 +230,7 @@ describe('recipes route mutation auth boundary', () => {
 
     expect(res.status).toBe(200)
     expect(res.headers.get('Cache-Control')).toBe('private, max-age=3600')
-    expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(9, userId)
+    expect(dbMocks.getRecipeByIdFromReactDb).toHaveBeenCalledWith(9, expectedAuth)
   })
 
   it('requires auth for recipe creation', async () => {
@@ -260,7 +266,42 @@ describe('recipes route mutation auth boundary', () => {
 
     expect(res.status).toBe(201)
     await expect(res.json()).resolves.toEqual({ id: 123, success: true })
-    expect(dbMocks.saveRecipeToReactDb).toHaveBeenCalledWith(recipe, 'https://example.test/pasta', 'seed', userId)
+    expect(dbMocks.saveRecipeToReactDb).toHaveBeenCalledWith(recipe, 'https://example.test/pasta', 'seed', {
+      owner: { type: 'user', userId },
+      createdBy: userId,
+    })
+  })
+
+  it('creates private recipes for users without an active household', async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [],
+        activeHouseholdId: null,
+      }),
+    })
+    const recipe = {
+      name: 'Private Pasta',
+      tags: [],
+      ingredients: ['Nudeln'],
+      steps: ['Kochen'],
+    }
+
+    const res = await recipesRouter.request('/api/v1/recipes', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer valid-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ recipe, sourceUrl: 'https://example.test/private-pasta' }),
+    })
+
+    expect(res.status).toBe(201)
+    expect(dbMocks.saveRecipeToReactDb).toHaveBeenCalledWith(recipe, 'https://example.test/private-pasta', undefined, {
+      owner: { type: 'user', userId },
+      createdBy: userId,
+    })
   })
 
   it('returns auth_invalid when mutation token verification fails', async () => {
@@ -296,7 +337,7 @@ describe('recipes route mutation auth boundary', () => {
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({ success: true })
-    expect(dbMocks.updateRecipeInReactDb).toHaveBeenCalledWith(7, userId, { name: 'Updated' })
+    expect(dbMocks.updateRecipeInReactDb).toHaveBeenCalledWith(7, expectedAuth, { name: 'Updated' })
   })
 
   it('returns 404 when owner-scoped update does not find a recipe', async () => {
@@ -323,7 +364,7 @@ describe('recipes route mutation auth boundary', () => {
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({ success: true })
-    expect(dbMocks.deleteRecipeFromReactDb).toHaveBeenCalledWith(7, userId)
+    expect(dbMocks.deleteRecipeFromReactDb).toHaveBeenCalledWith(7, expectedAuth)
   })
 
   it('returns 404 when owner-scoped delete does not find a recipe', async () => {

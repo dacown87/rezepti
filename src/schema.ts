@@ -1,4 +1,5 @@
-import { pgTable, serial, integer, text, boolean, timestamp, uuid, unique, primaryKey, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { pgTable, serial, integer, text, boolean, timestamp, uuid, unique, primaryKey, index, uniqueIndex, check } from "drizzle-orm/pg-core";
 
 export const recipes = pgTable("recipes", {
   id:          serial("id").primaryKey(),
@@ -22,8 +23,25 @@ export const recipes = pgTable("recipes", {
   notes:       text("notes"),       // personal notes
   pdf_created: boolean("pdf_created").default(false),
   created_at:  timestamp("created_at").defaultNow(),
-  user_id:     uuid("user_id"),     // null = global/unauthenticated; set when multi-user auth is active
-});
+  updated_at:  timestamp("updated_at").defaultNow(),
+  ownerType:   text("owner_type").notNull(),
+  ownerUserId: uuid("owner_user_id"),
+  householdId: uuid("household_id"),
+  createdBy:   uuid("created_by"),
+}, (t) => [
+  check("recipes_owner_type_check", sql`${t.ownerType} IN ('user', 'household')`),
+  check(
+    "recipes_owner_shape_check",
+    sql`(
+      (${t.ownerType} = 'user' AND ${t.ownerUserId} IS NOT NULL AND ${t.householdId} IS NULL)
+      OR
+      (${t.ownerType} = 'household' AND ${t.ownerUserId} IS NULL AND ${t.householdId} IS NOT NULL)
+    )`,
+  ),
+  index("recipes_owner_user_idx").on(t.ownerUserId, t.created_at, t.id),
+  index("recipes_household_idx").on(t.householdId, t.created_at, t.id),
+  index("recipes_created_by_idx").on(t.createdBy),
+]);
 
 export const ingredientDictionary = pgTable("ingredient_dictionary", {
   id: serial("id").primaryKey(),
@@ -46,6 +64,7 @@ export const shoppingList = pgTable("shopping_list", {
     .on(t.householdId, t.recipeId, t.canonicalName)
     .nullsNotDistinct(),
   index("shopping_list_household_idx").on(t.householdId),
+  index("shopping_list_recipe_idx").on(t.recipeId),
 ]);
 
 export const mealPlan = pgTable("meal_plan", {
@@ -58,6 +77,7 @@ export const mealPlan = pgTable("meal_plan", {
   userId: uuid("user_id"),
 }, (t) => [
   index("meal_plan_household_week_idx").on(t.householdId, t.weekStart),
+  index("meal_plan_recipe_idx").on(t.recipeId),
 ]);
 
 export const userProfiles = pgTable("user_profiles", {

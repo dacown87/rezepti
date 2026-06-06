@@ -5,6 +5,7 @@ import {
   extractBearerToken,
   resetAuthAdaptersForTests,
   resolveAuthContext,
+  resolveUserAuthContext,
 } from '../../src/auth.js'
 
 describe('auth helpers', () => {
@@ -84,6 +85,30 @@ describe('auth helpers', () => {
     await expect(resolveAuthContext('Bearer valid-token')).rejects.toMatchObject({
       code: 'no_household',
       status: 403,
+    })
+  })
+
+  it('allows user auth context without an active household', async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'user-a@example.com',
+      }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [],
+        activeHouseholdId: null,
+      }),
+    })
+
+    await expect(resolveUserAuthContext('Bearer valid-token')).resolves.toEqual({
+      userId: '00000000-0000-0000-0000-000000000001',
+      email: 'user-a@example.com',
+      appRole: 'user',
+      memberships: [],
+      activeHouseholdId: null,
+      accessToken: 'valid-token',
+      isAuthenticated: true,
     })
   })
 })

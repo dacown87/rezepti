@@ -89,10 +89,16 @@ describe("processURL Chefkoch routing", () => {
     mockExtractRecipeFromText.mockResolvedValue(recipe);
     mockSaveRecipeToReactDb.mockResolvedValue(42);
 
-    const result = await processURL(url, vi.fn());
+    const result = await processURL(url, vi.fn(), {
+      userId: "00000000-0000-0000-0000-000000000001",
+    });
 
     expect(result.success).toBe(true);
     expect(mockFetchChefkoch).toHaveBeenCalledWith(url);
     expect(mockFetchWeb).not.toHaveBeenCalled();
+    expect(mockSaveRecipeToReactDb).toHaveBeenCalledWith(recipe, url, undefined, {
+      owner: { type: "user", userId: "00000000-0000-0000-0000-000000000001" },
+      createdBy: "00000000-0000-0000-0000-000000000001",
+    });
   });
 });
