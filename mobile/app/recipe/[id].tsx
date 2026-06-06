@@ -20,8 +20,8 @@ import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/u
 import { StepText } from '@/components/StepText';
 import { addIngredients } from '@/utils/shopping-service';
 import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
-import { getServerUrl } from '@/utils/server-url';
 import { buildRecipeEditPatchPayload, type RecipeEditDraft } from '@/utils/recipe-mapper';
+import { apiFetch, assertApiOk } from '@/utils/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,13 +80,12 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
 }
 
 async function apiPatch(id: number, data: Record<string, unknown>): Promise<void> {
-  const serverUrl = await getServerUrl();
-  const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`, {
+  const res = await apiFetch(`/api/v1/recipes/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(`PATCH ${res.status}`);
+  await assertApiOk(res, `PATCH ${res.status}`);
 }
 
 async function patchRecipe(id: number, data: Record<string, unknown>): Promise<void> {
@@ -94,8 +93,8 @@ async function patchRecipe(id: number, data: Record<string, unknown>): Promise<v
 }
 
 async function deleteRecipeById(id: number): Promise<void> {
-  const serverUrl = await getServerUrl();
-  await fetch(`${serverUrl}/api/v1/recipes/${id}`, { method: 'DELETE' });
+  const res = await apiFetch(`/api/v1/recipes/${id}`, { method: 'DELETE' });
+  await assertApiOk(res, `DELETE ${res.status}`);
 }
 
 // ─── Delete Confirm Modal ─────────────────────────────────────────────────────
@@ -277,8 +276,7 @@ export default function RecipeDetailScreen() {
     setLoading(true);
     setLoadError(null);
     try {
-      const serverUrl = await getServerUrl();
-      const res = await fetch(`${serverUrl}/api/v1/recipes/${id}`);
+      const res = await apiFetch(`/api/v1/recipes/${id}`);
       if (!res.ok) {
         setRecipe(null);
         setLoadError(res.status === 404 ? 'not_found' : 'request_failed');

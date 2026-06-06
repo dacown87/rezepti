@@ -22,6 +22,7 @@ import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { compressIfNeeded } from '@/utils/image-compress';
 
 import { getServerUrl } from '@/utils/server-url';
+import { apiFetch, assertApiOk } from '@/utils/api';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -182,8 +183,7 @@ export default function ExtractScreen() {
             setRecipeIdForImage(recipeId);
             setRecipeNameForImage(status.result?.recipe?.name);
             try {
-              const sUrl = await getServerUrl();
-              const recipeRes = await fetch(`${sUrl}/api/v1/recipes/${recipeId}`);
+              const recipeRes = await apiFetch(`/api/v1/recipes/${recipeId}`);
               if (recipeRes.ok) {
                 const recipeData = await recipeRes.json();
                 setRecipeImageUrl(recipeData.image_url ?? null);
@@ -247,13 +247,12 @@ export default function ExtractScreen() {
     setStage('classifying');
 
     try {
-      const serverUrl = await getServerUrl();
       const groqKey = await getGroqKey();
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (groqKey) headers['x-groq-key'] = groqKey;
 
-      const res = await fetch(`${serverUrl}/api/v1/extract/react`, {
+      const res = await apiFetch('/api/v1/extract/react', {
         method: 'POST',
         headers,
         body: JSON.stringify({ url: trimmed }),
@@ -288,13 +287,12 @@ export default function ExtractScreen() {
     setStage('extracting');
 
     try {
-      const serverUrl = await getServerUrl();
       const groqKey = await getGroqKey();
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (groqKey) headers['x-groq-key'] = groqKey;
 
-      const res = await fetch(`${serverUrl}/api/v1/extract/text`, {
+      const res = await apiFetch('/api/v1/extract/text', {
         method: 'POST',
         headers,
         body: JSON.stringify({ text: trimmed }),
@@ -361,7 +359,6 @@ export default function ExtractScreen() {
     setStage('analyzing_image');
 
     try {
-      const serverUrl = await getServerUrl();
       const groqKey = await getGroqKey();
 
       const compressedUri = await compressIfNeeded(photoUri);
@@ -381,7 +378,7 @@ export default function ExtractScreen() {
       const headers: Record<string, string> = {};
       if (groqKey) headers['x-groq-key'] = groqKey;
 
-      const res = await fetch(`${serverUrl}/api/v1/extract/photo`, {
+      const res = await apiFetch('/api/v1/extract/photo', {
         method: 'POST',
         headers,
         body: formData,
@@ -438,12 +435,12 @@ export default function ExtractScreen() {
             initialQuery={recipeNameForImage}
             imageCount={imageCount}
             onSelect={async (selectedUrl) => {
-              const sUrl = await getServerUrl();
-              await fetch(`${sUrl}/api/v1/recipes/${recipeIdForImage}`, {
+              const res = await apiFetch(`/api/v1/recipes/${recipeIdForImage}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ imageUrl: selectedUrl }),
-              }).catch(() => {});
+              }).catch(() => null);
+              if (res) await assertApiOk(res, `PATCH ${res.status}`).catch(() => {});
               const id = recipeIdForImage;
               reset();
               router.push(`/recipe/${id}` as never);

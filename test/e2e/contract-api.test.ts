@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { TestRunner, defaultConfig, isServerAvailable } from '../utils/test-helpers.js';
 
 const TEST_TIMEOUT = 30000;
+const NON_EXISTENT_RECIPE_ID = -1;
 const CONTRACT_RECIPE_FIXTURE = {
   recipe: {
     name: 'Contract Test Kartoffelsalat',
@@ -52,101 +53,43 @@ describe.skipIf(!serverAvailable)('Root API Contract (CI Gate)', () => {
     expect(Array.isArray(result.data)).toBe(true);
   });
 
-  it('recipe detail endpoint returns seeded recipe by id', async () => {
+  it('recipe create endpoint requires authentication', async () => {
     const createResult = await testRunner.testEndpoint(
       'POST',
       '/api/v1/recipes',
       CONTRACT_RECIPE_FIXTURE,
-      'Create deterministic recipe fixture',
-      201
+      'Recipe create auth contract',
+      401
     );
 
     expect(createResult.success).toBe(true);
-    expect(typeof createResult.data?.id).toBe('number');
-
-    const recipeId = createResult.data?.id as number;
-    const detailResult = await testRunner.testEndpoint(
-      'GET',
-      `/api/v1/recipes/${recipeId}`,
-      null,
-      'Recipe detail contract'
-    );
-
-    expect(detailResult.success).toBe(true);
-    expect(detailResult.data?.id).toBe(recipeId);
-    expect(detailResult.data?.name).toBe(CONTRACT_RECIPE_FIXTURE.recipe.name);
-    expect(detailResult.data?.source_url).toBe(CONTRACT_RECIPE_FIXTURE.sourceUrl);
+    expect(createResult.data?.error?.code).toBe('auth_missing');
   });
 
-  it('recipe patch endpoint updates deterministic recipe metadata', async () => {
-    const createResult = await testRunner.testEndpoint(
-      'POST',
-      '/api/v1/recipes',
-      CONTRACT_RECIPE_FIXTURE,
-      'Create deterministic recipe fixture for patch contract',
-      201
-    );
-
-    expect(createResult.success).toBe(true);
-    expect(typeof createResult.data?.id).toBe('number');
-
-    const recipeId = createResult.data?.id as number;
-    const patchedName = `${CONTRACT_RECIPE_FIXTURE.recipe.name} Patched`;
+  it('recipe patch endpoint requires authentication', async () => {
     const patchResult = await testRunner.testEndpoint(
       'PATCH',
-      `/api/v1/recipes/${recipeId}`,
-      { name: patchedName },
-      'Recipe patch contract',
-      200
+      `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
+      { name: `${CONTRACT_RECIPE_FIXTURE.recipe.name} Patched` },
+      'Recipe patch auth contract',
+      401
     );
 
     expect(patchResult.success).toBe(true);
-    expect(patchResult.data?.success).toBe(true);
-
-    const detailAfterPatchResult = await testRunner.testEndpoint(
-      'GET',
-      `/api/v1/recipes/${recipeId}`,
-      null,
-      'Recipe patch verification contract'
-    );
-    expect(detailAfterPatchResult.success).toBe(true);
-    expect(detailAfterPatchResult.data?.id).toBe(recipeId);
-    expect(detailAfterPatchResult.data?.name).toBe(patchedName);
+    expect(patchResult.data?.error?.code).toBe('auth_missing');
   });
 
-  it('recipe delete endpoint removes deterministic recipe and detail returns 404', async () => {
-    const createResult = await testRunner.testEndpoint(
-      'POST',
-      '/api/v1/recipes',
-      CONTRACT_RECIPE_FIXTURE,
-      'Create deterministic recipe fixture for delete contract',
-      201
-    );
-
-    expect(createResult.success).toBe(true);
-    expect(typeof createResult.data?.id).toBe('number');
-
-    const recipeId = createResult.data?.id as number;
+  it('recipe delete endpoint requires authentication', async () => {
     const deleteResult = await testRunner.testEndpoint(
       'DELETE',
-      `/api/v1/recipes/${recipeId}`,
+      `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
       null,
-      'Recipe delete contract',
-      200
+      'Recipe delete auth contract',
+      401
     );
 
     expect(deleteResult.success).toBe(true);
-
-    const verifyDeletedResult = await testRunner.testEndpoint(
-      'GET',
-      `/api/v1/recipes/${recipeId}`,
-      null,
-      'Recipe delete verification contract',
-      404
-    );
-
-    expect(verifyDeletedResult.success).toBe(true);
-    expect(verifyDeletedResult.data?.error).toBeDefined();
+    expect(deleteResult.data?.error?.code).toBe('auth_missing');
   });
 
   it('job list endpoint returns jobs array envelope', async () => {

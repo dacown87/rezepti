@@ -8,12 +8,27 @@ import {
   getRecipeCount,
   searchRecipesByIngredientsAdvanced,
 } from "../db-react.js";
+import {
+  AuthFlowError,
+  authErrorResponse,
+  extractBearerToken,
+  getAuth,
+  requireAuth,
+  resolveAuthContext,
+} from "../auth.js";
 
 const app = new Hono();
+
+async function getOptionalAuthUserId(c: { req: { header: (name: string) => string | undefined } }) {
+  const authorization = c.req.header("Authorization");
+  if (!extractBearerToken(authorization)) return null;
+  return (await resolveAuthContext(authorization)).userId;
+}
 
 // List all recipes (with optional ingredient filter)
 app.get("/api/v1/recipes", async (c) => {
   try {
+    const userId = await getOptionalAuthUserId(c);
     const ingredientsParam = c.req.query("ingredients");
     const matchParam = c.req.query("match") as "and" | "or" | undefined;
     const thresholdParam = c.req.query("threshold");
@@ -48,7 +63,7 @@ app.get("/api/v1/recipes", async (c) => {
         return c.json({ error: "limit must be an integer between 1 and 100" }, 400);
       }
 
-      const results = await searchRecipesByIngredientsAdvanced({ ingredients, match, threshold });
+      const results = await searchRecipesByIngredientsAdvanced({ ingredients, match, threshold }, userId);
       const limitedResults = results.slice(0, limit);
 
       return c.json({
@@ -62,9 +77,12 @@ app.get("/api/v1/recipes", async (c) => {
       });
     }
 
-    const recipes = await getRecipeListFromReactDb();
+    const recipes = await getRecipeListFromReactDb(userId);
     return c.json(recipes);
   } catch (error) {
+    if (error instanceof AuthFlowError) {
+      return authErrorResponse(c, error);
+    }
     console.error("Error fetching recipes from React DB:", error);
     return c.json({ error: "Failed to fetch recipes" }, 500);
   }
@@ -72,44 +90,58 @@ app.get("/api/v1/recipes", async (c) => {
 
 // Serve base64 image stored in image_url as actual image bytes
 app.get("/api/v1/recipes/:id/image", async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
-  if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+  try {
+    const userId = await getOptionalAuthUserId(c);
+    const id = parseInt(c.req.param("id"), 10);
+    if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-  const recipe = await getRecipeByIdFromReactDb(id);
-  if (!recipe?.image_url?.startsWith("data:")) return c.notFound();
+    const recipe = await getRecipeByIdFromReactDb(id, userId);
+    if (!recipe?.image_url?.startsWith("data:")) return c.notFound();
 
-  const [meta, b64] = recipe.image_url.split(",");
-  const mimeMatch = meta.match(/data:([^;]+)/);
-  const mime = mimeMatch?.[1] ?? "image/jpeg";
-  const buffer = Buffer.from(b64, "base64");
+    const [meta, b64] = recipe.image_url.split(",");
+    const mimeMatch = meta.match(/data:([^;]+)/);
+    const mime = mimeMatch?.[1] ?? "image/jpeg";
+    const buffer = Buffer.from(b64, "base64");
 
-  return new Response(buffer, {
-    headers: {
-      "Content-Type": mime,
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
+    return new Response(buffer, {
+      headers: {
+        "Content-Type": mime,
+        "Cache-Control": recipe.user_id ? "private, max-age=3600" : "public, max-age=31536000, immutable",
+      },
+    });
+  } catch (error) {
+    if (error instanceof AuthFlowError) {
+      return authErrorResponse(c, error);
+    }
+    console.error("Error fetching recipe image from React DB:", error);
+    return c.json({ error: "Failed to fetch recipe image" }, 500);
+  }
 });
 
 // Get single recipe by ID
 app.get("/api/v1/recipes/:id", async (c) => {
   try {
+    const userId = await getOptionalAuthUserId(c);
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const recipe = await getRecipeByIdFromReactDb(id);
+    const recipe = await getRecipeByIdFromReactDb(id, userId);
     if (!recipe) return c.json({ error: "Not found" }, 404);
 
     return c.json(recipe);
   } catch (error) {
+    if (error instanceof AuthFlowError) {
+      return authErrorResponse(c, error);
+    }
     console.error("Error fetching recipe from React DB:", error);
     return c.json({ error: "Failed to fetch recipe" }, 500);
   }
 });
 
 // Create recipe
-app.post("/api/v1/recipes", async (c) => {
+app.post("/api/v1/recipes", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const body = await c.req.json();
     const { recipe, sourceUrl, transcript } = body;
 
@@ -117,7 +149,7 @@ app.post("/api/v1/recipes", async (c) => {
       return c.json({ error: "Missing required fields" }, 400);
     }
 
-    const id = await saveRecipeToReactDb(recipe, sourceUrl, transcript);
+    const id = await saveRecipeToReactDb(recipe, sourceUrl, transcript, auth.userId);
     return c.json({ id, success: true }, 201);
   } catch (error) {
     console.error("Error saving recipe to React DB:", error);
@@ -126,13 +158,14 @@ app.post("/api/v1/recipes", async (c) => {
 });
 
 // Update recipe
-app.patch("/api/v1/recipes/:id", async (c) => {
+app.patch("/api/v1/recipes/:id", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
     const body = await c.req.json();
-    const updated = await updateRecipeInReactDb(id, body);
+    const updated = await updateRecipeInReactDb(id, auth.userId, body);
 
     if (!updated) return c.json({ error: "Not found" }, 404);
     return c.json({ success: true });
@@ -143,12 +176,13 @@ app.patch("/api/v1/recipes/:id", async (c) => {
 });
 
 // Delete recipe
-app.delete("/api/v1/recipes/:id", async (c) => {
+app.delete("/api/v1/recipes/:id", requireAuth(), async (c) => {
   try {
+    const auth = getAuth(c);
     const id = parseInt(c.req.param("id"), 10);
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
-    const deleted = await deleteRecipeFromReactDb(id);
+    const deleted = await deleteRecipeFromReactDb(id, auth.userId);
     if (!deleted) return c.json({ error: "Not found" }, 404);
 
     return c.json({ success: true });
