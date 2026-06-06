@@ -158,13 +158,13 @@ npx drizzle-kit push
 | Route | Methode | Beschreibung |
 |-------|---------|--------------|
 | `/` | GET | Web-App |
-| `/api/v1/recipes` | GET/POST | Rezepte auflisten / erstellen |
-| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Einzelnes Rezept |
-| `/api/v1/extract/react` | POST | Extraktion starten (Polling) |
-| `/api/v1/extract/react/:jobId` | GET/DELETE | Job-Status / abbrechen |
-| `/api/v1/extract/text` | POST | Freitext als Rezept extrahieren (Polling, min. 50 Zeichen) |
-| `/api/v1/extract/photo` | POST | Foto-Upload als Rezept extrahieren (Multipart, Polling) |
-| `/api/v1/extract/jobs` | GET | Letzte Extraktionsjobs auflisten |
+| `/api/v1/recipes` | GET/POST | Rezepte auflisten / erstellen, nur mit Supabase Bearer Token |
+| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Einzelnes Rezept, nur innerhalb der sichtbaren Owner-Scope |
+| `/api/v1/extract/react` | POST | Extraktion starten (Polling), nur mit Supabase Bearer Token |
+| `/api/v1/extract/react/:jobId` | GET/DELETE | Job-Status / abbrechen, nur fuer den Job-Owner |
+| `/api/v1/extract/text` | POST | Freitext als Rezept extrahieren (Polling, min. 50 Zeichen), nur mit Supabase Bearer Token |
+| `/api/v1/extract/photo` | POST | Foto-Upload als Rezept extrahieren (Multipart, Polling), nur mit Supabase Bearer Token |
+| `/api/v1/extract/jobs` | GET | Eigene Extraktionsjobs auflisten, nur mit Supabase Bearer Token |
 | `/api/v1/images/search` | GET | Rezeptbilder suchen (`q`, optional `limit`) |
 | `/api/v1/keys/validate` | POST | BYOK Key validieren |
 | `/api/v1/keys` | POST | BYOK Key speichern |

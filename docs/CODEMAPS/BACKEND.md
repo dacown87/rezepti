@@ -16,15 +16,15 @@ Main HTTP server using Hono framework. Serves:
 | Route | Method | Description |
 |-------|--------|-------------|
 | `/` | GET | Main UI (React app) |
-| `/api/v1/recipes` | GET | List all recipes |
-| `/api/v1/recipes` | POST | Create recipe |
-| `/api/v1/recipes/:id` | GET | Get single recipe |
-| `/api/v1/recipes/:id` | PATCH | Update recipe |
-| `/api/v1/recipes/:id` | DELETE | Delete recipe |
-| `/api/v1/extract/react` | POST | Start extraction job |
-| `/api/v1/extract/react/:jobId` | GET | Poll job status |
-| `/api/v1/extract/react/:jobId` | DELETE | Cancel job |
-| `/api/v1/extract/jobs` | GET | List recent jobs |
+| `/api/v1/recipes` | GET | List recipes visible to the authenticated owner scope |
+| `/api/v1/recipes` | POST | Create recipe for the authenticated user or one of their households |
+| `/api/v1/recipes/:id` | GET | Get a visible recipe by ID |
+| `/api/v1/recipes/:id` | PATCH | Update a visible recipe |
+| `/api/v1/recipes/:id` | DELETE | Delete a visible recipe |
+| `/api/v1/extract/react` | POST | Start extraction job for the authenticated user |
+| `/api/v1/extract/react/:jobId` | GET | Poll job status as the owning user |
+| `/api/v1/extract/react/:jobId` | DELETE | Cancel job as the owning user |
+| `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user |
 | `/api/v1/extract/photo` | POST | Extract from image upload |
 | `/api/v1/keys/validate` | POST | Validate BYOK API key |
 | `/api/v1/keys` | POST | Store API key |

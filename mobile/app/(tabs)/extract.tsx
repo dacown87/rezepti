@@ -150,8 +150,7 @@ export default function ExtractScreen() {
     const interval = setInterval(async () => {
       if (handledRef.current) return;
       try {
-        const serverUrl = await getServerUrl();
-        const res = await fetch(`${serverUrl}/api/v1/extract/react/${jobId}`);
+        const res = await apiFetch(`/api/v1/extract/react/${jobId}`);
         if (!res.ok) return; // transient error, keep polling
 
         const status: JobStatus = await res.json();

@@ -32,24 +32,17 @@ describe.skipIf(!serverAvailable)('Basic API Tests', () => {
     expect(result.data?.database).toBe('supabase');
   });
 
-  it('should list recipes from configured database backend', async () => {
+  it('should require auth for recipe listing', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
       '/api/v1/recipes',
       null,
-      'List recipes'
+      'List recipes requires auth',
+      401
     );
     
     expect(result.success).toBe(true);
-    expect(Array.isArray(result.data)).toBe(true);
-    
-    // Check recipe structure if there are recipes
-    if (result.data.length > 0) {
-      const recipe = result.data[0];
-      expect(recipe).toHaveProperty('id');
-      expect(recipe).toHaveProperty('name');
-      expect(recipe).toHaveProperty('source_url');
-    }
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
   it('should validate BYOK API key format', async () => {
@@ -65,79 +58,68 @@ describe.skipIf(!serverAvailable)('Basic API Tests', () => {
     expect(result.data).toHaveProperty('valid');
   });
 
-  it('should reject invalid URL for extraction', async () => {
+  it('should require auth before validating extraction URL', async () => {
     const result = await testRunner.testEndpoint(
       'POST',
       '/api/v1/extract/react',
       { url: 'not-a-valid-url' },
-      'Reject invalid URL',
-      400
+      'Extract requires auth for invalid URL payloads',
+      401
     );
     
-    expect(result.success).toBe(true); // Should succeed with 400 (expected status)
-    expect(result.data?.error).toBeDefined(); // Should have error message
+    expect(result.success).toBe(true);
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
-  it('should require URL for extraction', async () => {
+  it('should require auth before validating missing extraction URL', async () => {
     const result = await testRunner.testEndpoint(
       'POST',
       '/api/v1/extract/react',
       {},
-      'Require URL parameter',
-      400
+      'Extract requires auth for missing URL payloads',
+      401
     );
     
-    expect(result.success).toBe(true); // Should succeed with 400 (expected status)
-    expect(result.data?.error).toBeDefined(); // Should have error message
+    expect(result.success).toBe(true);
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
-  it('should create extraction job with valid URL', async () => {
+  it('should require auth for extraction job creation', async () => {
     const result = await testRunner.testEndpoint(
       'POST',
       '/api/v1/extract/react',
       { url: 'https://example.com/test-recipe' },
-      'Create extraction job',
-      202 // Accepted status
+      'Create extraction job requires auth',
+      401
     );
     
-    // Job creation should succeed (202 Accepted)
     expect(result.success).toBe(true);
-    expect(result.data).toHaveProperty('jobId');
-    expect(result.data?.status).toBe('pending');
-    
-    // Clean up by polling the job (it will likely fail, but that's okay)
-    if (result.data?.jobId) {
-      const jobId = result.data.jobId;
-      const pollResult = await testRunner.pollJobStatus(jobId, 2, 1000);
-      
-      // Job polling should work (even if job fails)
-      expect(pollResult.data?.id).toBe(jobId);
-    }
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
-  it('should handle non-existent recipe ID', async () => {
+  it('should require auth for recipe detail reads', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
       '/api/v1/recipes/999999',
       null,
-      'Handle non-existent recipe',
-      404
+      'Recipe detail requires auth',
+      401
     );
     
-    expect(result.success).toBe(true); // Should succeed with 404 (expected status)
-    expect(result.data?.error).toBeDefined(); // Should have error message
+    expect(result.success).toBe(true);
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
-  it('should list recent jobs', async () => {
+  it('should require auth for listing recent jobs', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
       '/api/v1/extract/jobs?limit=5',
       null,
-      'List recent jobs'
+      'List recent jobs requires auth',
+      401
     );
     
     expect(result.success).toBe(true);
-    expect(result.data).toHaveProperty('jobs');
-    expect(Array.isArray(result.data?.jobs)).toBe(true);
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 });

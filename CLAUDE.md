@@ -92,13 +92,13 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | Route | Method | Description |
 |-------|--------|-------------|
 | `/` | GET | Main UI (React app) |
-| `/api/v1/recipes` | GET/POST | List / create recipes |
-| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Single recipe CRUD |
-| `/api/v1/extract/react` | POST | Start URL extraction job (polling) |
-| `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel job |
-| `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars) |
-| `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling) |
-| `/api/v1/extract/jobs` | GET | List recent jobs |
+| `/api/v1/recipes` | GET/POST | List / create recipes, requires Supabase bearer auth |
+| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Single recipe CRUD inside the caller's owner scope |
+| `/api/v1/extract/react` | POST | Start URL extraction job (polling), requires Supabase bearer auth |
+| `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel a job, only visible to the owning user |
+| `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars), requires Supabase bearer auth |
+| `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling), requires Supabase bearer auth |
+| `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user |
 | `/api/v1/keys/validate` | POST | Validate BYOK API key |
 | `/api/v1/keys` | POST | Store API key |
 | `/api/v1/keys/:keyHash` | DELETE | Remove API key |

@@ -10,12 +10,6 @@ import { ensureReactSchema } from '../../src/db-react.js';
 // Extend timeout for E2E tests
 const TEST_TIMEOUT = 60000;
 const POLL_TIMEOUT = 30000;
-// Legacy-E2E-Polling (P1): zentrale Parameter statt "magic numbers" im Testkörper.
-// So bleiben Polling-Takt/Timeout bei Incident-Triage an einer Stelle justierbar.
-const LEGACY_E2E_POLLING = {
-  maxAttempts: 20,
-  intervalMs: 1500,
-} as const;
 const URL_SEED = 'deterministic-seed-v1';
 const LEGACY_SOAK_WARN_BUDGET_MS = {
   health: 2000,
@@ -65,17 +59,6 @@ function makeRecipeFixture(label: string) {
   };
 }
 
-function registerRecipeForCleanup(createdRecipeIds: number[], recipeId: number): void {
-  createdRecipeIds.push(recipeId);
-}
-
-function markRecipeCleanupHandled(createdRecipeIds: number[], recipeId: number): void {
-  const index = createdRecipeIds.indexOf(recipeId);
-  if (index >= 0) {
-    createdRecipeIds.splice(index, 1);
-  }
-}
-
 const serverAvailable = await isServerAvailable();
 
 function nowMs(): number {
@@ -89,22 +72,6 @@ function summarizeDurations(samples: number[]): { median: number; max: number } 
     ? (sorted[mid - 1] + sorted[mid]) / 2
     : sorted[mid];
   return { median, max: sorted[sorted.length - 1] };
-}
-
-function assertTerminalExtractionState(jobId: string, payload: Record<string, any> | null | undefined): void {
-  // P1 rationale: Für legacy E2E zählt "Polling erreicht Endzustand".
-  // Da `example.com` absichtlich kein Rezept liefert, akzeptieren wir `failed`,
-  // prüfen dann aber strikt, dass ein verwertbarer Fehlkontext vorhanden ist.
-  expect(payload?.id).toBe(jobId);
-  expect(payload?.status).toBeDefined();
-  expect(['completed', 'failed']).toContain(payload?.status);
-
-  if (payload?.status === 'completed') {
-    expect(payload?.recipe).toBeDefined();
-  } else {
-    expect(typeof payload?.error).toBe('string');
-    expect(payload.error.length).toBeGreaterThan(0);
-  }
 }
 
 describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
@@ -254,24 +221,19 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
   }, TEST_TIMEOUT);
 
   describe('Job Creation and Management', () => {
-    it('should create extraction job for website URL', async () => {
+    it('should require auth for extraction job creation', async () => {
       const result = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
         { url: makeScopedUrl('create-job') },
-        'Create job for website URL',
-        202
+        'Create job for website URL requires auth',
+        401
       );
       expect(result.success).toBe(true);
-      expect(result.data?.jobId).toBeDefined();
-      expect(result.data?.status).toBe('pending');
-      
-      if (result.data?.jobId) {
-        createdJobs.push(result.data.jobId);
-      }
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should reject extraction job with invalid BYOK key', async () => {
+    it('should require auth before validating BYOK extraction requests', async () => {
       const result = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
@@ -279,36 +241,38 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
           url: makeScopedUrl('invalid-byok'),
           apiKey: 'gsk_userkey1234567890abcdefghijklmn',
         },
-        'Create job with invalid BYOK key',
-        400
+        'Create job with invalid BYOK key requires auth',
+        401
       );
       expect(result.success).toBe(true);
-      expect(result.data?.error).toBeDefined();
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should reject job creation without URL', async () => {
+    it('should require auth before validating missing URL job creation', async () => {
       const result = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
         {},
-        'Create job without URL',
-        400
+        'Create job without URL requires auth',
+        401
       );
       expect(result.success).toBe(true);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should reject job creation with invalid URL', async () => {
+    it('should require auth before validating invalid extraction URLs', async () => {
       const result = await testRunner.testEndpoint(
         'POST',
         '/api/v1/extract/react',
         { url: 'not-a-valid-url' },
-        'Create job with invalid URL',
-        400
+        'Create job with invalid URL requires auth',
+        401
       );
       expect(result.success).toBe(true);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should create jobs for different URL types', async () => {
+    it('should require auth consistently across different extraction payloads', async () => {
       const urlTypes = ['website', 'youtube', 'instagram'] as const;
       
       for (const urlType of urlTypes) {
@@ -317,16 +281,12 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
           'POST',
           '/api/v1/extract/react',
           { url },
-          `Create job for ${urlType} URL`,
-          202
+          `Create job for ${urlType} URL requires auth`,
+          401
         );
         
         expect(result.success).toBe(true);
-        expect(result.data?.jobId).toBeDefined();
-        
-        if (result.data?.jobId) {
-          createdJobs.push(result.data.jobId);
-        }
+        expect(result.data?.error?.code).toBe('auth_missing');
         
         await testRunner.wait(500);
       }
@@ -334,29 +294,17 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
   }, TEST_TIMEOUT);
 
   describe('Job Polling and Status', () => {
-    it('should get job status', async () => {
-      const jobResult = await testRunner.testEndpoint(
-        'POST',
-        '/api/v1/extract/react',
-        { url: makeScopedUrl('status-test') },
-        'Create job for status test',
-        202
-      );
-      
-      const jobId = jobResult.data?.jobId as string;
-      createdJobs.push(jobId);
-      
+    it('should return 404 for unknown job status ids before auth is evaluated', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
-        `/api/v1/extract/react/${jobId}`,
+        '/api/v1/extract/react/invalid_job_id_status_test',
         null,
-        'Get job status'
+        'Get invalid job status',
+        404
       );
       
       expect(result.success).toBe(true);
-      expect(result.data?.id).toBe(jobId);
-      expect(result.data?.status).toBeDefined();
-      expect(['pending', 'running', 'processing', 'completed', 'failed']).toContain(result.data?.status);
+      expect(result.data?.error).toBeDefined();
     });
 
     it('should handle invalid job ID', async () => {
@@ -371,41 +319,32 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       expect(result.data?.error).toBeDefined();
     });
 
-    it('should poll job until completion', async () => {
-      const jobResult = await testRunner.testEndpoint(
-        'POST',
-        '/api/v1/extract/react',
-        { url: makeScopedUrl('poll-test') },
-        'Create job for polling test',
-        202
-      );
-      
-      const jobId = jobResult.data?.jobId as string;
-      createdJobs.push(jobId);
-      
-      const result = await testRunner.pollJobStatus(
-        jobId,
-        LEGACY_E2E_POLLING.maxAttempts,
-        LEGACY_E2E_POLLING.intervalMs
+    it('should reject polling unknown jobs without leaking auth envelopes', async () => {
+      const result = await testRunner.testEndpoint(
+        'GET',
+        '/api/v1/extract/react/invalid_job_id_poll_test',
+        null,
+        'Poll invalid job status',
+        404
       );
 
-      // Note: example.com is not a real recipe site, therefore `failed` is expected in practice.
-      // The gate here is robust terminal-state detection, not extraction quality on this fixture URL.
-      assertTerminalExtractionState(jobId, result.data as Record<string, any> | undefined);
+      expect(result.success).toBe(true);
+      expect(result.data?.error).toBeDefined();
     }, POLL_TIMEOUT);
   }, TEST_TIMEOUT);
 
   describe('Database Operations', () => {
-    it('should list all recipes from React database', async () => {
+    it('should require auth for recipe listing', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
         '/api/v1/recipes',
         null,
-        'List all recipes from React DB'
+        'List all recipes from React DB requires auth',
+        401
       );
       
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
     it('should require auth for recipe creation', async () => {
@@ -421,16 +360,16 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should handle non-existent recipe ID', async () => {
+    it('should require auth for recipe detail reads', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
         `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
         null,
-        'Get non-existent recipe',
-        404
+        'Get non-existent recipe requires auth',
+        401
       );
       expect(result.success).toBe(true);
-      expect(result.data?.error).toBeDefined();
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
     it('should require auth for recipe metadata updates', async () => {
@@ -461,40 +400,43 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
   }, TEST_TIMEOUT);
 
   describe('Job List Management', () => {
-    it('should list recent jobs', async () => {
+    it('should require auth for listing recent jobs', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
         '/api/v1/extract/jobs?limit=5',
         null,
-        'List recent jobs with limit'
+        'List recent jobs with limit requires auth',
+        401
       );
       
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data?.jobs)).toBe(true);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should filter jobs by status', async () => {
+    it('should require auth for filtered job lists', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
         '/api/v1/extract/jobs?status=pending&limit=3',
         null,
-        'List pending jobs'
+        'List pending jobs requires auth',
+        401
       );
       
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data?.jobs)).toBe(true);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should handle invalid status filter', async () => {
+    it('should require auth before validating status filters', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
         '/api/v1/extract/jobs?status=invalid_status',
         null,
-        'List with invalid status filter'
+        'List with invalid status filter requires auth',
+        401
       );
       
-      // Should still succeed but return empty or all jobs
       expect(result.success).toBe(true);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
   }, TEST_TIMEOUT);
 
@@ -506,7 +448,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         body: '{ malformed json }',
       });
       
-      expect([400, 500]).toContain(response.status);
+      expect(response.status).toBe(401);
     });
 
     it('should handle large request payload', async () => {
@@ -514,14 +456,15 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         'POST',
         '/api/v1/extract/react',
         { url: makeScopedUrl('large-payload') },
-        'Create job with very long URL',
-        202
+        'Create job with very long URL requires auth',
+        401
       );
       
       expect(result.success).toBe(true);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
-    it('should handle concurrent job creation', async () => {
+    it('should require auth for concurrent job creation attempts', async () => {
       const promises = [];
       
       for (let i = 0; i < 3; i++) {
@@ -531,7 +474,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
             '/api/v1/extract/react',
             { url: makeScopedUrl(`concurrent-${i}`) },
             `Concurrent job ${i}`,
-            202
+            401
           )
         );
       }
@@ -542,23 +485,21 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       expect(allSuccess).toBe(true);
       
       results.forEach(result => {
-        if (result.success && result.data?.jobId) {
-          createdJobs.push(result.data.jobId);
-        }
+        expect(result.data?.error?.code).toBe('auth_missing');
       });
     }, TEST_TIMEOUT);
 
-    it('should handle database connection errors', async () => {
+    it('should require auth before returning recipe detail errors', async () => {
       const result = await testRunner.testEndpoint(
         'GET',
         `/api/v1/recipes/${NON_EXISTENT_RECIPE_ID}`,
         null,
         'Handle non-existent recipe gracefully',
-        404
+        401
       );
       
       expect(result.success).toBe(true);
-      expect(result.data?.error).toBeDefined();
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
   }, TEST_TIMEOUT);
 
@@ -590,7 +531,7 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
       }
     });
 
-    it('should provide legacy soak timing signal for job creation (non-gating)', async () => {
+    it('should provide legacy soak timing signal for rejected unauthenticated job creation (non-gating)', async () => {
       const samples: number[] = [];
       for (let i = 0; i < 2; i++) {
         const startTime = nowMs();
@@ -599,14 +540,12 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
           '/api/v1/extract/react',
           { url: makeScopedUrl(`perf-test-${i}`) },
           `Job creation performance sample ${i + 1}`,
-          202
+          401
         );
         const duration = nowMs() - startTime;
         samples.push(duration);
         expect(result.success).toBe(true);
-        if (result.data?.jobId) {
-          createdJobs.push(result.data.jobId);
-        }
+        expect(result.data?.error?.code).toBe('auth_missing');
       }
 
       const { median, max } = summarizeDurations(samples);

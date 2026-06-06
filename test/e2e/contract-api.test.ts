@@ -41,16 +41,17 @@ describe.skipIf(!serverAvailable)('Root API Contract (CI Gate)', () => {
     expect(result.data?.database).toBe('supabase');
   });
 
-  it('recipes endpoint responds with an array', async () => {
+  it('recipes endpoint requires authentication', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
       '/api/v1/recipes',
       null,
-      'Recipes list contract'
+      'Recipes list auth contract',
+      401
     );
 
     expect(result.success).toBe(true);
-    expect(Array.isArray(result.data)).toBe(true);
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
   it('recipe create endpoint requires authentication', async () => {
@@ -92,44 +93,30 @@ describe.skipIf(!serverAvailable)('Root API Contract (CI Gate)', () => {
     expect(deleteResult.data?.error?.code).toBe('auth_missing');
   });
 
-  it('job list endpoint returns jobs array envelope', async () => {
+  it('job list endpoint requires authentication', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
       '/api/v1/extract/jobs?limit=5',
       null,
-      'Job list contract'
+      'Job list auth contract',
+      401
     );
 
     expect(result.success).toBe(true);
-    expect(result.data).toHaveProperty('jobs');
-    expect(Array.isArray(result.data?.jobs)).toBe(true);
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
-  it('job list endpoint enforces limit and returns stable job shape', async () => {
+  it('job list endpoint rejects unauthenticated limit queries', async () => {
     const result = await testRunner.testEndpoint(
       'GET',
       '/api/v1/extract/jobs?limit=1',
       null,
-      'Job list limit + shape contract'
+      'Job list limit auth contract',
+      401
     );
 
     expect(result.success).toBe(true);
-    expect(result.data).toBeTruthy();
-    expect(result.data).toHaveProperty('jobs');
-    expect(Array.isArray(result.data?.jobs)).toBe(true);
-    expect(result.data!.jobs.length).toBeLessThanOrEqual(1);
-
-    if (result.data!.jobs.length > 0) {
-      const [job] = result.data!.jobs as Array<Record<string, unknown>>;
-      expect(job).toHaveProperty('id');
-      expect(job).toHaveProperty('status');
-      expect(job).toHaveProperty('createdAt');
-      expect(job).toHaveProperty('updatedAt');
-      expect(typeof job.id).toBe('string');
-      expect(typeof job.status).toBe('string');
-      expect(typeof job.createdAt).toBe('number');
-      expect(typeof job.updatedAt).toBe('number');
-    }
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
   it('BYOK validation rejects empty key with 400', async () => {
@@ -161,17 +148,17 @@ describe.skipIf(!serverAvailable)('Root API Contract (CI Gate)', () => {
     expect(result.data).not.toHaveProperty('valid', true);
   });
 
-  it('extract endpoint rejects missing URL with 400', async () => {
+  it('extract endpoint requires authentication before payload validation', async () => {
     const result = await testRunner.testEndpoint(
       'POST',
       '/api/v1/extract/react',
       {},
-      'Extract missing URL contract',
-      400
+      'Extract auth contract',
+      401
     );
 
     expect(result.success).toBe(true);
-    expect(result.data?.error).toBeDefined();
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
   it('job status endpoint returns 404 for unknown job id', async () => {

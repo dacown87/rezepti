@@ -92,15 +92,18 @@ Frontend creates extraction job and polls for status:
 ```typescript
 // 1. Create job
 POST /api/v1/extract/react
+// Authorization: Bearer <Supabase access token>
 { url: "https://..." }
 // Response: { jobId: "job_123_abc", status: "pending", pollUrl: "/api/v1/extract/react/job_123_abc" }
 
 // 2. Poll for status
 GET /api/v1/extract/react/job_123_abc?since=0
+// Authorization: Bearer <Supabase access token> (same user that created the job)
 // Response: { status: "running", progress: 35, currentStage: "fetching", message: "..." }
 
 // 3. On completion
 GET /api/v1/extract/react/job_123_abc
+// Authorization: Bearer <Supabase access token>
 // Response: { status: "completed", progress: 100, result: { success: true, recipeId: 42 } }
 ```
 
