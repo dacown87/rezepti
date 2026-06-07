@@ -1,6 +1,6 @@
 # Multi-User Auth Runbook & Route Privacy Matrix
 
-Stand: 2026-06-07. Der erste Multi-User-Slice ist gelandet; der Auth-Onboarding-Slice mit Signup, Login, Passwort-Reset, Confirmation-Resend, Account-&-Workspace-Screen und serverseitigem Bootstrap ist im Arbeitszweig umgesetzt. Lokaler Supabase-RLS-Smoke und gegateter Staging-RLS-Smoke gegen `rezepti-staging` sind gruen.
+Stand: 2026-06-07. Der erste Multi-User-Slice ist gelandet; der Auth-Onboarding-Slice mit Signup, Login, Passwort-Reset, Confirmation-Resend, Account-&-Workspace-Screen und serverseitigem Bootstrap ist mit PR #5 auf `main` gelandet. Lokaler Supabase-RLS-Smoke und gegateter Staging-RLS-Smoke gegen `rezepti-staging` sind gruen.
 
 ## Ziel fuer Slice 1
 

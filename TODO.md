@@ -8,7 +8,7 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. Der neue Betriebscheck vom 2026-06-06 zeigt aber wieder roten Push-CI im `mobile-release-gate` durch Expo-SDK-Patch-Drift; Supabase-Staging und Northflank sind dabei live gruen. Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/main` gelandet; der automatische Version-Commit steht bei `v1.0.125`. `phase/6-multi-user` ist stale und keine aktive Basis. Der Recipes-Ownership-Slice und der Auth-Onboarding-Slice sind im aktuellen Arbeitszweig umgesetzt; offen sind jetzt vor allem Doku-/Smoke-Abnahme, PWA und der Expo-Drift-Fix.
+Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Complete auth onboarding slice` sind auf `origin/main` gelandet. `phase/6-multi-user` ist stale und keine aktive Basis. Recipes-Ownership und Auth-Onboarding sind damit auf `main`; offen sind jetzt vor allem PWA, der Expo-Drift-Fix und die bewusst getrennten Follow-up-Slices.
 
 ## Naechste Reihenfolge
 
@@ -47,7 +47,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/
 
 ## Aktive Backlog / Watchlist
 
-- [x] **Auth-Onboarding-Slice** — Signup, Login, serverseitiger Account-/Default-Haushalt-Bootstrap, Account-&-Workspace-Screen und sichtbare Auth-Zustaende sind im Arbeitszweig umgesetzt. Plan: [Auth Onboarding Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md).
+- [x] **Auth-Onboarding-Slice** — Signup, Login, serverseitiger Account-/Default-Haushalt-Bootstrap, Account-&-Workspace-Screen und sichtbare Auth-Zustaende sind auf `main` gelandet. Plan: [Auth Onboarding Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md).
 - [x] **Multi-User Login First Slice** — Supabase Auth + echte Household-RLS-Policies ueber Memberships; App-Requests laufen mit Supabase User-JWT als `authenticated`. Plan am 2026-06-04 aktualisiert und PR #2 gelandet.
 - [ ] **Progressive Web App (PWA)** — Installierbare Web-App mit Manifest, Service Worker, Offline-Grundlage und Homescreen-Installationspfad fuer iOS/Android einbauen.
 - [ ] **Dependency-Patch-Drift** — siehe Reihenfolge Punkt 4; kein Blocker fuer Multi-User Phase 0/1.
