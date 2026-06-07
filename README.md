@@ -16,6 +16,7 @@ Rezepte aus URLs extrahieren — YouTube, Instagram, TikTok, Webseiten, Cookidoo
 - **Einkaufsliste** — Multi-Rezept-Aggregation, Abhaken, Export
 - **PDF-Export** — Rezeptkarte mit QR-Code
 - **BYOK** — Bring Your Own Groq Key für URL-, Text-, Foto-, Audio- und Vision-Extraktion
+- **Auth Onboarding** — Account erstellen, anmelden, Passwort-Reset, Account & Workspace
 - **PWA** — Homescreen-Installation auf iOS/Android
 
 ---
@@ -38,6 +39,10 @@ cp .env.example .env
 # .env öffnen und ausfüllen:
 #   GROQ_API_KEY=...
 #   DATABASE_URL=postgresql://postgres.[ref]:[pw]@aws-0-[region].pooler.supabase.com:6543/postgres
+#   SUPABASE_URL=...
+#   SUPABASE_PUBLISHABLE_KEY=...
+#   EXPO_PUBLIC_SUPABASE_URL=...
+#   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
 ### Dev-Modus (Hot Reload)
@@ -66,7 +71,7 @@ npm run build:mobile
 
 Der lokale Expo-Web-Build braucht eigene `mobile/node_modules` (`npm --prefix mobile ci`). Im Docker-Build passiert das im `web-builder` automatisch. Der Expo-Export schreibt `Exported: ../public`, kann lokal aber am Ende haengen; fuer wiederholte Performance-Iterationen den Export einmal laufen lassen und danach nur `perf:bundle`/`perf:lighthouse` ausfuehren.
 
-Nach Aenderungen an Expo-/React-Native-Abhaengigkeiten sollte zusaetzlich `cd mobile && CI=1 npx expo-doctor` gruen laufen. Fuer den aktuellen SDK-55-Stand sind insbesondere `react 19.2.0`, `react-dom 19.2.0`, `react-native 0.83.6` und `react-native-svg 15.15.3` der erwartete Zustand.
+Nach Aenderungen an Expo-/React-Native-Abhaengigkeiten sollte zusaetzlich `cd mobile && CI=1 npx expo-doctor` gruen laufen. Fuer den aktuellen SDK-56-Stand sind insbesondere `react 19.2.3`, `react-dom 19.2.3`, `react-native 0.85.3` und `react-native-svg 15.15.4` der erwartete Zustand.
 
 ### Mobile Release Gate & Performance
 
@@ -141,6 +146,17 @@ Kein `service_role`-, Secret- oder Postgres-Passwort darf in Mobile/Web-Client-C
 
 Auth-Fehler verwenden fuer Slice 1 den JSON-Vertrag `{ "error": { "code", "message", "cause", "fix" } }`. Route-Privacy-Matrix, Testuser-Bootstrap und Staging-RLS-Smoke stehen im Runbook: `docs/auth-runbook-route-privacy.md`.
 
+### Account & Workspace
+
+Nach dem Start ist `Account & Workspace` der sichtbare Einstieg fuer:
+
+- `Account erstellen`
+- `Anmelden`
+- `Passwort zurücksetzen`
+- automatischen Bootstrap von Profil + Default-Workspace
+
+Wenn Supabase E-Mail-Bestaetigung aktiviert hat, liefert Signup eventuell noch keine sofort nutzbare Session. In diesem Fall zeigt die App den `confirmation_required`-Pfad und kann die Bestaetigungs-E-Mail erneut senden.
+
 ---
 
 ## Datenbankschema deployen
@@ -170,6 +186,7 @@ npx drizzle-kit push
 | `/api/v1/keys` | POST | BYOK Key speichern |
 | `/api/v1/keys/:keyHash` | DELETE | BYOK Key löschen |
 | `/api/v1/health` | GET | Server + DB Status |
+| `/api/v1/auth/bootstrap` | POST | Profil + Default-Workspace idempotent bootstrapen, mit Supabase Bearer Token |
 | `/api/v1/planner` | GET/POST/DELETE | Meal Planner, ab Multi-User-Slice mit Supabase Bearer Token + aktivem Haushalt |
 | `/api/v1/shopping` | GET/POST/DELETE | Einkaufsliste, ab Multi-User-Slice mit Supabase Bearer Token + aktivem Haushalt |
 | `/api/v1/dictionary` | GET | Zutaten-Wörterbuch lesen |
@@ -194,6 +211,8 @@ SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
 ```
 
 Der Staging-Smoke nutzt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KEY` und `STAGING_SUPABASE_SECRET_KEY`. Legacy-Fallbacks sind `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Er erstellt kurzlebige Testuser und Haushalte, prueft RLS-Isolation ueber echte User-JWTs und raeumt die eigenen Testdaten wieder auf.
+
+Fresh-User-Smoke und Cleanup-Details stehen im Runbook: [docs/auth-runbook-route-privacy.md](/home/patrick/Projekte/rezepti/docs/auth-runbook-route-privacy.md).
 
 ---
 

@@ -1,6 +1,6 @@
 # Multi-User Auth Runbook & Route Privacy Matrix
 
-Stand: 2026-06-04. Phase 0.5 ist als Dokumentation/Env-Vorbereitung umgesetzt; der erste Auth-Code-Schnitt fuer Server, Mobile-Session und Shopping-/Planner-Household-Scoping liegt im Feature-Branch. Lokaler Supabase-RLS-Smoke und gegateter Staging-RLS-Smoke gegen `rezepti-staging` sind gruen.
+Stand: 2026-06-07. Der erste Multi-User-Slice ist gelandet; der Auth-Onboarding-Slice mit Signup, Login, Passwort-Reset, Confirmation-Resend, Account-&-Workspace-Screen und serverseitigem Bootstrap ist im Arbeitszweig umgesetzt. Lokaler Supabase-RLS-Smoke und gegateter Staging-RLS-Smoke gegen `rezepti-staging` sind gruen.
 
 ## Ziel fuer Slice 1
 
@@ -8,7 +8,7 @@ Der erste Multi-User-Slice schuetzt Shopping und Planner mit Supabase Auth und s
 
 Nicht versprechen: dass bereits alle Rezepti-Daten user-privat sind. BYOK, Import-Jobs, Plattform-Credentials, globale Default-Rezepte und Dictionary-Daten brauchen eigene Folgeentscheidungen.
 
-Wichtig fuer Release-Kommunikation: Die Supabase Data API bleibt fuer `recipes` in Slice 1 geschlossen, aber die bestehende Server-API fuer Recipes ist weiterhin global/deferred. Login schuetzt in diesem Slice Shopping und Planner, nicht die komplette Rezeptverwaltung.
+Wichtig fuer Release-Kommunikation: Die Supabase Data API bleibt fuer `recipes` geschlossen. Die Server-API fuer `recipes`, `shopping`, `planner` und die Account-Bootstrap-Route ist jetzt authentifiziert; Folgefragen zu Sharing, Einladungen, Multi-Workspace-Switching, OAuth/Magic Link und BYOK-/Credential-Ownership bleiben bewusst ausserhalb dieses Slices.
 
 ## Env-Matrix
 
@@ -73,6 +73,49 @@ Phase-1-Contract fuer `POST /api/v1/auth/bootstrap`:
   nicht konsistent hergestellt oder gelesen werden. Standardreaktion:
   Bootstrap erneut ausloesen und Server-Logs fuer `auth.bootstrap.*` pruefen.
 
+## Fresh User Smoke
+
+Lokal, copy-paste faehig:
+
+```bash
+npm run test:auth
+npm --prefix mobile run typecheck
+npm --prefix mobile run test:unit
+npx supabase start
+npx supabase db reset --local --yes
+npm run supabase:rls-smoke
+npm run dev:mobile
+```
+
+Manueller lokaler Smoke:
+
+1. Web oder Expo-Web mit leerer Session oeffnen.
+2. Ueber den sichtbaren `Account`-Einstieg `Account erstellen` ausloesen.
+3. Falls Supabase Confirmation aktiviert ist:
+   - Bestellungs-Mail bestaetigen.
+   - Optional `Bestätigungs-E-Mail erneut senden` pruefen.
+4. Danach im `Account & Workspace`-Screen verifizieren:
+   - Session aktiv.
+   - `Workspace: Mein Workspace` oder gleichwertiger Ready-State sichtbar.
+5. `Planner`, `Shopping` und `Rezepte` oeffnen:
+   - Kein falscher Empty-State durch `auth_missing` oder `no_household`.
+6. `Passwort zurücksetzen` anfordern und Deep-Link-Rueckkehr pruefen.
+
+Staging-Smoke vor Release:
+
+```bash
+npm run test:auth
+npm --prefix mobile run typecheck
+npm --prefix mobile run test:unit
+SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
+```
+
+Staging-Testuser-Cleanup:
+
+1. Die fuer Smoke verwendeten `STAGING_AUTH_*`-Nutzer in Supabase Auth suchen.
+2. Zugehoerige Test-Haushalte nur loeschen, wenn keine gemeinsamen manuellen Tests mehr darauf laufen.
+3. Testuser aus Supabase Auth entfernen oder fuer den naechsten Smoke konsistent wiederverwenden.
+
 ## API-Error-Kontrakt
 
 Auth- und Setup-Fehler sollen stabilen JSON-Aufbau liefern:
@@ -119,8 +162,8 @@ Geplante Codes fuer Slice 1:
 | `POST /api/v1/keys/validate` | Deferred-but-warned | Authenticated oder backend-only entscheiden | BYOK-Privacy noch nicht als user-isoliert versprechen |
 | `POST /api/v1/keys` | Backend-only/deferred | Authenticated spaeter nur mit per-user Ownership | `api_keys` bleibt Sicherheitsobjekt |
 | `DELETE /api/v1/keys/:keyHash` | Backend-only/deferred | Authenticated spaeter nur eigene Keys | Hash darf keine fremde Loeschung erlauben |
-| `GET/POST /api/v1/recipes` | Deferred-but-warned | Authenticated/household spaeter klaeren | Default-Rezepte und Ownership-Modell noch offen |
-| `GET/PATCH/DELETE /api/v1/recipes/:id` | Deferred-but-warned | Authenticated/household spaeter klaeren | Nicht Teil des ersten geschuetzten Shopping/Planner-Slices |
+| `GET/POST /api/v1/recipes` | Authenticated | Authenticated mit Owner-Scope | Private User-Rezepte sind serverseitig aktiv; Sharing bleibt spaeter |
+| `GET/PATCH/DELETE /api/v1/recipes/:id` | Authenticated | Authenticated mit Owner-Scope | Kein Sharing-/Collections-Modell in diesem Slice |
 | `POST /api/v1/extract/react` | Deferred-but-warned | Authenticated spaeter klaeren | Import-Jobs und BYOK-Isolation folgen |
 | `GET/DELETE /api/v1/extract/react/:jobId` | Deferred-but-warned | Authenticated spaeter klaeren | Job-Ownership explizit modellieren |
 | `POST /api/v1/extract/text` | Deferred-but-warned | Authenticated spaeter klaeren | Import-Ergebnis-Ownership offen |

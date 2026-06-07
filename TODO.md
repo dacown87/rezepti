@@ -8,36 +8,29 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. Der neue Betriebscheck vom 2026-06-06 zeigt aber wieder roten Push-CI im `mobile-release-gate` durch Expo-SDK-Patch-Drift; Supabase-Staging und Northflank sind dabei live gruen. Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/main` gelandet; der automatische Version-Commit steht bei `v1.0.125`. `phase/6-multi-user` ist stale und keine aktive Basis. Der Recipes-Ownership-Slice ist auf `main` gelandet; die naechste Produktluecke ist sichtbares Auth-Onboarding mit Signup, Login und Default-Haushalt.
+Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/main` gelandet; der automatische Version-Commit steht bei `v1.0.125`. `phase/6-multi-user` ist stale und keine aktive Basis. Der Recipes-Ownership-Slice und der Auth-Onboarding-Slice sind im aktuellen Arbeitszweig umgesetzt; offen sind jetzt vor allem Doku-/Smoke-Abnahme, PWA und der Expo-Drift-Fix.
 
 ## Naechste Reihenfolge
 
-1. **Auth-Onboarding-Slice bauen**
-   - Sichtbare Luecke schliessen: Account erstellen, anmelden, automatisch Profil und Default-Haushalt anlegen.
-   - Neuer Nutzer darf nach Signup/Login nicht in `no_household` fallen.
-   - Geschuetzte Screens zeigen Login-/Session-Zustaende statt leerer Daten.
-   - Plan: [Auth Onboarding Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md).
-   - Bewusst ausgeklammerte Folgepunkte: [Auth Onboarding Deferred Follow-Ups Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-deferred-followups-plan.md).
-
-2. **Progressive Web App (PWA) einbauen**
+1. **Progressive Web App (PWA) einbauen**
    - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
    - Homescreen-Installationspfad fuer iOS/Android pruefen.
-   - Erst nach dem Auth-Onboarding-Slice starten, damit Signup-/Session-/Cache-Verhalten sauber in die PWA-Caches passt.
+   - Auth-Onboarding ist jetzt da; der naechste PWA-Slice muss Signup-/Session-/Cache-Verhalten bewusst mit einplanen.
 
-3. **Dependency-Patch-Drift als separaten Maintenance-Slice nachziehen**
+2. **Dependency-Patch-Drift als separaten Maintenance-Slice nachziehen**
    - Root: `@vitest/coverage-v8`, `@vitest/ui`, `concurrently`, `happy-dom`, `openai`, `supabase`, `vite`, `vitest`.
    - Mobile: `@tanstack/query-async-storage-persister`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `@types/react`, `@vitest/coverage-v8`, `react-native-svg`, `vitest`.
    - Nicht mit Auth/RLS vermischen. Expo-/SDK-gebundene Latest-Linien nur ueber `expo install --check` und `expo-doctor`.
 
-4. **Mobile-CI-Fix fuer Expo-Drift zuerst nachziehen**
+3. **Mobile-CI-Fix fuer Expo-Drift zuerst nachziehen**
    - Aktueller Blocker: `mobile-release-gate` failt in GitHub CI wegen Expo-Patch-Drift.
    - Arbeitsnotiz und Plan: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-5. **Mobile-Persistenz manuell abnehmen**
+4. **Mobile-Persistenz manuell abnehmen**
    - Settings/Theme/PDF nach App-Neustart pruefen.
    - Technische Tests sind gruen; diese manuelle Abnahme fehlt noch.
 
-6. **Spaeter oder trigger-basiert**
+5. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
    - `unused_index` erst nach Nutzungsperiode plus Staging-Plananalyse anfassen.
    - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen oder Upstream-Abkuendigung neu bewerten.
@@ -54,7 +47,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` ist auf `origin/
 
 ## Aktive Backlog / Watchlist
 
-- [ ] **Auth-Onboarding-Slice** — Signup, Login, serverseitiger Account-/Default-Haushalt-Bootstrap und sichtbare Auth-Zustaende fertigstellen. Plan: [Auth Onboarding Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md).
+- [x] **Auth-Onboarding-Slice** — Signup, Login, serverseitiger Account-/Default-Haushalt-Bootstrap, Account-&-Workspace-Screen und sichtbare Auth-Zustaende sind im Arbeitszweig umgesetzt. Plan: [Auth Onboarding Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md).
 - [x] **Multi-User Login First Slice** — Supabase Auth + echte Household-RLS-Policies ueber Memberships; App-Requests laufen mit Supabase User-JWT als `authenticated`. Plan am 2026-06-04 aktualisiert und PR #2 gelandet.
 - [ ] **Progressive Web App (PWA)** — Installierbare Web-App mit Manifest, Service Worker, Offline-Grundlage und Homescreen-Installationspfad fuer iOS/Android einbauen.
 - [ ] **Dependency-Patch-Drift** — siehe Reihenfolge Punkt 4; kein Blocker fuer Multi-User Phase 0/1.
