@@ -1,7 +1,7 @@
-import { Tabs } from 'expo-router';
-import { View, Text, Image } from 'react-native';
+import { Tabs, router } from 'expo-router';
+import { View, Text, Image, Pressable, Platform } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
-import { BookOpen, Plus, Calendar, Settings, ShoppingCart } from 'lucide-react-native';
+import { BookOpen, Plus, Calendar, Settings, ShoppingCart, UserRound } from 'lucide-react-native';
 
 import Colors from '@/constants/Colors';
 
@@ -32,6 +32,35 @@ export default function TabLayout() {
               Recipe<Text style={{ color: '#C84B31' }}>Deck</Text>
             </Text>
           </View>
+        ),
+        headerRight: () => (
+          <Pressable
+            onPress={() => router.push('/account')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              marginRight: 16,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.background,
+            }}
+          >
+            <UserRound size={16} color={String(colors.text)} />
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: 13,
+                fontWeight: '600',
+                display: Platform.OS === 'web' ? 'flex' : 'none',
+              }}
+            >
+              Account
+            </Text>
+          </Pressable>
         ),
         headerTitle: '',
       }}

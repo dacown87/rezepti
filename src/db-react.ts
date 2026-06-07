@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, desc, and, inArray, isNull, or, sql } from "drizzle-orm";
 import {
@@ -10,6 +11,7 @@ import {
   userProfiles,
   households,
   householdMemberships,
+  userDefaultHouseholds,
 } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
@@ -106,6 +108,7 @@ function getDb() {
         userProfiles,
         households,
         householdMemberships,
+        userDefaultHouseholds,
       },
     });
   }
@@ -457,6 +460,28 @@ export interface UserAuthorization {
   activeHouseholdId: string | null;
 }
 
+export interface AccountBootstrapStatus {
+  status: "ready";
+  profile: {
+    ready: true;
+    userId: string;
+    email: string | null;
+    appRole: AppRole;
+  };
+  workspace: {
+    ready: true;
+    id: string;
+    name: string;
+    isDefault: boolean;
+  };
+  membership: {
+    ready: true;
+    householdId: string;
+    role: HouseholdRole;
+  };
+  warnings: string[];
+}
+
 function normalizeAppRole(role: string | null | undefined): AppRole {
   return role === "admin" ? "admin" : "user";
 }
@@ -487,13 +512,6 @@ export async function loadUserAuthorization(userId: string, email?: string | nul
     .where(eq(userProfiles.userId, userId))
     .limit(1);
 
-  if (!profile) {
-    await db
-      .insert(userProfiles)
-      .values({ userId, email: email ?? null, appRole: "user" })
-      .onConflictDoNothing({ target: userProfiles.userId });
-  }
-
   const memberships = await db
     .select({
       householdId: householdMemberships.householdId,
@@ -513,6 +531,192 @@ export async function loadUserAuthorization(userId: string, email?: string | nul
     appRole: normalizeAppRole(profile?.appRole),
     memberships: normalizedMemberships,
     activeHouseholdId,
+  };
+}
+
+export async function ensureUserProfile(userId: string, email?: string | null): Promise<{ created: boolean }> {
+  const db = getDb();
+  const rows = await db
+    .insert(userProfiles)
+    .values({ userId, email: email ?? null, appRole: "user" })
+    .onConflictDoNothing({ target: userProfiles.userId })
+    .returning({ userId: userProfiles.userId });
+
+  return { created: rows.length > 0 };
+}
+
+function defaultWorkspaceName() {
+  return "Mein Workspace";
+}
+
+export async function ensureDefaultHouseholdForUser(userId: string): Promise<{ created: boolean; householdId: string }> {
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+
+    const [defaultRow] = await tx
+      .select({
+        householdId: userDefaultHouseholds.householdId,
+      })
+      .from(userDefaultHouseholds)
+      .where(eq(userDefaultHouseholds.userId, userId))
+      .limit(1);
+
+    const memberships = await tx
+      .select({
+        householdId: householdMemberships.householdId,
+        role: householdMemberships.role,
+      })
+      .from(householdMemberships)
+      .where(eq(householdMemberships.userId, userId));
+
+    const normalizedMemberships = memberships.map((membership) => ({
+      householdId: membership.householdId,
+      role: normalizeHouseholdRole(membership.role),
+    })).sort(compareHouseholdMemberships);
+
+    if (defaultRow) {
+      const mappedMembership = normalizedMemberships.find((membership) => membership.householdId === defaultRow.householdId);
+      if (mappedMembership) {
+        return { created: false, householdId: defaultRow.householdId };
+      }
+
+      const activeMembershipId = chooseActiveHouseholdId(normalizedMemberships);
+      if (activeMembershipId) {
+        await tx
+          .update(userDefaultHouseholds)
+          .set({ householdId: activeMembershipId })
+          .where(eq(userDefaultHouseholds.userId, userId));
+        return { created: true, householdId: activeMembershipId };
+      }
+
+      await tx
+        .insert(householdMemberships)
+        .values({
+          householdId: defaultRow.householdId,
+          userId,
+          role: "owner",
+        })
+        .onConflictDoNothing({ target: [householdMemberships.householdId, householdMemberships.userId] });
+
+      return { created: true, householdId: defaultRow.householdId };
+    }
+
+    const activeMembershipId = chooseActiveHouseholdId(normalizedMemberships);
+    if (activeMembershipId) {
+      await tx
+        .insert(userDefaultHouseholds)
+        .values({
+          userId,
+          householdId: activeMembershipId,
+        })
+        .onConflictDoNothing({ target: userDefaultHouseholds.userId });
+
+      const [existingDefault] = await tx
+        .select({
+          householdId: userDefaultHouseholds.householdId,
+        })
+        .from(userDefaultHouseholds)
+        .where(eq(userDefaultHouseholds.userId, userId))
+        .limit(1);
+
+      return { created: true, householdId: existingDefault?.householdId ?? activeMembershipId };
+    }
+
+    const householdId = randomUUID();
+
+    await tx.insert(households).values({
+      id: householdId,
+      name: defaultWorkspaceName(),
+      createdBy: userId,
+    });
+
+    await tx
+      .insert(householdMemberships)
+      .values({
+        householdId,
+        userId,
+        role: "owner",
+      })
+      .onConflictDoNothing({ target: [householdMemberships.householdId, householdMemberships.userId] });
+
+    await tx.insert(userDefaultHouseholds).values({
+      userId,
+      householdId,
+    });
+
+    return { created: true, householdId };
+  });
+}
+
+export async function getAccountBootstrapStatus(userId: string): Promise<AccountBootstrapStatus | null> {
+  const db = getDb();
+
+  const [profile] = await db
+    .select({
+      userId: userProfiles.userId,
+      email: userProfiles.email,
+      appRole: userProfiles.appRole,
+    })
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+
+  const memberships = await db
+    .select({
+      householdId: householdMemberships.householdId,
+      role: householdMemberships.role,
+      householdName: households.name,
+    })
+    .from(householdMemberships)
+    .innerJoin(households, eq(households.id, householdMemberships.householdId))
+    .where(eq(householdMemberships.userId, userId));
+
+  const normalizedMemberships = memberships.map((membership) => ({
+    householdId: membership.householdId,
+    role: normalizeHouseholdRole(membership.role),
+    householdName: membership.householdName,
+  })).sort((a, b) => compareHouseholdMemberships(a, b));
+
+  const activeHouseholdId = chooseActiveHouseholdId(normalizedMemberships);
+  if (!profile || !activeHouseholdId) {
+    return null;
+  }
+
+  const activeMembership = normalizedMemberships.find((membership) => membership.householdId === activeHouseholdId);
+  if (!activeMembership) {
+    return null;
+  }
+
+  const [defaultRow] = await db
+    .select({
+      householdId: userDefaultHouseholds.householdId,
+    })
+    .from(userDefaultHouseholds)
+    .where(eq(userDefaultHouseholds.userId, userId))
+    .limit(1);
+
+  return {
+    status: "ready",
+    profile: {
+      ready: true,
+      userId: profile.userId,
+      email: profile.email ?? null,
+      appRole: normalizeAppRole(profile.appRole),
+    },
+    workspace: {
+      ready: true,
+      id: activeMembership.householdId,
+      name: activeMembership.householdName,
+      isDefault: defaultRow?.householdId === activeMembership.householdId,
+    },
+    membership: {
+      ready: true,
+      householdId: activeMembership.householdId,
+      role: activeMembership.role,
+    },
+    warnings: [],
   };
 }
 

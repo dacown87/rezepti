@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { __DEV__?: boolean }).__DEV__ = false;
 
 const originalConsoleError = console.error.bind(console);
 
@@ -23,6 +24,12 @@ vi.mock('expo-router', () => ({
     back: vi.fn(),
   },
   useFocusEffect: vi.fn(),
+}));
+
+vi.mock('expo-linking', () => ({
+  addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+  createURL: vi.fn((path?: string) => `recipedeck://${path?.replace(/^\//, '') ?? ''}`),
+  getInitialURL: vi.fn(async () => null),
 }));
 
 vi.mock('@react-native-async-storage/async-storage', () => ({

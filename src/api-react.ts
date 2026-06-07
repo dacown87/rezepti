@@ -5,6 +5,7 @@
 
 import { Hono } from "hono";
 import { ensureReactSchema } from "./db-react.js";
+import authRouter from "./routes/auth.js";
 import recipesRouter from "./routes/recipes.js";
 import extractionRouter from "./routes/extraction.js";
 import keysRouter from "./routes/keys.js";
@@ -16,6 +17,7 @@ ensureReactSchema();
 
 const app = new Hono();
 
+app.route("/", authRouter);
 app.route("/", recipesRouter);
 app.route("/", extractionRouter);
 app.route("/", keysRouter);

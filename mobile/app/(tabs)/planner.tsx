@@ -15,12 +15,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode, ShoppingCart } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
 import ScannerCamera from '@/components/ScannerCamera';
 import { isRecipeJSONQR, decodeRecipeFromCompactJSON, parseCompactRecipeToFull } from '@/utils/recipe-qr';
 
 import type { Recipe, MealPlanEntry } from '@/db/schema';
 import { addIngredients } from '@/utils/shopping-service';
 import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
+import { mapProtectedApiError } from '@/utils/protected-access';
 import {
   buildRecipeIdMap,
   filterPickerRecipes,
@@ -32,7 +34,7 @@ import {
 
 async function loadAllRecipes(): Promise<Recipe[]> {
   const res = await apiFetch('/api/v1/recipes');
-  if (!res.ok) return [];
+  await assertApiOk(res, `Rezepte konnten nicht geladen werden (${res.status})`);
   const data: Array<Record<string, unknown>> = await res.json();
   return data.map(r => ({
       id: Number(r.id),
@@ -114,15 +116,18 @@ function RecipePickerModal({
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<unknown>(null);
 
   const loadRecipes = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    setLoadFailure(null);
     try {
       const rows = await loadAllRecipes();
       setRecipes(rows);
     } catch (error) {
       setRecipes([]);
+      setLoadFailure(error);
       setLoadError(errorMessage(error, 'Rezepte konnten nicht geladen werden.'));
     } finally {
       setLoading(false);
@@ -138,6 +143,10 @@ function RecipePickerModal({
   const filtered = useMemo(
     () => filterPickerRecipes(recipes, deferredSearch),
     [recipes, deferredSearch],
+  );
+  const protectedState = useMemo(
+    () => mapProtectedApiError(loadFailure, '/(tabs)/planner'),
+    [loadFailure],
   );
 
   return (
@@ -171,17 +180,23 @@ function RecipePickerModal({
         {loading ? (
           <ActivityIndicator className="mt-8" color="#C84B31" />
         ) : loadError ? (
-          <View className="mx-4 mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-3">
-            <Text className="text-sm text-red-700">{loadError}</Text>
-            <View className="mt-3 flex-row gap-2">
-              <Pressable onPress={() => void loadRecipes()} className="rounded-lg bg-red-600 px-3 py-1.5">
-                <Text className="text-xs font-medium text-white">Erneut versuchen</Text>
-              </Pressable>
-              <Pressable onPress={onClose} className="rounded-lg bg-red-100 px-3 py-1.5">
-                <Text className="text-xs font-medium text-red-700">Schließen</Text>
-              </Pressable>
+          protectedState ? (
+            <View className="mx-4 mt-2">
+              <ProtectedAccessNotice state={protectedState} onRetry={() => void loadRecipes()} compact />
             </View>
-          </View>
+          ) : (
+            <View className="mx-4 mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-3">
+              <Text className="text-sm text-red-700">{loadError}</Text>
+              <View className="mt-3 flex-row gap-2">
+                <Pressable onPress={() => void loadRecipes()} className="rounded-lg bg-red-600 px-3 py-1.5">
+                  <Text className="text-xs font-medium text-white">Erneut versuchen</Text>
+                </Pressable>
+                <Pressable onPress={onClose} className="rounded-lg bg-red-100 px-3 py-1.5">
+                  <Text className="text-xs font-medium text-red-700">Schließen</Text>
+                </Pressable>
+              </View>
+            </View>
+          )
         ) : (
           <FlatList
             data={filtered}
@@ -369,6 +384,7 @@ export default function PlannerScreen() {
   const [recipes, setRecipes] = useState<Map<number, Recipe>>(new Map());
   const [loading, setLoading] = useState(true);
   const [plannerError, setPlannerError] = useState<string | null>(null);
+  const [plannerFailure, setPlannerFailure] = useState<unknown>(null);
   const [retryPlannerAction, setRetryPlannerAction] = useState<null | (() => Promise<void>)>(null);
   const [retryingPlannerAction, setRetryingPlannerAction] = useState(false);
   const [plannerMutationPending, setPlannerMutationPending] = useState(false);
@@ -401,6 +417,7 @@ export default function PlannerScreen() {
       handlePlannerActionError(
         message,
         async () => loadData(),
+        error,
       );
       throw new Error(message);
     }
@@ -429,11 +446,13 @@ export default function PlannerScreen() {
 
   const clearPlannerError = () => {
     setPlannerError(null);
+    setPlannerFailure(null);
     setRetryPlannerAction(null);
   };
 
-  const handlePlannerActionError = (message: string, retry: () => Promise<void>) => {
+  const handlePlannerActionError = (message: string, retry: () => Promise<void>, failure?: unknown) => {
     setPlannerError(message);
+    setPlannerFailure(failure ?? null);
     setRetryPlannerAction(() => retry);
   };
 
@@ -472,6 +491,7 @@ export default function PlannerScreen() {
       handlePlannerActionError(
         errorMessage(error, 'Einkaufsliste konnte nicht erstellt werden.'),
         async () => handleAddWeekToShopping(),
+        error,
       );
     }
   };
@@ -507,6 +527,7 @@ export default function PlannerScreen() {
               await loadData();
               Alert.alert('Hinzugefügt', 'Rezept wurde zum Planer hinzugefügt.');
             },
+            error,
           );
         }
       }
@@ -576,6 +597,7 @@ export default function PlannerScreen() {
       handlePlannerActionError(
         errorMessage(error, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.'),
         async () => handleAddRecipe(recipeId, targetDay),
+        error,
       );
     } finally {
       setPlannerMutationPending(false);
@@ -593,6 +615,7 @@ export default function PlannerScreen() {
       handlePlannerActionError(
         errorMessage(error, 'Rezept konnte nicht entfernt werden.'),
         async () => retryRemoveEntry(entryId),
+        error,
       );
     } finally {
       setPlannerMutationPending(false);
@@ -623,6 +646,10 @@ export default function PlannerScreen() {
   const isCurrentWeek = monday.getTime() === getMondayOf(new Date()).getTime();
 
   const entriesByDay = useMemo(() => groupEntriesByDay(mealPlan), [mealPlan]);
+  const plannerProtectedState = useMemo(
+    () => mapProtectedApiError(plannerFailure, '/(tabs)/planner'),
+    [plannerFailure],
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
@@ -660,23 +687,29 @@ export default function PlannerScreen() {
 
         {plannerError && (
           <View className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
-            <Text className="text-sm text-red-700">{plannerError}</Text>
-            <View className="mt-2 flex-row gap-2">
-              {retryPlannerAction && (
-                <Pressable
-                  onPress={runRetryPlannerAction}
-                  disabled={retryingPlannerAction}
-                  className={`rounded-lg px-3 py-1.5 ${retryingPlannerAction ? 'bg-red-200' : 'bg-red-600'}`}
-                >
-                  <Text className="text-xs font-medium text-white">
-                    {retryingPlannerAction ? 'Wird versucht…' : 'Erneut versuchen'}
-                  </Text>
-                </Pressable>
-              )}
-              <Pressable onPress={clearPlannerError} className="rounded-lg bg-red-100 px-3 py-1.5">
-                <Text className="text-xs font-medium text-red-700">Schließen</Text>
-              </Pressable>
-            </View>
+            {plannerProtectedState ? (
+              <ProtectedAccessNotice state={plannerProtectedState} onRetry={runRetryPlannerAction} compact />
+            ) : (
+              <>
+                <Text className="text-sm text-red-700">{plannerError}</Text>
+                <View className="mt-2 flex-row gap-2">
+                  {retryPlannerAction && (
+                    <Pressable
+                      onPress={runRetryPlannerAction}
+                      disabled={retryingPlannerAction}
+                      className={`rounded-lg px-3 py-1.5 ${retryingPlannerAction ? 'bg-red-200' : 'bg-red-600'}`}
+                    >
+                      <Text className="text-xs font-medium text-white">
+                        {retryingPlannerAction ? 'Wird versucht…' : 'Erneut versuchen'}
+                      </Text>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={clearPlannerError} className="rounded-lg bg-red-100 px-3 py-1.5">
+                    <Text className="text-xs font-medium text-red-700">Schließen</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </View>
         )}
         {plannerMutationPending && (

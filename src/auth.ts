@@ -10,7 +10,8 @@ export type AuthErrorCode =
   | "forbidden"
   | "not_found"
   | "setup_required"
-  | "no_household";
+  | "no_household"
+  | "bootstrap_failed";
 
 export interface AuthContext {
   userId: string;
@@ -43,8 +44,11 @@ export interface ApiErrorPayload {
     message: string;
     cause?: string;
     fix?: string;
+    docs?: string;
   };
 }
+
+const AUTH_RUNBOOK_DOCS = "docs/auth-runbook-route-privacy.md";
 
 export class AuthFlowError extends Error {
   constructor(
@@ -53,6 +57,7 @@ export class AuthFlowError extends Error {
     public readonly status: 401 | 403 | 404 | 500,
     public readonly causeText?: string,
     public readonly fix?: string,
+    public readonly docs?: string,
   ) {
     super(message);
   }
@@ -89,6 +94,7 @@ export function authErrorPayload(
   message: string,
   cause?: string,
   fix?: string,
+  docs?: string,
 ): ApiErrorPayload {
   return {
     error: {
@@ -96,12 +102,16 @@ export function authErrorPayload(
       message,
       ...(cause ? { cause } : {}),
       ...(fix ? { fix } : {}),
+      ...(docs ? { docs } : {}),
     },
   };
 }
 
 export function authErrorResponse(c: Context, error: AuthFlowError) {
-  return c.json(authErrorPayload(error.code, error.message, error.causeText, error.fix), error.status);
+  return c.json(
+    authErrorPayload(error.code, error.message, error.causeText, error.fix, error.docs ?? AUTH_RUNBOOK_DOCS),
+    error.status,
+  );
 }
 
 async function verifySupabaseAccessToken(accessToken: string): Promise<AuthenticatedUser> {
@@ -115,6 +125,7 @@ async function verifySupabaseAccessToken(accessToken: string): Promise<Authentic
       500,
       "SUPABASE_URL and SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY are required",
       "Set the server Supabase env vars before calling protected routes",
+      AUTH_RUNBOOK_DOCS,
     );
   }
 
@@ -134,6 +145,7 @@ async function verifySupabaseAccessToken(accessToken: string): Promise<Authentic
       401,
       error?.message,
       "Sign in again and retry with a fresh Bearer token",
+      AUTH_RUNBOOK_DOCS,
     );
   }
 
@@ -152,6 +164,7 @@ export async function resolveUserAuthContext(authorizationHeader: string | null 
       401,
       "Protected endpoints require Authorization: Bearer <Supabase access token>",
       "Sign in and retry with the session access token",
+      AUTH_RUNBOOK_DOCS,
     );
   }
 
@@ -179,6 +192,7 @@ export async function resolveAuthContext(authorizationHeader: string | null | un
       403,
       "Shopping and planner endpoints are household-scoped in this slice",
       "Create a default household and membership for this user",
+      AUTH_RUNBOOK_DOCS,
     );
   }
 
@@ -216,7 +230,13 @@ export function requireAuth(): MiddlewareHandler {
       }
       console.error("Unexpected auth error:", error);
       return c.json(
-        authErrorPayload("auth_invalid", "Authentication failed", error instanceof Error ? error.message : undefined),
+        authErrorPayload(
+          "auth_invalid",
+          "Authentication failed",
+          error instanceof Error ? error.message : undefined,
+          undefined,
+          AUTH_RUNBOOK_DOCS,
+        ),
         401,
       );
     }
@@ -235,7 +255,13 @@ export function requireUserAuth(): MiddlewareHandler {
       }
       console.error("Unexpected auth error:", error);
       return c.json(
-        authErrorPayload("auth_invalid", "Authentication failed", error instanceof Error ? error.message : undefined),
+        authErrorPayload(
+          "auth_invalid",
+          "Authentication failed",
+          error instanceof Error ? error.message : undefined,
+          undefined,
+          AUTH_RUNBOOK_DOCS,
+        ),
         401,
       );
     }

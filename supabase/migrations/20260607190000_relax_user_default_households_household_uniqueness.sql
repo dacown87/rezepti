@@ -1,0 +1,2 @@
+ALTER TABLE public.user_default_households
+DROP CONSTRAINT IF EXISTS user_default_households_household_id_key;

@@ -14,6 +14,7 @@ import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
 import type { Recipe } from '@/db/schema';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
@@ -21,7 +22,8 @@ import { StepText } from '@/components/StepText';
 import { addIngredients } from '@/utils/shopping-service';
 import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
 import { buildRecipeEditPatchPayload, type RecipeEditDraft } from '@/utils/recipe-mapper';
-import { apiFetch, assertApiOk } from '@/utils/api';
+import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
+import { mapProtectedApiError } from '@/utils/protected-access';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -249,6 +251,7 @@ export default function RecipeDetailScreen() {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<'not_found' | 'request_failed' | null>(null);
+  const [loadFailure, setLoadFailure] = useState<unknown>(null);
   const [multiplier, setMultiplier] = useState(1);
   const [rating, setRating] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
@@ -275,20 +278,22 @@ export default function RecipeDetailScreen() {
     }
     setLoading(true);
     setLoadError(null);
+    setLoadFailure(null);
     try {
       const res = await apiFetch(`/api/v1/recipes/${id}`);
-      if (!res.ok) {
-        setRecipe(null);
-        setLoadError(res.status === 404 ? 'not_found' : 'request_failed');
-        return;
-      }
+      await assertApiOk(res, `Rezept konnte nicht geladen werden (${res.status})`);
       const row = normalizeRecipe(await res.json());
       setRecipe(row);
       setRating(row.rating != null ? Number(row.rating) : null);
       setNotes(row.notes ?? '');
-    } catch {
+    } catch (error) {
       setRecipe(null);
-      setLoadError('request_failed');
+      setLoadFailure(error);
+      if (error instanceof ApiRequestError && error.status === 404) {
+        setLoadError('not_found');
+      } else {
+        setLoadError('request_failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -457,15 +462,22 @@ export default function RecipeDetailScreen() {
 
   if (!recipe) {
     if (loadError === 'request_failed') {
+      const protectedState = mapProtectedApiError(loadFailure, `/recipe/${id}`);
       return (
         <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center px-8">
-          <Text className="text-red-500 text-center">Rezept konnte nicht geladen werden.</Text>
-          <Text className="text-warm-500 dark:text-warm-400 text-center mt-2">
-            Bitte Verbindung prüfen und erneut versuchen.
-          </Text>
-          <Pressable onPress={loadRecipe} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
-            <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
-          </Pressable>
+          {protectedState ? (
+            <ProtectedAccessNotice state={protectedState} onRetry={() => void loadRecipe()} />
+          ) : (
+            <>
+              <Text className="text-red-500 text-center">Rezept konnte nicht geladen werden.</Text>
+              <Text className="text-warm-500 dark:text-warm-400 text-center mt-2">
+                Bitte Verbindung prüfen und erneut versuchen.
+              </Text>
+              <Pressable onPress={loadRecipe} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
+                <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
+              </Pressable>
+            </>
+          )}
         </SafeAreaView>
       );
     }

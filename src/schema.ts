@@ -110,6 +110,14 @@ export const householdMemberships = pgTable("household_memberships", {
   uniqueIndex("household_memberships_user_household_uidx").on(t.userId, t.householdId),
 ]);
 
+export const userDefaultHouseholds = pgTable("user_default_households", {
+  userId: uuid("user_id").primaryKey(),
+  householdId: uuid("household_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (t) => [
+  index("user_default_households_household_idx").on(t.householdId),
+]);
+
 export const apiKeys = pgTable("api_keys", {
   id: serial("id").primaryKey(),
   keyHash: text("key_hash").notNull().unique(),
@@ -131,3 +139,4 @@ export type NewApiKey = typeof apiKeys.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type Household = typeof households.$inferSelect;
 export type HouseholdMembership = typeof householdMemberships.$inferSelect;
+export type UserDefaultHousehold = typeof userDefaultHouseholds.$inferSelect;
