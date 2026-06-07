@@ -178,8 +178,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prefetch Supabase images from Docker Hub mirrors
+        run: |
+          set -euo pipefail
+          images=(
+            "public.ecr.aws/supabase/postgres:17.6.1.131=supabase/postgres:17.6.1.131"
+            "public.ecr.aws/supabase/gotrue:v2.189.0=supabase/gotrue:v2.189.0"
+            "public.ecr.aws/supabase/postgrest:v14.12=postgrest/postgrest:v14.12"
+            "public.ecr.aws/supabase/realtime:v2.100.0=supabase/realtime:v2.100.0"
+            "public.ecr.aws/supabase/storage-api:v1.60.0=supabase/storage-api:v1.60.0"
+            "public.ecr.aws/supabase/postgres-meta:v0.96.6=supabase/postgres-meta:v0.96.6"
+            "public.ecr.aws/supabase/logflare:1.42.0=supabase/logflare:1.42.0"
+            "public.ecr.aws/supabase/studio:2026.05.25-sha-65c570e=supabase/studio:2026.05.25-sha-65c570e"
+            "public.ecr.aws/supabase/edge-runtime:v1.74.0=supabase/edge-runtime:v1.74.0"
+            "public.ecr.aws/supabase/kong:2.8.1=kong:2.8.1"
+            "public.ecr.aws/supabase/mailpit:v1.22.3=axllent/mailpit:v1.22.3"
+          )
+
+          for mapping in "${images[@]}"; do
+            target="${mapping%%=*}"
+            mirror="${mapping#*=}"
+
+            if docker image inspect "$target" >/dev/null 2>&1; then
+              continue
+            fi
+
+            docker pull "$mirror"
+            docker tag "$mirror" "$target"
+          done
+
       - name: Start local Supabase
-        run: npx supabase start
+        run: npx supabase start -x studio -x imgproxy -x edge-runtime -x vector -x supavisor
 
       - name: Reset local Supabase DB to migrations
         run: npx supabase db reset --local --yes
