@@ -50,8 +50,14 @@ function RootLayoutNav() {
 
   useEffect(() => {
     return registerAuthRedirectObserver({
-      onPasswordRecovery: () => {
-        router.replace('/account?mode=update-password');
+      onPasswordRecovery: (redirect) => {
+        router.replace({
+          pathname: '/account',
+          params: {
+            mode: 'update-password',
+            ...(redirect?.returnTo ? { returnTo: redirect.returnTo } : {}),
+          },
+        });
       },
     });
   }, [router]);

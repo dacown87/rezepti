@@ -15,6 +15,25 @@ export type SignUpResult =
   | { status: 'confirmation_required'; email: string }
   | { status: 'signup_failed'; message: string };
 
+export interface AuthRedirectOptions {
+  mode?: 'signin' | 'signup' | 'reset' | 'update-password';
+  returnTo?: string;
+}
+
+export function readAuthRedirectOptions(url: string): AuthRedirectOptions {
+  const params = collectUrlParams(url);
+  const mode = params.get('mode');
+  const returnTo = params.get('returnTo');
+
+  return {
+    mode:
+      mode === 'signin' || mode === 'signup' || mode === 'reset' || mode === 'update-password'
+        ? mode
+        : undefined,
+    returnTo: returnTo || undefined,
+  };
+}
+
 function ensureUrlPolyfill(): void {
   try {
     require('react-native-url-polyfill/auto');
@@ -80,18 +99,34 @@ function requireSupabaseClient(): SupabaseClient {
   return client;
 }
 
-export function buildAuthRedirectUrl(path = '/account'): string {
-  return Linking.createURL(path);
+export function buildAuthRedirectUrl(
+  path = '/account',
+  options?: AuthRedirectOptions,
+): string {
+  const search = new URLSearchParams();
+  if (options?.mode) {
+    search.set('mode', options.mode);
+  }
+  if (options?.returnTo) {
+    search.set('returnTo', options.returnTo);
+  }
+
+  const suffix = search.size > 0 ? `?${search.toString()}` : '';
+  return Linking.createURL(`${path}${suffix}`);
 }
 
-export async function signUpWithPassword(email: string, password: string): Promise<SignUpResult> {
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+  options?: AuthRedirectOptions,
+): Promise<SignUpResult> {
   try {
     const client = requireSupabaseClient();
     const { data, error } = await client.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: buildAuthRedirectUrl('/account'),
+        emailRedirectTo: buildAuthRedirectUrl('/account', options),
       },
     });
 
@@ -121,22 +156,22 @@ export async function signUpWithPassword(email: string, password: string): Promi
   }
 }
 
-export async function resendSignupConfirmation(email: string): Promise<void> {
+export async function resendSignupConfirmation(email: string, options?: AuthRedirectOptions): Promise<void> {
   const client = requireSupabaseClient();
   const { error } = await client.auth.resend({
     type: 'signup',
     email,
     options: {
-      emailRedirectTo: buildAuthRedirectUrl('/account'),
+      emailRedirectTo: buildAuthRedirectUrl('/account', options),
     },
   });
   if (error) throw error;
 }
 
-export async function requestPasswordReset(email: string): Promise<void> {
+export async function requestPasswordReset(email: string, options?: AuthRedirectOptions): Promise<void> {
   const client = requireSupabaseClient();
   const { error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: buildAuthRedirectUrl('/account?mode=update-password'),
+    redirectTo: buildAuthRedirectUrl('/account', { ...options, mode: 'update-password' }),
   });
   if (error) throw error;
 }
@@ -188,15 +223,27 @@ export async function syncAuthSessionFromUrl(url: string): Promise<boolean> {
   return false;
 }
 
-export function registerAuthRedirectObserver(options?: { onPasswordRecovery?: () => void }): () => void {
+export function registerAuthRedirectObserver(options?: {
+  onPasswordRecovery?: (redirect?: AuthRedirectOptions) => void;
+}): () => void {
   const client = getSupabaseClient();
   if (!client) {
     return () => {};
   }
 
+  let lastRedirect: AuthRedirectOptions | undefined;
+
   const handleUrl = async (url: string) => {
     try {
-      await syncAuthSessionFromUrl(url);
+      const synced = await syncAuthSessionFromUrl(url);
+      if (!synced) {
+        return;
+      }
+
+      lastRedirect = readAuthRedirectOptions(url);
+      if (lastRedirect.mode === 'update-password') {
+        options?.onPasswordRecovery?.(lastRedirect);
+      }
     } catch (error) {
       console.warn('auth.redirect.failed', error);
     }
@@ -214,7 +261,7 @@ export function registerAuthRedirectObserver(options?: { onPasswordRecovery?: ()
 
   const { data } = client.auth.onAuthStateChange((event) => {
     if (event === 'PASSWORD_RECOVERY') {
-      options?.onPasswordRecovery?.();
+      options?.onPasswordRecovery?.(lastRedirect);
     }
   });
 

@@ -112,7 +112,7 @@ export const householdMemberships = pgTable("household_memberships", {
 
 export const userDefaultHouseholds = pgTable("user_default_households", {
   userId: uuid("user_id").primaryKey(),
-  householdId: uuid("household_id").notNull().unique(),
+  householdId: uuid("household_id").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => [
   index("user_default_households_household_idx").on(t.householdId),

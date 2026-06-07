@@ -179,12 +179,14 @@ describe('account entry and auth flows', () => {
 
     await waitFor(() => {
       expect(state.signInWithPassword).toHaveBeenCalledWith('patrick@example.com', 'secret123');
-      expect(state.bootstrapAccount).toHaveBeenCalled();
+      expect(state.bootstrapAccount).toHaveBeenCalledTimes(1);
       expect(state.router.replace).toHaveBeenCalledWith('/(tabs)/planner');
     });
   });
 
   it('shows confirmation-required state and resends signup confirmation', async () => {
+    state.params = { returnTo: '/(tabs)/shopping' };
+
     const { default: AccountScreen } = await import('@/app/account');
     render(React.createElement(AccountScreen));
 
@@ -196,15 +198,24 @@ describe('account entry and auth flows', () => {
     await press(lastByText('Account erstellen'));
 
     await waitFor(() => {
+      expect(state.signUpWithPassword).toHaveBeenCalledWith('patrick@example.com', 'secret123', {
+        mode: 'signup',
+        returnTo: '/(tabs)/shopping',
+      });
       expect(screen.getByText('Bestätige deine E-Mail und öffne danach den Link erneut in der App.')).toBeTruthy();
     });
 
     await press(screen.getByText('Bestätigungs-E-Mail erneut senden'));
 
-    expect(state.resendSignupConfirmation).toHaveBeenCalledWith('patrick@example.com');
+    expect(state.resendSignupConfirmation).toHaveBeenCalledWith('patrick@example.com', {
+      mode: 'signup',
+      returnTo: '/(tabs)/shopping',
+    });
   });
 
   it('requests a password reset from the account screen', async () => {
+    state.params = { returnTo: '/(tabs)/index' };
+
     const { default: AccountScreen } = await import('@/app/account');
     render(React.createElement(AccountScreen));
 
@@ -213,6 +224,8 @@ describe('account entry and auth flows', () => {
 
     await press(screen.getByText('Reset-Link anfordern'));
 
-    expect(state.requestPasswordReset).toHaveBeenCalledWith('patrick@example.com');
+    expect(state.requestPasswordReset).toHaveBeenCalledWith('patrick@example.com', {
+      returnTo: '/(tabs)/index',
+    });
   });
 });

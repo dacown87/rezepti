@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -54,6 +54,8 @@ export default function AccountScreen() {
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [inlineInfo, setInlineInfo] = useState<string | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+  const bootstrapInFlightRef = useRef(false);
+  const skipNextAutoBootstrapRef = useRef(false);
 
   const isSignedIn = sessionEmail !== null;
 
@@ -80,6 +82,11 @@ export default function AccountScreen() {
   }, []);
 
   const runBootstrap = useCallback(async (navigateAfterSuccess: boolean) => {
+    if (bootstrapInFlightRef.current) {
+      return;
+    }
+
+    bootstrapInFlightRef.current = true;
     setWorkspaceState({ kind: 'loading' });
     setInlineError(null);
     try {
@@ -94,6 +101,8 @@ export default function AccountScreen() {
       if (!navigateAfterSuccess) {
         setInlineError(message);
       }
+    } finally {
+      bootstrapInFlightRef.current = false;
     }
   }, [finishWithReturnIntent]);
 
@@ -130,6 +139,11 @@ export default function AccountScreen() {
       return;
     }
 
+    if (skipNextAutoBootstrapRef.current) {
+      skipNextAutoBootstrapRef.current = false;
+      return;
+    }
+
     void runBootstrap(false);
   }, [authLoading, isSignedIn, mode, runBootstrap]);
 
@@ -157,6 +171,7 @@ export default function AccountScreen() {
     setInlineInfo(null);
     try {
       const session = await signInWithPassword(email.trim(), password);
+      skipNextAutoBootstrapRef.current = true;
       setSessionEmail(session.user.email ?? email.trim());
       setPassword('');
       await runBootstrap(true);
@@ -180,7 +195,10 @@ export default function AccountScreen() {
     setBusy(true);
     setInlineError(null);
     setInlineInfo(null);
-    const result = await signUpWithPassword(email.trim(), password);
+    const result = await signUpWithPassword(email.trim(), password, {
+      mode: 'signup',
+      returnTo,
+    });
     try {
       if (result.status === 'signup_failed') {
         setInlineError(result.message);
@@ -192,6 +210,7 @@ export default function AccountScreen() {
         return;
       }
 
+      skipNextAutoBootstrapRef.current = true;
       setSessionEmail(result.session.user.email ?? email.trim());
       setPassword('');
       setConfirmPassword('');
@@ -210,7 +229,7 @@ export default function AccountScreen() {
     setBusy(true);
     setInlineError(null);
     try {
-      await requestPasswordReset(email.trim());
+      await requestPasswordReset(email.trim(), { returnTo });
       setInlineInfo('Falls die Adresse existiert, wurde ein Passwort-Reset-Link verschickt.');
     } catch (error) {
       setInlineError(error instanceof Error ? error.message : 'Reset-Link konnte nicht verschickt werden.');
@@ -229,7 +248,10 @@ export default function AccountScreen() {
     setBusy(true);
     setInlineError(null);
     try {
-      await resendSignupConfirmation(resendEmail);
+      await resendSignupConfirmation(resendEmail, {
+        mode: 'signup',
+        returnTo,
+      });
       setInlineInfo('Bestätigungs-E-Mail wurde erneut verschickt.');
     } catch (error) {
       setInlineError(error instanceof Error ? error.message : 'Bestätigungs-E-Mail konnte nicht erneut verschickt werden.');
