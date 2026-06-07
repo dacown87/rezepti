@@ -7,8 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
 
+import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
 import type { ShoppingListItem } from '@/db/schema';
 import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
+import { mapProtectedApiError } from '@/utils/protected-access';
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 
@@ -67,6 +69,7 @@ export default function ShoppingScreen() {
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<unknown>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [newItem, setNewItem] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
@@ -77,9 +80,11 @@ export default function ShoppingScreen() {
   const load = useCallback(async () => {
     try {
       setLoadError(null);
+      setLoadFailure(null);
       setItems(await fetchItems());
     } catch (error) {
       setItems((prev) => (prev.length === 0 ? [] : prev));
+      setLoadFailure(error);
       setLoadError(errorMessage(error, 'Einkaufsliste konnte nicht geladen werden'));
     } finally {
       setLoading(false);
@@ -221,13 +226,24 @@ export default function ShoppingScreen() {
     };
   }, [items]);
 
+  const loadProtectedState = useMemo(
+    () => mapProtectedApiError(loadFailure, '/(tabs)/shopping'),
+    [loadFailure],
+  );
+
   if (loadError && items.length === 0 && !loading) {
     return (
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900 items-center justify-center px-8">
-        <Text className="text-red-500 text-center">{loadError}</Text>
-        <Pressable onPress={() => load()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
-          <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
-        </Pressable>
+        {loadProtectedState ? (
+          <ProtectedAccessNotice state={loadProtectedState} onRetry={() => void load()} />
+        ) : (
+          <>
+            <Text className="text-red-500 text-center">{loadError}</Text>
+            <Pressable onPress={() => load()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
+              <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
+            </Pressable>
+          </>
+        )}
       </SafeAreaView>
     );
   }

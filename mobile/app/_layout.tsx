@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
@@ -9,6 +9,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { useColorScheme } from '@/components/useColorScheme';
 import { useThemeInit } from '@/utils/use-theme';
 import { queryClient, asyncStoragePersister } from '@/utils/query-client';
+import { registerAuthRedirectObserver } from '@/utils/auth';
 import '../global.css';
 
 export { ErrorBoundary } from 'expo-router';
@@ -45,11 +46,21 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const { colorScheme } = useColorScheme();
   useThemeInit();
+  const router = useRouter();
+
+  useEffect(() => {
+    return registerAuthRedirectObserver({
+      onPasswordRecovery: () => {
+        router.replace('/account?mode=update-password');
+      },
+    });
+  }, [router]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="account" options={{ headerShown: false }} />
         <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>

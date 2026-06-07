@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { authStorage } from './auth-storage';
 
@@ -8,6 +9,11 @@ const supabaseKey =
   process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 let supabaseClient: SupabaseClient | null | undefined;
+
+export type SignUpResult =
+  | { status: 'session_ready'; session: Session }
+  | { status: 'confirmation_required'; email: string }
+  | { status: 'signup_failed'; message: string };
 
 function ensureUrlPolyfill(): void {
   try {
@@ -55,10 +61,7 @@ export async function getAuthAccessToken(): Promise<string | null> {
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<Session> {
-  const client = getSupabaseClient();
-  if (!client) {
-    throw new Error('Supabase Auth ist nicht konfiguriert.');
-  }
+  const client = requireSupabaseClient();
 
   const { data, error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw error;
@@ -66,6 +69,159 @@ export async function signInWithPassword(email: string, password: string): Promi
     throw new Error('Login hat keine Session geliefert.');
   }
   return data.session;
+}
+
+function requireSupabaseClient(): SupabaseClient {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase Auth ist nicht konfiguriert.');
+  }
+
+  return client;
+}
+
+export function buildAuthRedirectUrl(path = '/account'): string {
+  return Linking.createURL(path);
+}
+
+export async function signUpWithPassword(email: string, password: string): Promise<SignUpResult> {
+  try {
+    const client = requireSupabaseClient();
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: buildAuthRedirectUrl('/account'),
+      },
+    });
+
+    if (error) {
+      return {
+        status: 'signup_failed',
+        message: error.message,
+      };
+    }
+
+    if (data.session) {
+      return {
+        status: 'session_ready',
+        session: data.session,
+      };
+    }
+
+    return {
+      status: 'confirmation_required',
+      email,
+    };
+  } catch (error) {
+    return {
+      status: 'signup_failed',
+      message: error instanceof Error ? error.message : 'Account konnte nicht erstellt werden.',
+    };
+  }
+}
+
+export async function resendSignupConfirmation(email: string): Promise<void> {
+  const client = requireSupabaseClient();
+  const { error } = await client.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo: buildAuthRedirectUrl('/account'),
+    },
+  });
+  if (error) throw error;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const client = requireSupabaseClient();
+  const { error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: buildAuthRedirectUrl('/account?mode=update-password'),
+  });
+  if (error) throw error;
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  const client = requireSupabaseClient();
+  const { error } = await client.auth.updateUser({ password });
+  if (error) throw error;
+}
+
+function collectUrlParams(url: string): URLSearchParams {
+  const parsed = new URL(url);
+  const params = new URLSearchParams(parsed.search);
+  const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+  const hashParams = new URLSearchParams(hash);
+
+  hashParams.forEach((value, key) => {
+    if (!params.has(key)) {
+      params.set(key, value);
+    }
+  });
+
+  return params;
+}
+
+export async function syncAuthSessionFromUrl(url: string): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  const params = collectUrlParams(url);
+  const code = params.get('code');
+  if (code) {
+    const { error } = await client.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    return true;
+  }
+
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (accessToken && refreshToken) {
+    const { error } = await client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error) throw error;
+    return true;
+  }
+
+  return false;
+}
+
+export function registerAuthRedirectObserver(options?: { onPasswordRecovery?: () => void }): () => void {
+  const client = getSupabaseClient();
+  if (!client) {
+    return () => {};
+  }
+
+  const handleUrl = async (url: string) => {
+    try {
+      await syncAuthSessionFromUrl(url);
+    } catch (error) {
+      console.warn('auth.redirect.failed', error);
+    }
+  };
+
+  void Linking.getInitialURL().then((url) => {
+    if (url) {
+      void handleUrl(url);
+    }
+  });
+
+  const urlSubscription = Linking.addEventListener('url', ({ url }) => {
+    void handleUrl(url);
+  });
+
+  const { data } = client.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      options?.onPasswordRecovery?.();
+    }
+  });
+
+  return () => {
+    urlSubscription.remove();
+    data.subscription.unsubscribe();
+  };
 }
 
 export async function signOut(): Promise<void> {

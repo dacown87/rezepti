@@ -33,6 +33,7 @@ export interface ApiErrorEnvelope {
     message?: string;
     cause?: string;
     fix?: string;
+    docs?: string;
   };
 }
 
@@ -43,6 +44,7 @@ export class ApiRequestError extends Error {
     public readonly code?: string,
     public readonly causeText?: string,
     public readonly fix?: string,
+    public readonly docs?: string,
   ) {
     super(code ? `${message} (${code})` : message);
   }
@@ -66,6 +68,7 @@ export async function readApiError(response: Response, fallbackMessage: string):
         error.code,
         error.cause,
         error.fix,
+        error.docs,
       );
     }
   } catch {

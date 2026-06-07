@@ -13,9 +13,11 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Recipe } from '@/db/schema';
-import { apiFetch, type ApiRecipe } from '@/utils/api';
+import { ApiRequestError, apiFetch, assertApiOk, type ApiRecipe } from '@/utils/api';
+import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
 import { useRecipes } from '@/hooks/useRecipes';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { mapProtectedApiError } from '@/utils/protected-access';
 import { apiToRecipe } from '@/utils/recipe-mapper';
 import {
   buildIngredientResultRows,
@@ -185,13 +187,22 @@ export default function RecipeListScreen() {
   const [ingredientInput, setIngredientInput] = useState('');
   const [ingredientResults, setIngredientResults] = useState<Recipe[]>([]);
   const [ingredientResultMatchedCounts, setIngredientResultMatchedCounts] = useState<number[]>([]);
+  const [ingredientSearchError, setIngredientSearchError] = useState<unknown>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
   const deferredIngredientInput = useDeferredValue(ingredientInput);
 
   // React Query: stale-while-revalidate, persisted to AsyncStorage
-  const { data: apiRecipes, isLoading: loading, isError, refetch } = useRecipes();
+  const { data: apiRecipes, error: recipesError, isLoading: loading, isError, refetch } = useRecipes();
   const recipes = useMemo(() => (apiRecipes ?? []).map(apiToRecipe), [apiRecipes]);
+  const recipeListProtectedState = useMemo(
+    () => mapProtectedApiError(recipesError, '/(tabs)'),
+    [recipesError],
+  );
+  const ingredientSearchProtectedState = useMemo(
+    () => mapProtectedApiError(ingredientSearchError, '/(tabs)'),
+    [ingredientSearchError],
+  );
   const recipeEntries = useMemo<RecipeListItemData[]>(
     () => buildRecipeListItemData(recipes),
     [recipes],
@@ -225,6 +236,7 @@ export default function RecipeListScreen() {
 
   const handleIngredientSearch = (input: string) => {
     setIngredientInput(input);
+    setIngredientSearchError(null);
     if (!input.trim()) {
       setIngredientResults([]);
       setIngredientResultMatchedCounts([]);
@@ -238,7 +250,7 @@ export default function RecipeListScreen() {
       if (!terms.length) return;
       try {
         const res = await apiFetch(`/api/v1/recipes?ingredients=${encodeURIComponent(terms.join(','))}&match=or`);
-        if (!res.ok) return;
+        await assertApiOk(res, `Zutatensuche fehlgeschlagen (${res.status})`);
         const data = await res.json();
         const list: ApiRecipe[] = Array.isArray(data.recipes) ? data.recipes : [];
         const matchedCounts = Array.isArray(data.matched_counts)
@@ -248,7 +260,11 @@ export default function RecipeListScreen() {
           setIngredientResults(list.map(apiToRecipe));
           setIngredientResultMatchedCounts(matchedCounts);
         });
-      } catch { /* ignore network errors */ }
+      } catch (error) {
+        setIngredientResults([]);
+        setIngredientResultMatchedCounts([]);
+        setIngredientSearchError(error);
+      }
     }, 300);
   };
 
@@ -434,10 +450,18 @@ export default function RecipeListScreen() {
         </View>
       ) : isError && recipes.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-red-500 text-center">Rezepte konnten nicht geladen werden</Text>
-          <Pressable onPress={() => refetch()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
-            <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
-          </Pressable>
+          {recipeListProtectedState ? (
+            <ProtectedAccessNotice state={recipeListProtectedState} onRetry={() => void refetch()} />
+          ) : (
+            <>
+              <Text className="text-red-500 text-center">
+                {recipesError instanceof ApiRequestError ? recipesError.message : 'Rezepte konnten nicht geladen werden'}
+              </Text>
+              <Pressable onPress={() => refetch()} className="mt-4 px-4 py-2 bg-primary-500 rounded-xl">
+                <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       ) : (viewMode === 'categories' && !search) ? (
         <FlatList
@@ -523,7 +547,13 @@ export default function RecipeListScreen() {
             contentContainerStyle={{ padding: 16 }}
             renderItem={renderIngredientSearchItem}
             ListEmptyComponent={
-              ingredientInput ? (
+              ingredientSearchProtectedState ? (
+                <ProtectedAccessNotice
+                  state={ingredientSearchProtectedState}
+                  onRetry={() => handleIngredientSearch(ingredientInput)}
+                  compact
+                />
+              ) : ingredientInput ? (
                 <View className="items-center py-16">
                   <Text className="text-warm-500 dark:text-warm-400 text-sm text-center">Keine Rezepte mit diesen Zutaten gefunden.</Text>
                 </View>

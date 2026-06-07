@@ -58,6 +58,21 @@ Der manuelle Pfad bleibt als Fallback verbindlich, falls Staging-Keys nicht loka
 
 Staging-Status 2026-06-04: `rezepti-staging` wurde mit der Multi-User-Migration und `20260604203218_close_recipes_data_api_for_auth_slice.sql` aktualisiert; `npm run supabase:rls-smoke:staging` lief gruen.
 
+## Auth Onboarding Bootstrap
+
+Phase-1-Contract fuer `POST /api/v1/auth/bootstrap`:
+
+- Bearer Token ist Pflicht.
+- Die Route arbeitet hinter `requireUserAuth()`, also auch fuer eingeloggte Nutzer
+  ohne aktiven Haushalt.
+- Erfolgsfall liefert `status`, `result`, `profile`, `workspace`, `membership`
+  und optional `warnings`.
+- Fehler aus diesem Flow sollen den gemeinsamen Envelope mit `code`, `message`,
+  `cause`, `fix` und `docs` verwenden.
+- `bootstrap_failed` bedeutet: Token war gueltig, aber Profil/Workspace konnten
+  nicht konsistent hergestellt oder gelesen werden. Standardreaktion:
+  Bootstrap erneut ausloesen und Server-Logs fuer `auth.bootstrap.*` pruefen.
+
 ## API-Error-Kontrakt
 
 Auth- und Setup-Fehler sollen stabilen JSON-Aufbau liefern:
