@@ -3,24 +3,36 @@
 # Auth Onboarding Deferred Follow-Ups Plan
 
 Datum: 2026-06-07
-Status: Folgeplan
+Status: Aktualisiert nach abgeschlossenem Auth-Onboarding-Slice
 
 ## Revisit-Gate
 
-Dieser Folgeplan muss erneut aktualisiert werden, sobald
+Erfuellt am 2026-06-07. Der Vorbedingungs-Plan
 `docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md`
-abgeschlossen ist. Dann gilt nicht mehr die Planannahme, sondern der tatsaechlich
-gelieferte Auth-Onboarding-Stand: Account-Erstellung, Login, Bootstrap,
-Default-Haushalt, sichtbare Auth-Zustaende, Credential-Guardrails und offene
-Abweichungen muessen gegen diesen Folgeplan abgeglichen werden.
+ist abgeschlossen und auf `main` gelandet. Dieser Folgeplan basiert jetzt auf
+dem tatsaechlich gelieferten Stand statt auf Planannahmen.
+
+Gelieferte Basis fuer alle Folge-Slices:
+
+- `POST /api/v1/auth/bootstrap` existiert und liefert den Rich-Status fuer
+  `profile`, `workspace` und `membership`.
+- `user_default_households` und der Bootstrap-Flow erzeugen fuer neue Nutzer
+  einen Starter-Workspace plus Owner-Membership.
+- `mobile/app/account.tsx` liefert den sichtbaren `Account & Workspace`-Einstieg
+  mit Signup, Login, Logout, Confirmation-Resend, Passwort-Reset und
+  Passwort-Update nach Deep Link.
+- Geschuetzte Mobile-Flows behandeln Auth-/Setup-Probleme nicht mehr als leere
+  Daten, sondern verlinken zur Account-/Workspace-Loesung.
+- Offene Folgearbeit liegt damit nicht mehr bei Grund-Auth, sondern bei
+  Collaboration, Ownership-Grenzen, Recovery-Haertung und spaeteren Auth-Modi.
 
 ## Ziel
 
-Dieser Plan sammelt die Punkte, die bewusst nicht in den naechsten
-Auth-Onboarding-Slice gehoeren. Der Onboarding-Slice soll nur Account erstellen,
-Login, Bootstrap und sichtbare Auth-Zustaende fertig machen. Alles, was
-Einladungen, mehrere Haushalte, Sharing oder groessere Account-Verwaltung
-betrifft, bleibt ein separater Folge-Track.
+Dieser Plan sammelt die Punkte, die bewusst nicht in den abgeschlossenen
+Auth-Onboarding-Slice gehoert haben. Die Basis fuer Account-Erstellung, Login,
+Bootstrap, Starter-Workspace und sichtbare Auth-Zustaende ist jetzt da. Alles,
+was Einladungen, mehrere Workspaces, Sharing, Credential-Ownership oder
+groessere Account-Verwaltung betrifft, bleibt ein separater Folge-Track.
 
 ## Warum ausklammern
 
@@ -77,30 +89,34 @@ Nicht loesen im Auth-Onboarding-Slice:
 - Kein dauerhaftes per-household Credential-Modell, wenn die UI im ersten
   Auth-Slice ausgeblendet bleibt.
 
-## Folge-Slice 3: Passwort vergessen und Account Recovery Lite
+## Folge-Slice 3: Account Recovery Hardening und OAuth/Magic Link
 
-Ziel: Nutzer koennen ihren Account ohne Admin-Hilfe wiederherstellen, bevor
-Haushaltseinladungen breiter genutzt werden.
+Ziel: Der gelieferte Reset-/Confirmation-Grundpfad wird fuer echte externe
+Nutzung gehaertet. Zusaetzliche Auth-Modi wie OAuth oder Magic Link bleiben ein
+eigener Ausbau nach der Basis.
 
 Umfang:
 
-- Supabase Password-Recovery-Flow.
-- Deep-Link oder Web-Link fuer Reset.
-- UI fuer neues Passwort.
-- Session-Handling nach Reset.
 - Runbook-Matrix fuer Supabase Auth URL, Mobile-Deep-Link, Web-Redirects,
-  E-Mail-Templates, Staging/Production und abgelaufene Links.
+  E-Mail-Templates, Staging/Production, abgelaufene Links und Support-Fallbacks
+  vervollstaendigen.
+- Recovery-/Confirmation-Fehler fuer Rate Limits, abgelaufene Links,
+  Session-Mismatch und Redirect-Fehler explizit machen.
+- Telemetrie oder Logs fuer Recovery-/Confirmation-Fehler ergaenzen, damit
+  externe Invite-/Reset-Probleme nachvollziehbar werden.
+- OAuth- und/oder Magic-Link-Slice separat vorbereiten: Provider-Auswahl,
+  Redirects, Deep Links, Tests und Produktgrenzen.
 
 Nicht loesen im Auth-Onboarding-Slice:
 
-- Keine volle Account-Recovery-Politur.
-- Kein OAuth-Provider-Linking.
+- Keine zusaetzlichen Auth-Modi.
 - Keine komplexen Support-Workflows.
+- Keine Provider-Linking- oder Multi-Identity-Verwaltung.
 
 ## Folge-Slice 4: Haushaltseinladungen
 
 Ziel: Nutzer koennen andere Personen in ihren Haushalt einladen, nachdem
-Recovery-lite und Redirect-Grundlagen stehen.
+Recovery-Hardening und Redirect-Grundlagen stabil sind.
 
 Umfang:
 
@@ -123,17 +139,17 @@ Nicht loesen im Auth-Onboarding-Slice:
 ## Folge-Slice 5: Aktiver Haushalt und Haushalt wechseln
 
 Ziel: Ein User kann Mitglied in mehreren Haushalten sein und aktiv wechseln.
-Der minimale Server-Kontrakt wird aber schon vorher festgelegt, weil
-Shopping/Planner heute einen aktiven Haushalt brauchen.
+Der abgeschlossene Auth-Onboarding-Slice liefert bereits einen Starter-Workspace
+und `user_default_households`; offen ist jetzt die sichtbare Auswahl und
+Persistenz fuer echte Mehrfach-Mitgliedschaften.
 
 Umfang:
 
-- Minimaler Kontrakt: Server waehlt Default-Haushalt deterministisch aus
-  Memberships; kein Client-Switch/header im ersten Auth-Slice; fehlender
-  Haushalt liefert `no_household`.
+- Aktiven Workspace in UI waehlen und als neuen Default persistieren.
 - Active-Household-Auswahl in UI.
 - Query-Cache nach Household-Wechsel isolieren oder leeren.
-- Server-Kontrakt fuer aktiven Haushalt explizit machen.
+- Server-Kontrakt fuer aktiven Haushalt bei nicht-default Auswahl explizit
+  machen, falls dafuer Header oder anderer Context noetig wird.
 - Planner/Shopping/Household-Recipes nach aktivem Haushalt laden.
 
 Nicht loesen im Auth-Onboarding-Slice:
@@ -245,9 +261,10 @@ Nicht loesen im Auth-Onboarding-Slice:
    Rezepte korrekt blockiert, aber keine gute Nutzeraktion anbietet.
 2. Credential-Boundary-Guardrail, bevor Auth als Privacy-Versprechen sichtbar
    wird.
-3. Recovery-lite und Supabase-Redirect-/E-Mail-Runbook.
+3. Recovery-Hardening und Supabase-Redirect-/E-Mail-/Support-Runbook, bevor
+   Haushaltseinladungen breiter ausgerollt werden.
 4. Haushaltseinladungen, damit Shared Household Cooking sichtbar wird.
-5. Aktiver-Haushalt-Kontrakt jetzt; Household-Switcher, sobald mehrere
+5. Household-Switcher auf Basis von `user_default_households`, sobald mehrere
    Haushalte real entstehen.
 6. Vollstaendige Credential-Ownership.
 7. Collections/Favoriten.
@@ -306,7 +323,9 @@ Der Plan trennt den naechsten Auth-Onboarding-Slice sinnvoll von groesseren Hous
 Guardrails, die vor oder mit Auth-Onboarding sichtbar sein muessen:
 
 - Credential-Routen entweder verstecken/deaktivieren oder als global/admin/local-only schuetzen.
-- Active-Household-Kontrakt dokumentieren: Server waehlt Default per Membership-Sortierung; kein Client-Switch/header im ersten Slice; fehlender Haushalt liefert `no_household`.
+- Active-Household-Kontrakt dokumentieren: Starter-Workspace plus
+  `user_default_households` existieren jetzt; ein echter Switcher und
+  non-default Auswahl fehlen noch.
 - UI darf private Recipes nicht als direkt plannbar darstellen, solange Copy-Flow fehlt.
 
 ### CEO Review
@@ -329,7 +348,7 @@ CURRENT
 THIS PLAN AFTER REVIEW
   Auth-Onboarding bleibt klein.
   Follow-ups sind nach realen User-Blockern sortiert:
-  Recovery-lite, credential boundary, recipe copy, invites.
+  credential boundary, recipe copy, recovery hardening, invites.
 
 12-MONTH IDEAL
   Jeder Inhalt und jedes Secret zeigt sichtbar:
@@ -359,7 +378,7 @@ THIS PLAN AFTER REVIEW
 #### CEO Findings
 
 1. **High - Credential ownership is sequenced too late.** `src/routes/keys.ts` and `src/routes/platforms.ts` expose credential mutation paths that are not yet user-/household-owned. Auth UX must not imply privacy before this is guarded.
-2. **High - Password recovery comes too late for invite-led growth.** Invites create external users; external users need reset/recovery before the collaboration loop is reliable.
+2. **High - Recovery hardening still gates invite-led growth.** Invites create external users; the basic reset flow exists, but redirect/runbook/support hardening still needs to be reliable before collaboration scales.
 3. **Medium - Shared Household Cooking lacks an activation proof.** Define a narrow metric: second user joins and plans/adds one household recipe within 24h.
 4. **Medium - Data API is architecture, not product roadmap.** Keep Recipes Data API closed until a real offline/sync/client-write need appears.
 
@@ -479,7 +498,7 @@ Developer-facing scope: internal API/server/mobile developers plus future operat
 | Read plan | Understands deferred slices | Add revised order and guardrails. |
 | Configure Auth | Supabase redirect/recovery/OAuth matrix absent | Add runbook acceptance matrix. |
 | Implement recipe copy | Copy semantics missing | Add explicit field contract. |
-| Implement invites | Depends on email/deep-link/recovery | Make invite depend on recovery-lite. |
+| Implement invites | Depends on email/deep-link/recovery | Make invite depend on recovery hardening. |
 | Implement credentials | Global routes conflict with Auth privacy | Add interim gate or ownership model. |
 | Write tests | Test matrix scattered | Use this report's test diagram. |
 | Deploy | Data API/Server API distinction can blur | Add preflight: Recipes Data API closed unless explicitly opened. |
@@ -520,7 +539,7 @@ Overall DX: 5.4/10.
 
 | Failure | User/dev sees | Rescue |
 |---|---|---|
-| User invited but forgot password | Cannot accept invite without support | Recovery-lite before broad invites. |
+| User invited but forgot password | Basic reset exists, but edge cases still fall back to support if redirects or links fail. | Recovery hardening before broad invites. |
 | User thinks Cookidoo/Groq credentials are private | Global/shared credential state | Hide/disable or guard credential routes until ownership lands. |
 | User picks private recipe in Planner | Server returns not found/rejects | UI copy CTA: "In Haushalt kopieren & planen". |
 | User has multiple households | Server silently chooses first sorted membership | State active-household default and defer only switching. |
@@ -531,7 +550,7 @@ Overall DX: 5.4/10.
 | Severity | Failure mode | Detection | Decision |
 |---|---|---|---|
 | High | Credential privacy mismatch | Route review + tests | Add pre-auth guardrail task. |
-| High | Invite flow without recovery | Product sequence review | Move recovery-lite before broad invites or make invite alpha-only. |
+| High | Invite flow without recovery hardening | Product sequence review | Keep recovery hardening before broad invites or make invite alpha-only. |
 | Medium | Private recipes appear plannable | Planner tests/UI tests | Add copy-required state and tests. |
 | Medium | Active household implicit and invisible | Auth helper tests/UI review | Define minimal contract now. |
 | Medium | Error codes inconsistent | Contract tests | Add shared error registry/helper. |
@@ -549,9 +568,9 @@ Overall DX: 5.4/10.
 
 These are cases where the review voices recommend changing the stated plan order.
 
-1. **Move recovery-lite before broad household invites.**
-   - You said: invites are recommended before password recovery.
-   - Review recommends: add recovery-lite before broad invites, or constrain invites to private alpha.
+1. **Keep recovery hardening before broad household invites.**
+   - You said: invites should be an early product follow-up.
+   - Review recommends: keep recovery hardening ahead of a broad invite rollout, or constrain invites to private alpha.
    - Why: invited users are the first external users likely to forget passwords or hit deep-link failures.
    - What context may be missing: if invites are only internal/manual for a short period, original order may be acceptable.
    - If review is wrong: copy-flow and invites ship a little later than necessary.
@@ -565,7 +584,7 @@ These are cases where the review voices recommend changing the stated plan order
 
 ### Taste Decisions
 
-1. **Recipe Copy vs Recovery as first follow-up.** Recommendation: keep Recipe Copy-Flow first for logged-in core UX, but make Recovery-lite a launch gate before invites. Both orders are viable if invites stay internal.
+1. **Recipe Copy vs Recovery Hardening as first follow-up.** Recommendation: keep Recipe Copy-Flow first for logged-in core UX, but make Recovery hardening a launch gate before invites. Both orders are viable if invites stay internal.
 2. **Household switcher timing.** Recommendation: define the server contract now, defer full switcher UI until real multi-household use exists.
 3. **Data API placement.** Recommendation: remove direct Recipes Data API from product roadmap ordering and treat it as an architecture decision gate.
 
@@ -575,7 +594,7 @@ These are cases where the review voices recommend changing the stated plan order
 |---|---|---|---|---|---|---|
 | 1 | CEO | Keep Auth-Onboarding small | Mechanical | P3/P5 | Account/login/bootstrap remain the bottleneck. | Pull all follow-ups into Auth slice. |
 | 2 | CEO | Add credential-boundary guardrail before privacy claims | User Challenge | P1/P2 | Global credential routes conflict with visible Auth privacy. | Leave Credential-Ownership fully late with no guard. |
-| 3 | CEO | Recovery-lite before broad invites | User Challenge | P1/P6 | External invitees need self-serve recovery. | Invite broadly before reset path exists. |
+| 3 | CEO | Recovery hardening before broad invites | User Challenge | P1/P6 | External invitees need a reliable self-serve recovery path, not only the minimal shipped reset baseline. | Invite broadly before redirect/support hardening exists. |
 | 4 | Design | Add visible ownership model | Mechanical | P1/P5 | Users need owner/scope signals for trust and actionability. | Keep ownership only in backend model. |
 | 5 | Eng | Define active-household server contract now | Mechanical | P5 | Code already chooses an active household; plan should state it. | Defer all active-household contract work. |
 | 6 | Eng | Keep Recipes Data API closed until explicit need | Mechanical | P3/P4 | Server API already carries ownership contract. | Open Data API as product follow-up by default. |
@@ -586,9 +605,9 @@ These are cases where the review voices recommend changing the stated plan order
 
 1. Recipe Copy-Flow fuer `privat -> Haushalt`, scoped as "private Recipe plannable machen".
 2. Credential-boundary guardrail: hide/disable/guard global credential routes or mark them admin/local-only before Auth privacy copy.
-3. Password recovery-lite and Supabase redirect/email runbook.
+3. Recovery hardening and Supabase redirect/email/support runbook.
 4. Haushaltseinladungen, initially narrow: one recipient joins one household and can plan/add one recipe.
-5. Active-household contract now; full household switching UI once multiple households exist.
+5. Active-household switching UI once multiple households exist.
 6. Credential-Ownership full model and rotation/rate limits.
 7. Collections/Favoriten.
 8. Account export/deletion policy and manual support path before non-internal beta.
@@ -599,11 +618,11 @@ These are cases where the review voices recommend changing the stated plan order
 
 - [ ] **P1 (human: ~0.5 day / CC: ~45 min) - Credential boundary guardrail** - Decide whether `/api/v1/keys`, Cookidoo, Pinterest, and Facebook credential mutation routes are hidden, disabled, admin-only, or user-scoped before Auth privacy claims.
   - Files: `src/routes/keys.ts`, `src/routes/platforms.ts`, `mobile/app/(tabs)/settings.tsx`, `docs/auth-runbook-route-privacy.md`
-- [ ] **P1 (human: ~0.5 day / CC: ~1 h) - Active household contract** - Document and test current default behavior: server picks deterministic active household; no switch/header yet; missing household returns `no_household`.
+- [ ] **P1 (human: ~0.5 day / CC: ~1 h) - Active household contract** - Document and test current default behavior: bootstrap creates a persisted default via `user_default_households`; no switch/header yet; missing household still returns `no_household`.
   - Files: `src/db-react.ts`, `src/auth.ts`, `test/unit/auth.test.ts`, `test/unit/planner-auth-routes.test.ts`
 - [ ] **P1 (human: ~1 day / CC: ~2 h) - Recipe copy contract** - Specify copied/reset fields, duplicate behavior, source metadata, `createdBy`, `notes`, `rating`, `tried`, `pdf_created`, and Planner CTA.
   - Files: `src/db-react.ts`, `src/routes/recipes.ts`, `src/routes/planner.ts`, `mobile/app/(tabs)/planner.tsx`
-- [ ] **P2 (human: ~1 day / CC: ~2 h) - Recovery-lite runbook** - Add Supabase Auth URL, mobile deep-link, web redirect, email template, expired-link and staging/prod smoke matrix before broad invites.
+- [ ] **P2 (human: ~1 day / CC: ~2 h) - Recovery hardening runbook** - Add Supabase Auth URL, mobile deep-link, web redirect, email template, expired-link, rate-limit, support-fallback and staging/prod smoke matrix before broad invites.
   - Files: `docs/auth-runbook-route-privacy.md`, Auth onboarding plan/docs
 - [ ] **P2 (human: ~0.5 day / CC: ~1 h) - Error-code registry** - Extend structured `{ error: { code, message, cause, fix } }` beyond auth middleware for validation, credentials, jobs, recipe-not-household, upload, and rate limits.
   - Files: `src/auth.ts` or new API error helper, `src/routes/*.ts`, `test/e2e/contract-api.test.ts`
