@@ -7,6 +7,14 @@ const app = new Hono();
 const BOOTSTRAP_DOCS = "docs/auth-runbook-route-privacy.md#auth-onboarding-bootstrap";
 
 app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
+  const authUserId = () => {
+    try {
+      return getUserAuth(c).userId;
+    } catch {
+      return null;
+    }
+  };
+
   try {
     const auth = getUserAuth(c);
     console.info("auth.bootstrap.start", { userId: auth.userId });
@@ -41,7 +49,7 @@ app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
   } catch (error) {
     if (error instanceof AuthFlowError) {
       console.error("auth.bootstrap.failure", {
-        userId: c.get("auth")?.userId ?? null,
+        userId: authUserId(),
         code: error.code,
         message: error.message,
       });
@@ -49,7 +57,7 @@ app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
     }
 
     console.error("auth.bootstrap.failure", {
-      userId: c.get("auth")?.userId ?? null,
+      userId: authUserId(),
       error,
     });
 
