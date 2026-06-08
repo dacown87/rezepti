@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T14:39:53.983Z",
+  "generatedAt": "2026-06-08T15:18:50.872Z",
   "criteria": {
     "minRuns": 10,
     "maxWarningRate": 0.1,
@@ -15,19 +15,19 @@
   },
   "window": {
     "runs": 10,
-    "firstTimestamp": "2026-05-12T08:17:03.644Z",
-    "lastTimestamp": "2026-06-08T14:38:37.752Z",
+    "firstTimestamp": "2026-06-08T15:01:24.243Z",
+    "lastTimestamp": "2026-06-08T15:18:43.005Z",
     "runIds": [
-      "2026-05-12T08:17:03.644Z",
-      "2026-05-12T08:18:54.309Z",
-      "2026-05-12T08:20:46.739Z",
-      "2026-05-12T08:22:37.689Z",
-      "2026-05-12T08:24:28.763Z",
-      "2026-05-12T08:26:19.749Z",
-      "2026-05-12T08:28:10.486Z",
-      "2026-05-12T08:30:01.175Z",
-      "2026-05-12T08:31:51.367Z",
-      "2026-06-08T14:38:37.752Z"
+      "2026-06-08T15:01:24.243Z",
+      "2026-06-08T15:03:26.574Z",
+      "2026-06-08T15:05:23.517Z",
+      "2026-06-08T15:07:17.742Z",
+      "2026-06-08T15:09:11.841Z",
+      "2026-06-08T15:11:06.330Z",
+      "2026-06-08T15:13:00.634Z",
+      "2026-06-08T15:14:55.047Z",
+      "2026-06-08T15:16:48.928Z",
+      "2026-06-08T15:18:43.005Z"
     ]
   },
   "stats": {
@@ -35,13 +35,13 @@
     "totalExecuted": 90,
     "warningRate": 0,
     "fullCoverageCount": 10,
-    "consecutiveCompleteRuns": 21
+    "consecutiveCompleteRuns": 31
   },
   "checks": {
     "minRunsMet": true,
     "warningRateMet": true,
     "fullCoverageMet": true,
-    "metricStabilityMet": false
+    "metricStabilityMet": true
   },
   "metrics": [
     {
@@ -52,11 +52,11 @@
         {
           "metric": "lcp",
           "available": true,
-          "min": 902.191,
-          "max": 1068.187,
-          "median": 903.288,
-          "spreadRatio": 0.1838,
-          "stable": false
+          "min": 1052.151,
+          "max": 1053.78,
+          "median": 1053.2565,
+          "spreadRatio": 0.0015,
+          "stable": true
         },
         {
           "metric": "inp",
@@ -81,11 +81,11 @@
         {
           "metric": "lcp",
           "available": true,
-          "min": 901.622,
-          "max": 1051.969,
-          "median": 901.9095,
-          "spreadRatio": 0.1667,
-          "stable": false
+          "min": 1051.926,
+          "max": 1052.523,
+          "median": 1052.179,
+          "spreadRatio": 0.0006,
+          "stable": true
         },
         {
           "metric": "inp",
@@ -110,10 +110,10 @@
         {
           "metric": "lcp",
           "available": true,
-          "min": 1051.466,
-          "max": 1051.82,
-          "median": 1051.659,
-          "spreadRatio": 0.0003,
+          "min": 1051.62,
+          "max": 1053.196,
+          "median": 1051.84,
+          "spreadRatio": 0.0015,
           "stable": true
         },
         {
@@ -132,5 +132,5 @@
       ]
     }
   ],
-  "ready": false
+  "ready": true
 }

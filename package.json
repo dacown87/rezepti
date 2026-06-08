@@ -20,7 +20,7 @@
     "test:mobile": "npm --prefix mobile run test:unit",
     "test:mobile:rntl-guard": "node scripts/mobile/rntl-import-guard.mjs",
     "test:mobile:coverage": "npm --prefix mobile run test:coverage",
-    "mobile:release-gate": "npm --prefix mobile ci && npm run test:mobile:rntl-guard && npm --prefix mobile run typecheck && npm run build:mobile && npm --prefix mobile run test:unit",
+    "mobile:release-gate": "npm --prefix mobile ci && cd mobile && CI=1 npx expo-doctor && cd .. && npm run test:mobile:rntl-guard && npm --prefix mobile run typecheck && npm run build:mobile && npm --prefix mobile run test:coverage",
     "perf:bundle": "node scripts/performance/bundle-report.mjs",
     "perf:lighthouse:doctor": "node scripts/performance/lighthouse-doctor.mjs",
     "perf:lighthouse": "node scripts/performance/lighthouse-runner.mjs",

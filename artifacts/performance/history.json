@@ -4030,5 +4030,1304 @@
       "metricStabilityMet": false
     },
     "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:01:24.243Z",
+    "timestamp": "2026-06-08T15:01:24.243Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 1,
+    "findings": [
+      "WARN: JS execution budget exceeded for /recipe/1 @ mobile-375x812 (2799ms > 2372ms)."
+    ],
+    "findingDetails": [
+      {
+        "type": "metric-budget",
+        "message": "WARN: JS execution budget exceeded for /recipe/1 @ mobile-375x812 (2799ms > 2372ms).",
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "metricKey": "jsExecutionMs",
+        "budgetKey": "jsExecutionMs",
+        "value": 2799.383999999919,
+        "limit": 2372
+      }
+    ],
+    "budgetPass": false,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.71,
+        "lcp": 1052.534,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2040.716
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1073.297,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 2053.652
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1073.527,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2042.808
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 1052.085,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1818.864
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.58,
+        "lcp": 1076.888,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 2345.152
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1085.33,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2564.876
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.65,
+        "lcp": 1053.196,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2799.384
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.56,
+        "lcp": 1090.891,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2583.792
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.56,
+        "lcp": 1080.873,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2827.532
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:03:26.574Z",
+    "timestamp": "2026-06-08T15:03:26.574Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 1,
+    "findings": [
+      "WARN: JS execution budget exceeded for /shopping @ mobile-375x812 (2220ms > 2042ms)."
+    ],
+    "findingDetails": [
+      {
+        "type": "metric-budget",
+        "message": "WARN: JS execution budget exceeded for /shopping @ mobile-375x812 (2220ms > 2042ms).",
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "metricKey": "jsExecutionMs",
+        "budgetKey": "jsExecutionMs",
+        "value": 2219.979999999975,
+        "limit": 2042
+      }
+    ],
+    "budgetPass": false,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.68,
+        "lcp": 1053.277,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2087.352
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1079.161,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 2138.412
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1076.861,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2122.236
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.67,
+        "lcp": 1052.353,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2219.98
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.34,
+        "lcp": 24602.594,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 2261.336
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.58,
+        "lcp": 1079.16,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2220.892
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.66,
+        "lcp": 1052.118,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2354.276
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.56,
+        "lcp": 1079.586,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2099.608
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.56,
+        "lcp": 1078.217,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2367.096
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:05:23.517Z",
+    "timestamp": "2026-06-08T15:05:23.517Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 1,
+    "findings": [
+      "WARN: JS execution budget exceeded for /shopping @ mobile-375x812 (2087ms > 2042ms)."
+    ],
+    "findingDetails": [
+      {
+        "type": "metric-budget",
+        "message": "WARN: JS execution budget exceeded for /shopping @ mobile-375x812 (2087ms > 2042ms).",
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "metricKey": "jsExecutionMs",
+        "budgetKey": "jsExecutionMs",
+        "value": 2087.4679999999717,
+        "limit": 2042
+      }
+    ],
+    "budgetPass": false,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.67,
+        "lcp": 1053.78,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2133.02
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1079.86,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 2169.656
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1075.683,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2074.16
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.73,
+        "lcp": 1052.292,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2087.468
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.58,
+        "lcp": 1081.805,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1997.748
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1073.972,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1976.904
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.67,
+        "lcp": 1051.884,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2048.992
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1079.034,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2254.332
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1072.744,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2121.876
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:07:17.742Z",
+    "timestamp": "2026-06-08T15:07:17.742Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1053.06,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1949.784
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1077.969,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1992.552
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1076.799,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1873.316
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1052.523,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1896.348
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1074.297,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 2042.464
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1079.346,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1928.076
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.66,
+        "lcp": 1051.62,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2189.156
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1075.096,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2075.704
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1076.686,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2169.3
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:09:11.841Z",
+    "timestamp": "2026-06-08T15:09:11.841Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.68,
+        "lcp": 1053.377,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2002.212
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1077.731,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1942.5
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1071.924,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1903.068
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.7,
+        "lcp": 1051.926,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1854.744
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.58,
+        "lcp": 1075.741,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1953.72
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1074.85,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1931.948
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.67,
+        "lcp": 1051.844,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2008.376
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1077.782,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2113.016
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1078.594,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2074.724
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:11:06.330Z",
+    "timestamp": "2026-06-08T15:11:06.330Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.68,
+        "lcp": 1053.287,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1982.436
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1079.133,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 2080.68
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1075.949,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2025.536
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.68,
+        "lcp": 1052.141,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2016.304
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.58,
+        "lcp": 1076.822,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1930.876
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.56,
+        "lcp": 1089.716,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2234.24
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.67,
+        "lcp": 1051.836,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2134.412
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.56,
+        "lcp": 1076.656,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2262.956
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1074.678,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2139.196
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:13:00.634Z",
+    "timestamp": "2026-06-08T15:13:00.634Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.72,
+        "lcp": 1052.466,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1911.844
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1076.979,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1909.224
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1077.954,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2302.184
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.73,
+        "lcp": 1051.967,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1962.296
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1079.187,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1893.764
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1080.224,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2058.132
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.67,
+        "lcp": 1051.694,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2014.536
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1080.645,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2201.648
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1074.496,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2108.98
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:14:55.047Z",
+    "timestamp": "2026-06-08T15:14:55.047Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1053.236,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1905.132
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1080.961,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1902.228
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1075.824,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1974.512
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1052.217,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1967.324
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1070.854,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1966.812
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.58,
+        "lcp": 1081.123,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2009.576
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.67,
+        "lcp": 1051.667,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2016.464
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.56,
+        "lcp": 1081.709,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2360.376
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1079.612,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2150.444
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:16:48.928Z",
+    "timestamp": "2026-06-08T15:16:48.928Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1052.151,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1942.096
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1082.998,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1926.012
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1075.661,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1961.484
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1052.349,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1865.748
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1075.113,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1864.972
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.58,
+        "lcp": 1074.241,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1923.636
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.66,
+        "lcp": 1051.964,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2162.956
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1077.789,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2194.26
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1079.974,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2054.288
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": true,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": true
+    },
+    "validateExitCode": 0
+  },
+  {
+    "runId": "2026-06-08T15:18:43.005Z",
+    "timestamp": "2026-06-08T15:18:43.005Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "warn",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.71,
+        "lcp": 1053.763,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1949.572
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1076.499,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1900.608
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1077.973,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2069.884
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1052.062,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1920.688
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1081.107,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1977.592
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1076.594,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1816.58
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.68,
+        "lcp": 1051.692,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2034.888
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1080.781,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2150.044
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1080.02,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2182.14
+      }
+    ],
+    "classification": "warn_only",
+    "observationBlocked": false,
+    "readinessReady": true,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": true
+    },
+    "validateExitCode": 0
   }
 ]

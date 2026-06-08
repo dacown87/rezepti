@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-12T08:31:51.559Z",
+  "generatedAt": "2026-06-08T15:18:43.217Z",
   "config": {
     "runs": 10,
     "method": "simulate",
@@ -80,8 +80,8 @@
         "perf:bundle"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:11:32.695Z",
-      "finishedAt": "2026-05-12T08:11:32.958Z",
+      "startedAt": "2026-06-08T14:57:14.745Z",
+      "finishedAt": "2026-06-08T14:57:15.058Z",
       "exitCode": 0
     },
     {
@@ -93,8 +93,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:11:32.958Z",
-      "finishedAt": "2026-05-12T08:13:23.455Z",
+      "startedAt": "2026-06-08T14:57:15.058Z",
+      "finishedAt": "2026-06-08T14:59:14.016Z",
       "exitCode": 0
     },
     {
@@ -106,8 +106,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:13:23.455Z",
-      "finishedAt": "2026-05-12T08:15:13.431Z",
+      "startedAt": "2026-06-08T14:59:14.017Z",
+      "finishedAt": "2026-06-08T15:01:24.255Z",
       "exitCode": 0
     },
     {
@@ -119,8 +119,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:15:13.431Z",
-      "finishedAt": "2026-05-12T08:15:13.614Z",
+      "startedAt": "2026-06-08T15:01:24.255Z",
+      "finishedAt": "2026-06-08T15:01:24.460Z",
       "exitCode": 0
     },
     {
@@ -132,8 +132,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:15:13.614Z",
-      "finishedAt": "2026-05-12T08:17:03.657Z",
+      "startedAt": "2026-06-08T15:01:24.460Z",
+      "finishedAt": "2026-06-08T15:03:26.586Z",
       "exitCode": 0
     },
     {
@@ -145,8 +145,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:17:03.657Z",
-      "finishedAt": "2026-05-12T08:17:03.859Z",
+      "startedAt": "2026-06-08T15:03:26.586Z",
+      "finishedAt": "2026-06-08T15:03:26.810Z",
       "exitCode": 0
     },
     {
@@ -158,8 +158,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:17:03.859Z",
-      "finishedAt": "2026-05-12T08:18:54.322Z",
+      "startedAt": "2026-06-08T15:03:26.810Z",
+      "finishedAt": "2026-06-08T15:05:23.537Z",
       "exitCode": 0
     },
     {
@@ -171,8 +171,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:18:54.322Z",
-      "finishedAt": "2026-05-12T08:18:54.507Z",
+      "startedAt": "2026-06-08T15:05:23.538Z",
+      "finishedAt": "2026-06-08T15:05:23.778Z",
       "exitCode": 0
     },
     {
@@ -184,8 +184,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:18:54.507Z",
-      "finishedAt": "2026-05-12T08:20:46.752Z",
+      "startedAt": "2026-06-08T15:05:23.779Z",
+      "finishedAt": "2026-06-08T15:07:17.755Z",
       "exitCode": 0
     },
     {
@@ -197,8 +197,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:20:46.752Z",
-      "finishedAt": "2026-05-12T08:20:46.944Z",
+      "startedAt": "2026-06-08T15:07:17.755Z",
+      "finishedAt": "2026-06-08T15:07:17.948Z",
       "exitCode": 0
     },
     {
@@ -210,8 +210,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:20:46.945Z",
-      "finishedAt": "2026-05-12T08:22:37.702Z",
+      "startedAt": "2026-06-08T15:07:17.948Z",
+      "finishedAt": "2026-06-08T15:09:11.854Z",
       "exitCode": 0
     },
     {
@@ -223,8 +223,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:22:37.702Z",
-      "finishedAt": "2026-05-12T08:22:37.890Z",
+      "startedAt": "2026-06-08T15:09:11.854Z",
+      "finishedAt": "2026-06-08T15:09:12.060Z",
       "exitCode": 0
     },
     {
@@ -236,8 +236,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:22:37.890Z",
-      "finishedAt": "2026-05-12T08:24:28.775Z",
+      "startedAt": "2026-06-08T15:09:12.060Z",
+      "finishedAt": "2026-06-08T15:11:06.343Z",
       "exitCode": 0
     },
     {
@@ -249,8 +249,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:24:28.775Z",
-      "finishedAt": "2026-05-12T08:24:28.967Z",
+      "startedAt": "2026-06-08T15:11:06.343Z",
+      "finishedAt": "2026-06-08T15:11:06.529Z",
       "exitCode": 0
     },
     {
@@ -262,8 +262,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:24:28.967Z",
-      "finishedAt": "2026-05-12T08:26:19.762Z",
+      "startedAt": "2026-06-08T15:11:06.529Z",
+      "finishedAt": "2026-06-08T15:13:00.646Z",
       "exitCode": 0
     },
     {
@@ -275,8 +275,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:26:19.762Z",
-      "finishedAt": "2026-05-12T08:26:19.942Z",
+      "startedAt": "2026-06-08T15:13:00.646Z",
+      "finishedAt": "2026-06-08T15:13:00.840Z",
       "exitCode": 0
     },
     {
@@ -288,8 +288,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:26:19.942Z",
-      "finishedAt": "2026-05-12T08:28:10.499Z",
+      "startedAt": "2026-06-08T15:13:00.840Z",
+      "finishedAt": "2026-06-08T15:14:55.063Z",
       "exitCode": 0
     },
     {
@@ -301,8 +301,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:28:10.499Z",
-      "finishedAt": "2026-05-12T08:28:10.687Z",
+      "startedAt": "2026-06-08T15:14:55.063Z",
+      "finishedAt": "2026-06-08T15:14:55.256Z",
       "exitCode": 0
     },
     {
@@ -314,8 +314,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:28:10.687Z",
-      "finishedAt": "2026-05-12T08:30:01.187Z",
+      "startedAt": "2026-06-08T15:14:55.256Z",
+      "finishedAt": "2026-06-08T15:16:48.940Z",
       "exitCode": 0
     },
     {
@@ -327,8 +327,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:30:01.187Z",
-      "finishedAt": "2026-05-12T08:30:01.368Z",
+      "startedAt": "2026-06-08T15:16:48.940Z",
+      "finishedAt": "2026-06-08T15:16:49.129Z",
       "exitCode": 0
     },
     {
@@ -340,8 +340,8 @@
         "perf:lighthouse"
       ],
       "writesHistory": false,
-      "startedAt": "2026-05-12T08:30:01.368Z",
-      "finishedAt": "2026-05-12T08:31:51.380Z",
+      "startedAt": "2026-06-08T15:16:49.129Z",
+      "finishedAt": "2026-06-08T15:18:43.018Z",
       "exitCode": 0
     },
     {
@@ -353,8 +353,8 @@
         "perf:validate"
       ],
       "writesHistory": true,
-      "startedAt": "2026-05-12T08:31:51.380Z",
-      "finishedAt": "2026-05-12T08:31:51.559Z",
+      "startedAt": "2026-06-08T15:18:43.018Z",
+      "finishedAt": "2026-06-08T15:18:43.217Z",
       "exitCode": 0
     }
   ]
