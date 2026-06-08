@@ -8,6 +8,7 @@ Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und No
 
 - Der akute CI-Blocker im `mobile-release-gate` ist lokal behoben.
 - Die Expo-SDK-56-Patch-Drift im Mobile-Projekt wurde auf die von `expo-doctor` erwarteten Versionen angehoben.
+- Ein separater safe Dependency-Patch-Slice fuer Root und Mobile ist lokal nachgezogen.
 - Der Mobile-Coverage-Upload ist nach aktuellem Repo-Stand kein eigener Defekt, sondern nur ein Folgefehler des fruehen Abbruchs vor `Run mobile coverage`.
 - Supabase Staging ist weiter gruen; Northflank bleibt funktional gruen.
 - Der fruehere GitHub-Actions-Warnfall rund um `northflank/deploy-to-northflank@v1` wurde am 2026-06-08 durch einen direkten API-Deploy in `.github/workflows/docker-publish.yml` entfernt.
@@ -46,22 +47,49 @@ In [mobile/package.json](/home/patrick/Projekte/rezepti/mobile/package.json) und
 
 ### Verifikation nach Fix
 
-Folgende lokale Verifikation lief am 2026-06-06 erfolgreich durch:
+Folgende lokale Verifikation lief am 2026-06-08 erfolgreich durch:
 
 - `npm --prefix mobile ci`
+- `cd mobile && npx expo install --check`
 - `cd mobile && CI=1 npx expo-doctor`
 - `npm run test:mobile:rntl-guard`
 - `npm --prefix mobile run typecheck`
 - `npm --prefix mobile run build:web`
 - `npm --prefix mobile run test:coverage`
+- `npm run mobile:release-gate`
 
 Ergebnis:
 
 - `expo-doctor`: gruen, `21/21 checks passed`
+- `expo install --check`: `Dependencies are up to date`
 - Mobile-Typecheck: gruen
 - Mobile-Web-Export: gruen
-- Mobile-Coverage: gruen, `92/92` Tests bestanden
+- Mobile-Coverage: gruen, `102/102` Tests bestanden
+- Lokales `mobile-release-gate`: gruen
 - `artifacts/coverage/mobile/**` wurde lokal erzeugt
+
+### Separater Dependency-Patch-Slice (2026-06-08)
+
+Safe Patch-Upgrades, bewusst ohne neue Expo-/SDK-Linie:
+
+- Root: `@supabase/supabase-js` `2.108.0`, `@vitest/coverage-v8` `4.1.8`, `@vitest/ui` `4.1.8`, `concurrently` `10.0.3`, `happy-dom` `20.10.2`, `hono` `4.12.24`, `openai` `6.42.0`, `supabase` `2.105.0`, `vite` `8.0.16`, `vitest` `4.1.8`
+- Mobile: `@supabase/supabase-js` `2.108.0`, `@tanstack/query-async-storage-persister` `5.101.0`, `@tanstack/react-query` `5.101.0`, `@tanstack/react-query-persist-client` `5.101.0`, `@vitest/coverage-v8` `4.1.8`, `vitest` `4.1.8`
+
+Nicht gezogen:
+
+- Expo-/SDK-gebundene Latest-Linien
+- `react` / `react-dom` / `react-test-renderer` `19.2.7`
+- `@react-native-async-storage/async-storage` `3.1.1`
+- `tailwindcss` `4.x`
+- `nativewind` Patch bleibt separater Styling-Track
+
+Lokale Verifikation fuer diesen Slice:
+
+- `npx tsc --noEmit`
+- `npm run test:auth`
+- `cd mobile && npx expo install --check`
+- `cd mobile && CI=1 npx expo-doctor`
+- `npm run mobile:release-gate`
 
 ### Sekundaere Hinweise
 
