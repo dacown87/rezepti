@@ -1,6 +1,6 @@
 # Multi-User Auth Runbook & Route Privacy Matrix
 
-Stand: 2026-06-07. Der erste Multi-User-Slice ist gelandet; der Auth-Onboarding-Slice mit Signup, Login, Passwort-Reset, Confirmation-Resend, Account-&-Workspace-Screen und serverseitigem Bootstrap ist mit PR #5 auf `main` gelandet. Lokaler Supabase-RLS-Smoke und gegateter Staging-RLS-Smoke gegen `rezepti-staging` sind gruen.
+Stand: 2026-06-08. Der erste Multi-User-Slice ist gelandet; der Auth-Onboarding-Slice mit Signup, Login, Passwort-Reset, Confirmation-Resend, Account-&-Workspace-Screen und serverseitigem Bootstrap ist mit PR #5 auf `main` gelandet. Lokaler Supabase-RLS-Smoke und gegateter Staging-RLS-Smoke gegen `rezepti-staging` sind gruen. Der CI-Gate prefetcht die benoetigten Supabase-Container inzwischen aus `public.ecr.aws`-Mirrors und startet den lokalen Stack reduziert ohne Studio/Imgproxy/Edge-Runtime/Vector/Supavisor.
 
 ## Ziel fuer Slice 1
 
@@ -45,6 +45,12 @@ SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
 ```
 
 Der Script-Pfad liest `.env`, benoetigt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KEY` und `STAGING_SUPABASE_SECRET_KEY`. Legacy-Fallbacks sind `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Ohne `SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging` bricht das Script ab. URLs, die nach Production aussehen, werden ebenfalls abgelehnt.
+
+CI-/Infra-Note fuer denselben Gate:
+
+- `.github/workflows/ci.yml` prefetcht die benoetigten Supabase-Images aus `public.ecr.aws`-Mirrors.
+- Der CI-Job startet `npx supabase start -x studio -x imgproxy -x edge-runtime -x vector -x supavisor`, weil diese Dienste fuer den RLS-Vertrag nicht noetig sind.
+- Wenn der Gate rot wird, zuerst Mirror-/Container-Verfuegbarkeit und den reduzierten Service-Satz pruefen, bevor Policies oder Tests als Ursache angenommen werden.
 
 Der manuelle Pfad bleibt als Fallback verbindlich, falls Staging-Keys nicht lokal verfuegbar sind:
 

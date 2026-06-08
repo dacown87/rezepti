@@ -204,6 +204,16 @@ yt-dlp PyInstaller static binary from GitHub Releases fails with exit 127 in `no
 `artifacts/performance/readiness.json metricStabilityMet` prueft NUR den Spread zwischen Runs (`max-min/median <= 10%`), nicht ob die Werte unter den `baseline.json` LCP/CLS-Budgets liegen. Eine konstant schlechte LCP (z.B. 25s mit Spread 0.3%) erfuellt `metricStabilityMet=true` und kippt `ready=true`. Das Gate sagt "genug stabile Daten zum Enforcen", nicht "Werte sind gut". Budget-Verletzungen werden separat in `validate-status.mjs` als WARN getrackt aber tauchen nicht im `warningRate` von `readiness.json` auf — die Metrik zaehlt nur Lighthouse-Run-Failures.
 *Files:* `scripts/performance/validate-status.mjs`, `scripts/performance/baseline.json`
 
+#### strict-budget-clean-can-still-be-observation-blocked (10/10, 2026-06-08)
+
+Ein `perf:validate:strict` ohne Budget-Findings ist nicht automatisch `ready=true`. Sobald ein frischer Run in ein historisches 10er-Fenster gemischt wird, kann `metricStabilityMet` kippen, obwohl LCP/JS-Budgets eingehalten werden. Am 2026-06-08 war der Juni-Run fuer `/` und `/shopping` schnell genug, aber das Fenster bestand aus 9 Mai-Runs plus 1 Juni-Run; dadurch stieg der LCP-Spread ueber 10 % und der Validator endete als `classification=observation_blocked`. Bedeutung: Budgetgrenzen und Observation-/Readiness-Gate getrennt lesen.
+*Files:* `artifacts/performance/readiness.json`, `scripts/performance/validate-status.mjs`, `scripts/performance/baseline.json`
+
+#### expo-auth-side-effects-inflate-web-entry (9/10, 2026-06-08)
+
+Wenn Auth-Observer oder Auth-Cache-Watcher statisch im mobilen Root-Layout importiert werden, landet der komplette `@supabase/supabase-js`-Stack im initialen Expo-Web-Entry, auch wenn der eigentliche Account-Flow spaeter kommt. In diesem Repo war der pragmatische Fix, Observer und Cache-Watch lazy nach dem Mount zu laden. Das reduziert zwar nicht automatisch jedes rohe JS-Byte-Budget dramatisch, zieht aber den Auth-/Workspace-Slice aus dem ersten Startpfad und verhindert, dass Performance-Regressionsanalyse an einem vermeidbaren statischen Import haengen bleibt.
+*Files:* `mobile/app/_layout.tsx`, `mobile/utils/query-client.ts`
+
 ### Build & Public/
 
 #### expo-build-deletes-public-files (10/10, 2026-04-16)
@@ -226,6 +236,11 @@ Obsidian vault is at `/home/patrick/Vault/` — can write markdown files directl
 #### supabase-pooler-url-location (10/10, 2026-04-16)
 
 Pooler URL is NOT in the main Database > Connection String view. Navigate to Settings > Database > Connection pooling section (scroll down). Region format: `aws-0-[region].pooler.supabase.com`. Username format: `postgres.[ref]` (not just `postgres`).
+
+#### supabase-ci-prefetch-mirrors (9/10, 2026-06-07)
+
+Der lokale/CI-RLS-Smoke braucht nicht den kompletten Supabase-Stack. Wenn `npx supabase start` in GitHub Actions von Docker-Hub-Verfuegbarkeit oder unnoetigen Diensten abhaengt, wird der Gate fragil. Stabilerer Pfad hier: benoetigte Images vorab aus `public.ecr.aws`-Mirrors ziehen/taggen und `supabase start` mit `-x studio -x imgproxy -x edge-runtime -x vector -x supavisor` verschlanken.
+*Files:* `.github/workflows/ci.yml`
 
 ### Web Scraping Heuristik
 

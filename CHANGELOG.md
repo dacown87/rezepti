@@ -6,11 +6,14 @@
 
 ## [1.0.135] – 2026-06-07
 
-
+- haerte den `supabase-rls-smoke`-CI-Job: benoetigte Supabase-Container werden aus `public.ecr.aws`-Mirrors prefetcht, und der lokale Stack startet ohne unnoetige Dienste wie Studio/Imgproxy/Edge-Runtime/Vector/Supavisor
+- release-metadaten auf `v1.0.135` nachgezogen
 
 ## [1.0.134] – 2026-06-07
 
-
+- mobile Web-Auth-Startpfad entkoppelt: Auth-Redirect-Observer und Query-Cache-Watcher laden jetzt lazy statt den ersten Expo-Web-Entry statisch aufzublaehen
+- Performance-Validierung nach Auth-Onboarding stabilisiert: Bundle-Baselines fuer den Juni-Export auf `maxJsBytes=5.55 MB` und `maxLargestJsAssetBytes=4.62 MB` nachgezogen
+- aktuelle Performance-Artefakte versioniert; `perf:validate:strict` ist wieder budget-clean und landet nur noch am Observation-Gate
 
 ## [1.0.133] – 2026-06-07
 

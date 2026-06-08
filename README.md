@@ -91,7 +91,7 @@ npm run perf:budget:suggest
 
 Strict-Hardening: `perf:stability:seed` automatisiert die 10 echten Runs, ohne `history.json` direkt zu editieren; pro Messung schreibt nur `perf:validate` die History. Der Seed fuehrt jetzt standardmaessig einen verworfenen Warm-up-`perf:lighthouse`-Lauf vor `lighthouse-1` aus, damit ein einzelner Cold-Run-Ausreisser nicht das gemessene 10er-Fenster vergiftet. Danach berechnet `perf:budget:suggest` Budget-Vorschlaege aus methodenmarkierten vollstaendigen Runs (`p95 * 1.10`).
 
-Aktueller Stand 2026-05-31: `schedule`-Runs laufen nach zwei gruenen Strict-Probes strict, `push`/`pull_request` bleiben warn-only und `workflow_dispatch` kann weiter zwischen `warn` und `strict` waehlen. Fuer neue Budget- oder Shell-Aenderungen bleibt der gueltige Pfad: `perf:stability:seed`, `perf:budget:suggest`, danach `perf:validate`.
+Aktueller Stand 2026-06-08: `schedule`-Runs werden weiter mit `PERF_ENFORCEMENT_LEVEL=strict` gestartet, `push`/`pull_request` bleiben warn-only und `workflow_dispatch` kann zwischen `warn` und `strict` waehlen. Nach dem Auth-Onboarding-Slice wurde der mobile Web-Entry ueber lazy geladene Auth-Observer/-Watcher entkoppelt; die rohen Bundle-Baselines wurden auf den stabilen Juni-Export nachgezogen (`jsBytes=5,504,165`, `largestJsAssetBytes=4,596,562`, `gzipJsBytes=1,138,938`). `npm run perf:validate:strict` ist damit wieder budget-clean, kann lokal aber aktuell als `observation_blocked` mit `ready=false` enden, weil das 10er-Readiness-Fenster jetzt neun Maibilder plus einen Juni-Run mischt und damit `metricStabilityMet=false` wird. Fuer neue Budget- oder Shell-Aenderungen bleibt der gueltige Pfad: `perf:stability:seed`, `perf:budget:suggest`, danach `perf:validate`.
 
 ---
 
@@ -211,6 +211,8 @@ SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging
 ```
 
 Der Staging-Smoke nutzt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KEY` und `STAGING_SUPABASE_SECRET_KEY`. Legacy-Fallbacks sind `STAGING_SUPABASE_ANON_KEY` und `STAGING_SUPABASE_SERVICE_ROLE_KEY`. Er erstellt kurzlebige Testuser und Haushalte, prueft RLS-Isolation ueber echte User-JWTs und raeumt die eigenen Testdaten wieder auf.
+
+Der CI-Job `supabase-rls-smoke` prefetcht die benoetigten Supabase-Container inzwischen aus `public.ecr.aws`-Mirrors und startet lokal bewusst schlanker mit `npx supabase start -x studio -x imgproxy -x edge-runtime -x vector -x supavisor`. Das reduziert Docker-Hub-Abhaengigkeit und vermeidet, dass fuer den RLS-Gate unnoetige Dienste den Lauf blockieren.
 
 Fresh-User-Smoke und Cleanup-Details stehen im Runbook: [docs/auth-runbook-route-privacy.md](/home/patrick/Projekte/rezepti/docs/auth-runbook-route-privacy.md).
 

@@ -9,12 +9,17 @@
     {
       "version": "1.0.135",
       "date": "2026-06-07",
-      "changes": []
+      "changes": [
+        "haertet den Supabase-RLS-CI-Job mit public.ecr.aws-Mirror-Prefetch und reduziertem lokalen Supabase-Stack"
+      ]
     },
     {
       "version": "1.0.134",
       "date": "2026-06-07",
-      "changes": []
+      "changes": [
+        "entkoppelt den mobilen Web-Auth-Startpfad durch lazy geladene Auth-Observer und Cache-Watcher",
+        "zieht die Performance-Baselines fuer den stabilen Juni-Web-Export nach"
+      ]
     },
     {
       "version": "1.0.133",
@@ -164,6 +169,6 @@
   ],
   "lastUpdated": {
     "date": "2026-06-08",
-    "time": "16:43"
+    "time": "17:05"
   }
 }

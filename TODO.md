@@ -1,14 +1,14 @@
 # TODO
 
-Stand: 2026-06-07
+Stand: 2026-06-08
 
 Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigte Details stehen in [docs/todo-history.md](/home/patrick/Projekte/rezepti/docs/todo-history.md). Der aktuelle Betriebscheck fuer GitHub CI, Supabase und Northflank steht in [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
 ## Aktueller Stand
 
-Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. Der neue Betriebscheck vom 2026-06-06 zeigt aber wieder roten Push-CI im `mobile-release-gate` durch Expo-SDK-Patch-Drift; Supabase-Staging und Northflank sind dabei live gruen. Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
+Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. Seit dem letzten Betriebscheck wurden ausserdem der mobile Performance-Regression-Fix fuer den Auth-/Workspace-Web-Entry dokumentiert und die rohen Bundle-Baselines fuer den stabilen Juni-Export nachgezogen; `perf:validate:strict` ist damit wieder budget-clean, kann lokal aber noch am Observation-Gate (`observation_blocked`) enden. Der `supabase-rls-smoke`-CI-Job ist jetzt gegen Docker-Hub-/Service-Overhead gehaertet (Mirror-Prefetch + reduzierter Supabase-Stack). Der offene Betriebsblocker aus dem Check vom 2026-06-06 bleibt der rote Push-CI im `mobile-release-gate` durch Expo-SDK-Patch-Drift. Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Complete auth onboarding slice` sind auf `origin/main` gelandet. `phase/6-multi-user` ist stale und keine aktive Basis. Recipes-Ownership und Auth-Onboarding sind damit auf `main`; offen sind jetzt vor allem PWA, der Expo-Drift-Fix und die bewusst getrennten Follow-up-Slices.
+Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Complete auth onboarding slice` sind auf `origin/main` gelandet. `phase/6-multi-user` ist stale und keine aktive Basis. Recipes-Ownership, Auth-Onboarding, der RLS-CI-Hardening-Slice und der Performance-Validation-Fix sind damit auf `main`; offen sind jetzt vor allem PWA, der Expo-Drift-Fix, ein frisches Performance-Readiness-Fenster und die bewusst getrennten Follow-up-Slices.
 
 ## Naechste Reihenfolge
 
@@ -26,11 +26,15 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
    - Aktueller Blocker: `mobile-release-gate` failt in GitHub CI wegen Expo-Patch-Drift.
    - Arbeitsnotiz und Plan: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-4. **Mobile-Persistenz manuell abnehmen**
+4. **Performance-Readiness-Fenster neu seeden**
+   - Nach dem Juni-Export ist `perf:validate:strict` budget-clean, aber das aktuelle 10er-Window mischt historische Mai-Runs mit einem frischen Juni-Run und kippt deshalb auf `observation_blocked`.
+   - Naechster sauberer Schritt: `npm run perf:stability:seed`, danach `npm run perf:budget:suggest` und `npm run perf:validate`.
+
+5. **Mobile-Persistenz manuell abnehmen**
    - Settings/Theme/PDF nach App-Neustart pruefen.
    - Technische Tests sind gruen; diese manuelle Abnahme fehlt noch.
 
-5. **Spaeter oder trigger-basiert**
+6. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
    - `unused_index` erst nach Nutzungsperiode plus Staging-Plananalyse anfassen.
    - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen oder Upstream-Abkuendigung neu bewerten.
@@ -52,6 +56,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [ ] **Progressive Web App (PWA)** — Installierbare Web-App mit Manifest, Service Worker, Offline-Grundlage und Homescreen-Installationspfad fuer iOS/Android einbauen.
 - [ ] **Dependency-Patch-Drift** — siehe Reihenfolge Punkt 4; kein Blocker fuer Multi-User Phase 0/1.
 - [ ] **CI / Supabase / Northflank Track** — aktueller Betriebsstand, Findings und Vorgehen: [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
+- [ ] **Performance-Readiness neu aufbauen** — frisches 10er-Window fuer den Juni-Web-Export seeden, damit `perf:validate:strict` nicht nur budget-clean, sondern wieder `ready=true` werden kann.
 - [ ] **Mobile-Persistenz Neustart-Pruefung** — Settings/Theme/PDF nach App-Neustart.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
 - [x] **Recipes-Ownership-Slice umsetzen** — Server-API fuer `recipes` auf explizites Owner-Modell umbauen: private User-Rezepte, Haushaltsrezepte, keine globalen Templates, keine Null-Owner-Kompatibilitaet. Plan: [Recipes Ownership Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-05-recipes-ownership-slice-plan.md).
@@ -65,17 +70,18 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 ### Supabase / Security
 
-- RLS ist auf den relevanten Public-Tabellen aktiviert; `npm run test:auth` deckt den schnellen Auth-/Route-Vertrag ab. Lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert, lokal gruen und als eigener CI-Job vorbereitet. Der gegatete Staging-Smoke lief am 2026-06-04 gegen `rezepti-staging` gruen.
+- RLS ist auf den relevanten Public-Tabellen aktiviert; `npm run test:auth` deckt den schnellen Auth-/Route-Vertrag ab. Lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert, lokal gruen und als eigener CI-Job vorbereitet. Der gegatete Staging-Smoke lief am 2026-06-04 gegen `rezepti-staging` gruen; der CI-Job prefetcht benoetigte Supabase-Images inzwischen aus `public.ecr.aws`-Mirrors und startet den Stack reduziert.
 - Data-API-RLS-/Grant-Matrix fuer Multi-User ist fuer Slice 1 umgesetzt: Shopping/Planner sind household-scoped, `recipes` ist fuer `anon`/`authenticated` ueber die Data API geschlossen. Das explizite Recipe-Owner-Modell ist serverseitig gelandet; Data-API-Oeffnung fuer `recipes` bleibt ein spaeterer Folge-Slice.
 - `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
 - `rezepti-staging` wurde als RLS-Smoke-Ziel bestaetigt und migriert.
 
 ### Tests / CI
 
-- Zuletzt dokumentiert: Root Unit Tests `448 passed`, `13 skipped`; Mobile Unit Tests `87 passed` (2026-06-01).
+- Zuletzt dokumentiert: Root-/Auth-Gates und der mobile Auth-Cache-Watch-Regressionstest sind gruen; Details und historische Zaehler stehen in [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md).
 - Mobile RNTL Guard ist gruen; direkte `react-test-renderer`-Imports in Mobile-Testdateien bleiben blockiert.
 - Scheduled CI am 2026-06-02 (`26802547508`), 2026-06-03 (`26868293611`) und 2026-06-04 (`26934892387`) war gruen.
 - Aktueller Push-CI auf `main` vom 2026-06-06 ist rot: Run `27069886762` failt im `mobile-release-gate` wegen Expo-SDK-Patch-Drift. Live-Betriebscheck und Plan: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
+- `perf:validate:strict` ist lokal seit 2026-06-08 wieder ohne Budget-Findings gruen, endet derzeit aber als `observation_blocked`, bis ein frisches Readiness-Fenster fuer den Juni-Export aufgebaut ist.
 - Push-CI fuer `7523b72` (`26939939417`) war gruen: `test`, `mobile-release-gate`, `e2e`, `performance-audit`; `e2e-legacy-soak` war beim Push erwartbar skipped.
 - Docker Build/Push und Northflank Deploy waren fuer `7523b72` (`26939939394`) und den nachgelagerten Version-Commit `8ed8801` (`26939952178`) gruen.
 - Fuer den aktuellen Multi-User-Branch wurden lokale Supabase-Migration, lokaler RLS-Smoke, Staging-RLS-Smoke, Root/Mobile-Tests, Typechecks, Secret-Scan und `git diff --check` dokumentiert; nach dem RLS-Smoke-Nachzug liefen `npm run supabase:rls-smoke`, `npm run supabase:rls-smoke:staging`, Root-Unit-Auswahl und `npx tsc --noEmit` gruen.

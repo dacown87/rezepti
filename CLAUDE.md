@@ -167,7 +167,8 @@ Host github.com
 - **After frontend changes:** Bei Bedarf zuerst `npm --prefix mobile ci`, dann `npm run build:mobile` zum Aktualisieren von `public/`. Der Expo-Export kann nach erfolgreichem `Exported: ../public` lokal haengen; nicht mehrfach parallel starten.
 - **After mobile test changes:** `npm run test:mobile:rntl-guard` ausfuehren. Neue Mobile-Tests duerfen `react-test-renderer` nicht direkt importieren; `renderAsync` ist in Testdateien abgebaut. Verbleibende `UNSAFE_queryAllByType`-Altfaelle sind in `docs/testing/rntl-migration-phase-0-inventory.md` dokumentiert.
 - **After performance-sensitive mobile changes:** `npm run perf:bundle`, bei LCP-/Shell-/Routing-Aenderungen zusaetzlich `npm run perf:lighthouse:compare` und `npm run perf:validate`. Phase 4c ist abgeschlossen: `mobile/app/+html.tsx` liefert eine route-aware statische App-Shell, damit `/shopping` und `/recipe/*` vor Expo-Web-Hydration einen stabilen LCP-Kandidaten haben.
-- **Strict performance hardening:** Fuer die 10er-Messreihe `npm run perf:stability:seed` verwenden. Das Script editiert `history.json` nicht selbst; nur `perf:validate` schreibt echte Run-Eintraege. Danach `npm run perf:budget:suggest` ausfuehren und Vorschlaege pruefen. Aktuelle CI-Policy (seit 2026-05-13, nach 2 gruenen Strict-Probes): `schedule` (nightly cron 02:00 UTC) laeuft `strict`, `push`/`pull_request` bleiben `warn`. `workflow_dispatch` weiter wahlweise `warn` oder `strict`. Erste Eskalation auf `pull_request` strict bleibt offen.
+- **Strict performance hardening:** Fuer die 10er-Messreihe `npm run perf:stability:seed` verwenden. Das Script editiert `history.json` nicht selbst; nur `perf:validate` schreibt echte Run-Eintraege. Danach `npm run perf:budget:suggest` ausfuehren und Vorschlaege pruefen. Stand 2026-06-08: `schedule` (nightly cron 02:00 UTC) startet weiter `strict`, `push`/`pull_request` bleiben `warn`, `workflow_dispatch` weiter wahlweise `warn` oder `strict`. Der Juni-Export nutzt lazy geladene Auth-Observer/-Watcher im mobilen Root-Layout, damit Auth/Workspace-Code nicht mehr als statischer Einstiegspfad am ersten Web-Render haengt. Die Bundle-Baselines wurden dazu auf `maxJsBytes=5,550,000` und `maxLargestJsAssetBytes=4,620,000` nachgezogen. `npm run perf:validate:strict` ist damit wieder budget-clean, kann aber aktuell als `observation_blocked` enden, solange das 10er-Readiness-Fenster historische Mai-Runs mit dem frischen Juni-Run mischt.
+- **Supabase RLS CI gate:** `.github/workflows/ci.yml` prefetcht die benoetigten Supabase-Images aus `public.ecr.aws`-Mirrors und startet `npx supabase start -x studio -x imgproxy -x edge-runtime -x vector -x supavisor`. Wenn der RLS-Gate in CI rot wird, zuerst Mirror-/Container-Verfuegbarkeit und den reduzierten Service-Satz pruefen, bevor an Policies oder Tests gedreht wird.
 - **New web scraper plugin:** The plugin registry (`PLUGINS` array) was removed in the May 2026 cleanup. The `WebScraperPlugin` interface still exists in `src/fetchers/web/base.ts`. To add a new domain-specific scraper, re-add the plugin registry in `web/index.ts` and implement the interface in `src/fetchers/web/[domain].ts`. Chefkoch bleibt dedizierter Fetcher in `pipeline.ts`.
 - **Fetcher code duplication:** Before adding utility functions to a fetcher (extractJsonLdRecipes, resolveSchemaImage, extractImages etc.), check `src/fetchers/web/base.ts` first — these are already exported there.
 
@@ -178,7 +179,7 @@ Host github.com
 - **Autoplan-Review:** `~/.claude/plans/joyful-kindling-anchor.md` — Vollständiger Projektstand-Review (2026-04-09) mit offenen Punkten
 - **Codemaps:** `docs/CODEMAPS/` — Architecture, Backend, Fetchers, Database, Frontend
 - **TODO:** `TODO.md` — Aktuelle Aufgaben und offene Bugs
-- **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions (41 Eintraege, Stand 2026-05-31). Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
+- **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions. Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
 - **RNTL Migration Inventory:** `docs/testing/rntl-migration-phase-0-inventory.md` — aktueller Mobile-Test-Migrationsstand, Real-RNTL-Runtime-Fix, abgebauter `UNSAFE_queryAllByType`-Rest und verbleibende Warnklassen.
 - **RNTL Authoring Checklist:** `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests nach Entfernung des Compat-Layers.
 - **Supabase Advisor Plan:** `docs/SupaBase/supabase-advisor-remediation-plan.md` — reviewed SQL/Ops-Plan fuer `function_search_path_mutable`, FK-Indexes, RLS-ohne-Policy-Klassifizierung und Grants-Audit.
@@ -259,9 +260,9 @@ Planned features and current implementation status (as of March 2026):
 - `npm test -- --run --exclude="test/e2e/**"` — run only unit tests
 - `npm test` — all tests (E2E tests fail if server not running)
 
-**Test Status (2026-05-31):**
-- Root unit tests: zuletzt dokumentiert `448 passed`, `13 skipped`
-- Mobile unit tests: zuletzt dokumentiert `87 passed`
+**Test Status (2026-06-08):**
+- Root/Auth gates: zuletzt dokumentiert `npm run test:auth` gruen fuer den Auth-Onboarding-Slice; Details in `docs/TEST_STATUS.md`
+- Mobile unit tests: der Auth-Cache-Watch-Regressionstest `test/query-client-auth-cache.test.ts` laeuft gruen; Gesamtstand siehe `docs/TEST_STATUS.md`
 - Mobile RNTL guard: `npm run test:mobile:rntl-guard` blockiert neue direkte `react-test-renderer`-Imports
 - E2E contract gate: CI startet echten Server und fuehrt `npm run test:e2e:contract` aus
 
