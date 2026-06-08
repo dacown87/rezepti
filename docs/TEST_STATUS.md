@@ -158,17 +158,17 @@ P2 Legacy-DB-Isolation (verifiziert):
 - `Database Operations` in `test/e2e/react-api.test.ts` laufen mit deterministischen, pro Test isolierten Fixtures und explizitem Cleanup-Lifecycle.
 - Stabilisierungs-Repro bestanden: `test:e2e:legacy:db` lief 10-mal hintereinander lokal gruen.
 
-### Legacy Flake Inventory (Top 5) (Stand: 2026-05-15, nach P1/P2/P3a)
+### Legacy Flake Inventory (Top 5) (Stand: 2026-06-08, nach Doku-Nachzug)
 
 Quelle: [docs/testing/e2e-legacy-flake-inventory.md](/home/patrick/Projekte/rezepti/docs/testing/e2e-legacy-flake-inventory.md)
 
-| Prio | Kandidatengruppe | Klasse | Naechste Aktion | Owner |
+| Prio | Kandidatengruppe | Klasse | Aktueller Stand | Restaktion |
 |---|---|---|---|---|
-| 1 | Legacy-Suite wird bei fehlender Server-Readiness komplett geskippt (`skipIf`) | infra | Skip-Wellen im Nightly als eigenes Triage-Signal erfassen (Server-Log + Health-Wait + Skip-Count) | TBD |
-| 2 | Asynchrones Job-Polling (`pollJobStatus`, Poll/Timeout) | test-flake | Polling-Parameter gruppenweit vereinheitlichen und Finalstatus-Assertions deterministisch halten | TBD |
-| 3 | Harte Performance-Grenzen in Legacy-E2E (`<500ms/<1000ms/<200ms`) | test-flake | Performance-Checks aus Legacy-Soak entkoppeln oder auf robuste Budget-Fenster umstellen | TBD |
-| 4 | DB-Mutationspfade mit shared state (`update/delete` auf erstes Rezept) | produkt-regression | Deterministische Fixture pro Testfall + explizites Cleanup einfuehren | TBD |
-| 5 | Docker-/Umgebungsabhaengige Legacy-Pfade (Container/Ports/Assets) | infra | Diagnostik klar von API-Contract-Pruefungen trennen und bei Rot zuerst Runtime klassifizieren | TBD |
+| 1 | Legacy-Suite wird bei fehlender Server-Readiness komplett geskippt (`skipIf`) | infra | Skip-Wellen sind inzwischen als eigener Betriebsfall dokumentiert: JUnit, Skip-Signal und `rezepti-server.log` werden fuer die Triage herangezogen. | Bei einem roten Nightly nur noch den dokumentierten Ablauf anwenden und Run-ID + Klasse im Thread festhalten. |
+| 2 | Asynchrones Job-Polling (`pollJobStatus`, Poll/Timeout) | test-flake | Weiterhin der relevante verbleibende Legacy-Flake-Kandidat; kein Nachweis fuer eine abgeschlossene Vereinheitlichung in der Suite dokumentiert. | Erst bei neuem roten Legacy-Soak gezielt nachziehen; bis dahin Beobachtungspunkt statt akuter Blocker. |
+| 3 | Harte Performance-Grenzen in Legacy-E2E (`<500ms/<1000ms/<200ms`) | test-flake | Die Trennung `contract` vs `performance-signal` ist dokumentiert; `e2e-legacy-soak` ist bewusst nicht PR-blockierend und dient nur noch als Drift-/Flake-Signal. | Nur bei wiederkehrenden Nightly-Rots Budgets oder Assertions im Legacy-Soak weiter entspannen. |
+| 4 | DB-Mutationspfade mit shared state (`update/delete` auf erstes Rezept) | produkt-regression | Abgeschlossen: deterministische Fixtures pro Testfall plus expliziter Cleanup-Lifecycle sind dokumentiert; `test:e2e:legacy:db` lief 10-mal lokal gruen. | Keine offene Aktion ausser normaler Regressionstriage bei neuen Befunden. |
+| 5 | Docker-/Umgebungsabhaengige Legacy-Pfade (Container/Ports/Assets) | infra | Abgeschlossen auf Doku-/Triage-Ebene: Docker-/Environment-Diagnostik ist explizit von API-Regressionen getrennt und wird initial als `infra` klassifiziert. | Bei roten Laeufen weiter strikt zuerst Runtime/Host pruefen, erst danach Testlogik oder Produktverhalten. |
 
 ---
 

@@ -8,7 +8,7 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. Seit dem letzten Betriebscheck wurden ausserdem der mobile Performance-Regression-Fix fuer den Auth-/Workspace-Web-Entry dokumentiert, die rohen Bundle-Baselines fuer den stabilen Juni-Export nachgezogen, das 10er-Performance-Readiness-Fenster fuer den Juni-Export neu aufgebaut (`ready=true`) und ein separater safe Patch-Maintenance-Slice fuer Root/Mobile nachgezogen. Der `supabase-rls-smoke`-CI-Job ist jetzt gegen Docker-Hub-/Service-Overhead gehaertet (Mirror-Prefetch + reduzierter Supabase-Stack), die GitHub-Actions-Node-20-Deprecation-Warnings sind ueber Action-Upgrades auf Node-24-kompatible Majors nachgezogen, und der Northflank-Deploy laeuft seit 2026-06-08 ohne das veraltete `northflank/deploy-to-northflank@v1`-Action-Wrapper direkt ueber den Northflank-API-Call im Workflow. Der historische Push-CI-Blocker vom 2026-06-06 (`mobile-release-gate` wegen Expo-SDK-Patch-Drift) ist lokal behoben; der naechste Push-/PR-Lauf ist der relevante Remote-Beweis. Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Complete auth onboarding slice` sind auf `origin/main` gelandet. `phase/6-multi-user` ist stale und keine aktive Basis. Recipes-Ownership, Auth-Onboarding, der RLS-CI-Hardening-Slice, der Performance-Validation-Fix, das frische Juni-Readiness-Fenster und der safe Dependency-Patch-Slice sind damit lokal nachgezogen; offen sind jetzt vor allem PWA, die manuelle Mobile-Persistenz-Abnahme und die bewusst getrennten Follow-up-Slices.
+Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Complete auth onboarding slice` sind auf `origin/main` gelandet. `phase/6-multi-user` ist stale und keine aktive Basis. Recipes-Ownership, Auth-Onboarding, der RLS-CI-Hardening-Slice, der Performance-Validation-Fix, das frische Juni-Readiness-Fenster und der safe Dependency-Patch-Slice sind damit lokal nachgezogen; offen sind jetzt vor allem PWA, die manuelle Web-Persistenz-Abnahme hinter einer belastbar nutzbaren Multi-Auth und die bewusst getrennten Follow-up-Slices.
 
 ## Naechste Reihenfolge
 
@@ -17,9 +17,10 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
    - Homescreen-Installationspfad fuer iOS/Android pruefen.
    - Auth-Onboarding ist jetzt da; der naechste PWA-Slice muss Signup-/Session-/Cache-Verhalten bewusst mit einplanen.
 
-2. **Mobile-Persistenz manuell abnehmen**
-   - Settings/Theme/PDF nach App-Neustart pruefen.
-   - Technische Tests sind gruen; diese manuelle Abnahme fehlt noch.
+2. **Web-Persistenz manuell abnehmen, sobald Multi-Auth im Web belastbar funktioniert**
+   - Erst den Web-Auth-/Account-/Workspace-Einstieg soweit stabilisieren, dass Login/Signup/Session fuer die normale Nutzung nicht mehr blockieren.
+   - Danach Settings/Theme/PDF im echten Web-Flow pruefen: Reload, neuer Tab, neue Browser-Session.
+   - Technische Tests sind gruen; offen ist die reale Web-Abnahme unter funktionierender Multi-Auth.
 
 3. **Stale Test-Doku nachziehen**
    - [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen.
@@ -48,11 +49,11 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [x] **Dependency-Patch-Drift** — safe Patch-Slice fuer Root/Mobile lokal nachgezogen; Expo-/SDK-gebundene Linien bleiben laut `expo install --check` sauber und bewusst separat.
 - [ ] **CI / Supabase / Northflank Track** — aktueller Betriebsstand, Findings und Vorgehen: [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 - [x] **Performance-Readiness neu aufbauen** — frisches 10er-Window fuer den Juni-Web-Export ist lokal aufgebaut; `artifacts/performance/readiness.json` steht wieder auf `ready=true`.
-- [ ] **Mobile-Persistenz Neustart-Pruefung** — Settings/Theme/PDF nach App-Neustart.
+- [ ] **Web-Persistenz-Abnahme nach Multi-Auth-Stabilisierung** — Erst wenn der Multi-Auth-Web-Flow belastbar nutzbar ist, Settings/Theme/PDF per Reload, neuem Tab und neuer Browser-Session manuell pruefen.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
 - [x] **Recipes-Ownership-Slice umsetzen** — Server-API fuer `recipes` auf explizites Owner-Modell umbauen: private User-Rezepte, Haushaltsrezepte, keine globalen Templates, keine Null-Owner-Kompatibilitaet. Plan: [Recipes Ownership Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-05-recipes-ownership-slice-plan.md).
 - [ ] **Recipes Sharing/Favorites Folgeslices planen** — Teilen erzeugt Kopien; Favoriten/Collections werden eigene private oder haushaltsbezogene Owner-Objekte. Nicht in den aktuellen Ownership-Slice ziehen.
-- [ ] **Stale Test-Doku nachziehen** — [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen, obwohl mehrere P1/P2/P3a-Punkte abgeschlossen sind.
+- [x] **Stale Test-Doku nachziehen** — [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) ist auf den aktuellen Stand gebracht; die alten `TBD`-/Naechste-Aktion-Zeilen im Legacy-Flake-Inventory sind durch aktuellen Betriebsstand und Restaktionen ersetzt.
 - [ ] **Supabase `unused_index` Hold-Track** — keine Production-Drops ohne Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis. Details: [advisor followups](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
 - [ ] **Northflank-Deploy-Pfad** — nach dem direkten API-Deploy vom 2026-06-08 nur noch bei roten Deploys, Runtime-Warnungen, API-Aenderungen oder Auth-/Secret-Problemen neu bewerten.
 - [ ] **Styling-Track** — NativeWind 5/Tailwind 4 bleibt nach Expo-SDK-56 bewusst vertagt.

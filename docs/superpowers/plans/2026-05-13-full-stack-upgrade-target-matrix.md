@@ -204,7 +204,7 @@ Status nach Umsetzung am 2026-05-14:
 
 - technischer 3.x-Versuch wurde spaeter fuer Expo-Kompatibilitaet zurueckgenommen
 - aktueller Zielzustand ist `@react-native-async-storage/async-storage` `2.2.0`
-- dokumentarisch bleibt nur die manuelle App-Neustart-Pruefung fuer Settings/Theme/PDF offen
+- dokumentarisch bleibt nur die manuelle Web-Persistenz-Pruefung fuer Settings/Theme/PDF offen; sie ist erst sinnvoll, wenn der Multi-Auth-Web-Flow fuer normale Nutzung belastbar funktioniert
 
 - kein 3.x-Update in diesem Track
 
@@ -213,7 +213,7 @@ Gate:
 - Offline-/Persistenztests
 - Query-Cache-Restore
 - PDF-/Theme-/Settings-/Server-URL-Pfade
-- manuelle Neustart-Pruefung auf einem realen App-Lauf
+- manuelle Persistenz-Pruefung im realen Web-Lauf erst nach belastbarer Multi-Auth-Web-Nutzung
 
 ### Batch 4a: Expo-SDK-56-Core-Slice
 
