@@ -1,7 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { getSupabaseClient } from './auth';
 
 export const QUERY_CACHE_STORAGE_KEY = 'recipedeck-query-cache';
 
@@ -40,8 +39,11 @@ export const asyncStoragePersister = {
 };
 
 let activeAuthUserId: string | null | undefined;
+let authQueryCacheWatchPromise: Promise<() => void> | null = null;
+let authQueryCacheWatchStop: (() => void) | null = null;
 
-export function watchAuthQueryCache(): () => void {
+export async function watchAuthQueryCache(): Promise<() => void> {
+  const { getSupabaseClient } = await import('./auth');
   const supabase = getSupabaseClient();
   if (!supabase) {
     return () => {};
@@ -59,4 +61,21 @@ export function watchAuthQueryCache(): () => void {
   return () => data.subscription.unsubscribe();
 }
 
-export const stopAuthQueryCacheWatch = watchAuthQueryCache();
+export async function startAuthQueryCacheWatch(): Promise<() => void> {
+  if (authQueryCacheWatchStop) {
+    return authQueryCacheWatchStop;
+  }
+
+  if (!authQueryCacheWatchPromise) {
+    authQueryCacheWatchPromise = watchAuthQueryCache().then((stop) => {
+      authQueryCacheWatchStop = () => {
+        stop();
+        authQueryCacheWatchStop = null;
+        authQueryCacheWatchPromise = null;
+      };
+      return authQueryCacheWatchStop;
+    });
+  }
+
+  return authQueryCacheWatchPromise;
+}

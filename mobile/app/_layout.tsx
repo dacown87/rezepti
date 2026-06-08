@@ -8,8 +8,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useThemeInit } from '@/utils/use-theme';
-import { queryClient, asyncStoragePersister } from '@/utils/query-client';
-import { registerAuthRedirectObserver } from '@/utils/auth';
+import { queryClient, asyncStoragePersister, startAuthQueryCacheWatch } from '@/utils/query-client';
 import '../global.css';
 
 export { ErrorBoundary } from 'expo-router';
@@ -49,17 +48,49 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    return registerAuthRedirectObserver({
-      onPasswordRecovery: (redirect) => {
-        router.replace({
-          pathname: '/account',
-          params: {
-            mode: 'update-password',
-            ...(redirect?.returnTo ? { returnTo: redirect.returnTo } : {}),
-          },
-        });
-      },
+    let active = true;
+    let stopWatching = () => {};
+
+    void startAuthQueryCacheWatch().then((stop) => {
+      if (!active) {
+        stop();
+        return;
+      }
+      stopWatching = stop;
     });
+
+    return () => {
+      active = false;
+      stopWatching();
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let stopObserving = () => {};
+
+    void import('@/utils/auth').then(({ registerAuthRedirectObserver }) => {
+      if (!active) {
+        return;
+      }
+
+      stopObserving = registerAuthRedirectObserver({
+        onPasswordRecovery: (redirect) => {
+          router.replace({
+            pathname: '/account',
+            params: {
+              mode: 'update-password',
+              ...(redirect?.returnTo ? { returnTo: redirect.returnTo } : {}),
+            },
+          });
+        },
+      });
+    });
+
+    return () => {
+      active = false;
+      stopObserving();
+    };
   }, [router]);
 
   return (

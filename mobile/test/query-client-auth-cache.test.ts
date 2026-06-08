@@ -27,7 +27,7 @@ describe('query-client auth cache isolation', () => {
     const { QUERY_CACHE_STORAGE_KEY, queryClient, watchAuthQueryCache } = await import('@/utils/query-client');
 
     queryClient.setQueryData(['recipes'], [{ id: 1, name: 'Cached for user A' }]);
-    const stopWatching = watchAuthQueryCache();
+    const stopWatching = await watchAuthQueryCache();
     const callback = authStateCallbacks.at(-1);
     expect(callback).toBeDefined();
 
