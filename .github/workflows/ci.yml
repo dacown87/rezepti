@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload root coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-root
           path: artifacts/coverage/root/**
@@ -156,7 +156,7 @@ jobs:
 
       - name: Upload API server log
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-server-log
           path: /tmp/rezepti-server.log
@@ -314,7 +314,7 @@ jobs:
 
       - name: Upload legacy soak artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-legacy-soak-artifacts
           path: |
@@ -363,7 +363,7 @@ jobs:
 
       - name: Upload mobile coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-mobile
           path: artifacts/coverage/mobile/**
@@ -391,7 +391,7 @@ jobs:
         run: npm --prefix mobile ci
 
       - name: Restore performance history cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             artifacts/performance/history.json
@@ -401,7 +401,7 @@ jobs:
             performance-history-v5-${{ github.ref_name }}-
 
       - name: Setup Chrome for Lighthouse
-        uses: browser-actions/setup-chrome@v1
+        uses: browser-actions/setup-chrome@v2
         with:
           chrome-version: '150'
 
@@ -440,7 +440,7 @@ jobs:
 
       - name: Save performance history cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             artifacts/performance/history.json
@@ -449,7 +449,7 @@ jobs:
 
       - name: Upload performance artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: performance-artifacts
           path: artifacts/performance/**

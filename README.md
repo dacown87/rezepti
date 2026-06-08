@@ -214,6 +214,8 @@ Der Staging-Smoke nutzt `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PUBLISHABLE_KE
 
 Der CI-Job `supabase-rls-smoke` prefetcht die benoetigten Supabase-Container inzwischen aus `public.ecr.aws`-Mirrors und startet lokal bewusst schlanker mit `npx supabase start -x studio -x imgproxy -x edge-runtime -x vector -x supavisor`. Das reduziert Docker-Hub-Abhaengigkeit und vermeidet, dass fuer den RLS-Gate unnoetige Dienste den Lauf blockieren.
 
+Die GitHub-Actions-Warnings zur Node-20-Deprecation wurden zusaetzlich ueber Versionsspruenge der verwendeten Marketplace-Actions bereinigt: `actions/upload-artifact@v7`, `actions/cache/restore@v5`, `actions/cache/save@v5` und `browser-actions/setup-chrome@v2`. Wichtig: Das ist getrennt von der Projekt-Node-Version; `actions/setup-node` und die Repo-Engines bleiben bereits auf Node `24.15.0`.
+
 Fresh-User-Smoke und Cleanup-Details stehen im Runbook: [docs/auth-runbook-route-privacy.md](/home/patrick/Projekte/rezepti/docs/auth-runbook-route-privacy.md).
 
 ---

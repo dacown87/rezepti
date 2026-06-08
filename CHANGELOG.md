@@ -6,7 +6,7 @@
 
 ## [1.0.136] – 2026-06-08
 
-
+- GitHub-Actions auf Node-24-kompatible Action-Majors gehoben: `actions/upload-artifact@v7`, `actions/cache@v5` und `browser-actions/setup-chrome@v2`, damit die Node-20-Deprecation-Warnings nicht mehr aus veralteten Marketplace-Actions kommen
 
 ## [1.0.135] – 2026-06-07
 
