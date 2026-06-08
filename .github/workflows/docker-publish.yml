@@ -40,11 +40,26 @@ jobs:
           push: true
           tags: dacown/rezepti:latest
 
-      # Northflank stays on v1 here as the intentional Node16 special-case; do not bump in this scope.
       - name: Deploy to Northflank
-        uses: northflank/deploy-to-northflank@v1
-        with:
-          northflank-api-key: ${{ secrets.NORTHFLANK_API_KEY }}
-          project-id: ${{ secrets.NORTHFLANK_PROJECT_ID }}
-          service-id: ${{ secrets.NORTHFLANK_SERVICE_ID }}
-          image-path: dacown/rezepti:latest
+        env:
+          NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
+          NORTHFLANK_PROJECT_ID: ${{ secrets.NORTHFLANK_PROJECT_ID }}
+          NORTHFLANK_SERVICE_ID: ${{ secrets.NORTHFLANK_SERVICE_ID }}
+          IMAGE_PATH: dacown/rezepti:latest
+        run: |
+          payload=$(jq -nc --arg imagePath "$IMAGE_PATH" '{external: {imagePath: $imagePath}}')
+          response_file=$(mktemp)
+          http_code=$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $NORTHFLANK_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.northflank.com/v1/projects/$NORTHFLANK_PROJECT_ID/services/$NORTHFLANK_SERVICE_ID/deployment" \
+            -d "$payload")
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Northflank deploy failed with HTTP $http_code"
+            cat "$response_file"
+            exit 1
+          fi
+
+          echo "Northflank deploy succeeded"

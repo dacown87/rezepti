@@ -1,6 +1,6 @@
 # CI / Supabase / Northflank Check
 
-Stand: 2026-06-06
+Stand: 2026-06-08
 
 Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und Northflank sowie den naechsten Vorgehensplan.
 
@@ -9,7 +9,8 @@ Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und No
 - Der akute CI-Blocker im `mobile-release-gate` ist lokal behoben.
 - Die Expo-SDK-56-Patch-Drift im Mobile-Projekt wurde auf die von `expo-doctor` erwarteten Versionen angehoben.
 - Der Mobile-Coverage-Upload ist nach aktuellem Repo-Stand kein eigener Defekt, sondern nur ein Folgefehler des fruehen Abbruchs vor `Run mobile coverage`.
-- Supabase Staging ist weiter gruen; Northflank bleibt funktional gruen und als separater Hygiene-Track dokumentiert.
+- Supabase Staging ist weiter gruen; Northflank bleibt funktional gruen.
+- Der fruehere GitHub-Actions-Warnfall rund um `northflank/deploy-to-northflank@v1` wurde am 2026-06-08 durch einen direkten API-Deploy in `.github/workflows/docker-publish.yml` entfernt.
 
 ## GitHub CI
 
@@ -68,7 +69,7 @@ Ergebnis:
 - `npm --prefix mobile ci` meldet:
   - `text-encoding@0.7.0` deprecated
   - `12 moderate severity vulnerabilities`
-- GitHub Actions meldet im Workflow-Kontext Node-20-Deprecation fuer einzelne Third-Party-Actions.
+- GitHub Actions meldete im Workflow-Kontext Node-20-Deprecation fuer einzelne Third-Party-Actions; die verbleibende Northflank-spezifische Warnquelle wurde am 2026-06-08 aus dem Deploy-Workflow entfernt.
 
 ### Historischer Kontext
 
@@ -95,6 +96,13 @@ Der vorherige rote CI-Run `27069239704` hatte zusaetzlich E2E-Vertragsfehler aus
 
 ## Northflank
 
+### Update 2026-06-08
+
+- `.github/workflows/docker-publish.yml` deployt nicht mehr ueber `northflank/deploy-to-northflank@v1`.
+- Der Workflow ruft Northflank jetzt direkt per `curl` gegen `POST /v1/projects/{projectId}/services/{serviceId}/deployment` auf.
+- Hintergrund: Die Northflank-Action war upstream weiter auf `runs.using: node16` festgelegt und erzeugte dadurch die GitHub-Warnung zur Node-20-Deprecation / Node-24-Erzwingung.
+- Folge: Der dokumentierte Northflank-Node-Runtime-Sonderfall ist fuer den aktuellen Workflow entfernt; offen bleibt nur normale Deploy-Hygiene.
+
 ### Live-Pruefung 2026-06-06
 
 - Service: `rezepti-app`
@@ -111,18 +119,23 @@ Der vorherige rote CI-Run `27069239704` hatte zusaetzlich E2E-Vertragsfehler aus
 
 ### Deploy-Pfad / CI-Hygiene
 
-Der GitHub-Deploy-Workflow ist funktional gruen, hat aber veraltete Warnsignale:
+Der GitHub-Deploy-Workflow ist funktional gruen. Der fruehere Action-Wrapper wurde entfernt; damit entfallen fuer diesen Pfad:
 
 - `northflank/deploy-to-northflank@v1`
-- Node-Deprecation-Warnungen (`punycode`, `url.parse`)
-- GitHub-Warnung zur Node-20-Deprecation / Node-24-Erzwingung
+- GitHub-Warnung zur Node-20-Deprecation / Node-24-Erzwingung aus dieser Action
 - Soft-Fehler beim Versionscheck der Northflank-Action
+
+Weiter beobachten:
+
+- echte Northflank-API-Fehler
+- Auth-/Secret-Probleme im Workflow
+- Runtime-Warnungen oder rote Deploys
 
 ### Entscheidung
 
-- Im aktuellen Slice kein Northflank-Workflow-Fix.
-- Begruendung: Live-Deploy ist gruen, die Repo-Dokumentation behandelt `northflank/deploy-to-northflank@v1` bereits bewusst als separaten Upstream-/Infra-Sonderfall.
-- Naechster Schritt fuer Northflank nur als eigener verifizierter Hygiene-Slice.
+- Northflank-Workflow-Fix ist umgesetzt.
+- Begruendung: Der veraltete JavaScript-Action-Wrapper war die letzte dokumentierte Node-Runtime-Sonderquelle in diesem Deploy-Pfad.
+- Naechster Schritt fuer Northflank nur noch bei echten Deploy-, API-, Secret- oder Runtime-Signalen.
 
 ## Abschlussstatus
 
@@ -135,8 +148,8 @@ Der GitHub-Deploy-Workflow ist funktional gruen, hat aber veraltete Warnsignale:
    - Nach gruenem Lauf wird `artifacts/coverage/mobile/**` korrekt erzeugt.
    - Der rote Upload war nur ein Folgefehler des fruehen Job-Abbruchs.
 
-3. Northflank-Deploy-Pfad: bewusst nicht in diesem Slice geaendert.
-   - Bleibt separater Hygiene-/Infra-Track.
+3. Northflank-Deploy-Pfad: am 2026-06-08 bereinigt.
+   - Direkter API-Deploy ersetzt den veralteten Action-Wrapper.
    - Kein akuter Release- oder Runtime-Blocker sichtbar.
 
 4. Supabase-Stand: keine Aenderung in diesem Slice.

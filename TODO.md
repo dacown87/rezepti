@@ -6,7 +6,7 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 ## Aktueller Stand
 
-Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. Seit dem letzten Betriebscheck wurden ausserdem der mobile Performance-Regression-Fix fuer den Auth-/Workspace-Web-Entry dokumentiert und die rohen Bundle-Baselines fuer den stabilen Juni-Export nachgezogen; `perf:validate:strict` ist damit wieder budget-clean, kann lokal aber noch am Observation-Gate (`observation_blocked`) enden. Der `supabase-rls-smoke`-CI-Job ist jetzt gegen Docker-Hub-/Service-Overhead gehaertet (Mirror-Prefetch + reduzierter Supabase-Stack), und die GitHub-Actions-Node-20-Deprecation-Warnings sind ueber Action-Upgrades auf Node-24-kompatible Majors nachgezogen. Der offene Betriebsblocker aus dem Check vom 2026-06-06 bleibt der rote Push-CI im `mobile-release-gate` durch Expo-SDK-Patch-Drift. Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
+Coverage-/JobManager-Remediation, Supabase-Data-API-Readiness, Supabase-Advisor-Kern-Remediation, Nightly-Strict-Remediation, Node-24-Verifikation, npm-Audit-Triage, RNTL-Migration, Matrix-Nachzug, Restupdates und Expo-SDK-56-Core-Slice sind durch. Seit dem letzten Betriebscheck wurden ausserdem der mobile Performance-Regression-Fix fuer den Auth-/Workspace-Web-Entry dokumentiert und die rohen Bundle-Baselines fuer den stabilen Juni-Export nachgezogen; `perf:validate:strict` ist damit wieder budget-clean, kann lokal aber noch am Observation-Gate (`observation_blocked`) enden. Der `supabase-rls-smoke`-CI-Job ist jetzt gegen Docker-Hub-/Service-Overhead gehaertet (Mirror-Prefetch + reduzierter Supabase-Stack), die GitHub-Actions-Node-20-Deprecation-Warnings sind ueber Action-Upgrades auf Node-24-kompatible Majors nachgezogen, und der Northflank-Deploy laeuft seit 2026-06-08 ohne das veraltete `northflank/deploy-to-northflank@v1`-Action-Wrapper direkt ueber den Northflank-API-Call im Workflow. Der offene Betriebsblocker aus dem Check vom 2026-06-06 bleibt der rote Push-CI im `mobile-release-gate` durch Expo-SDK-Patch-Drift. Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
 Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Complete auth onboarding slice` sind auf `origin/main` gelandet. `phase/6-multi-user` ist stale und keine aktive Basis. Recipes-Ownership, Auth-Onboarding, der RLS-CI-Hardening-Slice und der Performance-Validation-Fix sind damit auf `main`; offen sind jetzt vor allem PWA, der Expo-Drift-Fix, ein frisches Performance-Readiness-Fenster und die bewusst getrennten Follow-up-Slices.
 
@@ -37,7 +37,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 6. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
    - `unused_index` erst nach Nutzungsperiode plus Staging-Plananalyse anfassen.
-   - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen oder Upstream-Abkuendigung neu bewerten.
+   - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen, API-Aenderungen oder Auth-/Secret-Problemen im Workflow neu bewerten.
 
 ## Auth Onboarding Follow-ups
 
@@ -63,7 +63,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [ ] **Recipes Sharing/Favorites Folgeslices planen** — Teilen erzeugt Kopien; Favoriten/Collections werden eigene private oder haushaltsbezogene Owner-Objekte. Nicht in den aktuellen Ownership-Slice ziehen.
 - [ ] **Stale Test-Doku nachziehen** — [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen, obwohl mehrere P1/P2/P3a-Punkte abgeschlossen sind.
 - [ ] **Supabase `unused_index` Hold-Track** — keine Production-Drops ohne Nutzungsperiode, Redundanzanalyse und Query-Plan-Nachweis. Details: [advisor followups](/home/patrick/Projekte/rezepti/docs/SupaBase/advisor-followups-2026-05-31.md).
-- [ ] **Northflank-Deploy-Pfad** — nur bei roten Deploys, Runtime-/Action-Warnungen oder `northflank/deploy-to-northflank@v1`-Abkuendigung neu bewerten.
+- [ ] **Northflank-Deploy-Pfad** — nach dem direkten API-Deploy vom 2026-06-08 nur noch bei roten Deploys, Runtime-Warnungen, API-Aenderungen oder Auth-/Secret-Problemen neu bewerten.
 - [ ] **Styling-Track** — NativeWind 5/Tailwind 4 bleibt nach Expo-SDK-56 bewusst vertagt.
 
 ## Kurzstatus
@@ -71,7 +71,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 ### Supabase / Security
 
 - RLS ist auf den relevanten Public-Tabellen aktiviert; `npm run test:auth` deckt den schnellen Auth-/Route-Vertrag ab. Lokaler Supabase-RLS-Smoke fuer Shopping/Planner ist automatisiert, lokal gruen und als eigener CI-Job vorbereitet. Der gegatete Staging-Smoke lief am 2026-06-04 gegen `rezepti-staging` gruen; der CI-Job prefetcht benoetigte Supabase-Images inzwischen aus `public.ecr.aws`-Mirrors und startet den Stack reduziert.
-- Die Node-20-Deprecation-Warnings aus GitHub Actions sind auf Workflow-Ebene adressiert: Artifact-, Cache- und Chrome-Setup-Actions wurden auf Node-24-kompatible Majors gehoben. Das ist getrennt vom bereits bestehenden Repo-/Job-Node-24-Stand.
+- Die Node-20-Deprecation-Warnings aus GitHub Actions sind auf Workflow-Ebene adressiert: Artifact-, Cache- und Chrome-Setup-Actions wurden auf Node-24-kompatible Majors gehoben, und der fruehere Northflank-Sonderfall wurde am 2026-06-08 durch einen direkten API-Deploy in `.github/workflows/docker-publish.yml` entfernt. Das ist getrennt vom bereits bestehenden Repo-/Job-Node-24-Stand.
 - Data-API-RLS-/Grant-Matrix fuer Multi-User ist fuer Slice 1 umgesetzt: Shopping/Planner sind household-scoped, `recipes` ist fuer `anon`/`authenticated` ueber die Data API geschlossen. Das explizite Recipe-Owner-Modell ist serverseitig gelandet; Data-API-Oeffnung fuer `recipes` bleibt ein spaeterer Folge-Slice.
 - `vector` und `pg_trgm` liegen seit 2026-06-01 in `extensions`; WARN-Level Advisor-Smokes waren gruen.
 - `rezepti-staging` wurde als RLS-Smoke-Ziel bestaetigt und migriert.
