@@ -3904,5 +3904,131 @@
         "jsExecutionMs": 1941.6
       }
     ]
+  },
+  {
+    "runId": "2026-06-08T14:38:37.752Z",
+    "timestamp": "2026-06-08T14:38:37.752Z",
+    "source": "local",
+    "githubRunId": null,
+    "runAttempt": null,
+    "eventName": null,
+    "refName": null,
+    "enforcementLevel": "strict",
+    "mode": "warn-only",
+    "lighthouse": "ok",
+    "throttlingMethod": "simulate",
+    "expectedRuns": 9,
+    "totalRuns": 9,
+    "successfulRuns": 9,
+    "warningRuns": 0,
+    "routeCount": 3,
+    "viewportCount": 3,
+    "unavailableRouteCount": 0,
+    "findingsCount": 0,
+    "findings": [],
+    "findingDetails": [],
+    "budgetPass": true,
+    "bundle": {
+      "files": 24,
+      "totalBytes": 6286069,
+      "jsBytes": 5504165,
+      "gzipJsBytes": 1138938,
+      "cssBytes": 21467,
+      "htmlBytes": 760437,
+      "largestJsAssetBytes": 4596562
+    },
+    "metrics": [
+      {
+        "route": "/",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.71,
+        "lcp": 1068.187,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2008.724
+      },
+      {
+        "route": "/",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1078.046,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1906.392
+      },
+      {
+        "route": "/",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.57,
+        "lcp": 1073.647,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 1913.832
+      },
+      {
+        "route": "/shopping",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.69,
+        "lcp": 1051.969,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1928.864
+      },
+      {
+        "route": "/shopping",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.58,
+        "lcp": 1078.827,
+        "inp": null,
+        "cls": 0.000883,
+        "jsExecutionMs": 1981.428
+      },
+      {
+        "route": "/shopping",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.58,
+        "lcp": 1052.893,
+        "inp": null,
+        "cls": 0.000496,
+        "jsExecutionMs": 2032.876
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "mobile-375x812",
+        "performanceScore": 0.68,
+        "lcp": 1051.78,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 1985.308
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "tablet-768x1024",
+        "performanceScore": 0.57,
+        "lcp": 1077.686,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2044.14
+      },
+      {
+        "route": "/recipe/1",
+        "viewport": "desktop-1366x768",
+        "performanceScore": 0.56,
+        "lcp": 1076.853,
+        "inp": null,
+        "cls": 0,
+        "jsExecutionMs": 2114.832
+      }
+    ],
+    "classification": "observation_blocked",
+    "observationBlocked": true,
+    "readinessReady": false,
+    "readinessChecks": {
+      "minRunsMet": true,
+      "warningRateMet": true,
+      "fullCoverageMet": true,
+      "metricStabilityMet": false
+    },
+    "validateExitCode": 0
   }
 ]

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-12T08:32:22.648Z",
+  "generatedAt": "2026-06-08T14:39:53.983Z",
   "criteria": {
     "minRuns": 10,
     "maxWarningRate": 0.1,
@@ -15,10 +15,9 @@
   },
   "window": {
     "runs": 10,
-    "firstTimestamp": "2026-05-12T08:15:13.419Z",
-    "lastTimestamp": "2026-05-12T08:31:51.367Z",
+    "firstTimestamp": "2026-05-12T08:17:03.644Z",
+    "lastTimestamp": "2026-06-08T14:38:37.752Z",
     "runIds": [
-      "2026-05-12T08:15:13.419Z",
       "2026-05-12T08:17:03.644Z",
       "2026-05-12T08:18:54.309Z",
       "2026-05-12T08:20:46.739Z",
@@ -27,7 +26,8 @@
       "2026-05-12T08:26:19.749Z",
       "2026-05-12T08:28:10.486Z",
       "2026-05-12T08:30:01.175Z",
-      "2026-05-12T08:31:51.367Z"
+      "2026-05-12T08:31:51.367Z",
+      "2026-06-08T14:38:37.752Z"
     ]
   },
   "stats": {
@@ -35,13 +35,13 @@
     "totalExecuted": 90,
     "warningRate": 0,
     "fullCoverageCount": 10,
-    "consecutiveCompleteRuns": 20
+    "consecutiveCompleteRuns": 21
   },
   "checks": {
     "minRunsMet": true,
     "warningRateMet": true,
     "fullCoverageMet": true,
-    "metricStabilityMet": true
+    "metricStabilityMet": false
   },
   "metrics": [
     {
@@ -53,10 +53,10 @@
           "metric": "lcp",
           "available": true,
           "min": 902.191,
-          "max": 904.062,
+          "max": 1068.187,
           "median": 903.288,
-          "spreadRatio": 0.0021,
-          "stable": true
+          "spreadRatio": 0.1838,
+          "stable": false
         },
         {
           "metric": "inp",
@@ -82,10 +82,10 @@
           "metric": "lcp",
           "available": true,
           "min": 901.622,
-          "max": 902.122,
+          "max": 1051.969,
           "median": 901.9095,
-          "spreadRatio": 0.0006,
-          "stable": true
+          "spreadRatio": 0.1667,
+          "stable": false
         },
         {
           "metric": "inp",
@@ -112,7 +112,7 @@
           "available": true,
           "min": 1051.466,
           "max": 1051.82,
-          "median": 1051.65,
+          "median": 1051.659,
           "spreadRatio": 0.0003,
           "stable": true
         },
@@ -132,5 +132,5 @@
       ]
     }
   ],
-  "ready": true
+  "ready": false
 }
