@@ -7,7 +7,6 @@ import {
   ingredientDictionary,
   shoppingList,
   mealPlan,
-  apiKeys,
   userProfiles,
   households,
   householdMemberships,
@@ -104,7 +103,6 @@ function getDb() {
         ingredientDictionary,
         shoppingList,
         mealPlan,
-        apiKeys,
         userProfiles,
         households,
         householdMemberships,
@@ -838,23 +836,3 @@ export async function clearMealPlanForWeek(householdId: string, weekStart: numbe
   await db.delete(mealPlan).where(and(eq(mealPlan.householdId, householdId), eq(mealPlan.weekStart, weekStart)));
 }
 
-// ── API Keys ──────────────────────────────────────────────────────────────────
-
-export async function storeApiKey(keyHash: string, model?: string) {
-  const db = getDb();
-  await db.insert(apiKeys)
-    .values({ keyHash, model })
-    .onConflictDoUpdate({ target: apiKeys.keyHash, set: { model } });
-}
-
-export async function removeApiKey(keyHash: string): Promise<boolean> {
-  const db = getDb();
-  const rows = await db.delete(apiKeys).where(eq(apiKeys.keyHash, keyHash)).returning({ id: apiKeys.id });
-  return rows.length > 0;
-}
-
-export async function getApiKeyByHash(keyHash: string) {
-  const db = getDb();
-  const rows = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
-  return rows[0] ?? null;
-}
