@@ -3,6 +3,8 @@
 Datum: 2026-06-09
 Main plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md)
 
+> **Umgesetzt:** Session-restore interstitial (T11), web-aware confirmation return (T10), deep-link error surface (T9), query-cache namespacing (T7), session persistence tests (T12).
+
 > **/autoplan 2026-06-09 — Update:** Laeuft erst NACH dem Credential-Auth-Hotfix
 > (Schritt 0 im Main-Plan). Zwei verifizierte Praezisierungen: (1) Der reale Web-Bug
 > ist der nach `userId` nicht namespace-te React-Query-Cache — neuer Tab/Cold-Start

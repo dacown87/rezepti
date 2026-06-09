@@ -2,7 +2,7 @@
 # Multi-Auth Hardening Plan
 
 Datum: 2026-06-09
-Status: Reviewed + Approved (/autoplan 2026-06-09, SELECTIVE EXPANSION). Re-sequenced.
+Status: Umgesetzt (feat/credential-auth-hotfix, 2026-06-09)
 
 > **Re-Sequencing (Pflicht):** Der /autoplan-Review hat einen LIVE, unauthentifizierten
 > Cross-User-Credential-Bug gefunden (Routes in `src/routes/keys.ts` + `src/routes/platforms.ts`
@@ -149,6 +149,29 @@ Der Track ist fertig, wenn:
 
 Diese Datei ist der Main-Plan. Fuer konkrete Umsetzung jeweils nur den
 betroffenen Teilplan laden und abarbeiten.
+
+---
+
+## Implementiert
+
+Alle Tasks T1-T16 umgesetzt auf `feat/credential-auth-hotfix` (2026-06-09):
+
+- **T1** — `requireUserAuth` auf Credential-Routes in `keys.ts` + `platforms.ts` (individuell, nicht Router-weit).
+- **T2** — Falsche Privacy-Copy in `settings.tsx` (Groq-Key + Cookidoo) korrigiert.
+- **T3** — Totes `api_keys`-Store+Route + `getApiKeyByHash` (0 Aufrufer) entfernt.
+- **T4** — Pinterest/Facebook-Credential-Routes deaktiviert (501).
+- **T5** — Contract-Test auf Unauth-Credential-Routes geprueft; kein 200 auf unauth mehr kodifiziert.
+- **T6** — `no-token→401` + Cross-User-Denial-Tests fuer alle Credential-Routes hinzugefuegt.
+- **T7** — React-Query-Cache nach `userId` namespace-t; Cache-Clear bei User-Wechsel im New-Tab-Fall.
+- **T8** — Cookidoo `cookidoo/status` gibt keine Account-Email mehr an nicht-eingeloggte Aufrufer aus.
+- **T9** — Abgelaufener `exchangeCodeForSession`-Deep-Link wird jetzt als Fehler sichtbar (statt silent warn).
+- **T10** — `account.tsx` zeigt Web-aware Confirmation/Reset-Rueckkehr-Screen; "in der App"-Copy entfernt.
+- **T11** — "Session wird wiederhergestellt"-Interstitial in Protected Screens; kein Sign-out-Flash mehr.
+- **T12** — Automatisierter Session-E2E (Login → Reload → authed; neuer Kontext → cleared) als Gate.
+- **T13** — `ingredient_dictionary`-Admin-Gate-Test hinzugefuegt.
+- **T14** — Live-Region-Fehler-Banner, Tab-Rollen und Icon-Labels in `account.tsx` (A11y-Bonus).
+- **T15** — Supabase-Englisch-Fehler auf Deutsche Nutzer-Copy gemappt in `account.tsx` (Bonus).
+- **T16** — Plan-Doku auf "Umgesetzt" gesetzt; 3 Sub-Plane / 4 Gates als abgeschlossen markiert.
 
 ---
 

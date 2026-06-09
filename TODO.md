@@ -12,9 +12,8 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 ## Naechste Reihenfolge
 
-0. **P0 Sicherheit — Credential-Auth-Hotfix (zuerst, vor allem anderen)**
-   - Die Credential-/Key-Routes (`src/routes/keys.ts`, `src/routes/platforms.ts`) sind auf der oeffentlichen URL **ohne Auth** erreichbar: jeder kann BYOK-Keys per Hash loeschen und Cookidoo-/Pinterest-/Facebook-Credentials (globale Disk-Datei, inkl. Account-Email aus `cookidoo/status`) lesen, ueberschreiben oder loeschen. Verifiziert im /autoplan-Review 2026-06-09.
-   - Fix (Tasks T1-T6): `requireUserAuth` pro Route (NICHT Router-weit — `/api/v1/proxy/image` muss offen bleiben), totes `api_keys`-Store+Route droppen (`getApiKeyByHash` hat 0 Aufrufer), Pinterest/Facebook-Routes auf 501, falsche Privacy-Copy in `settings.tsx:662/716/849/916` korrigieren, Unauth-Denied-/Cross-User-Tests, Contract-Test pruefen.
+0. [x] **P0 Sicherheit — Credential-Auth-Hotfix (umgesetzt, feat/credential-auth-hotfix, 2026-06-09)**
+   - Tasks T1-T6 sind umgesetzt: `requireUserAuth` pro Route, totes `api_keys`-Store+Route geloescht, Pinterest/Facebook-Routes deaktiviert (501), Privacy-Copy korrigiert, Unauth-Denied-/Cross-User-Tests hinzugefuegt, Contract-Test geprueft.
    - Plan + Review: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
 
 1. **Progressive Web App (PWA) einbauen**
@@ -54,7 +53,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [x] **Dependency-Patch-Drift** — safe Patch-Slice fuer Root/Mobile lokal nachgezogen; Expo-/SDK-gebundene Linien bleiben laut `expo install --check` sauber und bewusst separat.
 - [ ] **CI / Supabase / Northflank Track** — aktueller Betriebsstand, Findings und Vorgehen: [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 - [x] **Performance-Readiness neu aufbauen** — frisches 10er-Window fuer den Juni-Web-Export ist lokal aufgebaut; `artifacts/performance/readiness.json` steht wieder auf `ready=true`.
-- [ ] **Web-Persistenz-Abnahme nach Multi-Auth-Stabilisierung** — Erst wenn der Multi-Auth-Web-Flow belastbar nutzbar ist, Settings/Theme/PDF per Reload, neuem Tab und neuer Browser-Session manuell pruefen.
+- [ ] **Web-Persistenz-Abnahme nach Multi-Auth-Stabilisierung** — Erst wenn der Multi-Auth-Web-Flow belastbar nutzbar ist, Settings/Theme/PDF per Reload, neuem Tab und neuer Browser-Session manuell pruefen. **Gate ist jetzt automatisierter Session-E2E (T12 umgesetzt):** Login → Reload → authed; neuer Kontext → cleared. Manuelle Abnahme bleibt als Smoke.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
 - [x] **Recipes-Ownership-Slice umsetzen** — Server-API fuer `recipes` auf explizites Owner-Modell umbauen: private User-Rezepte, Haushaltsrezepte, keine globalen Templates, keine Null-Owner-Kompatibilitaet. Plan: [Recipes Ownership Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-05-recipes-ownership-slice-plan.md).
 - [ ] **Recipes Sharing/Favorites Folgeslices planen** — Teilen erzeugt Kopien; Favoriten/Collections werden eigene private oder haushaltsbezogene Owner-Objekte. Nicht in den aktuellen Ownership-Slice ziehen.

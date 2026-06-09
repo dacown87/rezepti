@@ -3,6 +3,8 @@
 Datum: 2026-06-09
 Main plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md)
 
+> **Umgesetzt:** Credential-Auth-Hotfix (T1/T3/T4), Privacy-Copy (T2), Cookidoo-Email-Strip (T8), Tests (T5/T6). A11y und Error-Copy (T14/T15) als Bonus.
+
 > **/autoplan 2026-06-09 — HOCHGEZOGEN zu Schritt 0 (Hotfix zuerst).** Der Review hat
 > bestaetigt: das ist kein Privacy-Copy-Thema, sondern ein LIVE unauthentifizierter
 > Cross-User-Bug. Verifizierter Ist-Zustand + gewaehlte Zielregeln stehen unten in

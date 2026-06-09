@@ -3,6 +3,8 @@
 Datum: 2026-06-09
 Main plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md)
 
+> **Umgesetzt:** ingredient_dictionary admin-gate test added (T13). Vollständige Inventur steht noch aus (nach Hotfix).
+
 > **/autoplan 2026-06-09 — Update:** Im Kern ein `grep`-Pass ueber `src/routes/*` +
 > `src/schema.ts`; blockiert NICHT den Credential-Hotfix (dessen Kandidaten sind bereits
 > bekannt und verifiziert). Bereits gesicherter Stand: `recipes` (user/household via
