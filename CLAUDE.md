@@ -102,10 +102,13 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/keys/validate` | POST | Validate BYOK API key, requires Supabase bearer auth |
 | `/api/v1/health` | GET | Server + DB status |
 | `/api/v1/images/search` | GET | Search recipe image suggestions |
-| `/api/v1/cookidoo/status` | GET | Cookidoo connection status |
-| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials |
+| `/api/v1/cookidoo/status` | GET | Cookidoo connection status, requires Supabase bearer auth |
+| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, requires Supabase bearer auth |
+| `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501) |
+| `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501) |
+| `/api/v1/proxy/image` | GET | Image proxy for PDF export (intentionally unauthenticated, SSRF-guarded) |
 
-BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated, stored only as a hash on the job, and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths.
+BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths. No server-side key storage (the api_keys store was removed).
 
 **Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
 - `ExtractionPage` — URL input, job polling, progress display
