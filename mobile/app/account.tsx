@@ -31,6 +31,16 @@ type WorkspaceState =
   | { kind: 'ready'; data: AccountBootstrapResponse }
   | { kind: 'error'; message: string };
 
+function translateAuthError(message: string): string {
+  const map: Record<string, string> = {
+    'Invalid login credentials': 'Ungültige Anmeldedaten',
+    'Email not confirmed': 'E-Mail noch nicht bestätigt',
+    'User already registered': 'Diese E-Mail-Adresse ist bereits registriert',
+    'Password should be at least 6 characters': 'Das Passwort muss mindestens 6 Zeichen lang sein',
+  };
+  return map[message] ?? message;
+}
+
 function normalizeMode(value: string | string[] | undefined): AccountMode {
   const first = Array.isArray(value) ? value[0] : value;
   if (first === 'signup' || first === 'reset' || first === 'update-password') {
@@ -191,7 +201,7 @@ export default function AccountScreen() {
       setPassword('');
       await runBootstrap(true);
     } catch (error) {
-      setInlineError(error instanceof Error ? error.message : 'Login fehlgeschlagen.');
+      setInlineError(error instanceof Error ? translateAuthError(error.message) : 'Login fehlgeschlagen.');
     } finally {
       setBusy(false);
     }
@@ -216,7 +226,7 @@ export default function AccountScreen() {
     });
     try {
       if (result.status === 'signup_failed') {
-        setInlineError(result.message);
+        setInlineError(translateAuthError(result.message));
         return;
       }
       if (result.status === 'confirmation_required') {
@@ -251,7 +261,7 @@ export default function AccountScreen() {
       await requestPasswordReset(email.trim(), { returnTo });
       setInlineInfo('Falls die Adresse existiert, wurde ein Passwort-Reset-Link verschickt.');
     } catch (error) {
-      setInlineError(error instanceof Error ? error.message : 'Reset-Link konnte nicht verschickt werden.');
+      setInlineError(error instanceof Error ? translateAuthError(error.message) : 'Reset-Link konnte nicht verschickt werden.');
     } finally {
       setBusy(false);
     }
@@ -273,7 +283,7 @@ export default function AccountScreen() {
       });
       setInlineInfo('Bestätigungs-E-Mail wurde erneut verschickt.');
     } catch (error) {
-      setInlineError(error instanceof Error ? error.message : 'Bestätigungs-E-Mail konnte nicht erneut verschickt werden.');
+      setInlineError(error instanceof Error ? translateAuthError(error.message) : 'Bestätigungs-E-Mail konnte nicht erneut verschickt werden.');
     } finally {
       setBusy(false);
     }
@@ -299,7 +309,7 @@ export default function AccountScreen() {
       setMode('signin');
       finishWithReturnIntent();
     } catch (error) {
-      setInlineError(error instanceof Error ? error.message : 'Passwort konnte nicht aktualisiert werden.');
+      setInlineError(error instanceof Error ? translateAuthError(error.message) : 'Passwort konnte nicht aktualisiert werden.');
     } finally {
       setBusy(false);
     }
@@ -316,7 +326,7 @@ export default function AccountScreen() {
       setConfirmPassword('');
       setMode('signin');
     } catch (error) {
-      setInlineError(error instanceof Error ? error.message : 'Logout fehlgeschlagen.');
+      setInlineError(error instanceof Error ? translateAuthError(error.message) : 'Logout fehlgeschlagen.');
     } finally {
       setBusy(false);
     }
@@ -390,13 +400,21 @@ export default function AccountScreen() {
         ) : null}
 
         {inlineError ? (
-          <View className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4">
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+            className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4"
+          >
             <Text className="text-sm text-red-700">{inlineError}</Text>
           </View>
         ) : null}
 
         {inlineInfo ? (
-          <View className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4"
+          >
             <Text className="text-sm text-blue-700">{inlineInfo}</Text>
           </View>
         ) : null}
@@ -427,6 +445,8 @@ export default function AccountScreen() {
                 <Pressable
                   key={value}
                   onPress={() => setMode(value)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: mode === value }}
                   className={`flex-1 rounded-lg px-2 py-2 ${mode === value ? 'bg-white dark:bg-espresso-800' : ''}`}
                 >
                   <Text className={`text-center text-xs font-medium ${mode === value ? 'text-primary-500' : 'text-warm-500 dark:text-warm-400'}`}>
