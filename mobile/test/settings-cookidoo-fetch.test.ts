@@ -60,78 +60,20 @@ vi.mock('lucide-react-native', () => ({
   User: () => null,
 }));
 
-describe('settings.tsx — Cookidoo handlers call apiFetch (not raw fetch)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Default successful response for loadCookidooStatus
-    apiFetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ connected: false, hasFileCredentials: false }),
-    });
-  });
-
-  afterEach(() => {
-    vi.resetModules();
-  });
-
-  it('loadCookidooStatus calls apiFetch("/api/v1/cookidoo/status")', async () => {
-    // Directly test the fetch call that loadCookidooStatus performs
-    // by calling apiFetch with the exact path used in the component
-    await apiFetchMock('/api/v1/cookidoo/status');
-
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/cookidoo/status');
-  });
-
-  it('handleSaveCookidoo calls apiFetch POST /api/v1/cookidoo/credentials', async () => {
-    // Simulate what the handler does
-    const email = 'test@example.com';
-    const password = 'secretpass';
-
-    apiFetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true }),
-    });
-
-    await apiFetchMock('/api/v1/cookidoo/credentials', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    expect(apiFetchMock).toHaveBeenCalledWith(
-      '/api/v1/cookidoo/credentials',
-      expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      }),
-    );
-  });
-
-  it('handleDisconnectCookidoo calls apiFetch DELETE /api/v1/cookidoo/credentials', async () => {
-    apiFetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
-
-    await apiFetchMock('/api/v1/cookidoo/credentials', { method: 'DELETE' });
-
-    expect(apiFetchMock).toHaveBeenCalledWith(
-      '/api/v1/cookidoo/credentials',
-      expect.objectContaining({ method: 'DELETE' }),
-    );
-  });
-
-  it('apiFetch is used — raw global fetch is never called for Cookidoo routes', async () => {
-    // Verify that the mock intercepts the Cookidoo calls without touching globalThis.fetch.
-    // If the component used raw fetch(), this test would call the wrong function.
-    const rawFetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(
-      new Error('raw fetch should not be called'),
-    );
-
-    // Simulate loadCookidooStatus via apiFetch — should NOT reach rawFetch
-    await apiFetchMock('/api/v1/cookidoo/status');
-
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/cookidoo/status');
-    expect(rawFetchSpy).not.toHaveBeenCalled();
-
-    rawFetchSpy.mockRestore();
-  });
+// ---------------------------------------------------------------------------
+// TODO: Full component tests for the Cookidoo handlers in settings.tsx are
+// deferred. The previous 4 tests in this file were tautological: they called
+// apiFetchMock(...) directly and then asserted the mock was called — they
+// never imported or invoked any code from settings.tsx and therefore provided
+// zero real coverage.
+//
+// The real coverage gap: the three async handler functions in settings.tsx
+// (loadCookidooStatus, handleSaveCookidoo, handleDisconnectCookidoo) are
+// defined as inline closures inside the component body and are not exported,
+// so they cannot be tested without rendering the component. A proper test
+// requires RNTL + full server-mocking for the apiFetch layer, and is tracked
+// as a follow-up item.
+// ---------------------------------------------------------------------------
+describe('settings.tsx — Cookidoo handlers (placeholder)', () => {
+  // Tests deferred — see comment above.
 });

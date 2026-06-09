@@ -103,6 +103,15 @@ export async function watchAuthQueryCache(): Promise<() => void> {
   const { getSupabaseClient } = await import('./auth');
   const supabase = getSupabaseClient();
   if (!supabase) {
+    // Supabase is not configured (e.g. missing env vars).
+    // Immediately resolve the session-restore gate so the app can render
+    // instead of displaying the "Session wird wiederhergestellt…" spinner forever.
+    if (_sessionRestoring) {
+      _sessionRestoring = false;
+      for (const l of _sessionRestoringListeners) {
+        l(false);
+      }
+    }
     return () => {};
   }
 
