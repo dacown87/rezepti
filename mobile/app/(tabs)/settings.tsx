@@ -657,7 +657,7 @@ export default function SettingsScreen() {
                 </Text>
               </View>
               <Text className="text-xs text-warm-500 dark:text-warm-400 leading-5">
-                Der Key wird ausschließlich lokal auf deinem Gerät gespeichert und nie an Dritte weitergegeben.
+                Der Key wird lokal auf deinem Gerät gespeichert und bei Anfragen an Groq übermittelt.
               </Text>
             </Pressable>
           </Pressable>
@@ -711,7 +711,7 @@ export default function SettingsScreen() {
             )}
           </View>
           <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
-            Dein Key wird sicher auf dem Gerät gespeichert (SecureStore).
+            Dein Key wird auf dem Gerät gespeichert (SecureStore) und bei Anfragen an Groq übermittelt.
           </Text>
 
           <View className="flex-row items-center border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-2">
@@ -844,7 +844,7 @@ export default function SettingsScreen() {
             <View>
               <View className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
                 <Text className="text-sm text-green-700 font-medium">
-                  Verbunden als {cookidooConnectedEmail}
+                  Server-Instanz verbunden ({cookidooConnectedEmail})
                 </Text>
               </View>
               <TouchableOpacity
@@ -911,7 +911,7 @@ export default function SettingsScreen() {
           )}
 
           <Text className="text-xs text-warm-500 dark:text-warm-400 mt-3">
-            Zugangsdaten werden nur auf dem Server gespeichert.
+            Zugangsdaten gelten für die gesamte Server-Instanz, nicht pro Account.
           </Text>
         </View>
 
