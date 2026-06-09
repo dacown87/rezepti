@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.140] – 2026-06-09
+
+### Fixed
+- **Security:** Credential and BYOK-key API routes (`/api/v1/keys/*`, `/api/v1/cookidoo/*`) are now authenticated — previously any caller could read, overwrite, or delete stored credentials on the public server.
+- **Security:** Image proxy (`/api/v1/proxy/image`) now rejects SVG and other scriptable MIME types; only safe raster formats (JPEG, PNG, GIF, WebP, AVIF) are forwarded. SVGs served from an attacker-controlled URL could execute scripts in the app's browser origin.
+- **Security:** Post-login `returnTo` redirect now validates that the target is a relative app path, preventing open-redirect attacks (including via Supabase confirmation email deep-links).
+- Web session restore no longer flashes signed-out content — a "Session wird wiederhergestellt…" interstitial covers protected screens until the first auth event fires.
+- New-tab and cold-start session restore no longer leaks a prior user's cached recipe data; the React Query cache is now namespaced by user ID.
+- Expired email-confirmation and password-reset deep-links now surface a visible German error ("abgelaufen oder ungültig") instead of failing silently.
+- Web email-confirmation message no longer says "öffne den Link in der App" (correct for native; confusing on web).
+- Cookidoo status endpoint no longer returns the stored account email to unauthenticated or unauthorized callers.
+
+### Changed
+- Privacy copy for the Groq API key clarified: the key is sent to Groq for extraction requests (not "exclusively local" as stated before).
+- Cookidoo credentials copy clarified: credentials apply to the whole server instance, not per user account.
+
+### Removed
+- Dead BYOK server-side key store: the `api_keys` table, store/delete routes, and related DB functions had zero callers and have been removed.
+- Pinterest and Facebook credential endpoints (0% implemented) now return 501 instead of appearing functional.
+
 ## [1.0.139] – 2026-06-09
 
 
