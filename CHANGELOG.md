@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.141] – 2026-06-09
+
+- empty test suite, fix hot-switch cold-start data ordering
+- add Platform to react-native mock in account test (T10 regression)
+- remove JWT-looking test tokens, fix hot-switch cache test flow
+- SVG XSS in image proxy, open-redirect in returnTo (adversarial review)
+- align 501 test assertions with structured error envelope
+- stale CLAUDE.md API table + 501 error envelope consistency (pre-landing review)
+- null-client sessionRestoring guard; fix tautological settings-cookidoo tests (pre-landing review)
+- auth screen a11y attributes and German error copy (T14+T15)
+- session-restore interstitial prevents signed-out flash (T11)
+- web-aware confirmation/reset copy and success state (T10)
+
 ## [1.0.140] – 2026-06-09
 
 ### Fixed
