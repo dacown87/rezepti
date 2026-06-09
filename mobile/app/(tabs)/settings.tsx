@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User } from 'lucide-react-native';
 import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
+import { apiFetch } from '@/utils/api';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 
 const SECURE_KEY_GROQ = 'groq_key';
@@ -372,8 +373,7 @@ export default function SettingsScreen() {
   const loadCookidooStatus = useCallback(async () => {
     setLoadingCookidooStatus(true);
     try {
-      const base = await getServerUrl();
-      const res = await fetch(`${base}/api/v1/cookidoo/status`);
+      const res = await apiFetch('/api/v1/cookidoo/status');
       if (res.ok) {
         const data = await res.json();
         setCookidooConnected(data.connected ?? false);
@@ -501,8 +501,7 @@ export default function SettingsScreen() {
     }
     setSavingCookidoo(true);
     try {
-      const base = await getServerUrl();
-      const res = await fetch(`${base}/api/v1/cookidoo/credentials`, {
+      const res = await apiFetch('/api/v1/cookidoo/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cookidooEmail.trim(), password: cookidooPassword }),
@@ -533,8 +532,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const base = await getServerUrl();
-              await fetch(`${base}/api/v1/cookidoo/credentials`, { method: 'DELETE' });
+              await apiFetch('/api/v1/cookidoo/credentials', { method: 'DELETE' });
               setCookidooConnected(false);
               setCookidooConnectedEmail(null);
               setCookidooEmail('');
