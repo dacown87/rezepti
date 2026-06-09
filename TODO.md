@@ -1,6 +1,6 @@
 # TODO
 
-Stand: 2026-06-08
+Stand: 2026-06-09
 
 Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigte Details stehen in [docs/todo-history.md](/home/patrick/Projekte/rezepti/docs/todo-history.md). Der aktuelle Betriebscheck fuer GitHub CI, Supabase und Northflank steht in [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
@@ -26,9 +26,11 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
    - **Gate ist jetzt ein automatisierter Session-E2E** (Login -> Reload -> authed; neuer Kontext -> persisted/cleared), nicht mehr nur die manuelle Abnahme (die bleibt als Smoke). Grund: der reale Bug ist der nach `userId` nicht namespace-te Query-Cache (New-Tab zeigt Rezepte des Vor-Users) — timing-abhaengig, manuell unzuverlaessig. Review 2026-06-09.
    - Danach Settings/Theme/PDF im echten Web-Flow pruefen: Reload, neuer Tab, neue Browser-Session.
 
-3. **Stale Test-Doku nachziehen**
-   - [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen.
-   - Gleichzeitig die heute erledigten Punkte fuer Dependency-Patches, Expo-Drift-Fix und Performance-Readiness knapp nachziehen.
+3. **Multi-Auth-Hardening-Track abarbeiten**
+   - Web-Auth-/Account-/Workspace-Einstieg im Browser stabilisieren.
+   - Web-Persistenz fuer Settings/Theme/PDF unter echter Session manuell abnehmen.
+   - Ownership-Flaechen und Credential-Boundaries explizit inventarisieren und nachziehen.
+   - Details: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
 
 4. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
@@ -49,6 +51,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 - [x] **Auth-Onboarding-Slice** — Signup, Login, serverseitiger Account-/Default-Haushalt-Bootstrap, Account-&-Workspace-Screen und sichtbare Auth-Zustaende sind auf `main` gelandet. Plan: [Auth Onboarding Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md).
 - [x] **Multi-User Login First Slice** — Supabase Auth + echte Household-RLS-Policies ueber Memberships; App-Requests laufen mit Supabase User-JWT als `authenticated`. Plan am 2026-06-04 aktualisiert und PR #2 gelandet.
+- [ ] **Multi-Auth-Hardening-Track** — Web-Auth-Stabilisierung, Web-Persistenz-Abnahme, Ownership-Inventur und Credential-Boundaries als naechster Konsolidierungsslice. Main plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
 - [ ] **Progressive Web App (PWA)** — Installierbare Web-App mit Manifest, Service Worker, Offline-Grundlage und Homescreen-Installationspfad fuer iOS/Android einbauen.
 - [x] **Dependency-Patch-Drift** — safe Patch-Slice fuer Root/Mobile lokal nachgezogen; Expo-/SDK-gebundene Linien bleiben laut `expo install --check` sauber und bewusst separat.
 - [ ] **CI / Supabase / Northflank Track** — aktueller Betriebsstand, Findings und Vorgehen: [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
