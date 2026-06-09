@@ -72,6 +72,30 @@ export const asyncStoragePersister = {
   },
 };
 
+/**
+ * Session-restore state:
+ * `true`  = first auth event has NOT fired yet (session is being restored from storage).
+ * `false` = first auth event has fired; auth state is confirmed.
+ */
+let _sessionRestoring = true;
+const _sessionRestoringListeners = new Set<(restoring: boolean) => void>();
+
+/** Returns true while the Supabase session is still being restored on cold start. */
+export function getSessionRestoring(): boolean {
+  return _sessionRestoring;
+}
+
+/**
+ * Subscribe to session-restore state changes.
+ * Returns an unsubscribe function.
+ */
+export function subscribeSessionRestoring(listener: (restoring: boolean) => void): () => void {
+  _sessionRestoringListeners.add(listener);
+  return () => {
+    _sessionRestoringListeners.delete(listener);
+  };
+}
+
 let authQueryCacheWatchPromise: Promise<() => void> | null = null;
 let authQueryCacheWatchStop: (() => void) | null = null;
 
@@ -89,6 +113,13 @@ export async function watchAuthQueryCache(): Promise<() => void> {
 
     const isFirstEvent = activeAuthUserId === undefined;
     const userChanged = !isFirstEvent && activeAuthUserId !== nextUserId;
+
+    if (isFirstEvent && _sessionRestoring) {
+      _sessionRestoring = false;
+      for (const l of _sessionRestoringListeners) {
+        l(false);
+      }
+    }
 
     if (isFirstEvent) {
       // Cold-start: the persister may have already restored the cache for a
