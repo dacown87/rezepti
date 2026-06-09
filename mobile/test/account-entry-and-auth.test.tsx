@@ -119,6 +119,7 @@ vi.mock('react-native', () => {
     Switch: wrap('Switch'),
     Pressable: wrap('Pressable'),
     Alert: { alert: vi.fn() },
+    Platform: { OS: 'android', select: (spec: Record<string, unknown>) => spec.android ?? spec.default },
   };
 });
 

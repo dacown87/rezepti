@@ -105,3 +105,56 @@ describe('planner route auth boundary', () => {
     expect(dbMocks.getShoppingList).toHaveBeenCalledWith('10000000-0000-0000-0000-000000000001')
   })
 })
+
+describe('ingredient_dictionary admin gate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
+  })
+
+  it('returns 401 when unauthenticated user POSTs to /api/v1/dictionary', async () => {
+    const res = await plannerRouter.request('/api/v1/dictionary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canonicalName: 'Mehl' }),
+    })
+
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
+    })
+    expect(dbMocks.addToDictionary).not.toHaveBeenCalled()
+  })
+
+  it('returns 403 when non-admin authenticated user POSTs to /api/v1/dictionary', async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: '00000000-0000-0000-0000-000000000002',
+        email: 'regular-user@example.com',
+      }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'member' }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+      }),
+    })
+
+    const res = await plannerRouter.request('/api/v1/dictionary', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer valid-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ canonicalName: 'Mehl' }),
+    })
+
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'admin_required' },
+    })
+    expect(dbMocks.addToDictionary).not.toHaveBeenCalled()
+  })
+})

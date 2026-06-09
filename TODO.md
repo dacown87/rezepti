@@ -12,15 +12,19 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 ## Naechste Reihenfolge
 
+0. [x] **P0 Sicherheit — Credential-Auth-Hotfix (umgesetzt, feat/credential-auth-hotfix, 2026-06-09)**
+   - Tasks T1-T6 sind umgesetzt: `requireUserAuth` pro Route, totes `api_keys`-Store+Route geloescht, Pinterest/Facebook-Routes deaktiviert (501), Privacy-Copy korrigiert, Unauth-Denied-/Cross-User-Tests hinzugefuegt, Contract-Test geprueft.
+   - Plan + Review: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
+
 1. **Progressive Web App (PWA) einbauen**
    - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
    - Homescreen-Installationspfad fuer iOS/Android pruefen.
    - Auth-Onboarding ist jetzt da; der naechste PWA-Slice muss Signup-/Session-/Cache-Verhalten bewusst mit einplanen.
 
-2. **Web-Persistenz manuell abnehmen, sobald Multi-Auth im Web belastbar funktioniert**
+2. **Web-Persistenz absichern, sobald Multi-Auth im Web belastbar funktioniert**
    - Erst den Web-Auth-/Account-/Workspace-Einstieg soweit stabilisieren, dass Login/Signup/Session fuer die normale Nutzung nicht mehr blockieren.
+   - **Gate ist jetzt ein automatisierter Session-E2E** (Login -> Reload -> authed; neuer Kontext -> persisted/cleared), nicht mehr nur die manuelle Abnahme (die bleibt als Smoke). Grund: der reale Bug ist der nach `userId` nicht namespace-te Query-Cache (New-Tab zeigt Rezepte des Vor-Users) — timing-abhaengig, manuell unzuverlaessig. Review 2026-06-09.
    - Danach Settings/Theme/PDF im echten Web-Flow pruefen: Reload, neuer Tab, neue Browser-Session.
-   - Technische Tests sind gruen; offen ist die reale Web-Abnahme unter funktionierender Multi-Auth.
 
 3. **Stale Test-Doku nachziehen**
    - [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen.
@@ -37,8 +41,8 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [ ] **Multi-Workspace-Wechsel** — Wechsel zwischen mehreren Workspaces auf Basis der Default-Workspace-Invariante planen.
 - [ ] **OAuth / Magic Link** — Zusätzliche Auth-Modi mit Supabase-Konfig, Redirects, Deep Links und Tests als eigenen Slice planen.
 - [ ] **Recipe Sharing / Copy / Collections** — Sharing, Kopien und Collections als eigene Ownership-/UX-Arbeit planen; nicht in den Auth-Onboarding-Slice ziehen.
-- [ ] **BYOK- und Plattform-Credential-Ownership** — Klaeren, welche Nutzer-/Workspace-Grenzen fuer eigene API-Keys, Plattform-Credentials und deren Sichtbarkeit gelten.
-- [ ] **Weitere ungeschuetzte Ownership-Flaechen inventarisieren** — Nach Auth-Onboarding pruefen, welche Daten oder Aktionen noch nicht sauber User-/Workspace-scoped sind.
+- [ ] **BYOK- und Plattform-Credential-Ownership** — Geklaert + re-priorisiert: ist jetzt der **P0-Hotfix oben** (Routes sind unauth, live). Zielregeln aus dem Review: Cookidoo `admin/global` + ehrliche Copy, Pinterest/Facebook `disabled`, BYOK-Store droppen. Plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
+- [ ] **Weitere ungeschuetzte Ownership-Flaechen inventarisieren** — Inventur ist Phase 3 des Multi-Auth-Hardening-Plans (ein `grep`-Pass). Bisher gefundene unscoped Flaeche zusaetzlich zu Credentials: `ingredient_dictionary` (global mutable). Plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
 - [ ] **Account-Loeschung und Recovery-Haertung** — Account-Loeschung, Rate-Limit-UX, Support-/Auditpfad und Recovery-Polish nach minimalem Passwort-Reset planen.
 
 ## Aktive Backlog / Watchlist
@@ -49,7 +53,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [x] **Dependency-Patch-Drift** — safe Patch-Slice fuer Root/Mobile lokal nachgezogen; Expo-/SDK-gebundene Linien bleiben laut `expo install --check` sauber und bewusst separat.
 - [ ] **CI / Supabase / Northflank Track** — aktueller Betriebsstand, Findings und Vorgehen: [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 - [x] **Performance-Readiness neu aufbauen** — frisches 10er-Window fuer den Juni-Web-Export ist lokal aufgebaut; `artifacts/performance/readiness.json` steht wieder auf `ready=true`.
-- [ ] **Web-Persistenz-Abnahme nach Multi-Auth-Stabilisierung** — Erst wenn der Multi-Auth-Web-Flow belastbar nutzbar ist, Settings/Theme/PDF per Reload, neuem Tab und neuer Browser-Session manuell pruefen.
+- [ ] **Web-Persistenz-Abnahme nach Multi-Auth-Stabilisierung** — Erst wenn der Multi-Auth-Web-Flow belastbar nutzbar ist, Settings/Theme/PDF per Reload, neuem Tab und neuer Browser-Session manuell pruefen. **Gate ist jetzt automatisierter Session-E2E (T12 umgesetzt):** Login → Reload → authed; neuer Kontext → cleared. Manuelle Abnahme bleibt als Smoke.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
 - [x] **Recipes-Ownership-Slice umsetzen** — Server-API fuer `recipes` auf explizites Owner-Modell umbauen: private User-Rezepte, Haushaltsrezepte, keine globalen Templates, keine Null-Owner-Kompatibilitaet. Plan: [Recipes Ownership Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-05-recipes-ownership-slice-plan.md).
 - [ ] **Recipes Sharing/Favorites Folgeslices planen** — Teilen erzeugt Kopien; Favoriten/Collections werden eigene private oder haushaltsbezogene Owner-Objekte. Nicht in den aktuellen Ownership-Slice ziehen.

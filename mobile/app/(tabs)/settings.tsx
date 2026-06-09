@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User } from 'lucide-react-native';
 import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
+import { apiFetch } from '@/utils/api';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 
 const SECURE_KEY_GROQ = 'groq_key';
@@ -272,7 +273,6 @@ export default function SettingsScreen() {
   const [cookidooPassword, setCookidooPassword] = useState('');
   const [showCookidooPassword, setShowCookidooPassword] = useState(false);
   const [cookidooConnected, setCookidooConnected] = useState(false);
-  const [cookidooConnectedEmail, setCookidooConnectedEmail] = useState<string | null>(null);
   const [savingCookidoo, setSavingCookidoo] = useState(false);
   const [loadingCookidooStatus, setLoadingCookidooStatus] = useState(true);
 
@@ -372,13 +372,10 @@ export default function SettingsScreen() {
   const loadCookidooStatus = useCallback(async () => {
     setLoadingCookidooStatus(true);
     try {
-      const base = await getServerUrl();
-      const res = await fetch(`${base}/api/v1/cookidoo/status`);
+      const res = await apiFetch('/api/v1/cookidoo/status');
       if (res.ok) {
         const data = await res.json();
         setCookidooConnected(data.connected ?? false);
-        setCookidooConnectedEmail(data.email ?? null);
-        if (data.email) setCookidooEmail(data.email);
       }
     } catch {
       // Server not reachable — treat as disconnected
@@ -501,8 +498,7 @@ export default function SettingsScreen() {
     }
     setSavingCookidoo(true);
     try {
-      const base = await getServerUrl();
-      const res = await fetch(`${base}/api/v1/cookidoo/credentials`, {
+      const res = await apiFetch('/api/v1/cookidoo/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cookidooEmail.trim(), password: cookidooPassword }),
@@ -533,10 +529,8 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const base = await getServerUrl();
-              await fetch(`${base}/api/v1/cookidoo/credentials`, { method: 'DELETE' });
+              await apiFetch('/api/v1/cookidoo/credentials', { method: 'DELETE' });
               setCookidooConnected(false);
-              setCookidooConnectedEmail(null);
               setCookidooEmail('');
               setCookidooPassword('');
             } catch {
@@ -659,7 +653,7 @@ export default function SettingsScreen() {
                 </Text>
               </View>
               <Text className="text-xs text-warm-500 dark:text-warm-400 leading-5">
-                Der Key wird ausschließlich lokal auf deinem Gerät gespeichert und nie an Dritte weitergegeben.
+                Der Key wird lokal auf deinem Gerät gespeichert und bei Anfragen an Groq übermittelt.
               </Text>
             </Pressable>
           </Pressable>
@@ -713,7 +707,7 @@ export default function SettingsScreen() {
             )}
           </View>
           <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
-            Dein Key wird sicher auf dem Gerät gespeichert (SecureStore).
+            Dein Key wird auf dem Gerät gespeichert (SecureStore) und bei Anfragen an Groq übermittelt.
           </Text>
 
           <View className="flex-row items-center border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-2">
@@ -841,12 +835,12 @@ export default function SettingsScreen() {
             Zugangsdaten für Cookidoo (Thermomix)
           </Text>
 
-          {cookidooConnected && cookidooConnectedEmail ? (
+          {cookidooConnected ? (
             /* Connected state */
             <View>
               <View className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
                 <Text className="text-sm text-green-700 font-medium">
-                  Verbunden als {cookidooConnectedEmail}
+                  Server verbunden
                 </Text>
               </View>
               <TouchableOpacity
@@ -913,7 +907,7 @@ export default function SettingsScreen() {
           )}
 
           <Text className="text-xs text-warm-500 dark:text-warm-400 mt-3">
-            Zugangsdaten werden nur auf dem Server gespeichert.
+            Zugangsdaten gelten für die gesamte Server-Instanz, nicht pro Account.
           </Text>
         </View>
 

@@ -1,19 +1,16 @@
 import { Hono } from "hono";
-import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, getCredentials, clearSession } from "../fetchers/cookidoo.js";
-import { savePinterestCredentialsToDisk, clearPinterestCredentialsFromDisk, getPinterestStatus, getPinterestCredentials } from "../fetchers/pinterest.js";
-import { hasFacebookCookies, getFacebookCookieDomains, validateFacebookCookies, saveFacebookCookies, clearFacebookCookies } from "../fetchers/facebook.js";
+import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, clearSession } from "../fetchers/cookidoo.js";
+import { requireUserAuth } from "../auth.js";
 
 const app = new Hono();
 
 // Cookidoo credentials management
-app.get("/api/v1/cookidoo/status", (c) => {
+app.get("/api/v1/cookidoo/status", requireUserAuth(), (c) => {
   try {
     const status = getSessionStatus();
-    const creds = getCredentials();
     return c.json({
       connected: status.connected,
       hasFileCredentials: status.hasFileCredentials,
-      email: creds ? creds.email : null,
     });
   } catch (error) {
     console.error("Error getting Cookidoo status:", error);
@@ -21,7 +18,7 @@ app.get("/api/v1/cookidoo/status", (c) => {
   }
 });
 
-app.post("/api/v1/cookidoo/credentials", async (c) => {
+app.post("/api/v1/cookidoo/credentials", requireUserAuth(), async (c) => {
   try {
     const { email, password } = await c.req.json();
 
@@ -42,7 +39,7 @@ app.post("/api/v1/cookidoo/credentials", async (c) => {
   }
 });
 
-app.delete("/api/v1/cookidoo/credentials", (c) => {
+app.delete("/api/v1/cookidoo/credentials", requireUserAuth(), (c) => {
   try {
     clearCredentialsFromDisk();
     clearSession();
@@ -57,127 +54,34 @@ app.delete("/api/v1/cookidoo/credentials", (c) => {
   }
 });
 
-// Pinterest credentials management
-app.get("/api/v1/pinterest/status", (c) => {
-  try {
-    const status = getPinterestStatus();
-    const creds = getPinterestCredentials();
-    return c.json({
-      connected: status.connected,
-      hasFileCredentials: status.hasFileCredentials,
-      hasAccessToken: !!(creds && creds.accessToken),
-    });
-  } catch (error) {
-    console.error("Error getting Pinterest status:", error);
-    return c.json({ error: "Failed to get Pinterest status" }, 500);
-  }
+// Pinterest credentials management (not yet implemented)
+app.get("/api/v1/pinterest/status", requireUserAuth(), (c) => {
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
-app.post("/api/v1/pinterest/credentials", async (c) => {
-  try {
-    const { clientId, clientSecret, accessToken, refreshToken } = await c.req.json();
-
-    if (!clientId || !clientSecret || !accessToken || !refreshToken) {
-      return c.json(
-        { error: "clientId, clientSecret, accessToken, and refreshToken are required" },
-        400
-      );
-    }
-
-    savePinterestCredentialsToDisk({ clientId, clientSecret, accessToken, refreshToken });
-
-    return c.json({
-      success: true,
-      message: "Pinterest credentials saved successfully",
-    });
-  } catch (error) {
-    console.error("Error saving Pinterest credentials:", error);
-    return c.json({ error: "Failed to save Pinterest credentials" }, 500);
-  }
+app.post("/api/v1/pinterest/credentials", requireUserAuth(), (c) => {
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
-app.delete("/api/v1/pinterest/credentials", (c) => {
-  try {
-    clearPinterestCredentialsFromDisk();
-    return c.json({
-      success: true,
-      message: "Pinterest credentials removed",
-    });
-  } catch (error) {
-    console.error("Error removing Pinterest credentials:", error);
-    return c.json({ error: "Failed to remove Pinterest credentials" }, 500);
-  }
+app.delete("/api/v1/pinterest/credentials", requireUserAuth(), (c) => {
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
-// Facebook cookie management
-app.get("/api/v1/facebook/status", (c) => {
-  try {
-    const hasCookies = hasFacebookCookies();
-    const domains = getFacebookCookieDomains();
-    return c.json({
-      hasCookies,
-      domains: hasCookies ? domains : [],
-    });
-  } catch (error) {
-    console.error("Error getting Facebook cookie status:", error);
-    return c.json({ error: "Failed to get Facebook cookie status" }, 500);
-  }
+// Facebook cookie management (not yet implemented)
+app.get("/api/v1/facebook/status", requireUserAuth(), (c) => {
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
-app.post("/api/v1/facebook/cookies", async (c) => {
-  try {
-    const contentType = c.req.header("content-type") || "";
-
-    if (!contentType.includes("multipart/form-data")) {
-      const body = await c.req.text();
-      const validation = validateFacebookCookies(body);
-      if (!validation.valid) {
-        return c.json({ error: validation.error }, 400);
-      }
-      saveFacebookCookies(body);
-      return c.json({
-        success: true,
-        message: "Facebook cookies saved successfully",
-      });
-    }
-
-    const formData = await c.req.formData();
-    const file = formData.get("cookies");
-    if (!file || typeof file === "string") {
-      return c.json({ error: "No cookie file provided" }, 400);
-    }
-
-    const content = await file.text();
-    const validation = validateFacebookCookies(content);
-    if (!validation.valid) {
-      return c.json({ error: validation.error }, 400);
-    }
-
-    saveFacebookCookies(content);
-    return c.json({
-      success: true,
-      message: "Facebook cookies saved successfully",
-    });
-  } catch (error) {
-    console.error("Error saving Facebook cookies:", error);
-    return c.json({ error: "Failed to save Facebook cookies" }, 500);
-  }
+app.post("/api/v1/facebook/cookies", requireUserAuth(), (c) => {
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
-app.delete("/api/v1/facebook/cookies", (c) => {
-  try {
-    clearFacebookCookies();
-    return c.json({
-      success: true,
-      message: "Facebook cookies removed",
-    });
-  } catch (error) {
-    console.error("Error removing Facebook cookies:", error);
-    return c.json({ error: "Failed to remove Facebook cookies" }, 500);
-  }
+app.delete("/api/v1/facebook/cookies", requireUserAuth(), (c) => {
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
 // Image proxy for PDF export (bypasses browser CORS restrictions)
+// INTENTIONALLY unauthenticated — used for PDF export before login
 app.get("/api/v1/proxy/image", async (c) => {
   const url = c.req.query("url");
   if (!url || !url.startsWith("https://")) {
@@ -214,15 +118,19 @@ app.get("/api/v1/proxy/image", async (c) => {
       return c.json({ error: "Upstream error" }, 502);
     }
     const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.startsWith("image/")) {
-      return c.json({ error: "Not an image" }, 415);
+    // Allowlist: safe raster formats only. SVG is excluded because it can contain
+    // <script> tags — serving it from our origin would enable XSS.
+    const SAFE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
+    const mimeType = contentType.split(";")[0].trim();
+    if (!SAFE_IMAGE_TYPES.includes(mimeType)) {
+      return c.json({ error: "Unsupported image type" }, 415);
     }
     const buffer = await response.arrayBuffer();
     if (buffer.byteLength > 5 * 1024 * 1024) {
       return c.json({ error: "Image too large" }, 413);
     }
     return new Response(buffer, {
-      headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=3600" },
+      headers: { "Content-Type": mimeType, "Cache-Control": "public, max-age=3600" },
     });
   } catch {
     return c.json({ error: "Failed to fetch image" }, 502);

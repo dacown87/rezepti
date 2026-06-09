@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import {
   asyncStoragePersister,
-  QUERY_CACHE_STORAGE_KEY,
+  getQueryCacheKey,
   queryClient as appQueryClient,
 } from '@/utils/query-client';
 
@@ -140,11 +140,13 @@ describe('react-query integration: cache invalidation + recovery', () => {
   });
 
   it('discards corrupted persisted cache instead of propagating restore errors', async () => {
+    // activeAuthUserId is undefined at module load time → falls back to null → "anon" key.
+    const anonKey = getQueryCacheKey(null);
     const getItemSpy = vi.spyOn(AsyncStorage, 'getItem').mockResolvedValueOnce('{not-valid-json');
     const removeItemSpy = vi.spyOn(AsyncStorage, 'removeItem').mockResolvedValueOnce();
 
     await expect(asyncStoragePersister.restoreClient()).resolves.toBeUndefined();
-    expect(getItemSpy).toHaveBeenCalledWith(QUERY_CACHE_STORAGE_KEY);
-    expect(removeItemSpy).toHaveBeenCalledWith(QUERY_CACHE_STORAGE_KEY);
+    expect(getItemSpy).toHaveBeenCalledWith(anonKey);
+    expect(removeItemSpy).toHaveBeenCalledWith(anonKey);
   });
 });

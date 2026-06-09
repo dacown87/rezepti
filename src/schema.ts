@@ -118,14 +118,6 @@ export const userDefaultHouseholds = pgTable("user_default_households", {
   index("user_default_households_household_idx").on(t.householdId),
 ]);
 
-export const apiKeys = pgTable("api_keys", {
-  id: serial("id").primaryKey(),
-  keyHash: text("key_hash").notNull().unique(),
-  model: text("model"),
-  createdAt: timestamp("created_at").defaultNow(),
-  userId: uuid("user_id"),
-});
-
 export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type IngredientDictionaryEntry = typeof ingredientDictionary.$inferSelect;
@@ -134,8 +126,6 @@ export type ShoppingListItem = typeof shoppingList.$inferSelect;
 export type NewShoppingListItem = typeof shoppingList.$inferInsert;
 export type MealPlanEntry = typeof mealPlan.$inferSelect;
 export type NewMealPlanEntry = typeof mealPlan.$inferInsert;
-export type ApiKey = typeof apiKeys.$inferSelect;
-export type NewApiKey = typeof apiKeys.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type Household = typeof households.$inferSelect;
 export type HouseholdMembership = typeof householdMemberships.$inferSelect;
