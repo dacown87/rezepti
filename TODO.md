@@ -12,15 +12,20 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 ## Naechste Reihenfolge
 
+0. **P0 Sicherheit — Credential-Auth-Hotfix (zuerst, vor allem anderen)**
+   - Die Credential-/Key-Routes (`src/routes/keys.ts`, `src/routes/platforms.ts`) sind auf der oeffentlichen URL **ohne Auth** erreichbar: jeder kann BYOK-Keys per Hash loeschen und Cookidoo-/Pinterest-/Facebook-Credentials (globale Disk-Datei, inkl. Account-Email aus `cookidoo/status`) lesen, ueberschreiben oder loeschen. Verifiziert im /autoplan-Review 2026-06-09.
+   - Fix (Tasks T1-T6): `requireUserAuth` pro Route (NICHT Router-weit — `/api/v1/proxy/image` muss offen bleiben), totes `api_keys`-Store+Route droppen (`getApiKeyByHash` hat 0 Aufrufer), Pinterest/Facebook-Routes auf 501, falsche Privacy-Copy in `settings.tsx:662/716/849/916` korrigieren, Unauth-Denied-/Cross-User-Tests, Contract-Test pruefen.
+   - Plan + Review: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
+
 1. **Progressive Web App (PWA) einbauen**
    - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
    - Homescreen-Installationspfad fuer iOS/Android pruefen.
    - Auth-Onboarding ist jetzt da; der naechste PWA-Slice muss Signup-/Session-/Cache-Verhalten bewusst mit einplanen.
 
-2. **Web-Persistenz manuell abnehmen, sobald Multi-Auth im Web belastbar funktioniert**
+2. **Web-Persistenz absichern, sobald Multi-Auth im Web belastbar funktioniert**
    - Erst den Web-Auth-/Account-/Workspace-Einstieg soweit stabilisieren, dass Login/Signup/Session fuer die normale Nutzung nicht mehr blockieren.
+   - **Gate ist jetzt ein automatisierter Session-E2E** (Login -> Reload -> authed; neuer Kontext -> persisted/cleared), nicht mehr nur die manuelle Abnahme (die bleibt als Smoke). Grund: der reale Bug ist der nach `userId` nicht namespace-te Query-Cache (New-Tab zeigt Rezepte des Vor-Users) — timing-abhaengig, manuell unzuverlaessig. Review 2026-06-09.
    - Danach Settings/Theme/PDF im echten Web-Flow pruefen: Reload, neuer Tab, neue Browser-Session.
-   - Technische Tests sind gruen; offen ist die reale Web-Abnahme unter funktionierender Multi-Auth.
 
 3. **Stale Test-Doku nachziehen**
    - [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) enthaelt im Legacy-Flake-Inventory noch alte `TBD`-/Naechste-Aktion-Zeilen.
@@ -37,8 +42,8 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [ ] **Multi-Workspace-Wechsel** — Wechsel zwischen mehreren Workspaces auf Basis der Default-Workspace-Invariante planen.
 - [ ] **OAuth / Magic Link** — Zusätzliche Auth-Modi mit Supabase-Konfig, Redirects, Deep Links und Tests als eigenen Slice planen.
 - [ ] **Recipe Sharing / Copy / Collections** — Sharing, Kopien und Collections als eigene Ownership-/UX-Arbeit planen; nicht in den Auth-Onboarding-Slice ziehen.
-- [ ] **BYOK- und Plattform-Credential-Ownership** — Klaeren, welche Nutzer-/Workspace-Grenzen fuer eigene API-Keys, Plattform-Credentials und deren Sichtbarkeit gelten.
-- [ ] **Weitere ungeschuetzte Ownership-Flaechen inventarisieren** — Nach Auth-Onboarding pruefen, welche Daten oder Aktionen noch nicht sauber User-/Workspace-scoped sind.
+- [ ] **BYOK- und Plattform-Credential-Ownership** — Geklaert + re-priorisiert: ist jetzt der **P0-Hotfix oben** (Routes sind unauth, live). Zielregeln aus dem Review: Cookidoo `admin/global` + ehrliche Copy, Pinterest/Facebook `disabled`, BYOK-Store droppen. Plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
+- [ ] **Weitere ungeschuetzte Ownership-Flaechen inventarisieren** — Inventur ist Phase 3 des Multi-Auth-Hardening-Plans (ein `grep`-Pass). Bisher gefundene unscoped Flaeche zusaetzlich zu Credentials: `ingredient_dictionary` (global mutable). Plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
 - [ ] **Account-Loeschung und Recovery-Haertung** — Account-Loeschung, Rate-Limit-UX, Support-/Auditpfad und Recovery-Polish nach minimalem Passwort-Reset planen.
 
 ## Aktive Backlog / Watchlist

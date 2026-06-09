@@ -3,6 +3,13 @@
 Datum: 2026-06-09
 Main plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md)
 
+> **/autoplan 2026-06-09 — Update:** Im Kern ein `grep`-Pass ueber `src/routes/*` +
+> `src/schema.ts`; blockiert NICHT den Credential-Hotfix (dessen Kandidaten sind bereits
+> bekannt und verifiziert). Bereits gesicherter Stand: `recipes` (user/household via
+> `recipeVisibilityForAuth`), `shopping`/`planner` (household-scoped) sind sauber. Offen/
+> unscoped: Credential-Routes (siehe Phase 3) **und** `ingredient_dictionary` (global
+> mutable, in den Hotspots ergaenzen).
+
 ## Ziel
 
 Vor weiteren Multi-Auth- oder Collaboration-Slices muss klar sein, welche

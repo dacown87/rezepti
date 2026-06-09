@@ -3,6 +3,14 @@
 Datum: 2026-06-09
 Main plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md)
 
+> **/autoplan 2026-06-09 — Update:** Laeuft erst NACH dem Credential-Auth-Hotfix
+> (Schritt 0 im Main-Plan). Zwei verifizierte Praezisierungen: (1) Der reale Web-Bug
+> ist der nach `userId` nicht namespace-te React-Query-Cache — neuer Tab/Cold-Start
+> kann Rezepte des Vor-Users aus dem persistierten Cache rendern (`mobile/utils/query-client.ts`,
+> Task T7). (2) Die Web-Persistenz-Abnahme wird ein **automatisierter Session-E2E**
+> (Task T12); die manuelle Abnahme bleibt nur als Smoke. Erwarteter weiterer Befund:
+> expired Confirmation-Link scheitert still (`auth.ts`, Task T9).
+
 ## Ziel
 
 Der Web-Pfad fuer Account, Signup, Login, Session und Workspace darf nicht mehr
