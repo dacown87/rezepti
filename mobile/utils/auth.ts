@@ -225,6 +225,7 @@ export async function syncAuthSessionFromUrl(url: string): Promise<boolean> {
 
 export function registerAuthRedirectObserver(options?: {
   onPasswordRecovery?: (redirect?: AuthRedirectOptions) => void;
+  onLinkError?: (message: string) => void;
 }): () => void {
   const client = getSupabaseClient();
   if (!client) {
@@ -246,6 +247,9 @@ export function registerAuthRedirectObserver(options?: {
       }
     } catch (error) {
       console.warn('auth.redirect.failed', error);
+      options?.onLinkError?.(
+        'Der Bestätigungs-Link ist abgelaufen oder ungültig. Bitte neu anfordern.',
+      );
     }
   };
 

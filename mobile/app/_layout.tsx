@@ -84,6 +84,12 @@ function RootLayoutNav() {
             },
           });
         },
+        onLinkError: (message) => {
+          router.replace({
+            pathname: '/account',
+            params: { authError: message },
+          });
+        },
       });
     });
 

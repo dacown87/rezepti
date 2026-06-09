@@ -40,8 +40,9 @@ function normalizeMode(value: string | string[] | undefined): AccountMode {
 }
 
 export default function AccountScreen() {
-  const params = useLocalSearchParams<{ mode?: string; returnTo?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; returnTo?: string; authError?: string }>();
   const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
+  const initialAuthError = Array.isArray(params.authError) ? params.authError[0] : params.authError;
   const [mode, setMode] = useState<AccountMode>(() => normalizeMode(params.mode));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -113,6 +114,12 @@ export default function AccountScreen() {
   useEffect(() => {
     setMode(normalizeMode(params.mode));
   }, [params.mode]);
+
+  useEffect(() => {
+    if (initialAuthError) {
+      setInlineError(initialAuthError);
+    }
+  }, [initialAuthError]);
 
   useEffect(() => {
     const client = getSupabaseClient();
