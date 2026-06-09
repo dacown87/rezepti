@@ -2,7 +2,17 @@ import { QueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 
+/** @deprecated Use getQueryCacheKey(userId) instead. Kept for integration-test backwards compat. */
 export const QUERY_CACHE_STORAGE_KEY = 'recipedeck-query-cache';
+
+/**
+ * Returns the AsyncStorage key for a given user's query cache.
+ * Anonymous / signed-out state uses the "anon" slot so it never
+ * collides with a real user's persisted data.
+ */
+export function getQueryCacheKey(userId: string | null): string {
+  return `recipedeck-query-cache-${userId ?? 'anon'}`;
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,27 +28,50 @@ export const queryClient = new QueryClient({
   },
 });
 
-const baseAsyncStoragePersister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-  key: QUERY_CACHE_STORAGE_KEY,
-  throttleTime: 1000,
-});
+/**
+ * The currently active user ID as seen by the persister.
+ * `undefined` = not yet known (before first auth event).
+ * `null`       = signed-out.
+ * string       = signed-in user ID.
+ */
+let activeAuthUserId: string | null | undefined;
+
+/**
+ * A thin persister wrapper whose storage key tracks the active user.
+ * We re-create the underlying base persister on every operation so
+ * the correct user-scoped key is always used without needing a React
+ * context or prop-drilling.
+ */
+function makePersisterForCurrentUser() {
+  const key = getQueryCacheKey(activeAuthUserId ?? null);
+  return createAsyncStoragePersister({
+    storage: AsyncStorage,
+    key,
+    throttleTime: 1000,
+  });
+}
 
 export const asyncStoragePersister = {
-  ...baseAsyncStoragePersister,
+  persistClient: async (client: Parameters<ReturnType<typeof createAsyncStoragePersister>['persistClient']>[0]) => {
+    return makePersisterForCurrentUser().persistClient(client);
+  },
   restoreClient: async () => {
+    const persister = makePersisterForCurrentUser();
+    const key = getQueryCacheKey(activeAuthUserId ?? null);
     try {
-      return await baseAsyncStoragePersister.restoreClient();
+      return await persister.restoreClient();
     } catch {
       try {
-        await AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY);
+        await AsyncStorage.removeItem(key);
       } catch { /* ignore cleanup failure */ }
       return undefined;
     }
   },
+  removeClient: async () => {
+    return makePersisterForCurrentUser().removeClient();
+  },
 };
 
-let activeAuthUserId: string | null | undefined;
 let authQueryCacheWatchPromise: Promise<() => void> | null = null;
 let authQueryCacheWatchStop: (() => void) | null = null;
 
@@ -51,10 +84,26 @@ export async function watchAuthQueryCache(): Promise<() => void> {
 
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
     const nextUserId = session?.user.id ?? null;
-    if (activeAuthUserId !== undefined && activeAuthUserId !== nextUserId) {
+    const prevKey = getQueryCacheKey(activeAuthUserId ?? null);
+    const nextKey = getQueryCacheKey(nextUserId);
+
+    const isFirstEvent = activeAuthUserId === undefined;
+    const userChanged = !isFirstEvent && activeAuthUserId !== nextUserId;
+
+    if (isFirstEvent) {
+      // Cold-start: the persister may have already restored the cache for a
+      // different user (e.g. anon or a previous user).  If the restored key
+      // differs from the key for the incoming session user we must discard it.
+      if (prevKey !== nextKey) {
+        void queryClient.clear();
+        void AsyncStorage.removeItem(prevKey);
+      }
+    } else if (userChanged) {
+      // Hot switch: user logged out or switched to a different account.
       void queryClient.clear();
-      void AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY);
+      void AsyncStorage.removeItem(prevKey);
     }
+
     activeAuthUserId = nextUserId;
   });
 
