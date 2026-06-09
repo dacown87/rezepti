@@ -99,9 +99,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars), requires Supabase bearer auth |
 | `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling), requires Supabase bearer auth |
 | `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user |
-| `/api/v1/keys/validate` | POST | Validate BYOK API key |
-| `/api/v1/keys` | POST | Store API key |
-| `/api/v1/keys/:keyHash` | DELETE | Remove API key |
+| `/api/v1/keys/validate` | POST | Validate BYOK API key, requires Supabase bearer auth |
 | `/api/v1/health` | GET | Server + DB status |
 | `/api/v1/images/search` | GET | Search recipe image suggestions |
 | `/api/v1/cookidoo/status` | GET | Cookidoo connection status |

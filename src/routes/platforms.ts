@@ -56,28 +56,28 @@ app.delete("/api/v1/cookidoo/credentials", requireUserAuth(), (c) => {
 
 // Pinterest credentials management (not yet implemented)
 app.get("/api/v1/pinterest/status", requireUserAuth(), (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
 app.post("/api/v1/pinterest/credentials", requireUserAuth(), (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
 app.delete("/api/v1/pinterest/credentials", requireUserAuth(), (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
 // Facebook cookie management (not yet implemented)
 app.get("/api/v1/facebook/status", requireUserAuth(), (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
 app.post("/api/v1/facebook/cookies", requireUserAuth(), (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
 app.delete("/api/v1/facebook/cookies", requireUserAuth(), (c) => {
-  return c.json({ error: "Not implemented" }, 501);
+  return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
 // Image proxy for PDF export (bypasses browser CORS restrictions)
