@@ -118,15 +118,19 @@ app.get("/api/v1/proxy/image", async (c) => {
       return c.json({ error: "Upstream error" }, 502);
     }
     const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.startsWith("image/")) {
-      return c.json({ error: "Not an image" }, 415);
+    // Allowlist: safe raster formats only. SVG is excluded because it can contain
+    // <script> tags — serving it from our origin would enable XSS.
+    const SAFE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
+    const mimeType = contentType.split(";")[0].trim();
+    if (!SAFE_IMAGE_TYPES.includes(mimeType)) {
+      return c.json({ error: "Unsupported image type" }, 415);
     }
     const buffer = await response.arrayBuffer();
     if (buffer.byteLength > 5 * 1024 * 1024) {
       return c.json({ error: "Image too large" }, 413);
     }
     return new Response(buffer, {
-      headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=3600" },
+      headers: { "Content-Type": mimeType, "Cache-Control": "public, max-age=3600" },
     });
   } catch {
     return c.json({ error: "Failed to fetch image" }, 502);

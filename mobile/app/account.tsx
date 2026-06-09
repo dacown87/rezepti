@@ -72,8 +72,12 @@ export default function AccountScreen() {
 
   const isSignedIn = sessionEmail !== null;
 
+  // Only allow relative app-internal paths to prevent open-redirect attacks.
+  const isSafeReturnTo = (value: string | undefined): boolean =>
+    typeof value === 'string' && value.startsWith('/') && !value.startsWith('//');
+
   const finishWithReturnIntent = useCallback(() => {
-    if (returnTo) {
+    if (isSafeReturnTo(returnTo)) {
       router.replace(returnTo as never);
     }
   }, [returnTo]);
