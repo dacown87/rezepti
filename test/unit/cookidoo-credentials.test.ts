@@ -229,7 +229,7 @@ describe('Pinterest and Facebook routes → 501', () => {
       headers: { Authorization: 'Bearer valid-token' },
     })
     expect(res.status).toBe(501)
-    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'not_implemented' } })
   })
 
   it('POST /api/v1/pinterest/credentials — returns 501 with valid token', async () => {
@@ -245,7 +245,7 @@ describe('Pinterest and Facebook routes → 501', () => {
       body: JSON.stringify({}),
     })
     expect(authRes.status).toBe(501)
-    await expect(authRes.json()).resolves.toMatchObject({ error: 'Not implemented' })
+    await expect(authRes.json()).resolves.toMatchObject({ error: { code: 'not_implemented' } })
   })
 
   it('DELETE /api/v1/pinterest/credentials — returns 501 with valid token', async () => {
@@ -255,7 +255,7 @@ describe('Pinterest and Facebook routes → 501', () => {
       headers: { Authorization: 'Bearer valid-token' },
     })
     expect(res.status).toBe(501)
-    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'not_implemented' } })
   })
 
   it('GET /api/v1/facebook/status — returns 501 with valid token', async () => {
@@ -264,7 +264,7 @@ describe('Pinterest and Facebook routes → 501', () => {
       headers: { Authorization: 'Bearer valid-token' },
     })
     expect(res.status).toBe(501)
-    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'not_implemented' } })
   })
 
   it('POST /api/v1/facebook/cookies — returns 501 with valid token', async () => {
@@ -275,7 +275,7 @@ describe('Pinterest and Facebook routes → 501', () => {
       body: JSON.stringify({}),
     })
     expect(res.status).toBe(501)
-    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'not_implemented' } })
   })
 
   it('DELETE /api/v1/facebook/cookies — returns 501 with valid token', async () => {
@@ -285,7 +285,7 @@ describe('Pinterest and Facebook routes → 501', () => {
       headers: { Authorization: 'Bearer valid-token' },
     })
     expect(res.status).toBe(501)
-    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'not_implemented' } })
   })
 })
 
