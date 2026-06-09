@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, getCredentials, clearSession } from "../fetchers/cookidoo.js";
+import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, clearSession } from "../fetchers/cookidoo.js";
 import { requireUserAuth } from "../auth.js";
 
 const app = new Hono();
@@ -8,11 +8,9 @@ const app = new Hono();
 app.get("/api/v1/cookidoo/status", requireUserAuth(), (c) => {
   try {
     const status = getSessionStatus();
-    const creds = getCredentials();
     return c.json({
       connected: status.connected,
       hasFileCredentials: status.hasFileCredentials,
-      email: creds ? creds.email : null,
     });
   } catch (error) {
     console.error("Error getting Cookidoo status:", error);

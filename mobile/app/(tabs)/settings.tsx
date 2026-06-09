@@ -273,7 +273,6 @@ export default function SettingsScreen() {
   const [cookidooPassword, setCookidooPassword] = useState('');
   const [showCookidooPassword, setShowCookidooPassword] = useState(false);
   const [cookidooConnected, setCookidooConnected] = useState(false);
-  const [cookidooConnectedEmail, setCookidooConnectedEmail] = useState<string | null>(null);
   const [savingCookidoo, setSavingCookidoo] = useState(false);
   const [loadingCookidooStatus, setLoadingCookidooStatus] = useState(true);
 
@@ -377,8 +376,6 @@ export default function SettingsScreen() {
       if (res.ok) {
         const data = await res.json();
         setCookidooConnected(data.connected ?? false);
-        setCookidooConnectedEmail(data.email ?? null);
-        if (data.email) setCookidooEmail(data.email);
       }
     } catch {
       // Server not reachable — treat as disconnected
@@ -534,7 +531,6 @@ export default function SettingsScreen() {
             try {
               await apiFetch('/api/v1/cookidoo/credentials', { method: 'DELETE' });
               setCookidooConnected(false);
-              setCookidooConnectedEmail(null);
               setCookidooEmail('');
               setCookidooPassword('');
             } catch {
@@ -839,12 +835,12 @@ export default function SettingsScreen() {
             Zugangsdaten für Cookidoo (Thermomix)
           </Text>
 
-          {cookidooConnected && cookidooConnectedEmail ? (
+          {cookidooConnected ? (
             /* Connected state */
             <View>
               <View className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
                 <Text className="text-sm text-green-700 font-medium">
-                  Server-Instanz verbunden ({cookidooConnectedEmail})
+                  Server verbunden
                 </Text>
               </View>
               <TouchableOpacity
