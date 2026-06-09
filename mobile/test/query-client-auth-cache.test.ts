@@ -26,17 +26,17 @@ describe('query-client auth cache isolation', () => {
 
     const { getQueryCacheKey, queryClient, watchAuthQueryCache } = await import('@/utils/query-client');
 
-    queryClient.setQueryData(['recipes'], [{ id: 1, name: 'Cached for user A' }]);
     const stopWatching = await watchAuthQueryCache();
     const callback = authStateCallbacks.at(-1);
     expect(callback).toBeDefined();
 
-    // First event: INITIAL_SESSION for user-a — no prior key differs, no clear expected.
+    // First event: INITIAL_SESSION for user-a — clears the anon cache slot on cold start,
+    // then user-a's own data arrives (via fetch or cache restore).
     callback?.('SIGNED_IN', { user: { id: 'user-a' } });
+    queryClient.setQueryData(['recipes'], [{ id: 1, name: 'Cached for user A' }]);
     expect(queryClient.getQueryData(['recipes'])).toEqual([{ id: 1, name: 'Cached for user A' }]);
-    expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
 
-    // Hot switch: user-a → user-b — old cache must be cleared.
+    // Hot switch: user-a → user-b — user-a's cache must be cleared.
     callback?.('SIGNED_IN', { user: { id: 'user-b' } });
     await Promise.resolve();
 

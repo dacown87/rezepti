@@ -75,5 +75,7 @@ vi.mock('lucide-react-native', () => ({
 // as a follow-up item.
 // ---------------------------------------------------------------------------
 describe('settings.tsx — Cookidoo handlers (placeholder)', () => {
-  // Tests deferred — see comment above.
+  it.todo('loadCookidooStatus calls apiFetch GET /api/v1/cookidoo/status with auth headers');
+  it.todo('handleSaveCookidoo calls apiFetch POST /api/v1/cookidoo/credentials with auth headers');
+  it.todo('handleDisconnectCookidoo calls apiFetch DELETE /api/v1/cookidoo/credentials with auth headers');
 });
