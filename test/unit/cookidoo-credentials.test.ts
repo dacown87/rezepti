@@ -1,254 +1,322 @@
-import { describe, it, expect, beforeEach, vi, afterEach, beforeAll } from 'vitest'
-import { writeFileSync, mkdirSync, unlinkSync, existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthFlowError, configureAuthForTests, resetAuthAdaptersForTests } from '../../src/auth.js'
 
-const CREDENTIALS_FILE = join(tmpdir(), 'test-cookidoo-credentials.json')
+// ---------------------------------------------------------------------------
+// Module-level mocks — must be hoisted before any dynamic imports
+// ---------------------------------------------------------------------------
 
-vi.mock('node:fs', () => ({
-  readFileSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  existsSync: vi.fn(),
-  mkdirSync: vi.fn(),
-  unlinkSync: vi.fn(),
+const cookidooMocks = vi.hoisted(() => ({
+  getSessionStatus: vi.fn(() => ({ connected: false, hasFileCredentials: false })),
+  getCredentials: vi.fn(() => null),
+  saveCredentialsToDisk: vi.fn(),
+  clearCredentialsFromDisk: vi.fn(),
+  clearSession: vi.fn(),
 }))
 
-vi.mock('../../src/config.js', () => ({
-  config: {
-    cookidoo: {
-      email: '',
-      password: '',
-    },
+vi.mock('../../src/fetchers/cookidoo.js', () => cookidooMocks)
+
+const byokMocks = vi.hoisted(() => ({
+  BYOKValidator: {
+    validateKey: vi.fn(),
   },
 }))
 
-vi.mock('../../src/fetchers/cookidoo.js', async () => {
-  const actual = await vi.importActual('../../src/fetchers/cookidoo.js')
-  return {
-    ...actual,
-  }
-})
+vi.mock('../../src/byok-validator.js', () => byokMocks)
 
-describe('Cookidoo Credentials Management', () => {
-  const mockFs = vi.mocked({ readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync })
-  const testEmail = 'test@example.com'
-  const testPassword = 'testpassword123'
+const dbMocks = vi.hoisted(() => ({
+  ensureReactSchema: vi.fn(),
+  loadUserAuthorization: vi.fn(),
+}))
 
+vi.mock('../../src/db-react.js', () => ({
+  ...dbMocks,
+  // provide any other named exports that might be imported transitively
+  getRecipes: vi.fn(),
+  getRecipeById: vi.fn(),
+  createRecipe: vi.fn(),
+  updateRecipe: vi.fn(),
+  deleteRecipe: vi.fn(),
+  getShoppingList: vi.fn(),
+  addToShoppingList: vi.fn(),
+  toggleShoppingItem: vi.fn(),
+  deleteShoppingItem: vi.fn(),
+  clearCheckedItems: vi.fn(),
+  clearAllShoppingItems: vi.fn(),
+  getAllDictionaryEntries: vi.fn(),
+  addToDictionary: vi.fn(),
+  findCanonicalBySimilarity: vi.fn(),
+  getMealPlanForWeek: vi.fn(),
+  addRecipeToMealPlan: vi.fn(),
+  removeRecipeFromMealPlan: vi.fn(),
+  clearMealPlanForWeek: vi.fn(),
+  getExtractionJob: vi.fn(),
+  listExtractionJobs: vi.fn(),
+  createExtractionJob: vi.fn(),
+  updateExtractionJob: vi.fn(),
+}))
+
+// Import routers after mocks are in place
+const { default: platformsRouter } = await import('../../src/routes/platforms.js')
+const { default: keysRouter } = await import('../../src/routes/keys.js')
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeJsonRequest(method: string, path: string, body?: unknown) {
+  return new Request(`http://localhost${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// T6 — No-token → 401 on protected routes
+// ---------------------------------------------------------------------------
+
+describe('Cookidoo + BYOK route auth boundary (no token → 401)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFs.existsSync.mockReturnValue(false)
   })
 
-  describe('Credential File Operations', () => {
-    it('should validate credentials file structure', () => {
-      const validCredentials = {
-        email: 'test@example.com',
-        password: 'password123',
-      }
-
-      expect(validCredentials.email).toBeDefined()
-      expect(validCredentials.password).toBeDefined()
-      expect(typeof validCredentials.email).toBe('string')
-      expect(typeof validCredentials.password).toBe('string')
-    })
-
-    it('should reject credentials without email', () => {
-      const invalidCredentials = {
-        password: 'password123',
-      }
-
-      expect('email' in invalidCredentials).toBe(false)
-    })
-
-    it('should reject credentials without password', () => {
-      const invalidCredentials = {
-        email: 'test@example.com',
-      }
-
-      expect('password' in invalidCredentials).toBe(false)
-    })
-
-    it('should handle empty credentials', () => {
-      const emptyCredentials = {
-        email: '',
-        password: '',
-      }
-
-      expect(emptyCredentials.email).toBe('')
-      expect(emptyCredentials.password).toBe('')
-    })
+  afterEach(() => {
+    resetAuthAdaptersForTests()
   })
 
-  describe('Session Status', () => {
-    it('should return disconnected status when no credentials exist', () => {
-      mockFs.existsSync.mockReturnValue(false)
+  it('GET /api/v1/cookidoo/status — returns 401 without Bearer token', async () => {
+    const res = await platformsRouter.request('/api/v1/cookidoo/status')
 
-      const status = {
-        connected: false,
-        hasFileCredentials: false,
-      }
-
-      expect(status.connected).toBe(false)
-      expect(status.hasFileCredentials).toBe(false)
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
-
-    it('should return connected status when credentials exist', () => {
-      mockFs.existsSync.mockReturnValue(true)
-
-      const status = {
-        connected: true,
-        hasFileCredentials: true,
-      }
-
-      expect(status.connected).toBe(true)
-      expect(status.hasFileCredentials).toBe(true)
-    })
-
-    it('should return email in status when credentials loaded', () => {
-      const creds = { email: testEmail, password: testPassword }
-
-      expect(creds.email).toBe(testEmail)
-      expect(creds.email).not.toBeNull()
-    })
-
-    it('should mask password in status response', () => {
-      const creds = { email: testEmail, password: testPassword }
-      const maskedPassword = '********'
-
-      expect(creds.password).not.toBe(maskedPassword)
-    })
+    expect(cookidooMocks.getSessionStatus).not.toHaveBeenCalled()
   })
 
-  describe('Credential Persistence', () => {
-    it('should save credentials to disk', () => {
-      const credentials = { email: testEmail, password: testPassword }
-      const jsonData = JSON.stringify(credentials, null, 2)
+  it('POST /api/v1/cookidoo/credentials — returns 401 without Bearer token', async () => {
+    const res = await platformsRouter.request(
+      '/api/v1/cookidoo/credentials',
+      makeJsonRequest('POST', '/api/v1/cookidoo/credentials', { email: 'x@x.com', password: 'pw' }),
+    )
 
-      expect(jsonData).toContain(testEmail)
-      expect(JSON.parse(jsonData).email).toBe(testEmail)
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
-
-    it('should load credentials from disk', () => {
-      const credentials = { email: testEmail, password: testPassword }
-      const jsonData = JSON.stringify(credentials)
-
-      const parsed = JSON.parse(jsonData)
-      expect(parsed.email).toBe(testEmail)
-      expect(parsed.password).toBe(testPassword)
-    })
-
-    it('should handle corrupted JSON gracefully', () => {
-      const corruptedData = '{ invalid json }'
-
-      expect(() => JSON.parse(corruptedData)).toThrow()
-    })
-
-    it('should handle missing fields in credentials', () => {
-      const incompleteData = '{ "email": "test@example.com" }'
-      const parsed = JSON.parse(incompleteData)
-
-      expect('password' in parsed).toBe(false)
-    })
+    expect(cookidooMocks.saveCredentialsToDisk).not.toHaveBeenCalled()
   })
 
-  describe('Credential Clearing', () => {
-    it('should clear cached credentials', () => {
-      let cached: { email: string; password: string } | null = {
-        email: testEmail,
-        password: testPassword,
-      }
+  it('DELETE /api/v1/cookidoo/credentials — returns 401 without Bearer token', async () => {
+    const res = await platformsRouter.request(
+      '/api/v1/cookidoo/credentials',
+      new Request('http://localhost/api/v1/cookidoo/credentials', { method: 'DELETE' }),
+    )
 
-      cached = null
-
-      expect(cached).toBeNull()
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
-
-    it('should delete credentials file', () => {
-      mockFs.existsSync.mockReturnValue(true)
-
-      const fileExists = mockFs.existsSync('/path/to/credentials.json')
-      expect(fileExists).toBe(true)
-    })
-
-    it('should handle deletion of non-existent file', () => {
-      mockFs.existsSync.mockReturnValue(false)
-
-      const fileExists = mockFs.existsSync('/path/to/nonexistent.json')
-      expect(fileExists).toBe(false)
-    })
+    expect(cookidooMocks.clearCredentialsFromDisk).not.toHaveBeenCalled()
   })
 
-  describe('Fallback to .env Config', () => {
-    it('should fall back to .env when no file credentials exist', () => {
-      mockFs.existsSync.mockReturnValue(false)
+  it('POST /api/v1/keys/validate — returns 401 without Bearer token', async () => {
+    const res = await keysRouter.request(
+      '/api/v1/keys/validate',
+      makeJsonRequest('POST', '/api/v1/keys/validate', { apiKey: 'some-key' }),
+    )
 
-      const envCredentials = {
-        email: 'env@example.com',
-        password: 'envpassword',
-      }
-
-      expect(envCredentials.email).toBeDefined()
-      expect(envCredentials.password).toBeDefined()
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
-
-    it('should prioritize file credentials over .env', () => {
-      mockFs.existsSync.mockReturnValue(true)
-
-      const fileCreds = { email: 'file@example.com', password: 'filepassword' }
-      const envCreds = { email: 'env@example.com', password: 'envpassword' }
-
-      const activeCreds = fileCreds
-      expect(activeCreds.email).toBe('file@example.com')
-    })
+    expect(byokMocks.BYOKValidator.validateKey).not.toHaveBeenCalled()
   })
 })
 
-describe('Cookidoo API Response Types', () => {
-  describe('Status Response', () => {
-    it('should have correct status response structure', () => {
-      const statusResponse = {
-        connected: true,
-        hasFileCredentials: true,
-        email: 'test@example.com',
-      }
+// ---------------------------------------------------------------------------
+// T6 — Pinterest / Facebook → 501 (with AND without token)
+// ---------------------------------------------------------------------------
 
-      expect(typeof statusResponse.connected).toBe('boolean')
-      expect(typeof statusResponse.hasFileCredentials).toBe('boolean')
-      expect(statusResponse.email === null || typeof statusResponse.email === 'string').toBe(true)
+describe('Pinterest and Facebook routes → 501', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
+  })
+
+  const configureValidAuth = () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'user@example.com',
+      }),
+      loadAuthorization: async () => ({
+        appRole: 'user' as const,
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' as const }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+      }),
+    })
+  }
+
+  // Without token — auth check runs first (protected), returns 401
+  it('GET /api/v1/pinterest/status — returns 401 without token', async () => {
+    const res = await platformsRouter.request('/api/v1/pinterest/status')
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
   })
 
-  describe('Save Credentials Response', () => {
-    it('should have success response structure', () => {
-      const successResponse = {
-        success: true,
-        message: 'Cookidoo credentials saved successfully',
-      }
-
-      expect(successResponse.success).toBe(true)
-      expect(typeof successResponse.message).toBe('string')
+  it('POST /api/v1/pinterest/credentials — returns 401 without token', async () => {
+    const res = await platformsRouter.request(
+      '/api/v1/pinterest/credentials',
+      makeJsonRequest('POST', '/api/v1/pinterest/credentials', {}),
+    )
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
   })
 
-  describe('Clear Credentials Response', () => {
-    it('should have success response structure', () => {
-      const successResponse = {
-        success: true,
-        message: 'Cookidoo credentials removed',
-      }
-
-      expect(successResponse.success).toBe(true)
-      expect(typeof successResponse.message).toBe('string')
+  it('DELETE /api/v1/pinterest/credentials — returns 401 without token', async () => {
+    const res = await platformsRouter.request(
+      '/api/v1/pinterest/credentials',
+      new Request('http://localhost/api/v1/pinterest/credentials', { method: 'DELETE' }),
+    )
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
   })
 
-  describe('Error Response', () => {
-    it('should have error response structure', () => {
-      const errorResponse = {
-        error: 'Failed to save Cookidoo credentials',
-      }
-
-      expect(typeof errorResponse.error).toBe('string')
+  it('GET /api/v1/facebook/status — returns 401 without token', async () => {
+    const res = await platformsRouter.request('/api/v1/facebook/status')
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
     })
+  })
+
+  it('POST /api/v1/facebook/cookies — returns 401 without token', async () => {
+    const res = await platformsRouter.request(
+      '/api/v1/facebook/cookies',
+      makeJsonRequest('POST', '/api/v1/facebook/cookies', {}),
+    )
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
+    })
+  })
+
+  it('DELETE /api/v1/facebook/cookies — returns 401 without token', async () => {
+    const res = await platformsRouter.request(
+      '/api/v1/facebook/cookies',
+      new Request('http://localhost/api/v1/facebook/cookies', { method: 'DELETE' }),
+    )
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
+    })
+  })
+
+  // With valid token — these are disabled, so 501
+  it('GET /api/v1/pinterest/status — returns 501 with valid token', async () => {
+    configureValidAuth()
+    const res = await platformsRouter.request('/api/v1/pinterest/status', {
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+    expect(res.status).toBe(501)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+  })
+
+  it('POST /api/v1/pinterest/credentials — returns 501 with valid token', async () => {
+    configureValidAuth()
+    const res = await platformsRouter.request(
+      '/api/v1/pinterest/credentials',
+      makeJsonRequest('POST', '/api/v1/pinterest/credentials', {}),
+    )
+    // Need to manually attach auth header — use the request overload
+    const authRes = await platformsRouter.request('/api/v1/pinterest/credentials', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    expect(authRes.status).toBe(501)
+    await expect(authRes.json()).resolves.toMatchObject({ error: 'Not implemented' })
+  })
+
+  it('DELETE /api/v1/pinterest/credentials — returns 501 with valid token', async () => {
+    configureValidAuth()
+    const res = await platformsRouter.request('/api/v1/pinterest/credentials', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+    expect(res.status).toBe(501)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+  })
+
+  it('GET /api/v1/facebook/status — returns 501 with valid token', async () => {
+    configureValidAuth()
+    const res = await platformsRouter.request('/api/v1/facebook/status', {
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+    expect(res.status).toBe(501)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+  })
+
+  it('POST /api/v1/facebook/cookies — returns 501 with valid token', async () => {
+    configureValidAuth()
+    const res = await platformsRouter.request('/api/v1/facebook/cookies', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    expect(res.status).toBe(501)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+  })
+
+  it('DELETE /api/v1/facebook/cookies — returns 501 with valid token', async () => {
+    configureValidAuth()
+    const res = await platformsRouter.request('/api/v1/facebook/cookies', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+    expect(res.status).toBe(501)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Not implemented' })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T6 — Proxy image route stays open (no auth required — regression guard)
+// ---------------------------------------------------------------------------
+
+describe('/api/v1/proxy/image — intentionally unauthenticated (regression guard)', () => {
+  it('returns 400 for missing URL without a Bearer token (not 401)', async () => {
+    const res = await platformsRouter.request('/api/v1/proxy/image')
+
+    // Must NOT be 401 — this route is intentionally open
+    expect(res.status).not.toBe(401)
+    // Missing `url` param → 400 Invalid URL
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Invalid URL' })
+  })
+
+  it('returns 400 for non-https URL without a Bearer token (not 401)', async () => {
+    const res = await platformsRouter.request('/api/v1/proxy/image?url=http%3A%2F%2Fexample.com%2Fimg.jpg')
+
+    expect(res.status).not.toBe(401)
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Invalid URL' })
+  })
+
+  it('returns 400 for private/localhost URL without a Bearer token (SSRF guard)', async () => {
+    const res = await platformsRouter.request('/api/v1/proxy/image?url=https%3A%2F%2Flocalhost%2Fimg.jpg')
+
+    expect(res.status).not.toBe(401)
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toMatchObject({ error: 'Invalid URL' })
   })
 })

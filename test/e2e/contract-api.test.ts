@@ -119,33 +119,18 @@ describe.skipIf(!serverAvailable)('Root API Contract (CI Gate)', () => {
     expect(result.data?.error?.code).toBe('auth_missing');
   });
 
-  it('BYOK validation rejects empty key with 400', async () => {
+  it('BYOK validation requires authentication before payload validation', async () => {
+    // /api/v1/keys/validate is protected by requireUserAuth(); auth runs before body parsing
     const result = await testRunner.testEndpoint(
       'POST',
       '/api/v1/keys/validate',
       { apiKey: '' },
-      'BYOK empty key contract',
-      400
+      'BYOK validate auth contract',
+      401
     );
 
     expect(result.success).toBe(true);
-    expect(result.data?.error).toBeDefined();
-  });
-
-  it('BYOK validation rejects missing key parameter with stable 400 error envelope', async () => {
-    const result = await testRunner.testEndpoint(
-      'POST',
-      '/api/v1/keys/validate',
-      {},
-      'BYOK missing key contract',
-      400
-    );
-
-    expect(result.success).toBe(true);
-    expect(result.data).toBeTruthy();
-    expect(typeof result.data?.error).toBe('string');
-    expect((result.data?.error as string).length).toBeGreaterThan(0);
-    expect(result.data).not.toHaveProperty('valid', true);
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
   it('extract endpoint requires authentication before payload validation', async () => {
