@@ -92,8 +92,8 @@ describe('getAuthSession restores session from storage', () => {
 
   it('returns the session with access_token populated when Supabase returns a stored session', async () => {
     const storedSession = {
-      access_token: 'eyJstored.access.token',
-      refresh_token: 'refresh-stored',
+      access_token: 'test-access-token-stored',
+      refresh_token: 'test-refresh-token-stored',
       expires_in: 3600,
       token_type: 'bearer',
       user: { id: 'user-stored', email: 'test@example.com' },
@@ -119,7 +119,7 @@ describe('getAuthSession restores session from storage', () => {
     const session = await getAuthSession();
 
     expect(session).not.toBeNull();
-    expect(session?.access_token).toBe('eyJstored.access.token');
+    expect(session?.access_token).toBe('test-access-token-stored');
     expect(session?.user?.id).toBe('user-stored');
   });
 
@@ -196,18 +196,18 @@ describe('cross-user query cache isolation: full auth-then-fetch-then-switch flo
 
     const { queryClient, watchAuthQueryCache } = await import('@/utils/query-client');
 
-    // Simulate user-A successfully fetching their recipes.
-    queryClient.setQueryData(['recipes'], [{ id: 10, name: 'User-A Lasagna' }]);
-
     const stopWatching = await watchAuthQueryCache();
     const callback = authStateCallbacks.at(-1);
     expect(callback).toBeDefined();
 
-    // user-A signs in (initial auth event — cache was already theirs, no clear).
+    // user-A's INITIAL_SESSION fires (cold-start: clears the anon cache slot).
     callback?.('SIGNED_IN', { user: { id: 'user-a' } });
+
+    // After auth, user-A's data is fetched/restored into the cache.
+    queryClient.setQueryData(['recipes'], [{ id: 10, name: 'User-A Lasagna' }]);
     expect(queryClient.getQueryData(['recipes'])).toEqual([{ id: 10, name: 'User-A Lasagna' }]);
 
-    // user-B signs in on the same device (hot switch).
+    // user-B signs in on the same device (hot switch — clears user-A's slot).
     callback?.('SIGNED_IN', { user: { id: 'user-b' } });
     await Promise.resolve();
 
