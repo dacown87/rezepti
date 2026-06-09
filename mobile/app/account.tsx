@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -40,9 +41,10 @@ function normalizeMode(value: string | string[] | undefined): AccountMode {
 }
 
 export default function AccountScreen() {
-  const params = useLocalSearchParams<{ mode?: string; returnTo?: string; authError?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; returnTo?: string; authError?: string; confirmationSuccess?: string }>();
   const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
   const initialAuthError = Array.isArray(params.authError) ? params.authError[0] : params.authError;
+  const initialConfirmationSuccess = Array.isArray(params.confirmationSuccess) ? params.confirmationSuccess[0] : params.confirmationSuccess;
   const [mode, setMode] = useState<AccountMode>(() => normalizeMode(params.mode));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -120,6 +122,12 @@ export default function AccountScreen() {
       setInlineError(initialAuthError);
     }
   }, [initialAuthError]);
+
+  useEffect(() => {
+    if (initialConfirmationSuccess) {
+      setInlineInfo('E-Mail bestätigt — du bist jetzt angemeldet.');
+    }
+  }, [initialConfirmationSuccess]);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -213,7 +221,11 @@ export default function AccountScreen() {
       }
       if (result.status === 'confirmation_required') {
         setConfirmationEmail(result.email);
-        setInlineInfo('Bestätige deine E-Mail und öffne danach den Link erneut in der App.');
+        setInlineInfo(
+          Platform.OS === 'web'
+            ? 'Bestätige deine E-Mail. Du wirst nach der Bestätigung automatisch weitergeleitet.'
+            : 'Bestätige deine E-Mail und öffne danach den Link erneut in der App.',
+        );
         return;
       }
 
