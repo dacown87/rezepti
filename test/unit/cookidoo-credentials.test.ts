@@ -290,6 +290,81 @@ describe('Pinterest and Facebook routes → 501', () => {
 })
 
 // ---------------------------------------------------------------------------
+// G5 — Cookidoo happy-path (authed) → 200
+// ---------------------------------------------------------------------------
+
+describe('Cookidoo routes — authenticated happy-path (G5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
+  })
+
+  const configureValidAuth = () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'user@example.com',
+      }),
+      loadAuthorization: async () => ({
+        appRole: 'user' as const,
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' as const }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+      }),
+    })
+  }
+
+  it('GET /api/v1/cookidoo/status with valid token → 200 with { connected, hasFileCredentials }', async () => {
+    configureValidAuth()
+    cookidooMocks.getSessionStatus.mockReturnValue({ connected: true, hasFileCredentials: true })
+
+    const res = await platformsRouter.request('/api/v1/cookidoo/status', {
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toHaveProperty('connected')
+    expect(body).toHaveProperty('hasFileCredentials')
+    // Must NOT include an email field (the route strips it)
+    expect(body).not.toHaveProperty('email')
+    expect(cookidooMocks.getSessionStatus).toHaveBeenCalled()
+  })
+
+  it('POST /api/v1/cookidoo/credentials with valid token → 200 { success: true }', async () => {
+    configureValidAuth()
+
+    const res = await platformsRouter.request('/api/v1/cookidoo/credentials', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'chef@example.com', password: 'thermomix123' }),
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ success: true })
+    expect(cookidooMocks.saveCredentialsToDisk).toHaveBeenCalledWith(
+      'chef@example.com',
+      'thermomix123',
+    )
+  })
+
+  it('DELETE /api/v1/cookidoo/credentials with valid token → 200 { success: true }', async () => {
+    configureValidAuth()
+
+    const res = await platformsRouter.request('/api/v1/cookidoo/credentials', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ success: true })
+    expect(cookidooMocks.clearCredentialsFromDisk).toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // T6 — Proxy image route stays open (no auth required — regression guard)
 // ---------------------------------------------------------------------------
 
