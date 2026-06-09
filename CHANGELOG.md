@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.142] – 2026-06-09
+
+
+
 ## [1.0.141] – 2026-06-09
 
 - empty test suite, fix hot-switch cold-start data ordering
