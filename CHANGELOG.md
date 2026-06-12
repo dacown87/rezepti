@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.147] – 2026-06-12
+
+
+
 ## [1.0.146] – 2026-06-12
 
 - inline EXPO_PUBLIC Supabase vars at web bundle build time
