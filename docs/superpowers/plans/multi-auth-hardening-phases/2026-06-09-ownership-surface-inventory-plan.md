@@ -203,5 +203,5 @@ Der Inventory-Pass (S3) muss folgende Ergaenzungen gegenueber dem urspruengliche
 | Scope-Erweiterung | **Households + images/search + disk-backed** | Alle 5 Ergaenzungen aus Eng-Review in Scope aufgenommen |
 | DoD-Exit-Test | **Manueller Diff reicht** | Kein Pflicht-Script; Route-Liste manuell gegen Inventory-Tabelle diff-en |
 
-**Status: BEREIT FUER AUSFUEHRUNG (S3 des Post-Hotfix-Plans)**
-Plan-Korrekturen eingepflegt. Scope-Luecken dokumentiert. Inventur startet nach Branch-Landing.
+**Status: ABGESCHLOSSEN ✅ (2026-06-12)**
+S3 ausgefuehrt: Vollstaendiger Route-grep ueber `src/`, alle 46 Routen klassifiziert, Route-Auth-Inventory-Tabelle in CLAUDE.md eingefuegt, `/api/v1/images/search` mit `requireUserAuth` gated. Keine `unknown`-Flaechen ohne Folgeaktion offen.
