@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.149] – 2026-06-12
+
+
+
 ## [1.0.148] – 2026-06-12
 
 - server auth falls back to EXPO_PUBLIC_ Supabase env vars
