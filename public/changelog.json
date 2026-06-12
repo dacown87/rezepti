@@ -1,6 +1,16 @@
 {
-  "version": "1.0.143",
+  "version": "1.0.145",
   "entries": [
+    {
+      "version": "1.0.145",
+      "date": "2026-06-12",
+      "changes": [
+        "add @emnapi/core and @emnapi/runtime as optionalDependencies to fix CI lock file sync",
+        "S3 route auth inventory — add requireUserAuth to images/search, update CLAUDE.md",
+        "update cold-start cache test to expect legacy-key cleanup call",
+        "Implement post-hotfix auth hardening plan and related changes"
+      ]
+    },
     {
       "version": "1.0.143",
       "date": "2026-06-09",
@@ -173,15 +183,10 @@
       "version": "1.0.114",
       "date": "2026-05-13",
       "changes": []
-    },
-    {
-      "version": "1.0.113",
-      "date": "2026-05-13",
-      "changes": []
     }
   ],
   "lastUpdated": {
-    "date": "2026-06-09",
-    "time": "16:58"
+    "date": "2026-06-12",
+    "time": "12:10"
   }
 }

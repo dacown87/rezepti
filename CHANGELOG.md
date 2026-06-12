@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.145] – 2026-06-12
+
+- add @emnapi/core and @emnapi/runtime as optionalDependencies to fix CI lock file sync
+- S3 route auth inventory — add requireUserAuth to images/search, update CLAUDE.md
+- update cold-start cache test to expect legacy-key cleanup call
+- Implement post-hotfix auth hardening plan and related changes
+
 ## [1.0.144] – 2026-06-12
 
 ### Fixed
