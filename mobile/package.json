@@ -71,5 +71,9 @@
     "typescript": "~6.0.3",
     "vitest": "^4.1.8"
   },
-  "private": true
+  "private": true,
+  "optionalDependencies": {
+    "@emnapi/core": "1.11.0",
+    "@emnapi/runtime": "1.11.0"
+  }
 }
