@@ -100,6 +100,11 @@ let authQueryCacheWatchPromise: Promise<() => void> | null = null;
 let authQueryCacheWatchStop: (() => void) | null = null;
 
 export async function watchAuthQueryCache(): Promise<() => void> {
+  // One-time cleanup of the pre-namespacing legacy key (shipped before 2026-06-09).
+  // Devices running an older build have 'recipedeck-query-cache' (no user suffix)
+  // in AsyncStorage — remove it unconditionally so it doesn't accumulate on-device.
+  void AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY);
+
   const { getSupabaseClient } = await import('./auth');
   const supabase = getSupabaseClient();
   if (!supabase) {

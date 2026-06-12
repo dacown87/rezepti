@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { config } from "../config.js";
 import type { ContentBundle, SchemaOrgRecipe } from "../types.js";
@@ -577,7 +577,11 @@ function loadCredentialsFromDisk(): CookidooCredentials | null {
 export function saveCredentialsToDisk(email: string, password: string): void {
   mkdirSync(dirname(CREDENTIALS_FILE), { recursive: true });
   const data: CookidooCredentials = { email, password };
-  writeFileSync(CREDENTIALS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  // Atomic write: write to .tmp first, then rename. renameSync is atomic on
+  // POSIX (Linux/Docker); on Windows it is best-effort.
+  const tmp = CREDENTIALS_FILE + ".tmp";
+  writeFileSync(tmp, JSON.stringify(data, null, 2), "utf-8");
+  renameSync(tmp, CREDENTIALS_FILE);
   cachedCredentials = data;
 }
 
