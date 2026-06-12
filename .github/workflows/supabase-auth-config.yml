@@ -1,0 +1,110 @@
+name: Sync Supabase Auth Config
+
+# Setzt Site URL, Redirect-Allowlist und die gebrandeten E-Mail-Templates am
+# gehosteten Supabase-Projekt via Management API (PATCH /v1/projects/{ref}/config/auth).
+# Behebt: Bestaetigungslink -> localhost (falsche Site URL / fehlende Allowlist)
+# und generische "powered by Supabase"-Mail. Siehe docs/supabase-auth-email-runbook.md.
+#
+# Benoetigte Secrets:
+#   SUPABASE_ACCESS_TOKEN  (Pflicht) - Personal Access Token, Supabase Dashboard ->
+#                          Account -> Access Tokens
+# Optionale Secrets fuer eigenen Absender (sonst bleibt Supabase-Default-SMTP):
+#   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SENDER_NAME, SMTP_ADMIN_EMAIL
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/templates/**'
+      - '.github/workflows/supabase-auth-config.yml'
+
+jobs:
+  sync-auth-config:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_REF: zdiqtnljdxuhinqzgcnd
+      SITE_URL: https://p01--rezepti-app--2s7hvlwm5zc5.code.run
+      URI_ALLOW_LIST: https://p01--rezepti-app--2s7hvlwm5zc5.code.run/**,recipedeck://**
+      CONFIRM_SUBJECT: "Bestätige deine E-Mail für RecipeDeck"
+      RECOVERY_SUBJECT: "RecipeDeck — Passwort zurücksetzen"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Patch Supabase auth config
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_SENDER_NAME: ${{ secrets.SMTP_SENDER_NAME }}
+          SMTP_ADMIN_EMAIL: ${{ secrets.SMTP_ADMIN_EMAIL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is not set."
+            exit 1
+          fi
+
+          confirm_html=$(cat supabase/templates/confirmation.html)
+          recovery_html=$(cat supabase/templates/recovery.html)
+
+          payload=$(jq -nc \
+            --arg site "$SITE_URL" \
+            --arg allow "$URI_ALLOW_LIST" \
+            --arg cs "$CONFIRM_SUBJECT" \
+            --arg cc "$confirm_html" \
+            --arg rs "$RECOVERY_SUBJECT" \
+            --arg rc "$recovery_html" \
+            '{
+              site_url: $site,
+              uri_allow_list: $allow,
+              mailer_subjects_confirmation: $cs,
+              mailer_templates_confirmation_content: $cc,
+              mailer_subjects_recovery: $rs,
+              mailer_templates_recovery_content: $rc
+            }')
+
+          # SMTP nur setzen, wenn Host-Secret vorhanden ist -- sonst bestehende
+          # SMTP-Konfiguration nicht ueberschreiben.
+          if [ -n "${SMTP_HOST:-}" ]; then
+            echo "Custom SMTP host present -> enabling custom SMTP."
+            payload=$(printf '%s' "$payload" | jq -c \
+              --arg h "$SMTP_HOST" \
+              --arg p "${SMTP_PORT:-587}" \
+              --arg u "${SMTP_USER:-}" \
+              --arg pw "${SMTP_PASS:-}" \
+              --arg sn "${SMTP_SENDER_NAME:-RecipeDeck}" \
+              --arg ae "${SMTP_ADMIN_EMAIL:-}" \
+              '. + {
+                external_email_enabled: true,
+                smtp_host: $h,
+                smtp_port: $p,
+                smtp_user: $u,
+                smtp_pass: $pw,
+                smtp_sender_name: $sn,
+                smtp_admin_email: $ae
+              }')
+          else
+            echo "No SMTP_HOST secret -> leaving SMTP/sender as-is (Supabase default)."
+          fi
+
+          response_file=$(mktemp)
+          http_code=$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X PATCH \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -d "$payload")
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::Supabase auth config update failed with HTTP $http_code"
+            cat "$response_file"
+            exit 1
+          fi
+
+          echo "Supabase auth config updated (HTTP $http_code)."
+          echo "site_url + uri_allow_list + confirmation/recovery templates applied."
