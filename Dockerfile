@@ -37,6 +37,14 @@ RUN cd mobile && npm ci
 
 COPY mobile/ ./mobile/
 COPY scripts/mobile/expo-export-web.mjs ./scripts/mobile/expo-export-web.mjs
+# EXPO_PUBLIC_* werden zur Build-Zeit in das statische Web-Bundle inlined (nicht
+# zur Laufzeit gelesen). Northflank-Runtime-Secrets erreichen das Bundle NICHT —
+# die Werte muessen hier als Build-Args ankommen, sonst landet Supabase-Auth als
+# `undefined` im Bundle ("Supabase Auth ist nicht konfiguriert").
+ARG EXPO_PUBLIC_SUPABASE_URL
+ARG EXPO_PUBLIC_SUPABASE_ANON_KEY
+ENV EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
+ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
 # Wrapper umgeht den bekannten Expo-Export-Post-Hang: timeout + Log-Marker-Check.
 # Siehe docs/PROJECT_LEARNINGS.md, Eintrag "expo-export-hangs-postbuild".
 RUN cd mobile && CI=1 EXPO_EXPORT_TIMEOUT_SECONDS=300 node ../scripts/mobile/expo-export-web.mjs --output-dir ../public

@@ -39,6 +39,9 @@ jobs:
           target: production
           push: true
           tags: dacown/rezepti:latest
+          build-args: |
+            EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+            EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Deploy to Northflank
         env:
