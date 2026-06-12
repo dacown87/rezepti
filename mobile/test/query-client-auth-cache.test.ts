@@ -101,7 +101,7 @@ describe('query-client auth cache isolation', () => {
       }),
     }));
 
-    const { queryClient, watchAuthQueryCache } = await import('@/utils/query-client');
+    const { queryClient, watchAuthQueryCache, getQueryCacheKey, QUERY_CACHE_STORAGE_KEY } = await import('@/utils/query-client');
 
     // Simulate cache restored from the anonymous slot (no prior signed-in user).
     // If INITIAL_SESSION fires for null (still anonymous) the keys match and no
@@ -119,7 +119,9 @@ describe('query-client auth cache isolation', () => {
 
     // Keys match → no clear.
     expect(queryClient.getQueryData(['recipes'])).toEqual([{ id: 7, name: 'Anon cached recipe' }]);
-    expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
+    // Legacy-key one-time cleanup always fires; the user-scoped anon cache must not be cleared.
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(QUERY_CACHE_STORAGE_KEY);
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith(getQueryCacheKey(null));
 
     stopWatching();
     expect(unsubscribe).toHaveBeenCalled();
