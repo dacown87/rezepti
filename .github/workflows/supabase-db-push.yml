@@ -63,15 +63,19 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: Link project
         run: supabase link --project-ref "$PROJECT_REF"
 
-      # Einmaliger Baseline-Lauf: markiert die bereits manuell angewendeten
+      # Einmaliger Baseline-Lauf: markiert die bereits per SQL-Editor angewendeten
       # Migrationen als "applied", ohne sie auszufuehren. Nur via manuellem
       # Start mit baseline=true.
+      # Migrationen 1+2 wurden beim fehlgeschlagenen ersten Push bereits in die
+      # History eingetragen (idempotent). Repair markiert 3-7 als applied.
       - name: Baseline existing migrations (one-time)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline == true }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline != '' && inputs.baseline != 'false' }}
         run: |
           supabase migration repair --status applied \
             20260604135550 \
@@ -83,4 +87,4 @@ jobs:
             20260609143000
 
       - name: Push migrations
-        run: supabase db push
+        run: supabase db push --yes
