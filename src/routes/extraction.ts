@@ -419,7 +419,7 @@ async function processTextJobInBackground(jobId: string, apiKey?: string) {
 }
 
 // Image search endpoint for photo import flow
-app.get("/api/v1/images/search", async (c) => {
+app.get("/api/v1/images/search", requireUserAuth(), async (c) => {
   const q = c.req.query("q")?.trim();
   if (!q) return c.json({ images: [] });
   const limitParam = parseInt(c.req.query("limit") ?? "4", 10);

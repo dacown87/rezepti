@@ -20,7 +20,11 @@ app.get("/api/v1/cookidoo/status", requireUserAuth(), (c) => {
 
 app.post("/api/v1/cookidoo/credentials", requireUserAuth(), async (c) => {
   try {
-    const { email, password } = await c.req.json();
+    const body = await c.req.json<{ email?: string; password?: string }>().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
+    const { email, password } = body;
 
     if (!email || !password) {
       return c.json({ error: "Email and password are required" }, 400);

@@ -135,3 +135,73 @@ Dieser Teilplan ist fertig, wenn:
   Multi-Workspace-Slices auf unsaubere Besitzgrenzen gebaut.
 - Eine nur codeorientierte Inventur reicht nicht, wenn UI-Copy etwas anderes
   verspricht als die echte Speicherung.
+
+---
+
+# /autoplan Review (2026-06-09, vorwaertsgerichtet)
+
+## Phase 1: CEO Review
+
+**Premise-Tabelle:**
+
+| Praemisse | Beurteilung | Befund |
+|-----------|-------------|--------|
+| `recipes` ist user/household-scoped und sauber | KORREKT | DB-Check-Constraint + `ownerType IN ('user','household')` enforced |
+| `shopping`/`planner` ist household-scoped | KORREKT | `householdId NOT NULL` in Schema, Route liest `activeHouseholdId` aus Auth-Context |
+| `ingredient_dictionary` ist global mutable | KORREKT | Kein Owner-Feld, `GET` ohne Auth (bewusste Entscheidung, braucht Dokumentation) |
+| Credential-Routes sind als Hotspot bekannt | TEILWEISE | Cookidoo disk-backed global fehlt als eigene Kategorie |
+| `/api/v1/images/search` ist auth-gated | FALSCH | Kein `requireAuth()` — unguarded Unsplash-Call (P0-Kandidat) |
+
+**Scope-Gaps (fehlende Oberflaechen):**
+- `households` + `householdMemberships` + `userDefaultHouseholds` — Membership-CRUD-Routen fehlen im Scope komplett
+- `photoDataStore` / `textDataStore` (in-memory in `extraction.ts`) — kurzlebig aber keine TTL-Guarantee im Plan
+- `disk-backed / server-scoped-singleton` als Kategorie fehlt (Cookidoo Credentials)
+- Dictionary `GET` Read-Path explizit labeln (intentional public-read, kein Datenleak — aber unbeschriftet)
+
+**DoD-Bewertung:** Abschluss-Kriterium nicht automatisch pruefbar. "Keine Flaeche mehr unknown" braucht einen diff-faehigen Route-Scan.
+
+**CEO Completion:** Plan ist strukturell solide, aber 2 kritische Luecken (images/search, households-Scope) muessen vor Ausfuehrung in den Scope aufgenommen werden.
+
+## Phase 3: Eng Review
+
+**Findings:**
+
+| Severity | Finding | Fix |
+|----------|---------|-----|
+| CRITICAL | `/api/v1/images/search` unauthenticated + dictionary GET Read-Path nicht als "intentional public" gelabelt | In Inventory-Scope aufnehmen; images/search klassifizieren und entscheiden |
+| HIGH | `households`/`householdMemberships`/`userDefaultHouseholds` fehlen komplett im Scope | In Scope aufnehmen |
+| HIGH | `grep src/routes/*` uebersieht Routen in `extraction.ts`, `platforms.ts` usw. — alle Routen muessen erfasst werden, nicht nur nach Dateiname | Methodik: alle Routen via `grep -r "app\.(get\|post\|put\|patch\|delete)" src/` |
+| MEDIUM | `server-scoped-singleton`-Kategorie fehlt in den 6 definierten Kategorien | Kategorie ergaenzen |
+| MEDIUM | `shoppingList.userId` vorhanden, aber Read-Boundary ist nur `householdId` — Inkonsistenz | In Inventory klassifizieren |
+| LOW | DoD-Exit-Test nicht automatable ohne Script | Vorschlag: Route-Liste per Script gegen Inventory-Tabelle diff-en |
+
+## Scope-Erweiterungen (vor Ausfuehrung einarbeiten)
+
+Der Inventory-Pass (S3) muss folgende Ergaenzungen gegenueber dem urspruenglichen Plan abdecken:
+
+1. `/api/v1/images/search` — klassifizieren (auth hinzufuegen oder dokumentiert offen lassen)
+2. `ingredient_dictionary` GET Read-Path — als "intentional public-read, global" labeln
+3. `households` + `householdMemberships` + `userDefaultHouseholds` — Scope aufnehmen
+4. Cookidoo `disk-backed` als Kategorie `server-scoped-singleton` ergaenzen
+5. Methodik: vollstaendiger Route-grep statt nur `src/routes/`
+
+## Decision Audit Trail
+
+| # | Decision | Classification | Rationale |
+|---|----------|----------------|-----------|
+| INV-CEO-1 | images/search in Inventory-Scope (P0-Kandidat) | Mechanical | Unguarded external API call; CEO-6 im Post-Hotfix-Plan bereits bestaetigt |
+| INV-CEO-2 | households-Scope hinzufuegen | Mechanical | Zukuenftige Invite-Slices bauen darauf auf |
+| INV-ENG-1 | Methodik auf vollstaendigen Route-grep erweitern | Mechanical | Dateipfad-basierter grep verpasst Subrouten |
+| INV-ENG-2 | server-scoped-singleton als neue Kategorie | Mechanical | Cookidoo-Pattern passt in keine der 6 bestehenden Kategorien |
+| INV-ENG-3 | DoD-Script vorschlagen (kein Pflichtartefakt) | Taste | Nice-to-have; manueller Diff ist akzeptabel fuer einmalige Inventur |
+
+## Phase 4: Final Gate — APPROVED 2026-06-09
+
+| Entscheidung | Gewaehlt | Aktion |
+|---|---|---|
+| Inventur-Methodik | **Vollstaendiger Route-grep** | `grep -r 'app\.(get\|post\|put\|patch\|delete)' src/` — nicht nur `src/routes/` |
+| Scope-Erweiterung | **Households + images/search + disk-backed** | Alle 5 Ergaenzungen aus Eng-Review in Scope aufgenommen |
+| DoD-Exit-Test | **Manueller Diff reicht** | Kein Pflicht-Script; Route-Liste manuell gegen Inventory-Tabelle diff-en |
+
+**Status: ABGESCHLOSSEN ✅ (2026-06-12)**
+S3 ausgefuehrt: Vollstaendiger Route-grep ueber `src/`, alle 46 Routen klassifiziert, Route-Auth-Inventory-Tabelle in CLAUDE.md eingefuegt, `/api/v1/images/search` mit `requireUserAuth` gated. Keine `unknown`-Flaechen ohne Folgeaktion offen.

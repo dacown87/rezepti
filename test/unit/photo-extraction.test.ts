@@ -65,6 +65,8 @@ vi.mock('../../src/utils/image-search.js', () => ({
   searchRecipeImages: vi.fn().mockResolvedValue([]),
 }))
 
+const { searchRecipeImages } = await import('../../src/utils/image-search.js')
+
 vi.mock('../../src/byok-validator.js', () => ({
   BYOKValidator: {
     validateKey: vi.fn(),
@@ -362,5 +364,53 @@ describe('URL extraction route', () => {
       jobs: [{ id: 'own-job' }],
       total: 1,
     })
+  })
+})
+
+describe('image search endpoint', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId, role: 'owner' }],
+        activeHouseholdId: householdId,
+      }),
+    })
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
+  })
+
+  it('requires auth before searching for recipe images', async () => {
+    const res = await extractionRouter.request('/api/v1/images/search?q=lasagne')
+
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: 'auth_missing' },
+    })
+    expect(searchRecipeImages).not.toHaveBeenCalled()
+  })
+
+  it('returns searched images for authenticated users and honors allowed limits', async () => {
+    vi.mocked(searchRecipeImages).mockResolvedValueOnce([
+      'https://cdn.example.com/lasagne-1.jpg',
+      'https://cdn.example.com/lasagne-2.jpg',
+    ])
+
+    const res = await extractionRouter.request('/api/v1/images/search?q=lasagne&limit=8', {
+      headers: authHeaders,
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      images: [
+        'https://cdn.example.com/lasagne-1.jpg',
+        'https://cdn.example.com/lasagne-2.jpg',
+      ],
+    })
+    expect(searchRecipeImages).toHaveBeenCalledWith('lasagne', 8)
   })
 })

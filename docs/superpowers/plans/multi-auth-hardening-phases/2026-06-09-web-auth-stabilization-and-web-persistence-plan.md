@@ -148,3 +148,68 @@ Dieser Teilplan ist fertig, wenn:
 - Ein lokaler Erfolg ohne echten Browser-Session-Test reicht hier nicht.
 - Cache-Fixes koennen neue Flashes von leeren oder alten Daten erzeugen, wenn
   sie nicht gegen echte Signed-in- und Signed-out-Wechsel getestet werden.
+
+---
+
+# /autoplan Review (2026-06-09, retrospektiv)
+
+## Phase 1: CEO Review
+
+**Premise-Tabelle:**
+
+| Praemisse | Korrekt | Evidenz |
+|-----------|---------|---------|
+| Query-Cache war nicht nach userId namespace-t | BESTAETIGT + GEFIXT | `getQueryCacheKey(userId)`, Anon-Slot, Cold-Start-Clear-Logik implementiert |
+| Expired Confirmation-Link scheitert still | NICHT CODE-VERIFIZIERBAR | Kein sichtbarer Fix in `auth.ts`; T9-Markierung als "done" fragwuerdig |
+| Web-Persistenz-Abnahme wird automatisierter E2E (T12) | TEILWEISE | Test existiert, deckt aber nur AsyncStorage-Round-Trip ab, nicht echten Reload-Flow |
+
+**DoD-Checkliste:**
+
+| Kriterium | Erfuellt | Gap |
+|-----------|---------|-----|
+| Normaler Web-Login-/Signup-/Session-Flow laeuft | UNKLAR | Kein automatisierter Test deckt vollstaendigen Login/Signup-Flow ab |
+| Reload und neuer Tab verlieren Auth-Kontext nicht | PARTIELL | T7 implementiert (Namespacing); T12 deckt nur Storage-Round-Trip |
+| Manuelle Persistenz-Abnahme dokumentiert | NEIN | Kein Dokument gefunden; TODO.md:52 bleibt offen |
+| TODO.md:21 und :52 abgearbeitet | PARTIELL | :21 (PWA) weiterhin offen; :52 (Persistenz-Abnahme) offen |
+
+**CEO Completion:** ~60-65% erfuellt. T7 (Cache-Namespacing) und T11/T12 solid. Kritische DoD-Luecke: Persistenz-Abnahme-Dokument fehlt vollstaendig.
+
+## Phase 3: Eng Review
+
+**Findings:**
+
+| Severity | Finding | Fix |
+|----------|---------|-----|
+| HIGH | Race condition `startAuthQueryCacheWatch()`: stop() setzt Promise auf null; naechster Caller startet neue Subscription → doppelte `onAuthStateChange`-Listener moeglich | Guard: wenn `authQueryCacheWatchStop` gesetzt, stop() darf Promise-State nicht resetten waehrend andere Caller noch referenzieren |
+| HIGH | Zwei simultane `onAuthStateChange`-Events ohne Mutex: beide lesen `activeAuthUserId === undefined`, fuehren doppeltes `_sessionRestoring = false` + doppeltes notify aus | Low-Risk (JS single-threaded), aber unnoetige Re-Renders; kein Produktionsblocker |
+| MEDIUM | `AsyncStorage.removeItem()` Fehler im catch-Block swallowed still: korrupter Eintrag bleibt in Storage, wird bei jedem Cold-Start erneut versucht | `console.warn` ergaenzen; Cleanup-Retry kein Pflichtfix |
+| MEDIUM | `QUERY_CACHE_STORAGE_KEY` deprecated ohne Cleanup-Pfad: Altgeraete haben alten Key in Storage, der nie geloescht wird — belegt Speicher dauerhaft | Einmaliger Cleanup beim App-Start (pruefe ob alter Key existiert, loesche ihn) |
+| MEDIUM | T12 fehlen Cold-Start-Szenarien: prevKey !== nextKey → clear + removeItem wird nicht assertiert; getSupabaseClient() = null → sessionRestoring korrekt false | Testfaelle ergaenzen |
+| LOW | `void`-Casts auf `queryClient.clear()` + `AsyncStorage.removeItem()` — Fehler nicht observierbar | `console.warn` bei Fehler optional |
+| LOW | `makePersisterForCurrentUser()` erstellt bei jedem `persistClient`-Aufruf neue Persister-Instanz — Throttle-State nicht instanzuebergreifend | Persister-Instanz cachen (pro Key eine Instanz) |
+
+## Decision Audit Trail
+
+| # | Decision | Classification | Rationale |
+|---|----------|----------------|-----------|
+| WEB-CEO-1 | Plan zu ~65% erfuellt — NICHT als vollstaendig Abgeschlossen markieren | Mechanical | DoD-Luecken: Persistenz-Dok fehlt, T9 nicht verifiziert |
+| WEB-CEO-2 | Persistenz-Abnahme-Dokument erstellen (TODO.md:52) | Mechanical | DoD explizit gefordert; fehlt komplett |
+| WEB-ENG-1 | startAuthQueryCacheWatch Race: dokumentieren, kein Fix | Taste | Low-probability in Produktion; JS single-threaded begrenzt reales Risiko |
+| WEB-ENG-2 | QUERY_CACHE_STORAGE_KEY Cleanup: einmaliger App-Start-Cleanup | Taste | Betrifft nur Altgeraete; low-prio aber sauber |
+| WEB-ENG-3 | T12 Cold-Start-Tests ergaenzen | Mechanical | DoD verlangt Session-Flow-Abdeckung |
+
+## Phase 4: Final Gate — 2026-06-09
+
+| Entscheidung | Gewaehlt | Aktion |
+|---|---|---|
+| Plan-Status | **NICHT Abgeschlossen** | Offene Tasks in TODO.md eintragen |
+| QUERY_CACHE_STORAGE_KEY Cleanup | **Einmaliger App-Start-Cleanup** | `void AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY)` in `watchAuthQueryCache()` — `mobile/utils/query-client.ts` |
+| T12 Cold-Start-Tests | **Ergaenzen** | prevKey !== nextKey → clear assertiert; getSupabaseClient() = null → sessionRestoring false |
+| Race condition startAuthQueryCacheWatch | **Dokumentieren** | Low-probability in Produktion; JS single-threaded begrenzt reales Risiko |
+
+**Offene Tasks (in TODO.md einzutragen):**
+- [ ] TODO:52 — Persistenz-Abnahme-Dokument erstellen (Settings/Theme/PDF nach Reload, Neuer Tab, InPrivate)
+- [ ] T12-Cold-Start-Tests: prevKey-Wechsel + null-Supabase-Client-Szenarien
+- [ ] T9-Verifizierung: Confirmation-Link-Error in `auth.ts` code-seitig nachweisen
+
+**Status: IN ARBEIT** — ~65% erfuellt. Code-Fix (QUERY_CACHE_STORAGE_KEY) deployed auf Branch. Offene DoD-Tasks werden als neue TODO-Eintraege gefuehrt.
