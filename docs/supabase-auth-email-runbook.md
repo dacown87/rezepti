@@ -5,8 +5,28 @@ Behebt zwei Symptome, die beim Account-Erstellen auftraten:
 1. **Bestätigungslink landet auf `http://localhost:3000/#access_token=…`** statt auf der Web-App.
 2. **Generische E-Mail** („powered by Supabase", Absender `noreply@mail.app.supabase.io`) ohne RecipeDeck-Bezug.
 
-Beides ist **Supabase-Dashboard-Konfiguration**, kein Code im Repo. Projekt-Ref: `zdiqtnljdxuhinqzgcnd`.
-Produktions-URL: `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`
+Beides wird automatisiert über die Supabase **Management API** gesetzt — Workflow
+[.github/workflows/supabase-auth-config.yml](../.github/workflows/supabase-auth-config.yml).
+Projekt-Ref: `zdiqtnljdxuhinqzgcnd`. Produktions-URL: `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`
+
+---
+
+## 0. Automatisiert via CI (empfohlen)
+
+Der Workflow `Sync Supabase Auth Config` patcht `site_url`, `uri_allow_list` und die
+E-Mail-Templates per `PATCH /v1/projects/{ref}/config/auth`.
+
+**Einmalig:** GitHub → Settings → Secrets and variables → Actions → New repository secret
+- `SUPABASE_ACCESS_TOKEN` — Personal Access Token (Supabase Dashboard → Account → **Access Tokens**)
+
+**Optional (eigener Absender statt `noreply@mail.app.supabase.io`):**
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SENDER_NAME`, `SMTP_ADMIN_EMAIL`.
+Sind diese gesetzt, aktiviert der Workflow Custom SMTP; sonst bleibt der Supabase-Default.
+
+**Auslösen:** GitHub → Actions → *Sync Supabase Auth Config* → **Run workflow**.
+Läuft außerdem automatisch bei jedem Push auf `main`, der `supabase/templates/**` ändert.
+
+Die folgenden Abschnitte beschreiben die manuelle Dashboard-Alternative.
 
 ---
 
