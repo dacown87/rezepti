@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.146] – 2026-06-12
+
+- inline EXPO_PUBLIC Supabase vars at web bundle build time
+
 ## [1.0.145] – 2026-06-12
 
 - add @emnapi/core and @emnapi/runtime as optionalDependencies to fix CI lock file sync

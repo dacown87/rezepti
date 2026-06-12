@@ -1,6 +1,13 @@
 {
-  "version": "1.0.145",
+  "version": "1.0.146",
   "entries": [
+    {
+      "version": "1.0.146",
+      "date": "2026-06-12",
+      "changes": [
+        "inline EXPO_PUBLIC Supabase vars at web bundle build time"
+      ]
+    },
     {
       "version": "1.0.145",
       "date": "2026-06-12",
@@ -178,15 +185,10 @@
       "version": "1.0.115",
       "date": "2026-05-13",
       "changes": []
-    },
-    {
-      "version": "1.0.114",
-      "date": "2026-05-13",
-      "changes": []
     }
   ],
   "lastUpdated": {
     "date": "2026-06-12",
-    "time": "12:10"
+    "time": "12:51"
   }
 }
