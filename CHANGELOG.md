@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.144] – 2026-06-12
+
+### Fixed
+- Credential- und Ownership-Hotfix komplettiert: `/api/v1/images/search` verlangt jetzt ebenfalls Auth, Cookidoo-Credentials werden atomar geschrieben, und invalides JSON auf `POST /api/v1/cookidoo/credentials` liefert 400 statt 500.
+- Mobile Expo-SDK-56-Patch-Drift fuer CI behoben: die erwarteten Expo-Patchstaende sind jetzt im Linux-kompatiblen `mobile/package-lock.json` verankert, sodass `mobile-release-gate` und `performance-audit` wieder gruene `npm ci`-Laeufe haben.
+- Zusätzliche Regressionstests sichern die neue Image-Search-Auth-Grenze und den temp-file-rename-Pfad fuer Cookidoo-Credential-Storage ab.
+
 ## [1.0.143] – 2026-06-09
 
 

@@ -12,7 +12,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 ## Naechste Reihenfolge
 
-0. [x] **P0 Sicherheit — Credential-Auth-Hotfix (PR #7 erstellt, 2026-06-12, pending merge)**
+0. [x] **P0 Sicherheit — Credential-Auth-Hotfix (PR #7 offen, CI gruen, 2026-06-12, pending merge)**
    - Tasks T1-T16 + S3-Inventur umgesetzt: `requireUserAuth` pro Route, totes `api_keys`-Store+Route geloescht, Pinterest/Facebook-Routes deaktiviert (501), Privacy-Copy korrigiert, Unauth-Denied-/Cross-User-Tests, Session-Persistenz (T11/T12), Query-Cache-Namespacing (T7), `/api/v1/images/search` nun auth-gated (S3-Fund).
    - **Vor Merge: Supabase-Migration manuell auf Prod anwenden:** `DROP TABLE IF EXISTS api_keys;` (Dashboard → SQL Editor)
    - **Nach Merge: Manueller Smoke:** `GET /api/v1/cookidoo/status` ohne Bearer → 401; Session persistent nach Reload; InPrivate cleared.
