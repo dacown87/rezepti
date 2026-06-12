@@ -1,6 +1,13 @@
 {
-  "version": "1.0.149",
+  "version": "1.0.150",
   "entries": [
+    {
+      "version": "1.0.150",
+      "date": "2026-06-12",
+      "changes": [
+        "baseline condition + --yes flag + Node24 for supabase-db-push workflow"
+      ]
+    },
     {
       "version": "1.0.149",
       "date": "2026-06-12",
@@ -180,17 +187,10 @@
       "version": "1.0.119",
       "date": "2026-05-24",
       "changes": []
-    },
-    {
-      "version": "1.0.118",
-      "date": "2026-05-24",
-      "changes": [
-        "remediate nightly strict pipeline"
-      ]
     }
   ],
   "lastUpdated": {
     "date": "2026-06-12",
-    "time": "15:44"
+    "time": "16:15"
   }
 }

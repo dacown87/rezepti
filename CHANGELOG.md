@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.150] – 2026-06-12
+
+- baseline condition + --yes flag + Node24 for supabase-db-push workflow
+
 ## [1.0.149] – 2026-06-12
 
 
