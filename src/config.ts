@@ -9,8 +9,8 @@ export const config = {
     whisperModel:  process.env.GROQ_WHISPER_MODEL || "whisper-large-v3-turbo",
   },
   supabase: {
-    url:     process.env.SUPABASE_URL || "",
-    anonKey: process.env.SUPABASE_ANON_KEY || "",
+    url:     process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+    anonKey: process.env.SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
   },
   cookidoo: {
     email:    process.env.COOKIDOO_EMAIL    || "",
