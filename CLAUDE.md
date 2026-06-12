@@ -91,24 +91,48 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 **API Endpoints:**
 | Route | Method | Description |
 |-------|--------|-------------|
-| `/` | GET | Main UI (React app) |
-| `/api/v1/recipes` | GET/POST | List / create recipes, requires Supabase bearer auth |
-| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Single recipe CRUD inside the caller's owner scope |
-| `/api/v1/extract/react` | POST | Start URL extraction job (polling), requires Supabase bearer auth |
-| `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel a job, only visible to the owning user |
-| `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars), requires Supabase bearer auth |
-| `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling), requires Supabase bearer auth |
-| `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user |
-| `/api/v1/keys/validate` | POST | Validate BYOK API key, requires Supabase bearer auth |
-| `/api/v1/health` | GET | Server + DB status |
-| `/api/v1/images/search` | GET | Search recipe image suggestions |
-| `/api/v1/cookidoo/status` | GET | Cookidoo connection status, requires Supabase bearer auth |
-| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, requires Supabase bearer auth |
-| `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501) |
-| `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501) |
-| `/api/v1/proxy/image` | GET | Image proxy for PDF export (intentionally unauthenticated, SSRF-guarded) |
+| `/` | GET | Main UI (React app), open |
+| `/api/v1/recipes` | GET/POST | List / create recipes, `requireUserAuth` |
+| `/api/v1/recipes/:id` | GET/PATCH/DELETE | Single recipe CRUD inside the caller's owner scope, `requireUserAuth` |
+| `/api/v1/recipes/:id/image` | GET | Fetch recipe image, `requireUserAuth` |
+| `/api/v1/extract/react` | POST | Start URL extraction job (polling), `requireUserAuth` |
+| `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel a job, only visible to the owning user (inline user check, no middleware) |
+| `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars), `requireUserAuth` |
+| `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling), `requireUserAuth` |
+| `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user, `requireUserAuth` |
+| `/api/v1/keys/validate` | POST | Validate BYOK API key, `requireUserAuth` |
+| `/api/v1/health` | GET | Server + DB status, open by design |
+| `/api/v1/images/search` | GET | Search recipe image suggestions, `requireUserAuth` |
+| `/api/v1/cookidoo/status` | GET | Cookidoo connection status, `requireUserAuth` |
+| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, `requireUserAuth` (server-scoped-singleton — any authenticated user writes global disk file) |
+| `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501), `requireUserAuth` |
+| `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501), `requireUserAuth` |
+| `/api/v1/proxy/image` | GET | Image proxy for PDF export (unauthenticated by design, SSRF-guarded) |
+| `/api/v1/shopping` | GET/POST/PATCH/DELETE | Shopping list CRUD, `requireAuth` (household-scoped) |
+| `/api/v1/dictionary` | GET | Ingredient dictionary read (open, global read-only) |
+| `/api/v1/dictionary` | POST | Add dictionary entry, `requireAuth` |
+| `/api/v1/dictionary/match` | GET | Match ingredient against dictionary (open, global read-only) |
+| `/api/v1/planner` | GET/POST/DELETE | Meal planner CRUD, `requireAuth` (household-scoped) |
+| `/api/v1/auth/bootstrap` | POST | Bootstrap user account after first sign-in, `requireUserAuth` |
 
 BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths. No server-side key storage (the api_keys store was removed).
+
+## Route Auth Inventory (S3, 2026-06-12)
+
+| Surface | Layer | Owner Model | Auth | Read Boundary | Write Boundary | Risk | Action |
+|---------|-------|-------------|------|---------------|----------------|------|--------|
+| `recipes` | Server + RLS | user/household | `requireUserAuth` + `recipeVisibilityForAuth` | owner | owner | low | — |
+| `planner` / `shopping` | Server + RLS | household-scoped | `requireAuth` | household | household | low | — |
+| extraction jobs | Server | user-scoped | `requireUserAuth` | user | user | low | — |
+| `cookidoo/credentials` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | any-authed | medium | admin/global by design — single-tenant |
+| `cookidoo/status` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | — | low | — |
+| Pinterest / Facebook routes | Server | disabled | `requireUserAuth` + 501 | — | — | low | — |
+| `/api/v1/proxy/image` | Server | open-by-design | none | public | — | low | SSRF-guarded, needed for PDF export |
+| `/api/v1/health` | Server | open-by-design | none | public | — | low | — |
+| `ingredient_dictionary` GET | Server | global read-only | none | public | — | low | intentional public read |
+| `ingredient_dictionary` POST/match | Server | global mutation | `requireAuth` | public | any-authed | medium | TODO: add unauth-denied contract test |
+| `/api/v1/images/search` | Server | user-scoped | `requireUserAuth` | — | — | low | added auth 2026-06-12 — prevents unauthenticated Unsplash credit drain |
+| `api_keys` table | DB | deleted | — | — | — | — | dropped in migration 20260609143000 |
 
 **Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
 - `ExtractionPage` — URL input, job polling, progress display
