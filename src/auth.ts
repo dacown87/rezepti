@@ -115,8 +115,15 @@ export function authErrorResponse(c: Context, error: AuthFlowError) {
 }
 
 async function verifySupabaseAccessToken(accessToken: string): Promise<AuthenticatedUser> {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+  // Server liest bevorzugt die unpraefixten Vars, faellt aber auf die
+  // EXPO_PUBLIC_*-Varianten zurueck. URL + Anon/Publishable-Key sind public-by-design;
+  // so genuegt EIN Satz Supabase-Secrets im Deployment (Northflank setzt nur EXPO_PUBLIC_*).
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_PUBLISHABLE_KEY ??
+    process.env.SUPABASE_ANON_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     throw new AuthFlowError(
