@@ -14,7 +14,7 @@
  * waiting until the UI sends a SKIP_WAITING message (wired in Phase 3).
  */
 
-import { precacheAndRoute } from 'workbox-precaching';
+import { precacheAndRoute, matchPrecache } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst, CacheFirst } from 'workbox-strategies';
 
@@ -49,11 +49,10 @@ registerRoute(
     cacheName: SHELL_CACHE,
     plugins: [
       {
-        // Return cached /index.html when both network and cache miss
-        handlerDidError: async () => {
-          const cache = await caches.open(SHELL_CACHE);
-          return (await cache.match('/index.html')) ?? Response.error();
-        },
+        // Return precached /index.html when both network and cache miss.
+        // Must use matchPrecache — /index.html is stored in Workbox's own
+        // precache cache, not in SHELL_CACHE.
+        handlerDidError: async () => (await matchPrecache('/index.html')) ?? Response.error(),
       },
     ],
   }),

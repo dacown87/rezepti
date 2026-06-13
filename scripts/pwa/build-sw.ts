@@ -18,7 +18,7 @@
 
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { globSync } from 'node:fs';
@@ -66,7 +66,7 @@ function buildManifest(): ManifestEntry[] {
 
   if (totalJsBytes > JS_SIZE_LIMIT_BYTES) {
     throw new Error(
-      `[build-sw] Precached JS exceeds 5 MB limit: ${(totalJsBytes / 1024 / 1024).toFixed(2)} MB ` +
+      `[build-sw] Precached JS exceeds 6 MB limit: ${(totalJsBytes / 1024 / 1024).toFixed(2)} MB ` +
       `(${totalJsBytes} bytes). Reduce bundle size before shipping the service worker.`,
     );
   }
@@ -115,10 +115,9 @@ async function main() {
     format: 'iife',
     target: ['chrome96', 'firefox96', 'safari16'],
     define: {
-      // Inject precache manifest (standard Workbox injection point)
-      'self.__WB_MANIFEST': JSON.stringify(manifest),
-      // Inject cache-name hash
+      // Inject precache manifest — sw.ts reads bare `__WB_MANIFEST`
       '__WB_MANIFEST': JSON.stringify(manifest),
+      // Inject cache-name hash
       '__CACHE_HASH__': JSON.stringify(hash),
     },
     // Silence "browser" / "node" env warnings — SW is its own target
