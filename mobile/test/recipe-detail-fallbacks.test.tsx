@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
 
@@ -18,7 +18,8 @@ vi.mock('expo-router', () => ({
 }));
 
 vi.mock('react-native-safe-area-context', () => ({
-  SafeAreaView: ({ children }: { children: React.ReactNode }) => React.createElement('SafeAreaView', {}, children),
+  SafeAreaView: ({ children, ...props }: Record<string, unknown>) =>
+    React.createElement('SafeAreaView', props, children as React.ReactNode),
 }));
 
 vi.mock('@/utils/server-url', () => ({
@@ -91,8 +92,18 @@ vi.mock('lucide-react-native', () => {
     Square: icon,
     ShoppingCart: icon,
     QrCode: icon,
+    WifiOff: icon,
   };
 });
+
+vi.mock('@/components/OfflineBanner', () => ({
+  OfflineBanner: ({ offlineMessage }: { offlineMessage?: string }) =>
+    React.createElement(
+      'OfflineBanner',
+      { testID: 'offline-banner' },
+      offlineMessage ?? 'Offline — zuletzt geladene Rezepte werden angezeigt',
+    ),
+}));
 
 async function press(target: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => {
@@ -184,6 +195,77 @@ describe('RecipeDetailScreen UI fallbacks', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await waitFor(() => {
       expect(screen.getAllByText('Retry Pasta').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('offline states', () => {
+    beforeEach(() => {
+      // Simulate offline by making navigator.onLine return false
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { onLine: false },
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(globalThis, 'window', {
+        value: { addEventListener: vi.fn(), removeEventListener: vi.fn() },
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { onLine: true },
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it('offline + cached recipe: renders recipe content and offline banner', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 99,
+          name: 'Pasta vom Cache',
+          ingredients: '["Nudeln","Tomaten"]',
+          steps: '["Kochen","Servieren"]',
+          tags: '[]',
+          duration: '15 min',
+          rating: null,
+        }),
+      }));
+
+      const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
+      render(React.createElement(RecipeDetailScreen));
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Pasta vom Cache').length).toBeGreaterThan(0);
+      });
+
+      // OfflineBanner should be present with cache-hit message (testID from mock)
+      const banner = screen.getByTestId('offline-banner');
+      expect(banner).toBeTruthy();
+
+      // No skeleton, no terminal error — recipe is fully rendered
+      expect(screen.queryByTestId('recipe-skeleton')).toBeNull();
+      expect(screen.queryByTestId('offline-cache-miss')).toBeNull();
+    });
+
+    it('offline + no cached recipe: shows terminal offline error, not a spinner', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
+
+      const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
+      render(React.createElement(RecipeDetailScreen));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offline-cache-miss')).toBeTruthy();
+      });
+
+      // Clear offline-unavailable message
+      expect(screen.getByText('Rezept ist offline nicht verfügbar')).toBeTruthy();
+
+      // Must NOT show skeleton (no perpetual loading)
+      expect(screen.queryByTestId('recipe-skeleton')).toBeNull();
     });
   });
 });

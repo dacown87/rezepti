@@ -8,12 +8,13 @@ import { useLocalSearchParams, router } from 'expo-router';
 import {
   ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
-  Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode,
+  Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode, WifiOff,
 } from 'lucide-react-native';
 import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
 import type { Recipe } from '@/db/schema';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
@@ -264,9 +265,16 @@ export default function RecipeDetailScreen() {
   const [editingIngredientValue, setEditingIngredientValue] = useState('');
   const [editDraft, setEditDraft] = useState<RecipeEditDraft | null>(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recipeId = Number(id);
+
+  // True when the device is offline (web only; native always false here).
+  const isOffline =
+    typeof window !== 'undefined' && typeof navigator !== 'undefined'
+      ? !navigator.onLine
+      : false;
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const loadRecipe = useCallback(async () => {
@@ -286,6 +294,7 @@ export default function RecipeDetailScreen() {
       setRecipe(row);
       setRating(row.rating != null ? Number(row.rating) : null);
       setNotes(row.notes ?? '');
+      setImageError(false);
     } catch (error) {
       setRecipe(null);
       setLoadFailure(error);
@@ -463,6 +472,23 @@ export default function RecipeDetailScreen() {
   if (!recipe) {
     if (loadError === 'request_failed') {
       const protectedState = mapProtectedApiError(loadFailure, `/recipe/${id}`);
+      // Offline + cache-miss: the SW could not serve the recipe from cache.
+      if (isOffline && !protectedState) {
+        return (
+          <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center px-8" testID="offline-cache-miss">
+            <WifiOff size={36} color="#9E8878" />
+            <Text className="text-warm-900 dark:text-warm-50 font-semibold text-center mt-4">
+              Rezept ist offline nicht verfügbar
+            </Text>
+            <Text className="text-warm-500 dark:text-warm-400 text-center mt-2 text-sm">
+              Dieses Rezept wurde noch nicht im Cache gespeichert. Bitte stelle eine Verbindung her.
+            </Text>
+            <Pressable onPress={() => router.back()} className="mt-6">
+              <Text className="text-primary-500">Zurück zur Liste</Text>
+            </Pressable>
+          </SafeAreaView>
+        );
+      }
       return (
         <SafeAreaView className="flex-1 bg-white dark:bg-espresso-800 items-center justify-center px-8">
           {protectedState ? (
@@ -584,16 +610,20 @@ export default function RecipeDetailScreen() {
           )}
         </View>
 
+        {/* Offline cache-hit indicator — shown when recipe is served from SW cache */}
+        <OfflineBanner offlineMessage="Offline — Rezept aus Cache" />
+
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
 
           {/* ── Hero-Bild ── */}
-          {(recipe.image_url || isEditing) ? (
+          {((recipe.image_url && !imageError) || isEditing) ? (
             <View className="relative">
-              {recipe.image_url ? (
+              {recipe.image_url && !imageError ? (
                 <Image
                   source={{ uri: recipe.image_url }}
                   className="w-full h-52"
                   resizeMode="cover"
+                  onError={() => setImageError(true)}
                 />
               ) : (
                 <View className="w-full h-52 bg-warm-100 dark:bg-espresso-800 items-center justify-center">
@@ -637,7 +667,7 @@ export default function RecipeDetailScreen() {
               </View>
             ) : (
               <>
-                {!recipe.image_url && (
+                {(!recipe.image_url || imageError) && (
                   <Text className="text-6xl mb-3">{recipe.emoji ?? '🍽️'}</Text>
                 )}
                 <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 text-center">{recipe.name}</Text>
