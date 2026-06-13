@@ -18,10 +18,12 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
    - **Nach Merge: Manueller Smoke:** `GET /api/v1/cookidoo/status` ohne Bearer → 401; Session persistent nach Reload; InPrivate cleared.
    - Plan + Review: [Post-Hotfix Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-post-hotfix-auth-hardening-plan.md).
 
-1. **Progressive Web App (PWA) einbauen**
-   - Installierbare App-Shell fuer Web mit Manifest, Service Worker und Offline-Grundlage planen.
-   - Homescreen-Installationspfad fuer iOS/Android pruefen.
-   - Auth-Onboarding ist jetzt da; der naechste PWA-Slice muss Signup-/Session-/Cache-Verhalten bewusst mit einplanen.
+1. **[x] Progressive Web App (PWA) — Phase 6 abgeschlossen (2026-06-13)**
+   - [x] Installierbare App-Shell mit Manifest, Service Worker, Offline-Read.
+   - [x] Homescreen-Installationspfad fuer iOS/Android implementiert.
+   - [x] Per-User-Cache-Boundary (SHA-256-Hashing, CLEAR_USER auf Logout).
+   - [x] Dokumentation: `docs/pwa-runbook.md` + PWA-Subsection in `CLAUDE.md`.
+   - Plan: `docs/superpowers/plans/2026-06-12-pwa-installable-shell-plan.md`
 
 2. **Web-Persistenz absichern, sobald Multi-Auth im Web belastbar funktioniert**
    - Erst den Web-Auth-/Account-/Workspace-Einstieg soweit stabilisieren, dass Login/Signup/Session fuer die normale Nutzung nicht mehr blockieren.
@@ -54,7 +56,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [x] **Auth-Onboarding-Slice** — Signup, Login, serverseitiger Account-/Default-Haushalt-Bootstrap, Account-&-Workspace-Screen und sichtbare Auth-Zustaende sind auf `main` gelandet. Plan: [Auth Onboarding Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-07-auth-onboarding-slice-plan.md).
 - [x] **Multi-User Login First Slice** — Supabase Auth + echte Household-RLS-Policies ueber Memberships; App-Requests laufen mit Supabase User-JWT als `authenticated`. Plan am 2026-06-04 aktualisiert und PR #2 gelandet.
 - [ ] **Multi-Auth-Hardening-Track** — Web-Auth-Stabilisierung, Web-Persistenz-Abnahme, Ownership-Inventur und Credential-Boundaries als naechster Konsolidierungsslice. Main plan: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
-- [ ] **Progressive Web App (PWA)** — Installierbare Web-App mit Manifest, Service Worker, Offline-Grundlage und Homescreen-Installationspfad fuer iOS/Android einbauen.
+- [x] **Progressive Web App (PWA)** — Phase 6 abgeschlossen: Installierbare Web-App mit Manifest, Service Worker, Offline-Grundlage und Homescreen-Installationspfad. Plan + Runbook: `docs/pwa-runbook.md`.
 - [x] **Dependency-Patch-Drift** — safe Patch-Slice fuer Root/Mobile lokal nachgezogen; Expo-/SDK-gebundene Linien bleiben laut `expo install --check` sauber und bewusst separat.
 - [ ] **CI / Supabase / Northflank Track** — aktueller Betriebsstand, Findings und Vorgehen: [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 - [x] **Performance-Readiness neu aufbauen** — frisches 10er-Window fuer den Juni-Web-Export ist lokal aufgebaut; `artifacts/performance/readiness.json` steht wieder auf `ready=true`.
@@ -62,6 +64,10 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [ ] **T12-Cold-Start-Tests ergaenzen** — In `mobile/test/session-persistence.test.ts` (oder `query-client-auth-cache.test.ts`): prevKey-Wechsel-Szenario (`prevKey !== nextKey → clear + removeItem assertiert`) und `getSupabaseClient() = null → sessionRestoring korrekt false` als explizite Testfaelle ergaenzen.
 - [ ] **T9-Verifikation: Confirmation-Link-Error code-seitig nachweisen** — In `src/auth.ts` verifizieren dass expired/invalid Confirmation-Link einen sichtbaren Fehlercode surfaced (nicht still scheitert). Aktueller Stand: nicht code-verifizierbar; Test oder Log-Assertion ergaenzen.
 - [ ] **BYOK-Rate-Limit-Persistenz bewerten** — [src/byok-validator.ts](/home/patrick/Projekte/rezepti/src/byok-validator.ts) erlaubt im TODO-Pfad aktuell alle Requests; vor Multi-User-/BYOK-Ausweitung DB/Redis/serverseitige Begrenzung entscheiden.
+- [ ] **PWA: Precache-Cap von 6 MB zurueck auf 5 MB** — Aktueller Export ist ~5.26 MB. Nach Bundle-Optimierung auf <5 MB `JS_SIZE_LIMIT_BYTES` in `scripts/pwa/build-sw.ts` zurueckfahren. Siehe `build-sw.ts` Zeile 40-41.
+- [ ] **PWA: Background Sync / Push Notifications** — Offline writes (Mutations-Queue + Konfliktloesung) fuer Shopping/Planner und Push-Notifications fuer Job-Fertigstellung. Deferred nach Phase 6.
+- [ ] **PWA: Schreibender Offline-Pfad** — Mutations-Queue mit Konfliktloesung fuer Shopping-List und Planner-Aenderungen; Sync bei Netzwerk-Reconnect. Deferred nach Phase 6.
+- [ ] **PWA: Multi-Tab/Multi-Account SW-Limitation** — Known issue: single SW shares one currentUserHash; letzte SET_USER gewinnt. Aktuell ok fuer Single-Tenant; revisiten bei Multi-Account-Support. Dokumentiert in `docs/pwa-runbook.md`.
 - [x] **Recipes-Ownership-Slice umsetzen** — Server-API fuer `recipes` auf explizites Owner-Modell umbauen: private User-Rezepte, Haushaltsrezepte, keine globalen Templates, keine Null-Owner-Kompatibilitaet. Plan: [Recipes Ownership Slice Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-05-recipes-ownership-slice-plan.md).
 - [ ] **Recipes Sharing/Favorites Folgeslices planen** — Teilen erzeugt Kopien; Favoriten/Collections werden eigene private oder haushaltsbezogene Owner-Objekte. Nicht in den aktuellen Ownership-Slice ziehen.
 - [x] **Stale Test-Doku nachziehen** — [docs/TEST_STATUS.md](/home/patrick/Projekte/rezepti/docs/TEST_STATUS.md) ist auf den aktuellen Stand gebracht; die alten `TBD`-/Naechste-Aktion-Zeilen im Legacy-Flake-Inventory sind durch aktuellen Betriebsstand und Restaktionen ersetzt.

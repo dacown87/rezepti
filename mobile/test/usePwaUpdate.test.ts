@@ -270,4 +270,49 @@ describe('usePwaUpdate', () => {
 
     expect(swContainer.removeEventListener).toHaveBeenCalledWith('controllerchange', expect.any(Function));
   });
+
+  it('removes updatefound listener from registration on unmount', async () => {
+    const installingWorker = makeFakeWorker('installing');
+    const reg = makeFakeRegistration({ installing: installingWorker });
+    const existingController = makeFakeWorker('activated');
+    const swContainer = makeFakeSWContainer(reg, existingController as unknown as ServiceWorker);
+
+    setNavigator({ serviceWorker: swContainer });
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    const { unmount } = renderHook(() => usePwaUpdate());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    unmount();
+
+    expect(reg.removeEventListener).toHaveBeenCalledWith('updatefound', expect.any(Function));
+  });
+
+  it('removes statechange listener from new worker on unmount', async () => {
+    const installingWorker = makeFakeWorker('installing');
+    const reg = makeFakeRegistration({ installing: installingWorker });
+    const existingController = makeFakeWorker('activated');
+    const swContainer = makeFakeSWContainer(reg, existingController as unknown as ServiceWorker);
+
+    setNavigator({ serviceWorker: swContainer });
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    const { unmount } = renderHook(() => usePwaUpdate());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Simulate updatefound so the statechange listener is added to the new worker
+    await act(async () => {
+      reg.dispatchEvent({ type: 'updatefound' } as Event);
+    });
+
+    unmount();
+
+    expect(installingWorker.removeEventListener).toHaveBeenCalledWith('statechange', expect.any(Function));
+  });
 });

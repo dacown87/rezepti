@@ -74,7 +74,7 @@ const ROADMAP = [
     items: [
       { label: 'React Native App', percent: 40 },
       { label: 'iOS / Android', percent: 0 },
-      { label: 'PWA (Web)', percent: 60 },
+      { label: 'PWA (Web)', percent: 100 },
     ],
   },
 ];

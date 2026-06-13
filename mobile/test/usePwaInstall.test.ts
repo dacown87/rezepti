@@ -221,4 +221,22 @@ describe('usePwaInstall', () => {
     expect(result.current.showIOSHint).toBe(false);
     await expect(result.current.install()).resolves.toBeUndefined();
   });
+
+  it('removes beforeinstallprompt listener on unmount', async () => {
+    const listeners = new Map<string, Array<(e: Event) => void>>();
+    const win = makeWindow({ listeners });
+    setWindow(win);
+    setNavigator(makeNavigator('Mozilla/5.0 (Windows NT 10.0) Chrome/124'));
+
+    const { usePwaInstall } = await import('@/hooks/usePwaInstall');
+    const { unmount } = renderHook(() => usePwaInstall());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    unmount();
+
+    expect(win.removeEventListener).toHaveBeenCalledWith('beforeinstallprompt', expect.any(Function));
+  });
 });
