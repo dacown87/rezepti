@@ -8,5 +8,5 @@
     "noEmit": true
   },
   "include": ["*.ts"],
-  "exclude": []
+  "exclude": ["sw-globals.d.ts"]
 }

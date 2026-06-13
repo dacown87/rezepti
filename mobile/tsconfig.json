@@ -21,6 +21,7 @@
   ],
   "exclude": [
     "sw/sw.ts",
+    "sw/recipe-cache-handler.ts",
     "node_modules"
   ]
 }
