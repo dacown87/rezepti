@@ -345,6 +345,12 @@ jobs:
       - name: Install mobile dependencies
         run: npm --prefix mobile ci
 
+      # Root devDeps include workbox-* (imported by mobile/sw/*). The mobile
+      # typecheck pulls those files in via the SW test, so tsc must resolve
+      # workbox from the root node_modules (module resolution walks up).
+      - name: Install root dependencies
+        run: npm ci
+
       - name: Run Expo Doctor
         run: CI=1 npx expo-doctor
         working-directory: mobile
