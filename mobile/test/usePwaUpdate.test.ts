@@ -315,4 +315,66 @@ describe('usePwaUpdate', () => {
 
     expect(installingWorker.removeEventListener).toHaveBeenCalledWith('statechange', expect.any(Function));
   });
+
+  it('calls window.location.reload() exactly once after applyUpdate() + controllerchange fires', async () => {
+    const waitingWorker = makeFakeWorker('installed');
+    const reg = makeFakeRegistration({ waiting: waitingWorker });
+    // Provide two independent getRegistration results: one for the effect, one for applyUpdate()
+    const swContainer = makeFakeSWContainer(reg, {} as ServiceWorker);
+    // applyUpdate() also calls getRegistration — keep the same mock returning the same reg
+    swContainer.getRegistration.mockResolvedValue(reg);
+
+    setNavigator({ serviceWorker: swContainer });
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    const { result } = renderHook(() => usePwaUpdate());
+
+    // Let the useEffect getRegistration() promise resolve
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.updateReady).toBe(true);
+
+    // Call applyUpdate() — this posts SKIP_WAITING and sets reloadingRef.current = true
+    await act(async () => {
+      result.current.applyUpdate();
+      // Flush the applyUpdate getRegistration promise
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+
+    // Simulate the SW firing controllerchange (new SW took control)
+    await act(async () => {
+      swContainer._dispatch('controllerchange');
+    });
+
+    // window.location.reload must have been called exactly once
+    expect((window.location.reload as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+  });
+
+  it('does NOT call window.location.reload() on controllerchange without a prior applyUpdate()', async () => {
+    const waitingWorker = makeFakeWorker('installed');
+    const reg = makeFakeRegistration({ waiting: waitingWorker });
+    const swContainer = makeFakeSWContainer(reg, {} as ServiceWorker);
+
+    setNavigator({ serviceWorker: swContainer });
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    renderHook(() => usePwaUpdate());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Fire controllerchange WITHOUT calling applyUpdate() first
+    await act(async () => {
+      swContainer._dispatch('controllerchange');
+    });
+
+    // reload must NOT have been called
+    expect((window.location.reload as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
 });
