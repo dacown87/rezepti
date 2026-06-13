@@ -351,7 +351,11 @@ export default function RecipeListScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
-      <OfflineBanner isError={isError} />
+      <OfflineBanner
+        isError={isError && !recipeListProtectedState}
+        authExpired={!!recipeListProtectedState}
+        onAuthPress={() => recipeListProtectedState && router.push(recipeListProtectedState.primaryHref)}
+      />
       {/* Header */}
       <View className="px-4 pt-4 pb-2">
         <View className="flex-row items-center justify-between mb-4">

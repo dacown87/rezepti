@@ -79,6 +79,28 @@ export async function getAuthAccessToken(): Promise<string | null> {
   return (await getAuthSession())?.access_token ?? null;
 }
 
+/**
+ * Forces a Supabase token refresh and returns the new session, or null when
+ * the client is unconfigured or the refresh token is also expired/invalid.
+ *
+ * Used by apiFetch's 401-recovery path: an installed PWA backgrounded during a
+ * long extraction suspends Supabase's auto-refresh timer, so the access token
+ * can lapse silently. A forced refresh + single retry recovers without making
+ * the user manually sign out and back in.
+ */
+export async function refreshAuthSession(): Promise<Session | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  try {
+    const { data, error } = await client.auth.refreshSession();
+    if (error) return null;
+    return data.session;
+  } catch {
+    return null;
+  }
+}
+
 export async function signInWithPassword(email: string, password: string): Promise<Session> {
   const client = requireSupabaseClient();
 

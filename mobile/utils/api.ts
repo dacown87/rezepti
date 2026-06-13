@@ -3,7 +3,7 @@
  * All functions resolve the server URL and return typed data.
  */
 import { getServerUrl } from './server-url';
-import { getAuthHeaders } from './auth';
+import { getAuthHeaders, refreshAuthSession } from './auth';
 
 export interface ApiRecipe {
   id: number;
@@ -52,9 +52,26 @@ export class ApiRequestError extends Error {
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const serverUrl = await getServerUrl();
-  const headers = await getAuthHeaders(init?.headers);
-  const nextInit = headers === undefined ? init : { ...init, headers };
-  return fetch(`${serverUrl}${path}`, nextInit);
+  const url = `${serverUrl}${path}`;
+
+  const buildInit = async (): Promise<RequestInit | undefined> => {
+    const headers = await getAuthHeaders(init?.headers);
+    return headers === undefined ? init : { ...init, headers };
+  };
+
+  const res = await fetch(url, await buildInit());
+  if (res.status !== 401) return res;
+
+  // 401 → the access token has likely expired (e.g. the installed PWA was
+  // backgrounded during a long extraction, suspending Supabase's auto-refresh
+  // timer). Force one token refresh and retry exactly once before surfacing the
+  // 401. Safe for POST/PATCH/DELETE: a 401 is rejected before the server
+  // processes the request, so the original call had no side effect. If the
+  // refresh fails (refresh token also dead) the original 401 is returned so the
+  // caller can show the re-login prompt.
+  const refreshed = await refreshAuthSession();
+  if (!refreshed) return res;
+  return fetch(url, await buildInit());
 }
 
 export async function readApiError(response: Response, fallbackMessage: string): Promise<ApiRequestError> {

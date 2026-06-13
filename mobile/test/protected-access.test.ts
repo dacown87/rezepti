@@ -44,7 +44,51 @@ describe('protected access mapper', () => {
     });
   });
 
+  it('maps token_expired to the re-login CTA', () => {
+    const state = mapProtectedApiError(
+      new ApiRequestError(401, 'Access token has expired', 'token_expired'),
+      '/(tabs)',
+    );
+
+    expect(state).toMatchObject({
+      code: 'token_expired',
+      title: 'Session abgelaufen',
+      primaryLabel: 'Erneut anmelden',
+    });
+  });
+
+  it('maps auth_invalid (e.g. revoked token) to the re-login CTA', () => {
+    const state = mapProtectedApiError(
+      new ApiRequestError(401, 'Invalid access token', 'auth_invalid'),
+      '/(tabs)',
+    );
+
+    expect(state).toMatchObject({
+      code: 'auth_invalid',
+      title: 'Session abgelaufen',
+      primaryLabel: 'Erneut anmelden',
+      primaryHref: { pathname: '/account', params: { mode: 'signin', returnTo: '/(tabs)' } },
+    });
+  });
+
+  it('falls back to the re-login CTA for any unlabeled 401', () => {
+    const state = mapProtectedApiError(
+      new ApiRequestError(401, 'Authentication failed'),
+      '/(tabs)',
+    );
+
+    expect(state).toMatchObject({
+      code: 'auth_invalid',
+      title: 'Session abgelaufen',
+      primaryLabel: 'Erneut anmelden',
+    });
+  });
+
   it('ignores non-auth errors', () => {
     expect(mapProtectedApiError(new Error('plain failure'), '/(tabs)')).toBeNull();
+  });
+
+  it('ignores non-401 ApiRequestErrors without an auth code', () => {
+    expect(mapProtectedApiError(new ApiRequestError(500, 'Server exploded'), '/(tabs)')).toBeNull();
   });
 });

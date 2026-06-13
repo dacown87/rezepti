@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Platform, Animated } from 'react-native';
-import { WifiOff } from 'lucide-react-native';
+import { View, Text, Platform, Animated, Pressable } from 'react-native';
+import { WifiOff, LogIn } from 'lucide-react-native';
 
 function useIsOnline() {
   const [isOnline, setIsOnline] = useState(true);
@@ -28,19 +28,27 @@ function useIsOnline() {
  * Uses navigator.onLine on web. On native, relies on React Query's
  * error state (pass isError=true when a query fails with a network error).
  *
- * @param offlineMessage  Override the default offline text (shown when !isOnline).
+ * @param authExpired    Render the distinct "session expired" variant instead of
+ *                       the offline/WifiOff framing — a 401 is an auth problem,
+ *                       not a network problem, and must not look like one.
+ * @param onAuthPress    Tap handler for the authExpired variant (route to login).
+ * @param offlineMessage Override the default offline text (shown when !isOnline).
  */
 export function OfflineBanner({
   isError = false,
+  authExpired = false,
+  onAuthPress,
   offlineMessage,
 }: {
   isError?: boolean;
+  authExpired?: boolean;
+  onAuthPress?: () => void;
   offlineMessage?: string;
 }) {
   const isOnline = useIsOnline();
   const [opacity] = useState(new Animated.Value(0));
 
-  const visible = !isOnline || isError;
+  const visible = authExpired || !isOnline || isError;
 
   useEffect(() => {
     Animated.timing(opacity, {
@@ -51,6 +59,27 @@ export function OfflineBanner({
   }, [visible, opacity]);
 
   if (!visible) return null;
+
+  // Auth failure takes precedence: never show the misleading "offline" framing
+  // for an expired session — show a tappable re-login prompt instead.
+  if (authExpired) {
+    return (
+      <Animated.View style={{ opacity }}>
+        <Pressable
+          onPress={onAuthPress}
+          accessibilityRole="button"
+          accessibilityLabel="Erneut anmelden"
+        >
+          <View className="bg-amber-600 dark:bg-amber-700 flex-row items-center justify-center gap-2 py-1.5 px-4">
+            <LogIn size={13} color="#fffbeb" />
+            <Text className="text-xs text-amber-50 font-medium">
+              Sitzung abgelaufen — zum Neuanmelden tippen
+            </Text>
+          </View>
+        </Pressable>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View style={{ opacity }}>
