@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.154] – 2026-06-13
+
+- surface readable extraction errors instead of "[object Object]"
+
 ## [1.0.153] – 2026-06-13
 
 
