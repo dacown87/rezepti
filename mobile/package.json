@@ -69,7 +69,11 @@
     "babel-preset-expo": "~56.0.0",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "workbox-expiration": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1"
   },
   "private": true
 }
