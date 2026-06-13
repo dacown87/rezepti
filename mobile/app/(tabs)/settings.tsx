@@ -20,6 +20,8 @@ import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
 import { apiFetch } from '@/utils/api';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
+import { usePwaUpdate } from '@/hooks/usePwaUpdate';
+import { usePwaInstall } from '@/hooks/usePwaInstall';
 
 const SECURE_KEY_GROQ = 'groq_key';
 const STORAGE_KEY_FB_TOS = 'facebook_tos_accepted';
@@ -72,7 +74,7 @@ const ROADMAP = [
     items: [
       { label: 'React Native App', percent: 40 },
       { label: 'iOS / Android', percent: 0 },
-      { label: 'PWA (Web)', percent: 100 },
+      { label: 'PWA (Web)', percent: 60 },
     ],
   },
 ];
@@ -281,6 +283,10 @@ export default function SettingsScreen() {
 
   // Image search count
   const [imageSearchCount, setImageSearchCount] = useState<4 | 8 | 16>(4);
+
+  // PWA
+  const { updateReady, applyUpdate } = usePwaUpdate();
+  const { canInstall, install, showIOSHint } = usePwaInstall();
 
   // Modals
   const [showRoadmap, setShowRoadmap] = useState(false);
@@ -993,6 +999,47 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
+
+        {/* ── PWA Install / Update ── */}
+        {(canInstall || showIOSHint || updateReady) && (
+          <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
+            <View className="flex-row items-center mb-3">
+              <Text className="text-lg mr-1">📲</Text>
+              <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">App</Text>
+            </View>
+
+            {updateReady && (
+              <TouchableOpacity
+                onPress={applyUpdate}
+                className="flex-row items-center bg-blue-50 dark:bg-espresso-700 border border-blue-200 dark:border-warm-600 rounded-xl px-4 py-3 mb-3"
+              >
+                <Text className="text-sm font-semibold text-blue-700 dark:text-blue-300 flex-1">
+                  Neue Version verfügbar — jetzt anwenden
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {canInstall && (
+              <TouchableOpacity
+                onPress={install}
+                className="flex-row items-center justify-center bg-primary-500 rounded-xl px-4 py-3 mb-2"
+              >
+                <Text className="text-sm font-semibold text-white">App installieren</Text>
+              </TouchableOpacity>
+            )}
+
+            {showIOSHint && (
+              <View className="bg-warm-50 dark:bg-espresso-700 border border-warm-200 dark:border-warm-600 rounded-xl px-4 py-3">
+                <Text className="text-sm font-semibold text-warm-800 dark:text-warm-100 mb-1">
+                  Zum Home-Bildschirm hinzufügen
+                </Text>
+                <Text className="text-xs text-warm-500 dark:text-warm-400">
+                  Tippe auf das Teilen-Symbol (↑) und dann auf „Zum Home-Bildschirm".
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* ── App Info ── */}
         <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5">
