@@ -288,8 +288,41 @@ interface UserFriendlyError {
   hint?: string;
 }
 
+/**
+ * Pulls a human-readable string out of an unknown thrown value.
+ *
+ * `String(error)` on a non-Error object yields "[object Object]" (the bug that
+ * surfaced as "[object Object]" in the import UI). SDK/HTTP clients often throw
+ * plain objects rather than Error instances, so probe the common message
+ * shapes before giving up. Returns "" when no usable message is found, so the
+ * caller can fall back to a clean generic message instead of leaking an opaque
+ * object string to the user.
+ */
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const obj = error as Record<string, unknown>;
+    const nested = obj.error as Record<string, unknown> | string | undefined;
+    const response = (obj.response as Record<string, unknown> | undefined)?.data as
+      | Record<string, unknown>
+      | undefined;
+    const candidates: unknown[] = [
+      obj.message,
+      typeof nested === "object" ? nested?.message : undefined,
+      typeof nested === "string" ? nested : undefined,
+      (response?.error as Record<string, unknown> | undefined)?.message,
+      response?.message,
+    ];
+    for (const c of candidates) {
+      if (typeof c === "string" && c.trim()) return c;
+    }
+  }
+  return "";
+}
+
 export function toUserFriendlyError(error: unknown): UserFriendlyError {
-  const raw = error instanceof Error ? error.message : String(error);
+  const raw = extractErrorMessage(error);
 
   // Groq / OpenAI rate limit (DX-4)
   if (/429|rate.?limit|quota.?exceeded/i.test(raw)) {
@@ -399,5 +432,11 @@ export function toUserFriendlyError(error: unknown): UserFriendlyError {
     };
   }
 
+  if (!raw) {
+    return {
+      message:
+        "Unerwarteter Fehler bei der Extraktion. Bitte erneut versuchen oder den Rezepttext manuell als Freitext einfuegen.",
+    };
+  }
   return { message: raw };
 }
