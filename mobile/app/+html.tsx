@@ -12,7 +12,15 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
-        {/* 
+        {/* PWA install metadata */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#c84b31" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="RecipeDeck" />
+
+        {/*
           Disable body scrolling on web. This makes ScrollView components work closer to how they do on native. 
           However, body scrolling is often nice to have for mobile web. If you want to enable it, remove this line.
         */}
@@ -21,8 +29,8 @@ export default function Root({ children }: { children: React.ReactNode }) {
         {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
         <style dangerouslySetInnerHTML={{ __html: auditShellStyles }} />
-        {/* Unregister any legacy service workers (e.g. old Vite PWA build from main branch) */}
-        <script dangerouslySetInnerHTML={{ __html: unregisterServiceWorkers }} />
+        {/* Register SW in production; unregister legacy SWs in dev. */}
+        <script dangerouslySetInnerHTML={{ __html: swRegistrationScript }} />
         <script dangerouslySetInnerHTML={{ __html: primeAuditShellRoutes }} />
       </head>
       <body>
@@ -42,8 +50,22 @@ export default function Root({ children }: { children: React.ReactNode }) {
   );
 }
 
-const unregisterServiceWorkers = `
-if ('serviceWorker' in navigator) {
+// In production (expo export → NODE_ENV === 'production'): register /sw.js and
+// clean up any legacy SW registrations (e.g. old Vite PWA build from main branch).
+// In dev (expo start): fall back to unregistering all SWs so stale caches never
+// interfere with hot-reload.
+const swRegistrationScript: string =
+  process.env.NODE_ENV === 'production'
+    ? `if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(function() {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(r) {
+        if (!r.scriptURL.endsWith('/sw.js')) r.unregister();
+      });
+    });
+  });
+}`
+    : `if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(function(registrations) {
     for (var r of registrations) { r.unregister(); }
   });

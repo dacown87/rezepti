@@ -1,0 +1,160 @@
+/// <reference lib="webworker" />
+/**
+ * RecipeDeck Service Worker (Phase 2 — Shell + Hash-Assets only)
+ *
+ * Bundled by scripts/pwa/build-sw.ts (esbuild, IIFE) into public/sw.js.
+ * Workbox is bundled INTO this file — it never ships in the Expo app bundle.
+ *
+ * Strategy:
+ *  - Navigation requests → NetworkFirst (3 s timeout, offline fallback: /index.html)
+ *  - Immutable hash assets  → CacheFirst
+ *  - Recipe API GET routes  → StaleWhileRevalidate, per-user cache bucket
+ *  - Everything else (images, etc.) → NOT handled (falls through to network)
+ *
+ * skipWaiting is intentionally NOT called unconditionally. The waiting SW stays
+ * waiting until the UI sends a SKIP_WAITING message (wired in Phase 3).
+ *
+ * SINGLE-TAB / MULTI-ACCOUNT NOTE:
+ *   A single SW instance is shared across all tabs for the same origin.
+ *   `currentUserHash` holds the SHA-256 hash of the LAST user who sent SET_USER.
+ *   In a single-tenant app (one user per device) this is the correct behavior.
+ *   If two different accounts are ever open in parallel tabs the last SET_USER
+ *   wins — requests from the other tab may be served from or written to the
+ *   wrong user's cache bucket during the switch window. This is acceptable for
+ *   the current single-tenant deployment; revisit if multi-account support is added.
+ */
+
+import { precacheAndRoute, matchPrecache } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
+
+import { isNavigationRequest, isHashAsset } from './routing.js';
+import {
+  isCacheableRecipeRequest,
+  strongHash,
+  isUserCacheName,
+  clearStaleUserCaches,
+} from './cache-names.js';
+import { recipeCacheHandler } from './recipe-cache-handler.js';
+
+export type { RecipeCacheHandlerDeps } from './recipe-cache-handler.js';
+export { recipeCacheHandler } from './recipe-cache-handler.js';
+
+declare const self: ServiceWorkerGlobalScope;
+
+// ---------------------------------------------------------------------------
+// Precache manifest — injected at build time via esbuild define:
+//   self.__WB_MANIFEST → JSON array of { url, revision } entries
+// The cast keeps TypeScript happy; esbuild replaces the symbol at bundle time.
+// ---------------------------------------------------------------------------
+declare const __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
+precacheAndRoute(__WB_MANIFEST);
+
+// ---------------------------------------------------------------------------
+// Cache name tokens — injected by build-sw.ts via esbuild define:
+//   __CACHE_HASH__ → short hex string derived from the manifest
+// ---------------------------------------------------------------------------
+declare const __CACHE_HASH__: string;
+
+const SHELL_CACHE = `rd-shell-v${__CACHE_HASH__}`;
+const ASSETS_CACHE = `rd-assets-v${__CACHE_HASH__}`;
+
+/** SHA-256 hash of the currently active user's ID. null = no user / signed-out. */
+let currentUserHash: string | null = null;
+
+// ---------------------------------------------------------------------------
+// Navigation route — NetworkFirst with /index.html offline fallback
+// ---------------------------------------------------------------------------
+registerRoute(
+  ({ request }) => isNavigationRequest(request),
+  new NetworkFirst({
+    networkTimeoutSeconds: 3,
+    cacheName: SHELL_CACHE,
+    plugins: [
+      {
+        // Return precached /index.html when both network and cache miss.
+        // Must use matchPrecache — /index.html is stored in Workbox's own
+        // precache cache, not in SHELL_CACHE.
+        handlerDidError: async () => (await matchPrecache('/index.html')) ?? Response.error(),
+      },
+    ],
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Immutable hash-asset route — CacheFirst (filenames already contain hash)
+// ---------------------------------------------------------------------------
+registerRoute(
+  ({ url }) => isHashAsset(url),
+  new CacheFirst({
+    cacheName: ASSETS_CACHE,
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Recipe API runtime cache — StaleWhileRevalidate, per-user cache bucket
+//
+// FIX 1: capture `event` from the route callback and forward it to the handler
+// so Workbox's StrategyHandler can call event.waitUntil() without throwing.
+// The handler is extracted to recipe-cache-handler.ts for testability.
+// ---------------------------------------------------------------------------
+registerRoute(
+  ({ url, request }) => isCacheableRecipeRequest(url, request.method),
+  ({ request, event }) =>
+    recipeCacheHandler(
+      { request, event },
+      { getUserHash: () => currentUserHash, buildHash: __CACHE_HASH__, fetchFn: fetch },
+    ),
+);
+
+// ---------------------------------------------------------------------------
+// Activate — GC orphaned user caches from previous builds (FIX 4)
+//
+// Deletes `rd-user-*` caches whose build-hash suffix is NOT the current
+// __CACHE_HASH__. This prevents unbounded storage growth across deploys.
+// Shell, asset, and precache caches are intentionally NOT touched here.
+// ---------------------------------------------------------------------------
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  event.waitUntil(clearStaleUserCaches(caches, __CACHE_HASH__));
+});
+
+// ---------------------------------------------------------------------------
+// skipWaiting — only on explicit message from the UI (Phase 3 wires the prompt)
+// ---------------------------------------------------------------------------
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    void self.skipWaiting();
+  }
+
+  if (event.data?.type === 'SET_USER') {
+    const userId = event.data.userId as string | undefined;
+    if (userId) {
+      // Compute a strong SHA-256 hash asynchronously and store it.
+      // Requests that arrive before the hash is ready (currentUserHash still null)
+      // are safely served network-only — no stale hash is ever used.
+      void strongHash(userId)
+        .then((hash) => {
+          currentUserHash = hash;
+        })
+        .catch(() => {
+          currentUserHash = null;
+        });
+    } else {
+      currentUserHash = null;
+    }
+  }
+
+  if (event.data?.type === 'CLEAR_USER') {
+    currentUserHash = null;
+    // Delete all user-scoped caches asynchronously (do not block the message handler).
+    event.waitUntil(
+      caches.keys().then((names) =>
+        Promise.all(
+          names
+            .filter(isUserCacheName)
+            .map((name) => caches.delete(name)),
+        ),
+      ),
+    );
+  }
+});

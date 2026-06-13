@@ -49,6 +49,17 @@ ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
 # Siehe docs/PROJECT_LEARNINGS.md, Eintrag "expo-export-hangs-postbuild".
 RUN cd mobile && CI=1 EXPO_EXPORT_TIMEOUT_SECONDS=300 node ../scripts/mobile/expo-export-web.mjs --output-dir ../public
 
+# PWA Service Worker: erzeuge public/sw.js. Dieser Stage ruft den Expo-Export
+# direkt auf und umgeht damit `npm run build:mobile`/`postbuild:mobile` — der
+# SW-Build muss hier repliziert werden, sonst fehlt /sw.js im Prod-Image und die
+# SW-Registrierung laeuft auf 404 (keine Offline-/Update-/Auth-Cache-Funktion).
+# build-sw.ts braucht die Root-devDeps (esbuild + workbox-* + tsx). Kein
+# --ignore-scripts: esbuild richtet sein Plattform-Binary per postinstall ein.
+COPY .npmrc package*.json ./
+RUN npm ci
+COPY scripts/pwa ./scripts/pwa
+RUN npx tsx scripts/pwa/build-sw.ts
+
 # ─── production ────────────────────────────────────────────────────────────────
 FROM base AS production
 

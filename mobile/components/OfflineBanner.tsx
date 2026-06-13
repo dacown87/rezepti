@@ -27,8 +27,16 @@ function useIsOnline() {
  * Slim banner shown at the top of a screen when the device is offline.
  * Uses navigator.onLine on web. On native, relies on React Query's
  * error state (pass isError=true when a query fails with a network error).
+ *
+ * @param offlineMessage  Override the default offline text (shown when !isOnline).
  */
-export function OfflineBanner({ isError = false }: { isError?: boolean }) {
+export function OfflineBanner({
+  isError = false,
+  offlineMessage,
+}: {
+  isError?: boolean;
+  offlineMessage?: string;
+}) {
   const isOnline = useIsOnline();
   const [opacity] = useState(new Animated.Value(0));
 
@@ -49,7 +57,9 @@ export function OfflineBanner({ isError = false }: { isError?: boolean }) {
       <View className="bg-warm-700 dark:bg-warm-800 flex-row items-center justify-center gap-2 py-1.5 px-4">
         <WifiOff size={13} color="#fef2f2" />
         <Text className="text-xs text-red-100 font-medium">
-          {!isOnline ? 'Keine Verbindung — gespeicherte Rezepte werden angezeigt' : 'Rezepte konnten nicht geladen werden'}
+          {!isOnline
+            ? (offlineMessage ?? 'Offline — zuletzt geladene Rezepte werden angezeigt')
+            : 'Rezepte konnten nicht geladen werden'}
         </Text>
       </View>
     </Animated.View>

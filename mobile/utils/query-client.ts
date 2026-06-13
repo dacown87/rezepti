@@ -99,6 +99,29 @@ export function subscribeSessionRestoring(listener: (restoring: boolean) => void
 let authQueryCacheWatchPromise: Promise<() => void> | null = null;
 let authQueryCacheWatchStop: (() => void) | null = null;
 
+/**
+ * Posts a message to the active Service Worker.
+ *
+ * Guards:
+ * - No-op when SW is not supported (native, SSR, node env, test env).
+ * - No-op when no SW is controlling the page yet.
+ * - Never throws — failure is silently swallowed.
+ *
+ * Used to keep the SW's currentUserHash in sync with the app's auth state
+ * so it can bucket API responses per user and purge caches on logout.
+ */
+async function postToServiceWorker(message: { type: string; userId?: string }): Promise<void> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  try {
+    const sw =
+      navigator.serviceWorker.controller ??
+      (await navigator.serviceWorker.ready).active;
+    sw?.postMessage(message);
+  } catch {
+    // SW unavailable — silent no-op
+  }
+}
+
 export async function watchAuthQueryCache(): Promise<() => void> {
   // One-time cleanup of the pre-namespacing legacy key (shipped before 2026-06-09).
   // Devices running an older build have 'recipedeck-query-cache' (no user suffix)
@@ -150,6 +173,19 @@ export async function watchAuthQueryCache(): Promise<() => void> {
     }
 
     activeAuthUserId = nextUserId;
+
+    // --- SW cache sync ---
+    if (userChanged && nextUserId) {
+      // Hot user switch A→B: purge A's cache first, then set B.
+      void postToServiceWorker({ type: 'CLEAR_USER' });
+      void postToServiceWorker({ type: 'SET_USER', userId: nextUserId });
+    } else if (nextUserId) {
+      // Signed in (first event with a user, or re-sign-in of same user).
+      void postToServiceWorker({ type: 'SET_USER', userId: nextUserId });
+    } else {
+      // Signed out (nextUserId is null).
+      void postToServiceWorker({ type: 'CLEAR_USER' });
+    }
   });
 
   return () => data.subscription.unsubscribe();

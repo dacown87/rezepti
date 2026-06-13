@@ -143,6 +143,32 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 - `SettingsPage` — BYOK key management, App Status with Roadmap modal
 - `frontend/src/utils/scaling.ts` — `parseServingsNumber`, `scaleIngredient` for portion scaling
 
+## PWA (Progressive Web App)
+
+**Status:** Phase 6 completed (2026-06-13). Installable shell + offline-read caching deployed.
+
+**Source files:**
+- Manifest & icons: `mobile/public/manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon-180.png`
+- HTML head tags (SW registration, iOS metadata): `mobile/app/+html.tsx`
+- Service Worker source: `mobile/sw/sw.ts` (bundled to `public/sw.js` via `scripts/pwa/build-sw.ts`)
+- Cache helpers: `mobile/sw/cache-names.ts` (SHA-256 user hashing, cache naming)
+- Recipe cache handler: `mobile/sw/recipe-cache-handler.ts` (StaleWhileRevalidate for GET /api/v1/recipes/*)
+- SW router: `mobile/sw/routing.ts` (navigation vs asset request detection)
+- Install hook: `mobile/hooks/usePwaInstall.ts` (beforeinstallprompt + iOS hint)
+- Update hook: `mobile/hooks/usePwaUpdate.ts` (waiting-worker detection + reload prompt)
+- User messages: `mobile/utils/query-client.ts` (SET_USER, CLEAR_USER, SKIP_WAITING posts)
+
+**Build flow:** `npm run build:mobile` runs Expo export, then `postbuild:mobile` hook automatically regenerates `public/sw.js` via `npx tsx scripts/pwa/build-sw.ts`. Manual rebuild: `npx tsx scripts/pwa/build-sw.ts`.
+
+**Cache families:**
+- `rd-shell-v<buildHash>` — NetworkFirst navigations (3s timeout, /index.html fallback)
+- `rd-assets-v<buildHash>` — CacheFirst for `/_expo/static/**` JS/CSS (content-hashed filenames)
+- `rd-user-<sha256-userId>-v<buildHash>` — StaleWhileRevalidate for GET recipe list/detail/image (per-user, cleared on logout)
+
+**Auth boundary:** Per-user SHA-256-named caches; CLEAR_USER message deletes all `rd-user-*` caches. Null/unknown user = network-only (no cache). Multi-tab limitation: single SW serves all tabs; last SET_USER wins (acceptable for single-tenant deployment).
+
+**Operations:** See `docs/pwa-runbook.md` for rebuild procedures, icon regeneration, cache verification, and emergency deregistration.
+
 ## External CLI Dependencies
 
 These must be installed on the host: `yt-dlp`

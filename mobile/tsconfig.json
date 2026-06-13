@@ -18,5 +18,10 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "sw/sw.ts",
+    "sw/recipe-cache-handler.ts",
+    "node_modules"
   ]
 }
