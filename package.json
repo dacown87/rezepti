@@ -14,7 +14,7 @@
     "dev:mobile": "concurrently \"npm run dev\" \"cd mobile && npx expo start --web\"",
     "build:mobile": "npm --prefix mobile run build:web",
     "build:mobile:docker": "cd mobile && CI=1 EXPO_EXPORT_TIMEOUT_SECONDS=300 node ../scripts/mobile/expo-export-web.mjs --output-dir ../public",
-    "postbuild:mobile": "git ls-files --error-unmatch public/changelog.json >/dev/null 2>&1 && git checkout HEAD -- public/changelog.json || true",
+    "postbuild:mobile": "git ls-files --error-unmatch public/changelog.json >/dev/null 2>&1 && git checkout HEAD -- public/changelog.json || true && npx tsx scripts/pwa/build-sw.ts",
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:build:web": "npm --prefix mobile run build:web",
     "test:mobile": "npm --prefix mobile run test:unit",
@@ -88,6 +88,7 @@
     "@vitest/ui": "^4.1.8",
     "concurrently": "^10.0.3",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.1",
     "happy-dom": "^20.10.2",
     "jsdom": "^29.1.1",
     "lighthouse": "^13.3.0",
@@ -95,6 +96,9 @@
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1"
   }
 }
