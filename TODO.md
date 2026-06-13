@@ -24,6 +24,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
    - [x] Per-User-Cache-Boundary (SHA-256-Hashing, CLEAR_USER auf Logout).
    - [x] Dokumentation: `docs/pwa-runbook.md` + PWA-Subsection in `CLAUDE.md`.
    - Plan: `docs/superpowers/plans/2026-06-12-pwa-installable-shell-plan.md`
+   - **➡️ Naechster Schritt (nach Deploy):** Post-Deploy-QA der 11 nur am deployten Build pruefbaren Akzeptanzkriterien (Lighthouse Installable, Chrome/iOS Install, Cross-User-Cache-Isolation, Flugmodus-Offline). Plan: [PWA Post-Deploy QA](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-13-pwa-post-deploy-qa.md) — ausfuehrbar via `/qa` gegen die Prod-URL.
 
 2. **Web-Persistenz absichern, sobald Multi-Auth im Web belastbar funktioniert**
    - Erst den Web-Auth-/Account-/Workspace-Einstieg soweit stabilisieren, dass Login/Signup/Session fuer die normale Nutzung nicht mehr blockieren.
