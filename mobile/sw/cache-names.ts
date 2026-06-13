@@ -50,7 +50,7 @@ export function isUserCacheName(name: string): boolean {
 export function isCacheableRecipeRequest(url: string | URL, method: string): boolean {
   if (method !== 'GET') return false;
   const pathname = typeof url === 'string' ? new URL(url, 'https://localhost').pathname : url.pathname;
-  return /^\/api\/v1\/recipes(\/[^/]+)?(\/image)?\/?$/.test(pathname);
+  return /^\/api\/v1\/recipes(\/[^/]+(\/image)?)?\/?$/.test(pathname);
 }
 
 /**

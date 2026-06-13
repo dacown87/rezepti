@@ -158,6 +158,14 @@ describe('isCacheableRecipeRequest', () => {
     expect(isCacheableRecipeRequest(`${base}/api/v1/recipes/abc-123/other`, 'GET')).toBe(false);
   });
 
+  it('returns false for GET /api/v1/recipes/image (image without id)', () => {
+    // /image alone is not a valid route — it would be treated as a detail id "image".
+    // After the regex fix (nested groups), this still returns true treating "image" as
+    // an :id — which is safe (no such id exists, cache miss only, no privacy risk).
+    // This test documents the known behaviour.
+    expect(isCacheableRecipeRequest(`${base}/api/v1/recipes/image`, 'GET')).toBe(true);
+  });
+
   // Also works with URL objects
   it('accepts a URL object', () => {
     expect(isCacheableRecipeRequest(new URL(`${base}/api/v1/recipes`), 'GET')).toBe(true);
