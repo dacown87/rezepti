@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.152] – 2026-06-13
+
+- drop shebang from secret-scan.mjs so Vitest can import it
+
 ## [1.0.151] – 2026-06-12
 
 

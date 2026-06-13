@@ -1,6 +1,13 @@
 {
-  "version": "1.0.151",
+  "version": "1.0.152",
   "entries": [
+    {
+      "version": "1.0.152",
+      "date": "2026-06-13",
+      "changes": [
+        "drop shebang from secret-scan.mjs so Vitest can import it"
+      ]
+    },
     {
       "version": "1.0.151",
       "date": "2026-06-12",
@@ -182,15 +189,10 @@
       "version": "1.0.121",
       "date": "2026-05-25",
       "changes": []
-    },
-    {
-      "version": "1.0.120",
-      "date": "2026-05-25",
-      "changes": []
     }
   ],
   "lastUpdated": {
-    "date": "2026-06-12",
-    "time": "17:26"
+    "date": "2026-06-13",
+    "time": "15:46"
   }
 }
