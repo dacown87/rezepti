@@ -97,12 +97,15 @@ vi.mock('lucide-react-native', () => {
 });
 
 vi.mock('@/components/OfflineBanner', () => ({
-  OfflineBanner: ({ offlineMessage }: { offlineMessage?: string }) =>
-    React.createElement(
+  OfflineBanner: ({ offlineMessage }: { offlineMessage?: string; isError?: boolean }) => {
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    if (isOnline) return null;
+    return React.createElement(
       'OfflineBanner',
       { testID: 'offline-banner' },
       offlineMessage ?? 'Offline — zuletzt geladene Rezepte werden angezeigt',
-    ),
+    );
+  },
 }));
 
 async function press(target: Parameters<typeof fireEvent.press>[0]) {
@@ -246,9 +249,44 @@ describe('RecipeDetailScreen UI fallbacks', () => {
       const banner = screen.getByTestId('offline-banner');
       expect(banner).toBeTruthy();
 
+      // Exact cache-hit message must be shown (text is a direct child of the mock element)
+      expect(screen.getByTestId('offline-banner').props.children).toBe('Offline — Rezept aus Cache');
+
       // No skeleton, no terminal error — recipe is fully rendered
       expect(screen.queryByTestId('recipe-skeleton')).toBeNull();
       expect(screen.queryByTestId('offline-cache-miss')).toBeNull();
+    });
+
+    it('online + cached recipe: banner is NOT shown (sanity check against always-rendering banner)', async () => {
+      // Restore online state for this test
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { onLine: true },
+        writable: true,
+        configurable: true,
+      });
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 99,
+          name: 'Pasta online',
+          ingredients: '["Nudeln"]',
+          steps: '["Kochen"]',
+          tags: '[]',
+          duration: '10 min',
+          rating: null,
+        }),
+      }));
+
+      const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
+      render(React.createElement(RecipeDetailScreen));
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Pasta online').length).toBeGreaterThan(0);
+      });
+
+      // Banner must NOT appear when online
+      expect(screen.queryByTestId('offline-banner')).toBeNull();
     });
 
     it('offline + no cached recipe: shows terminal offline error, not a spinner', async () => {

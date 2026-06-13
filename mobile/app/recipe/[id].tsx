@@ -271,10 +271,24 @@ export default function RecipeDetailScreen() {
   const recipeId = Number(id);
 
   // True when the device is offline (web only; native always false here).
-  const isOffline =
+  // Reactive: updates on online/offline events so reconnect clears the error screen.
+  const [isOffline, setIsOffline] = useState(
     typeof window !== 'undefined' && typeof navigator !== 'undefined'
       ? !navigator.onLine
-      : false;
+      : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOnline  = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online',  handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online',  handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const loadRecipe = useCallback(async () => {
@@ -483,7 +497,10 @@ export default function RecipeDetailScreen() {
             <Text className="text-warm-500 dark:text-warm-400 text-center mt-2 text-sm">
               Dieses Rezept wurde noch nicht im Cache gespeichert. Bitte stelle eine Verbindung her.
             </Text>
-            <Pressable onPress={() => router.back()} className="mt-6">
+            <Pressable onPress={loadRecipe} className="mt-6 px-4 py-2 bg-primary-500 rounded-xl">
+              <Text className="text-white text-sm font-medium">Erneut versuchen</Text>
+            </Pressable>
+            <Pressable onPress={() => router.back()} className="mt-3">
               <Text className="text-primary-500">Zurück zur Liste</Text>
             </Pressable>
           </SafeAreaView>
