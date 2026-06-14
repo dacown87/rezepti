@@ -172,3 +172,17 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// Background Sync — the SW cannot make authenticated requests (the auth token
+// lives in the page's Supabase session), so on a sync it wakes all open clients
+// and asks them to flush the queue. If no client is open the browser retries.
+// ---------------------------------------------------------------------------
+self.addEventListener('sync', (event: Event & { tag?: string; waitUntil(p: Promise<unknown>): void }) => {
+  if (event.tag !== 'flush-mutations') return;
+  event.waitUntil(
+    self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
+      for (const client of clients) client.postMessage({ type: 'FLUSH_QUEUE' });
+    }),
+  );
+});
