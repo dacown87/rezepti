@@ -22,6 +22,7 @@ import { apiFetch } from '@/utils/api';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 import { usePwaUpdate } from '@/hooks/usePwaUpdate';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
+import { usePushSubscription } from '@/hooks/usePushSubscription';
 
 const SECURE_KEY_GROQ = 'groq_key';
 const STORAGE_KEY_FB_TOS = 'facebook_tos_accepted';
@@ -287,6 +288,16 @@ export default function SettingsScreen() {
   // PWA
   const { updateReady, applyUpdate } = usePwaUpdate();
   const { canInstall, install, showIOSHint } = usePwaInstall();
+
+  // Push notifications
+  const {
+    supported: pushSupported,
+    enabled: pushEnabled,
+    loading: pushLoading,
+    denied: pushDenied,
+    iosNeedsInstall: pushIosNeedsInstall,
+    toggle: togglePush,
+  } = usePushSubscription(process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY ?? '');
 
   // Modals
   const [showRoadmap, setShowRoadmap] = useState(false);
@@ -1040,6 +1051,61 @@ export default function SettingsScreen() {
             )}
           </View>
         )}
+
+        {/* ── Push-Benachrichtigungen ── */}
+        <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
+          <View className="flex-row items-center mb-1">
+            <Text className="text-lg mr-1">🔔</Text>
+            <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">Push-Benachrichtigungen</Text>
+          </View>
+          <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
+            Benachrichtigungen wenn ein Rezept-Import abgeschlossen ist
+          </Text>
+
+          {pushDenied ? (
+            <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+              <Text className="text-xs text-yellow-800 leading-5">
+                Benachrichtigungen sind im Browser blockiert — in den Browsereinstellungen aktivieren.
+              </Text>
+            </View>
+          ) : pushIosNeedsInstall ? (
+            <View className="bg-warm-50 dark:bg-espresso-700 border border-warm-200 dark:border-warm-600 rounded-xl p-3">
+              <Text className="text-xs text-warm-700 dark:text-warm-200 leading-5">
+                Erst zum Home-Bildschirm hinzufügen (iOS 16.4+)
+              </Text>
+            </View>
+          ) : !pushSupported ? (
+            <View className="bg-warm-50 dark:bg-espresso-700 border border-warm-200 dark:border-warm-600 rounded-xl p-3">
+              <Text className="text-xs text-warm-500 dark:text-warm-400 leading-5">
+                Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.
+              </Text>
+            </View>
+          ) : (
+            <View className="flex-row items-center justify-between" style={{ minHeight: 44 }}>
+              <View className="flex-1 mr-4">
+                <Text className="text-sm font-medium text-warm-700 dark:text-warm-200">
+                  Benachrichtigungen aktivieren
+                </Text>
+                {pushEnabled && (
+                  <Text className="text-xs text-green-600 mt-0.5">
+                    Aktiv — du wirst bei abgeschlossenen Importen benachrichtigt
+                  </Text>
+                )}
+              </View>
+              {pushLoading ? (
+                <ActivityIndicator size="small" color="#C84B31" />
+              ) : (
+                <Switch
+                  value={pushEnabled}
+                  onValueChange={togglePush}
+                  disabled={pushLoading || !pushSupported || pushIosNeedsInstall}
+                  trackColor={{ false: '#E5E7EB', true: '#86EFAC' }}
+                  thumbColor={pushEnabled ? '#16A34A' : '#9E8878'}
+                />
+              )}
+            </View>
+          )}
+        </View>
 
         {/* ── App Info ── */}
         <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5">
