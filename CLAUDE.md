@@ -147,7 +147,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 
 ## PWA (Progressive Web App)
 
-**Status:** Phase 6 completed (2026-06-13). Installable shell + offline-read caching deployed. Offline-read hardening (2026-06-14): the recipe data cache is now build-independent and survives app updates, React Query restores the signed-in user's cache on cold start, and the SW persists the user hash so offline reads work right after a restart. See PRs #11 (RC1+RC3) and #12 (RC2).
+**Status:** PWA follow-up slices **shipped to production 2026-06-14 (v1.0.163)** — offline write path, Background Sync, and Web Push are live. Earlier: Phase 6 (2026-06-13) installable shell + offline-read caching; offline-read hardening (2026-06-14, PRs #11/#12) made the recipe data cache build-independent, restored the signed-in user's React Query cache on cold start, and persisted the SW user hash. The follow-ups landed as three PRs — #14 (precache cap → 5 MB via PDF-chunk exclusion), #15 (offline mutation queue + `client_op_id` idempotency), #17 (Background Sync + Web Push; replaced the auto-closed #16). Plan + as-built notes: `docs/superpowers/plans/2026-06-13-pwa-followups-plan.md`. Details below.
 
 **Source files:**
 - Manifest & icons: `mobile/public/manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon-180.png`
@@ -161,6 +161,8 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 - User messages: `mobile/utils/query-client.ts` (SET_USER, CLEAR_USER, SKIP_WAITING posts; per-user query-cache persistence + cold-start restore)
 
 **Build flow:** `npm run build:mobile` runs Expo export, then `postbuild:mobile` hook automatically regenerates `public/sw.js` via `npx tsx scripts/pwa/build-sw.ts`. Manual rebuild: `npx tsx scripts/pwa/build-sw.ts`.
+
+**Precache cap (5 MB):** `build-sw.ts` enforces `JS_SIZE_LIMIT_BYTES = 5 MB` and **excludes the PDF-export-only chunks** (`pdf-export`, `html2canvas`, `purify`) from the precache manifest (`PRECACHE_EXCLUDE`) — PDF export is an online-only action, so those chunks are served by the runtime `rd-assets` CacheFirst handler on first use instead of bloating the precache (total ≈ 4.6 MB).
 
 **Cache families:**
 - `rd-shell-v<buildHash>` — NetworkFirst navigations (3s timeout, /index.html fallback). Build-scoped.
@@ -316,6 +318,9 @@ Planned features and current implementation status (as of March 2026):
 ### Mobile & Responsive Design
 - Mobile first approach: 100% ✅ — React frontend with mobile-ready interfaces
 - PWA (Homescreen install): 100% ✅ — Phase 2 delivered
+- PWA offline write path (mutation queue + idempotency): 100% ✅ — delivered 2026-06-14 (v1.0.163)
+- PWA Background Sync (flush queue on reconnect): 100% ✅ — delivered 2026-06-14 (v1.0.163)
+- Web Push (job-completion notifications, opt-in): 100% ✅ — delivered 2026-06-14 (v1.0.163)
 - Media queries for typical screen sizes: 100% ✅ — React app responsive with Tailwind CSS
 - Android app (Flutter): 0%
 
