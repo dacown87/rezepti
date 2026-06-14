@@ -221,7 +221,7 @@ app.get("/api/v1/planner", requireAuth(), async (c) => {
 app.post("/api/v1/planner", requireAuth(), async (c) => {
   try {
     const auth = getAuth(c);
-    const { recipeId, dayOfWeek, weekStart } = await c.req.json();
+    const { recipeId, dayOfWeek, weekStart, client_op_id } = await c.req.json();
 
     if (!Number.isInteger(recipeId) || dayOfWeek === undefined || !weekStart) {
       return c.json({ error: "recipeId, dayOfWeek, and weekStart are required" }, 400);
@@ -230,7 +230,7 @@ app.post("/api/v1/planner", requireAuth(), async (c) => {
     const isHouseholdRecipe = await recipeBelongsToHousehold(recipeId, auth.activeHouseholdId);
     if (!isHouseholdRecipe) return c.json({ error: "Recipe not found" }, 404);
 
-    const result = await addRecipeToMealPlan(auth.activeHouseholdId, auth.userId, recipeId, dayOfWeek, weekStart);
+    const result = await addRecipeToMealPlan(auth.activeHouseholdId, auth.userId, recipeId, dayOfWeek, weekStart, client_op_id ?? null);
     return c.json({ success: true, id: result.id }, 201);
   } catch (error) {
     console.error("Error adding to meal plan:", error);

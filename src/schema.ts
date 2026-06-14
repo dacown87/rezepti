@@ -75,9 +75,13 @@ export const mealPlan = pgTable("meal_plan", {
   weekStart: integer("week_start").notNull(), // ISO-Wochenstart (Montag) als Unix-Timestamp
   createdAt: timestamp("created_at").defaultNow(),
   userId: uuid("user_id"),
+  clientOpId: uuid("client_op_id"),
 }, (t) => [
   index("meal_plan_household_week_idx").on(t.householdId, t.weekStart),
   index("meal_plan_recipe_idx").on(t.recipeId),
+  uniqueIndex("meal_plan_household_opid_uidx")
+    .on(t.householdId, t.clientOpId)
+    .where(sql`${t.clientOpId} IS NOT NULL`),
 ]);
 
 export const userProfiles = pgTable("user_profiles", {

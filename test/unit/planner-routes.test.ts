@@ -213,7 +213,7 @@ describe('planner route APIs', () => {
 
       expect(res.status).toBe(201)
       expect(dbMocks.recipeBelongsToHousehold).toHaveBeenCalledWith(5, householdId)
-      expect(dbMocks.addRecipeToMealPlan).toHaveBeenCalledWith(householdId, userId, 5, 2, 1716760800)
+      expect(dbMocks.addRecipeToMealPlan).toHaveBeenCalledWith(householdId, userId, 5, 2, 1716760800, null)
     })
 
     it('rejects planner entries for recipes outside the active household', async () => {
