@@ -29,6 +29,15 @@ import {
   groupEntriesByDay,
   pickRecipesByIds,
 } from '@/utils/planner-screen-data';
+import { OfflineBanner } from '@/components/OfflineBanner';
+import { queuedMutate } from '@/offline/queued-mutate';
+import { offlineQueue, sendQueuedMutation } from '@/offline/queue-singleton';
+import { isOnline } from '@/offline/network-status';
+import { isTempId, newTempId } from '@/offline/temp-id';
+import { useOfflineQueue } from '@/hooks/useOfflineQueue';
+
+// Local planner entry type that allows temp string ids for optimistic inserts (K1).
+type LocalMealPlanEntry = Omit<MealPlanEntry, 'id'> & { id: number | string };
 
 // ─── Server API helpers ───────────────────────────────────────────────────────
 
@@ -314,10 +323,10 @@ const DayColumn = React.memo(function DayColumn({
 }: {
   dayIndex: number;
   monday: Date;
-  entries: MealPlanEntry[];
+  entries: LocalMealPlanEntry[];
   recipes: Map<number, Recipe>;
   onAdd: (dayIndex: number) => void;
-  onRemove: (entryId: number) => void;
+  onRemove: (entryId: number | string) => void;
   mutationPending: boolean;
 }) {
   const today = isToday(monday, dayIndex);
@@ -340,22 +349,37 @@ const DayColumn = React.memo(function DayColumn({
       <View className="p-2 gap-2 min-h-16">
         {entries.map(entry => {
           const recipe = recipes.get(entry.recipe_id);
+          const isTemp = isTempId(entry.id);
           return (
-            <View key={entry.id} className="flex-row items-start bg-warm-50 dark:bg-espresso-900 rounded-xl px-2 py-2 gap-1">
+            <View
+              key={String(entry.id)}
+              className={`flex-row items-start bg-warm-50 dark:bg-espresso-900 rounded-xl px-2 py-2 gap-1 ${isTemp ? 'opacity-60' : ''}`}
+              accessibilityState={isTemp ? { disabled: true } : undefined}
+              accessibilityLabel={isTemp ? `${recipe?.name ?? `Rezept #${entry.recipe_id}`}, wird synchronisiert` : undefined}
+            >
               <Text className="text-base leading-5">{recipe?.emoji ?? '🍽️'}</Text>
-              <Text className="flex-1 text-xs text-warm-700 dark:text-warm-200 leading-4" numberOfLines={2}>
-                {recipe?.name ?? `Rezept #${entry.recipe_id}`}
-              </Text>
-              <Pressable
-                onPress={() => onRemove(entry.id)}
-                hitSlop={8}
-                disabled={mutationPending}
-                accessibilityRole="button"
-                accessibilityLabel={`${recipe?.name ?? `Rezept #${entry.recipe_id}`} entfernen`}
-                testID={`planner-remove-entry-${entry.id}`}
-              >
-                <Trash2 size={12} color="#d1d5db" />
-              </Pressable>
+              <View className="flex-1">
+                <Text className="text-xs text-warm-700 dark:text-warm-200 leading-4" numberOfLines={2}>
+                  {recipe?.name ?? `Rezept #${entry.recipe_id}`}
+                </Text>
+                {/* DD7: temp entry chip */}
+                {isTemp && (
+                  <Text className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">⏳ wird gespeichert</Text>
+                )}
+              </View>
+              {/* Remove button hidden for temp entries (no confirmed server id) */}
+              {!isTemp && (
+                <Pressable
+                  onPress={() => onRemove(entry.id)}
+                  hitSlop={8}
+                  disabled={mutationPending}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${recipe?.name ?? `Rezept #${entry.recipe_id}`} entfernen`}
+                  testID={`planner-remove-entry-${entry.id}`}
+                >
+                  <Trash2 size={12} color="#d1d5db" />
+                </Pressable>
+              )}
             </View>
           );
         })}
@@ -380,7 +404,7 @@ const DayColumn = React.memo(function DayColumn({
 
 export default function PlannerScreen() {
   const [monday, setMonday] = useState(() => getMondayOf(new Date()));
-  const [mealPlan, setMealPlan] = useState<MealPlanEntry[]>([]);
+  const [mealPlan, setMealPlan] = useState<LocalMealPlanEntry[]>([]);
   const [recipes, setRecipes] = useState<Map<number, Recipe>>(new Map());
   const [loading, setLoading] = useState(true);
   const [plannerError, setPlannerError] = useState<string | null>(null);
@@ -391,6 +415,8 @@ export default function PlannerScreen() {
   const [methodDay, setMethodDay] = useState<number | null>(null);   // Auswahl-Modal
   const [pickerDay, setPickerDay] = useState<number | null>(null);   // Rezept-Picker
   const [qrDay, setQrDay] = useState<number | null>(null);           // QR-Scanner
+
+  const { pending, syncState, lastDropped, setOnFlushed } = useOfflineQueue();
 
   const weekStart = Math.floor(monday.getTime() / 1000);
 
@@ -429,6 +455,22 @@ export default function PlannerScreen() {
       .catch(() => undefined)
       .finally(() => setLoading(false));
   }, [loadData]);
+
+  // Register reconciliation callback: on successful queue flush, reload planner data.
+  useEffect(() => {
+    setOnFlushed(loadData);
+  }, [setOnFlushed, loadData]);
+
+  // Surface permanently dropped mutations (DD4)
+  useEffect(() => {
+    if (lastDropped > 0) {
+      handlePlannerActionError(
+        `${lastDropped} Änderung${lastDropped === 1 ? '' : 'en'} konnten nicht gespeichert werden.`,
+        async () => { /* no meaningful retry for dropped items */ },
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastDropped]);
 
   const goToPrevWeek = () => {
     const d = new Date(monday);
@@ -585,15 +627,30 @@ export default function PlannerScreen() {
     if (targetDay === null || plannerMutationPending) return;
     clearPlannerError();
     setPlannerMutationPending(true);
+    const tmpId = newTempId();
+    // Optimistic insert: add a temp entry immediately so the user sees feedback (K1)
+    const tempEntry: LocalMealPlanEntry = {
+      id: tmpId,
+      recipe_id: recipeId,
+      day_of_week: targetDay,
+      week_start: weekStart,
+      created_at: null,
+    };
+    setMealPlan(prev => [...prev, tempEntry]);
     try {
-      const res = await apiFetch('/api/v1/planner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipeId, dayOfWeek: targetDay, weekStart }),
-      });
-      await assertApiOk(res, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.');
-      await loadData();
+      const { queued } = await queuedMutate(
+        offlineQueue,
+        { endpoint: '/api/v1/planner', method: 'POST', body: { recipeId, dayOfWeek: targetDay, weekStart } },
+        { online: isOnline(), send: sendQueuedMutation, newId: () => crypto.randomUUID() },
+      );
+      if (!queued) {
+        // Online success → reconcile now
+        await loadData();
+      }
+      // queued → temp entry stays; reconciliation on flush via setOnFlushed(loadData)
     } catch (error) {
+      // Permanent failure → roll back temp entry
+      setMealPlan(prev => prev.filter(e => e.id !== tmpId));
       handlePlannerActionError(
         errorMessage(error, 'Rezept konnte nicht zum Wochenplan hinzugefügt werden.'),
         async () => handleAddRecipe(recipeId, targetDay),
@@ -604,14 +661,27 @@ export default function PlannerScreen() {
     }
   };
 
-  const retryRemoveEntry = async (entryId: number) => {
+  const retryRemoveEntry = async (entryId: number | string) => {
+    // Temp entries have no confirmed server id; skip DELETE for them.
+    if (isTempId(entryId)) return;
     clearPlannerError();
     setPlannerMutationPending(true);
+    // Optimistic removal
+    const prevMealPlan = mealPlan;
+    setMealPlan(prev => prev.filter(e => e.id !== entryId));
     try {
-      const res = await apiFetch(`/api/v1/planner/${entryId}`, { method: 'DELETE' });
-      await assertApiOk(res, 'Rezept konnte nicht entfernt werden.');
-      await loadData();
+      const { queued } = await queuedMutate(
+        offlineQueue,
+        { endpoint: `/api/v1/planner/${entryId}`, method: 'DELETE' },
+        { online: isOnline(), send: sendQueuedMutation, newId: () => crypto.randomUUID() },
+      );
+      if (!queued) {
+        // Online success — already optimistically removed; no further action needed
+      }
+      // queued → optimistic removal is kept; reconcile on flush
     } catch (error) {
+      // Permanent failure → roll back optimistic removal
+      setMealPlan(prevMealPlan);
       handlePlannerActionError(
         errorMessage(error, 'Rezept konnte nicht entfernt werden.'),
         async () => retryRemoveEntry(entryId),
@@ -622,7 +692,7 @@ export default function PlannerScreen() {
     }
   };
 
-  const handleRemoveEntry = useCallback(async (entryId: number) => {
+  const handleRemoveEntry = useCallback(async (entryId: number | string) => {
     if (plannerMutationPending) return;
     Alert.alert('Entfernen', 'Rezept aus dem Planer entfernen?', [
       { text: 'Abbrechen', style: 'cancel' },
@@ -645,7 +715,18 @@ export default function PlannerScreen() {
 
   const isCurrentWeek = monday.getTime() === getMondayOf(new Date()).getTime();
 
-  const entriesByDay = useMemo(() => groupEntriesByDay(mealPlan), [mealPlan]);
+  // groupEntriesByDay expects MealPlanEntry[] (id: number). We pass LocalMealPlanEntry[]
+  // which widens id to number | string. The function only reads day_of_week, so the
+  // cast is safe. The Map type is kept as LocalMealPlanEntry[] for DayColumn rendering.
+  const entriesByDay = useMemo((): Map<number, LocalMealPlanEntry[]> => {
+    const map = new Map<number, LocalMealPlanEntry[]>();
+    for (let day = 0; day < 7; day += 1) map.set(day, []);
+    for (const entry of mealPlan) {
+      const bucket = map.get(entry.day_of_week);
+      if (bucket !== undefined) bucket.push(entry);
+    }
+    return map;
+  }, [mealPlan]);
   const plannerProtectedState = useMemo(
     () => mapProtectedApiError(plannerFailure, '/(tabs)/planner'),
     [plannerFailure],
@@ -653,6 +734,9 @@ export default function PlannerScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
+      {/* Offline/sync banner */}
+      <OfflineBanner pending={pending} syncState={syncState} />
+
       {/* Header */}
       <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center justify-between mb-3">

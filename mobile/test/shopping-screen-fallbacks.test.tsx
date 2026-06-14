@@ -32,6 +32,44 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
+// Stub out offline infrastructure so the shopping screen can be unit-tested
+// without a real IDB store or network queue.
+vi.mock('@/offline/queue-singleton', async () => {
+  // sendQueuedMutation must go through apiFetch so the global `fetch` stub
+  // is exercised the same way the original direct apiFetch calls were.
+  const { apiFetch } = await import('@/utils/api');
+  const sendQueuedMutation = async (m: { endpoint: string; method: string; body?: unknown }) => {
+    const init: RequestInit = { method: m.method };
+    if (m.body !== undefined) {
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(m.body);
+    }
+    return apiFetch(m.endpoint, init);
+  };
+  return {
+    offlineQueue: {
+      size: vi.fn(async () => 0),
+      enqueue: vi.fn(async () => undefined),
+      flush: vi.fn(async () => ({ sent: 0, dropped: 0, remaining: 0 })),
+    },
+    sendQueuedMutation,
+    flushOnce: vi.fn(async () => ({ sent: 0, dropped: 0, remaining: 0 })),
+  };
+});
+vi.mock('@/offline/network-status', () => ({
+  isOnline: vi.fn(() => true),
+  onReconnect: vi.fn(() => () => undefined),
+}));
+// Use the real queuedMutate logic (no mock) so permanent failures throw and
+// the shopping screen's rollback/error paths are exercised correctly.
+// The IDB store is bypassed via the queue-singleton mock above.
+
+// OfflineBanner uses Animated — mock it with all needed exports so the
+// shopping screen's render succeeds even when the banner is mounted.
+vi.mock('@/components/OfflineBanner', () => ({
+  OfflineBanner: () => null,
+}));
+
 vi.mock('lucide-react-native', () => {
   const icon = () => React.createElement('Icon');
   return {
@@ -41,6 +79,9 @@ vi.mock('lucide-react-native', () => {
     X: icon,
     Share2: icon,
     Plus: icon,
+    WifiOff: icon,
+    LogIn: icon,
+    RefreshCw: icon,
   };
 });
 
@@ -129,12 +170,14 @@ describe('ShoppingScreen UI fallbacks', () => {
   });
 
   it('shows mutation error, restores manual input, and retries manual add successfully', async () => {
+    // 422 is a permanent (non-retryable) failure — queuedMutate throws, the screen
+    // rolls back the temp item, restores the input, and shows the mutation error.
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ items: [] }),
       })
-      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({ ok: false, status: 422 })
       .mockResolvedValueOnce({ ok: true, status: 201 })
       .mockResolvedValueOnce({
         ok: true,

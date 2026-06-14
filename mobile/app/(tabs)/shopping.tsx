@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, FlatList, Pressable, ActivityIndicator,
   RefreshControl, TextInput, Share, Modal,
@@ -8,9 +8,18 @@ import { useFocusEffect } from 'expo-router';
 import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
 
 import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import type { ShoppingListItem } from '@/db/schema';
 import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 import { mapProtectedApiError } from '@/utils/protected-access';
+import { queuedMutate } from '@/offline/queued-mutate';
+import { offlineQueue, sendQueuedMutation } from '@/offline/queue-singleton';
+import { isOnline } from '@/offline/network-status';
+import { isTempId, newTempId } from '@/offline/temp-id';
+import { useOfflineQueue } from '@/hooks/useOfflineQueue';
+
+// Local item type that allows temp string ids for optimistic inserts (K1).
+type LocalShoppingItem = Omit<ShoppingListItem, 'id'> & { id: number | string };
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 
@@ -50,15 +59,6 @@ async function clearAll(): Promise<void> {
   await assertApiOk(res, `Shopping clear all failed (${res.status})`);
 }
 
-async function addManualItem(name: string): Promise<void> {
-  const res = await apiFetch('/api/v1/shopping', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ canonicalName: name, recipeId: null }),
-  });
-  await assertApiOk(res, `Shopping add failed (${res.status})`);
-}
-
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiRequestError && error.code ? error.message : fallback;
 }
@@ -66,7 +66,7 @@ function errorMessage(error: unknown, fallback: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ShoppingScreen() {
-  const [items, setItems] = useState<ShoppingListItem[]>([]);
+  const [items, setItems] = useState<LocalShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadFailure, setLoadFailure] = useState<unknown>(null);
@@ -76,6 +76,8 @@ export default function ShoppingScreen() {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<null | (() => Promise<void>)>(null);
   const [retryingMutation, setRetryingMutation] = useState(false);
+
+  const { pending, syncState, lastDropped, setOnFlushed } = useOfflineQueue();
 
   const load = useCallback(async () => {
     try {
@@ -90,6 +92,12 @@ export default function ShoppingScreen() {
       setLoading(false);
     }
   }, []);
+
+  // Register reconciliation callback: when the offline queue flushes
+  // successfully, refetch so temp items are replaced with confirmed server data.
+  useEffect(() => {
+    setOnFlushed(load);
+  }, [setOnFlushed, load]);
 
   // Reload every time the tab gets focused
   useFocusEffect(useCallback(() => {
@@ -113,6 +121,18 @@ export default function ShoppingScreen() {
     setRetryAction(() => retry);
   };
 
+  // Surface permanently dropped mutations (DD4)
+  useEffect(() => {
+    if (lastDropped > 0) {
+      handleMutationError(
+        `${lastDropped} Änderung${lastDropped === 1 ? '' : 'en'} konnten nicht gespeichert werden.`,
+        async () => { /* no meaningful retry for dropped items */ },
+      );
+    }
+  // Only trigger when lastDropped increases (the value comes from the hook's flush)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastDropped]);
+
   const runRetryAction = async () => {
     if (!retryAction) return;
     try {
@@ -127,11 +147,20 @@ export default function ShoppingScreen() {
     }
   };
 
-  const handleToggle = async (item: ShoppingListItem) => {
+  const handleToggle = async (item: LocalShoppingItem) => {
+    // Temp items are not confirmed on the server yet; skip toggle until reconciled.
+    if (isTempId(item.id)) return;
     clearMutationError();
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: i.checked ? 0 : 1 } : i));
     try {
-      await toggleItem(item.id);
+      const { queued } = await queuedMutate(
+        offlineQueue,
+        { endpoint: `/api/v1/shopping/${item.id}`, method: 'PATCH' },
+        { online: isOnline(), send: sendQueuedMutation, newId: () => crypto.randomUUID() },
+      );
+      if (queued) {
+        // Optimistic state is kept; reconcile on flush via setOnFlushed(load)
+      }
     } catch (error) {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
       handleMutationError(
@@ -141,12 +170,21 @@ export default function ShoppingScreen() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
+    // Temp items can't be deleted via server (no confirmed id).
+    if (isTempId(id)) return;
     clearMutationError();
     const previousItems = items;
     setItems(prev => prev.filter(i => i.id !== id));
     try {
-      await deleteItem(id);
+      const { queued } = await queuedMutate(
+        offlineQueue,
+        { endpoint: `/api/v1/shopping/${id}`, method: 'DELETE' },
+        { online: isOnline(), send: sendQueuedMutation, newId: () => crypto.randomUUID() },
+      );
+      if (queued) {
+        // Optimistic removal is kept; reconcile on flush via setOnFlushed(load)
+      }
     } catch (error) {
       setItems(previousItems);
       handleMutationError(
@@ -190,17 +228,35 @@ export default function ShoppingScreen() {
     if (!name) return;
     clearMutationError();
     setNewItem('');
+    const tmpId = newTempId();
+    const tempItem: LocalShoppingItem = {
+      id: tmpId,
+      recipe_id: null,
+      canonical_name: name,
+      quantity: null,
+      unit: null,
+      checked: 0,
+      created_at: null,
+    };
+    setItems(prev => [...prev, tempItem]);
     try {
-      await addManualItem(name);
-      await load();
+      const { queued } = await queuedMutate(
+        offlineQueue,
+        { endpoint: '/api/v1/shopping', method: 'POST', body: { canonicalName: name, recipeId: null } },
+        { online: isOnline(), send: sendQueuedMutation, newId: () => crypto.randomUUID() },
+      );
+      if (!queued) {
+        // Online success → reconcile now (replaces temp item with real server id)
+        await load();
+      }
+      // queued → leave temp card visible; reconciliation happens on flush via setOnFlushed(load)
     } catch (error) {
+      // Permanent failure → rollback temp card and restore input (DD4)
+      setItems(prev => prev.filter(i => i.id !== tmpId));
       setNewItem(name);
       handleMutationError(
         errorMessage(error, 'Artikel konnte nicht hinzugefügt werden.'),
-        async () => {
-          await addManualItem(name);
-          await load();
-        },
+        async () => handleAddManual(),
       );
     }
   };
@@ -213,8 +269,8 @@ export default function ShoppingScreen() {
   };
 
   const { uncheckedItems, checkedItems, orderedItems } = useMemo(() => {
-    const unchecked: ShoppingListItem[] = [];
-    const checked: ShoppingListItem[] = [];
+    const unchecked: LocalShoppingItem[] = [];
+    const checked: LocalShoppingItem[] = [];
     for (const item of items) {
       if (item.checked) checked.push(item);
       else unchecked.push(item);
@@ -250,6 +306,9 @@ export default function ShoppingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
+      {/* Offline/sync banner — always rendered under the safe area top */}
+      <OfflineBanner pending={pending} syncState={syncState} />
+
       {/* Header — always visible, auch während des Ladens */}
       <View className="px-4 pt-4 pb-3">
         <View className="flex-row items-center justify-between mb-3">
@@ -357,6 +416,7 @@ export default function ShoppingScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           renderItem={({ item, index }) => {
             const isFirstChecked = !!item.checked && uncheckedItems.length > 0 && index === uncheckedItems.length;
+            const isTemp = isTempId(item.id);
             return (
               <>
                 {isFirstChecked && checkedItems.length > 0 && (
@@ -364,7 +424,10 @@ export default function ShoppingScreen() {
                 )}
                 <Pressable
                   onPress={() => handleToggle(item)}
-                  className={`flex-row items-center bg-white dark:bg-espresso-800 rounded-xl mb-2 px-4 py-3 border ${item.checked ? 'border-warm-200 dark:border-warm-700 opacity-60' : 'border-warm-200 dark:border-warm-700'}`}
+                  disabled={isTemp}
+                  accessibilityState={isTemp ? { disabled: true } : undefined}
+                  accessibilityLabel={isTemp ? `${item.canonical_name}, wird synchronisiert` : undefined}
+                  className={`flex-row items-center bg-white dark:bg-espresso-800 rounded-xl mb-2 px-4 py-3 border ${item.checked ? 'border-warm-200 dark:border-warm-700 opacity-60' : 'border-warm-200 dark:border-warm-700'} ${isTemp ? 'opacity-60' : ''}`}
                 >
                   <View className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${item.checked ? 'bg-primary-500 border-primary-500' : 'border-warm-300'}`}>
                     {item.checked ? <Check size={13} color="#fff" /> : null}
@@ -372,9 +435,16 @@ export default function ShoppingScreen() {
                   <Text className={`flex-1 text-sm ${item.checked ? 'line-through text-warm-500 dark:text-warm-400' : 'text-warm-800 dark:text-warm-100'}`}>
                     {item.canonical_name}
                   </Text>
-                  <Pressable onPress={() => handleDelete(item.id)} hitSlop={8} className="ml-2 p-1">
-                    <X size={14} color="#d1d5db" />
-                  </Pressable>
+                  {/* DD7: temp card chip — explicit "wird gespeichert" label */}
+                  {isTemp && (
+                    <Text className="text-xs text-amber-600 dark:text-amber-400 ml-2">⏳ wird gespeichert</Text>
+                  )}
+                  {/* Delete button hidden for temp items (no confirmed server id) */}
+                  {!isTemp && (
+                    <Pressable onPress={() => handleDelete(item.id)} hitSlop={8} className="ml-2 p-1">
+                      <X size={14} color="#d1d5db" />
+                    </Pressable>
+                  )}
                 </Pressable>
               </>
             );

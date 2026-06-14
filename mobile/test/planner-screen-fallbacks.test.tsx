@@ -42,6 +42,37 @@ vi.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => React.createElement('SafeAreaView', {}, children),
 }));
 
+// Stub offline infrastructure — planner screen imports these for queue routing.
+vi.mock('@/offline/queue-singleton', async () => {
+  const { apiFetch } = await import('@/utils/api');
+  const sendQueuedMutation = async (m: { endpoint: string; method: string; body?: unknown }) => {
+    const init: RequestInit = { method: m.method };
+    if (m.body !== undefined) {
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(m.body);
+    }
+    return apiFetch(m.endpoint, init);
+  };
+  return {
+    offlineQueue: {
+      size: vi.fn(async () => 0),
+      enqueue: vi.fn(async () => undefined),
+      flush: vi.fn(async () => ({ sent: 0, dropped: 0, remaining: 0 })),
+    },
+    sendQueuedMutation,
+    flushOnce: vi.fn(async () => ({ sent: 0, dropped: 0, remaining: 0 })),
+  };
+});
+vi.mock('@/offline/network-status', () => ({
+  isOnline: vi.fn(() => true),
+  onReconnect: vi.fn(() => () => undefined),
+}));
+// OfflineBanner uses Animated — stub it out to keep planner fallback tests
+// focused on planner logic, not banner rendering.
+vi.mock('@/components/OfflineBanner', () => ({
+  OfflineBanner: () => null,
+}));
+
 vi.mock('lucide-react-native', () => {
   const icon = () => React.createElement('Icon');
   return {
@@ -384,7 +415,9 @@ describe('PlannerScreen UI fallbacks', () => {
         }
         if (url.endsWith('/api/v1/planner') && init?.method === 'POST') {
           plannerPostCalls += 1;
-          if (plannerPostCalls === 1) return jsonResponse({}, false, 503);
+          // 422 is a permanent (non-retryable) failure; queuedMutate throws so
+          // the screen catches, rolls back, and surfaces the mutation error.
+          if (plannerPostCalls === 1) return jsonResponse({}, false, 422);
           return jsonResponse({}, true, 201);
         }
         return jsonResponse({});
@@ -432,7 +465,9 @@ describe('PlannerScreen UI fallbacks', () => {
         }
         if (url.endsWith('/api/v1/planner/1') && init?.method === 'DELETE') {
           deleteCalls += 1;
-          if (deleteCalls === 1) return jsonResponse({}, false, 500);
+          // 422 is permanent; queuedMutate throws so the screen catches and
+          // rolls back the optimistic removal, showing the mutation error.
+          if (deleteCalls === 1) return jsonResponse({}, false, 422);
           return jsonResponse({}, true, 200);
         }
         return jsonResponse({});

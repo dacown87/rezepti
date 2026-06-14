@@ -19,6 +19,8 @@ g.window = g.window ?? { addEventListener: () => undefined, removeEventListener:
 vi.mock('lucide-react-native', () => ({
   WifiOff: (props: Record<string, unknown>) => React.createElement('WifiOff', props),
   LogIn: (props: Record<string, unknown>) => React.createElement('LogIn', props),
+  RefreshCw: (props: Record<string, unknown>) => React.createElement('RefreshCw', props),
+  Check: (props: Record<string, unknown>) => React.createElement('Check', props),
 }));
 
 vi.mock('react-native', () => {
@@ -76,5 +78,75 @@ describe('OfflineBanner', () => {
     const { OfflineBanner } = await import('@/components/OfflineBanner');
     const { toJSON } = render(React.createElement(OfflineBanner, {}));
     expect(toJSON()).toBeNull();
+  });
+
+  // ─── New sync/pending state tests ─────────────────────────────────────────
+
+  it('renders nothing when online, pending=0, syncState=idle', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(
+      React.createElement(OfflineBanner, { pending: 0, syncState: 'idle' }),
+    );
+    expect(toJSON()).toBeNull();
+    expect(screen.queryByText(/synchronisiert|gespeichert|offline/i)).toBeNull();
+  });
+
+  it('shows syncing text for plural pending mutations', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    render(
+      React.createElement(OfflineBanner, { pending: 3, syncState: 'syncing' }),
+    );
+    expect(screen.getByText(/3 Änderungen werden synchronisiert/i)).toBeTruthy();
+  });
+
+  it('shows syncing text for a single pending mutation', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    render(
+      React.createElement(OfflineBanner, { pending: 1, syncState: 'syncing' }),
+    );
+    expect(screen.getByText(/1 Änderung wird synchronisiert/i)).toBeTruthy();
+  });
+
+  it('shows synced confirmation text when syncState=synced', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    render(
+      React.createElement(OfflineBanner, { syncState: 'synced' }),
+    );
+    expect(screen.getByText(/gespeichert/i)).toBeTruthy();
+  });
+
+  // a11y role checks: RNTL's getByRole only matches accessible elements (those
+  // with `accessible` prop or host Text/TextInput/Switch). The mocked View is a
+  // plain string element, so we check the role/accessibilityRole prop via the
+  // rendered JSON props directly.
+  // DD6 contracts: syncing/synced → role="status" (polite),
+  //                offline/error  → accessibilityRole="alert" (assertive).
+  it('(a11y) syncing banner View has role="status"', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(
+      React.createElement(OfflineBanner, { pending: 2, syncState: 'syncing' }),
+    );
+    const json = toJSON() as { children: Array<{ props: Record<string, unknown> }> };
+    // AnimatedView > View with role="status"
+    const innerView = json?.children?.[0];
+    expect((innerView as { props?: Record<string, unknown> })?.props?.role).toBe('status');
+  });
+
+  it('(a11y) synced banner View has role="status"', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(
+      React.createElement(OfflineBanner, { syncState: 'synced' }),
+    );
+    const json = toJSON() as { children: Array<{ props: Record<string, unknown> }> };
+    const innerView = json?.children?.[0];
+    expect((innerView as { props?: Record<string, unknown> })?.props?.role).toBe('status');
+  });
+
+  it('(a11y) isError banner View has accessibilityRole="alert"', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(React.createElement(OfflineBanner, { isError: true }));
+    const json = toJSON() as { children: Array<{ props: Record<string, unknown> }> };
+    const innerView = json?.children?.[0];
+    expect((innerView as { props?: Record<string, unknown> })?.props?.accessibilityRole).toBe('alert');
   });
 });

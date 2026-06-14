@@ -813,13 +813,31 @@ export async function getMealPlanForWeek(householdId: string, weekStart: number)
   return rows.map(serializeMealPlanEntry);
 }
 
-export async function addRecipeToMealPlan(householdId: string, userId: string, recipeId: number, dayOfWeek: number, weekStart: number) {
+export async function addRecipeToMealPlan(
+  householdId: string,
+  userId: string,
+  recipeId: number,
+  dayOfWeek: number,
+  weekStart: number,
+  clientOpId?: string | null,
+) {
   const db = getDb();
   const rows = await db
     .insert(mealPlan)
-    .values({ householdId, userId, recipeId, dayOfWeek, weekStart })
+    .values({ householdId, userId, recipeId, dayOfWeek, weekStart, clientOpId: clientOpId ?? null })
+    .onConflictDoNothing({
+      target: [mealPlan.householdId, mealPlan.clientOpId],
+      where: sql`${mealPlan.clientOpId} is not null`,
+    })
     .returning({ id: mealPlan.id });
-  return rows[0];
+  if (rows.length > 0) return rows[0];
+  // Conflict (duplicate op id) — return the existing row's id.
+  const existing = await db
+    .select({ id: mealPlan.id })
+    .from(mealPlan)
+    .where(and(eq(mealPlan.householdId, householdId), eq(mealPlan.clientOpId, clientOpId!)))
+    .limit(1);
+  return existing[0];
 }
 
 export async function removeRecipeFromMealPlan(householdId: string, id: number): Promise<boolean> {
