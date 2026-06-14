@@ -134,3 +134,16 @@ export type UserProfile = typeof userProfiles.$inferSelect;
 export type Household = typeof households.$inferSelect;
 export type HouseholdMembership = typeof householdMemberships.$inferSelect;
 export type UserDefaultHousehold = typeof userDefaultHouseholds.$inferSelect;
+
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  endpoint: text("endpoint").notNull(),
+  keys: text("keys").notNull(), // JSON { p256dh, auth }
+  createdAt: timestamp("created_at").defaultNow(),
+}, (t) => [
+  unique("push_subscriptions_user_endpoint_uidx").on(t.userId, t.endpoint),
+  index("push_subscriptions_user_idx").on(t.userId),
+]);
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
+export type NewPushSubscriptionRow = typeof pushSubscriptions.$inferInsert;

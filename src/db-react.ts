@@ -11,6 +11,7 @@ import {
   households,
   householdMemberships,
   userDefaultHouseholds,
+  pushSubscriptions,
 } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
@@ -852,5 +853,30 @@ export async function removeRecipeFromMealPlan(householdId: string, id: number):
 export async function clearMealPlanForWeek(householdId: string, weekStart: number) {
   const db = getDb();
   await db.delete(mealPlan).where(and(eq(mealPlan.householdId, householdId), eq(mealPlan.weekStart, weekStart)));
+}
+
+// ── Push Subscriptions ────────────────────────────────────────────────────────
+
+export async function getPushSubscriptionsForUser(userId: string) {
+  const db = getDb();
+  return db.select({ id: pushSubscriptions.id, endpoint: pushSubscriptions.endpoint, keys: pushSubscriptions.keys })
+    .from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+}
+
+export async function addPushSubscription(userId: string, endpoint: string, keys: string): Promise<void> {
+  const db = getDb();
+  await db.insert(pushSubscriptions).values({ userId, endpoint, keys })
+    .onConflictDoNothing({ target: [pushSubscriptions.userId, pushSubscriptions.endpoint] });
+}
+
+export async function deletePushSubscriptionByEndpoint(userId: string, endpoint: string): Promise<void> {
+  const db = getDb();
+  await db.delete(pushSubscriptions)
+    .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.endpoint, endpoint)));
+}
+
+export async function deletePushSubscriptionById(id: number): Promise<void> {
+  const db = getDb();
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, id));
 }
 

@@ -38,6 +38,7 @@ import {
   readPersistedUserHash,
 } from './cache-names.js';
 import { recipeCacheHandler } from './recipe-cache-handler.js';
+import { buildNotification, resolveClickUrl } from './push-handler.js';
 
 export type { RecipeCacheHandlerDeps } from './recipe-cache-handler.js';
 export { recipeCacheHandler } from './recipe-cache-handler.js';
@@ -171,4 +172,43 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       ),
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// Background Sync — the SW cannot make authenticated requests (the auth token
+// lives in the page's Supabase session), so on a sync it wakes all open clients
+// and asks them to flush the queue. If no client is open the browser retries.
+// ---------------------------------------------------------------------------
+self.addEventListener('sync', (event: Event & { tag?: string; waitUntil(p: Promise<unknown>): void }) => {
+  if (event.tag !== 'flush-mutations') return;
+  event.waitUntil(
+    self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
+      for (const client of clients) client.postMessage({ type: 'FLUSH_QUEUE' });
+    }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Push — show a notification when the server delivers a push message.
+// ---------------------------------------------------------------------------
+self.addEventListener('push', (event: PushEvent) => {
+  const raw = event.data?.text() ?? '';
+  const n = buildNotification(raw);
+  event.waitUntil(self.registration.showNotification(n.title, n.options));
+});
+
+// ---------------------------------------------------------------------------
+// Notification click — focus an existing window or open a new one at the
+// recipe URL embedded in the notification data.
+// ---------------------------------------------------------------------------
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close();
+  const url = resolveClickUrl(event.notification.data as { url?: string } | undefined);
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => 'focus' in c);
+      if (existing) return (existing as WindowClient).focus().then((c) => c?.navigate(url));
+      return self.clients.openWindow(url);
+    }),
+  );
 });

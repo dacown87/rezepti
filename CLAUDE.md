@@ -107,6 +107,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, `requireUserAuth` (server-scoped-singleton — any authenticated user writes global disk file) |
 | `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501), `requireUserAuth` |
+| `/api/v1/push/subscribe` | POST/DELETE | Register/remove a Web Push subscription, `requireUserAuth` |
 | `/api/v1/proxy/image` | GET | Image proxy for PDF export (unauthenticated by design, SSRF-guarded) |
 | `/api/v1/shopping` | GET/POST/PATCH/DELETE | Shopping list CRUD, `requireAuth` (household-scoped) |
 | `/api/v1/dictionary` | GET | Ingredient dictionary read (open, global read-only) |
@@ -133,6 +134,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `ingredient_dictionary` POST/match | Server | global mutation | `requireAuth` | public | any-authed | medium | TODO: add unauth-denied contract test |
 | `/api/v1/images/search` | Server | user-scoped | `requireUserAuth` | — | — | low | added auth 2026-06-12 — prevents unauthenticated Unsplash credit drain |
 | `api_keys` table | DB | deleted | — | — | — | — | dropped in migration 20260609143000 |
+| `push_subscriptions` | Server + RLS | user-scoped | `requireUserAuth` | owner | owner | low | — |
 
 **Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
 - `ExtractionPage` — URL input, job polling, progress display
@@ -172,7 +174,13 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 
 **Session / 401 handling:** `apiFetch` (`mobile/utils/api.ts`) forces one Supabase token refresh + a single retry on a 401 before surfacing the error (recovers a token that lapsed while the PWA was backgrounded). A genuine auth failure maps to a re-login CTA (`mapProtectedApiError` → `token_expired`/`auth_invalid`/any-401 fallback) and the `OfflineBanner` shows a tappable "Sitzung abgelaufen" variant instead of the offline/WifiOff framing.
 
-**Operations:** See `docs/pwa-runbook.md` for rebuild procedures, icon regeneration, cache verification, and emergency deregistration.
+**Offline writes (Phase 2, 2026-06-13):** Shopping-list and planner mutations that fail while offline (or return 5xx/network error) are queued in IndexedDB (`recipedeck-offline` / `mutation-queue` store) and flushed FIFO on reconnect. POST bodies carry `client_op_id` for server-side idempotency (`meal_plan` only — unique partial index `meal_plan_household_opid_uidx`; shopping_list dedupes via its existing `(household_id, recipe_id, canonical_name)` index). Reconciliation is last-write-wins by refetch (`setOnFlushed(load)` in the affected screens).
+
+**Background Sync (Phase 2, 2026-06-13):** SW tag `flush-mutations`. When the browser fires the sync event the SW cannot run authenticated requests directly (auth token lives in the page's Supabase session), so it `postMessage({type:'FLUSH_QUEUE'})` to all open window clients; the root layout (`mobile/app/_layout.tsx`) calls `flushOnce()`. Limitation: if no tab/PWA window is open the background flush cannot run — the browser retries on the next sync opportunity and the foreground `online`/visibility listener (`onReconnect` in `mobile/offline/network-status.ts`) is the reliable fallback. Safari lacks Background Sync → foreground listener covers it.
+
+**Web Push (Phase 3, 2026-06-13):** VAPID-based job-completion notifications. Server: `src/push.ts` (`configureVapid()`, `sendPushToUser()` best-effort fan-out, 410/404 auto-prune). `completeJob` in `src/job-manager.ts` fires a `{title:'Rezept fertig 🍳', body:<recipe name>, url:'/recipe/<recipeId>'}` push to the job owner. DB: `push_subscriptions` table with owner-only RLS (migration `20260613130000`). Routes: `POST/DELETE /api/v1/push/subscribe` (`requireUserAuth`). Client opt-in via Settings toggle (`mobile/hooks/usePushSubscription.ts` — full lifecycle: subscribe/unsubscribe, denied-sticky, iOS-needs-install). SW `push` + `notificationclick` handlers in `mobile/sw/sw.ts` (helpers: `mobile/sw/push-handler.ts`). See runbook for VAPID setup, Dockerfile build-arg requirement, and rotation notes.
+
+**Operations:** See `docs/pwa-runbook.md` for rebuild procedures, icon regeneration, cache verification, emergency deregistration, offline queue ops, and Push/VAPID setup.
 
 ## External CLI Dependencies
 

@@ -88,6 +88,17 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const handler = (e: MessageEvent) => {
+      if ((e as MessageEvent).data?.type === 'FLUSH_QUEUE') {
+        void import('@/offline/queue-singleton').then((m) => m.flushOnce());
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     let stopObserving = () => {};
 

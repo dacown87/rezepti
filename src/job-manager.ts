@@ -4,6 +4,7 @@
  */
 
 import type { PipelineResult } from "./types.js";
+import { sendPushToUser, configureVapid, type PushPayload } from "./push.js";
 
 export type JobStatus = "pending" | "running" | "completed" | "failed";
 
@@ -41,6 +42,7 @@ export interface JobEvent {
 interface JobManagerDependencies {
   now: () => number;
   random: () => number;
+  pushSender?: (userId: string, payload: PushPayload) => Promise<void>;
 }
 
 export class JobManager {
@@ -63,6 +65,7 @@ export class JobManager {
     return new JobManager({
       now: deps.now ?? Date.now,
       random: deps.random ?? Math.random,
+      pushSender: deps.pushSender,
     });
   }
 
@@ -106,6 +109,15 @@ export class JobManager {
     if (!job) return false;
     const now = this.deps.now();
     Object.assign(job, { status: "completed", progress: 100, result, completedAt: now, updatedAt: now });
+    if (job.userId) {
+      const sender = this.deps.pushSender;
+      if (sender || configureVapid()) {
+        const name = result?.recipe?.name ?? "Dein Rezept";
+        const id = result?.recipeId;                // NOT result.recipe.id
+        const payload: PushPayload = { title: "Rezept fertig 🍳", body: name, url: id ? `/recipe/${id}` : "/" };
+        void (sender ?? sendPushToUser)(job.userId, payload).catch(() => {});
+      }
+    }
     return true;
   }
 

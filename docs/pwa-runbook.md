@@ -267,13 +267,217 @@ After `npm run build:mobile` and deploying:
 4. Reload the page — the recipe should still display (cached).
 5. Log out and log back in as a different user — the previous user's cached recipes should be cleared.
 
+## Offline-Mutations-Queue
+
+Implementiert in Phase 2 (2026-06-13). Shopping-List- und Planner-Mutationen, die offline oder bei transienten Serverfehlern (5xx / 429 / Netzwerkfehler) scheitern, werden in IndexedDB gepuffert und beim naechsten Online-Ereignis FIFO abgearbeitet.
+
+**Speicher:**
+- IndexedDB-Datenbank: `recipedeck-offline`
+- Object Store: `mutation-queue`
+- Schluessel: `queue` (einzelner Eintrag, haelt ein Array von `QueuedMutation`-Objekten)
+
+**Datenstruktur** (`mobile/offline/types.ts`):
+```typescript
+interface QueuedMutation {
+  opId: string;       // Client-generierte UUID
+  endpoint: string;
+  method: 'POST' | 'PATCH' | 'DELETE';
+  body?: unknown;
+  createdAt: number;
+  attempts: number;
+}
+```
+
+**Ablauf:**
+1. `queuedMutate()` (`mobile/offline/queued-mutate.ts`) versucht die Mutation direkt abzusetzen.
+2. Ist das Geraet offline oder antwortet der Server mit einem Retry-wuerdigen Status, wird die Mutation ans Ende des Arrays angehaengt und `registerBackgroundFlush()` registriert einen Background-Sync-Tag.
+3. Beim Flush dreht `MutationQueue.flush()` FIFO durch das Array: `'ok'` / `'drop'` → entfernen; `'retry'` → Verarbeitung stoppen (Item bleibt an erster Stelle).
+
+**Idempotenz:** POST-Bodies erhalten automatisch ein `client_op_id`-Feld (die `opId` der Mutation). Server-seitig:
+- `meal_plan`: dedupliziert ueber den partiellen Unique-Index `meal_plan_household_opid_uidx (household_id, client_op_id) WHERE client_op_id IS NOT NULL` (Migration `20260613120000`). Ein wiederholter POST mit derselben `client_op_id` trifft auf `ON CONFLICT DO NOTHING`.
+- `shopping_list`: dedupliziert ueber den bestehenden Index `(household_id, recipe_id, canonical_name)` — kein `client_op_id` noetig.
+
+**Reconciliation:** Last-write-wins by refetch — nach einem erfolgreichen Flush rufen die betroffenen Screens `load()` neu auf (`setOnFlushed(load)`). Kein feldweises Merging.
+
+**Optimistische UI:** Neu hinzugefuegte Elemente erhalten vor der Serverbestaetigung eine temporaere String-ID (`tmp-<uuid>`) ueber `newTempId()` aus `mobile/offline/temp-id.ts`. Nach dem Flush ersetzt der Refetch die Temp-ID durch die echte Server-ID.
+
+**Quellcode:**
+- `mobile/offline/idb-store.ts` — IndexedDB-Adapter
+- `mobile/offline/mutation-queue.ts` — `MutationQueue` (FIFO-Flush)
+- `mobile/offline/queued-mutate.ts` — `queuedMutate()` (Entscheidung online/offline)
+- `mobile/offline/temp-id.ts` — `newTempId()` / `isTempId()`
+- `mobile/offline/types.ts` — `QueuedMutation`, `classifyResponse()`, `classifyError()`
+- `mobile/offline/queue-singleton.ts` — `offlineQueue` + `flushOnce()`
+
+## Background Sync
+
+Implementiert in Phase 2 (2026-06-13). Registriert den Browser-Background-Sync-Tag `flush-mutations` nach jedem Enqueue, damit der Browser die Mutation spaetestens beim naechsten Netzwerkereignis — auch nach einem Tab-Neustart — abschickt.
+
+**Technisches Design:**
+
+Der SW kann selbst keine authentifizierten Anfragen stellen (das Supabase-Auth-Token lebt in der Session der Browser-Seite). Stattdessen gilt:
+
+```
+Browser fires sync(tag='flush-mutations')
+  → SW: clients.matchAll() → postMessage({type:'FLUSH_QUEUE'}) an alle offenen Window-Clients
+  → Seite (_layout.tsx): ruft flushOnce() auf → entleert die Queue mit dem aktuellen Session-Token
+```
+
+**Bekannte Einschraenkung:** Wenn kein Tab/PWA-Fenster offen ist, kann der Flush nicht durchgefuehrt werden (Token-loses Replay ist Out-of-Scope). Der Browser wiederholt den Sync-Versuch beim naechsten Opportunity. Der prim&auml;re Fallback ist der **Foreground-Listener** in `mobile/offline/network-status.ts` (`online`-Event + `visibilitychange` auf `visible && navigator.onLine`), der `flushOnce()` direkt im Tab aufruft.
+
+**Safari:** Kein Background Sync API → der Foreground-Listener ist hier der einzige Sync-Pfad. Das ist akzeptabel; der Flush findet statt, sobald der Nutzer die App erneut oeffnet und online ist.
+
+**Quellcode:**
+- `mobile/offline/background-sync.ts` — `registerBackgroundFlush()` (registriert den Sync-Tag; no-op wenn API fehlt)
+- `mobile/offline/network-status.ts` — `onReconnect()` (Foreground-Listener)
+- `mobile/sw/sw.ts` — `sync`-Event-Handler
+- `mobile/app/_layout.tsx` — `FLUSH_QUEUE`-Message-Handler → `flushOnce()`
+
+## Push-Setup (Operator)
+
+Implementiert in Phase 3 (2026-06-13). VAPID-basierte Web-Push-Benachrichtigungen, ausgeloest durch `completeJob()` im Job-Manager.
+
+### VAPID-Keys generieren
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Das ergibt:
+```
+Public Key:  <base64url-string>
+Private Key: <base64url-string>
+```
+
+### Umgebungsvariablen setzen
+
+**KRITISCH (X1): `VAPID_PUBLIC_KEY` (Server) und `EXPO_PUBLIC_VAPID_PUBLIC_KEY` (Client) MUESSEN denselben Wert haben** — einmal generieren, zweimal eintragen.
+
+| Variable | Wert | Ort |
+|---|---|---|
+| `VAPID_PUBLIC_KEY` | Public Key (von oben) | Northflank Runtime Secret |
+| `VAPID_PRIVATE_KEY` | Private Key (von oben) | Northflank Runtime Secret |
+| `VAPID_SUBJECT` | `mailto:deine@email.de` | Northflank Runtime Secret |
+| `EXPO_PUBLIC_VAPID_PUBLIC_KEY` | **derselbe** Public Key | Docker Build-Arg (`--build-arg`) |
+
+**Warum Build-Arg?** `EXPO_PUBLIC_*`-Variablen werden von Expo zur Build-Zeit statisch in das JavaScript-Bundle inliniert. Ein Northflank-Runtime-Secret erreicht das Bundle nicht. Das bedeutet:
+
+1. Den Key als `EXPO_PUBLIC_VAPID_PUBLIC_KEY`-Build-Arg im GitHub-Actions-Workflow setzen (Repository Secret → Build-Arg-Uebergabe an `docker build`).
+2. `npm run build:mobile` (bzw. den `web-builder`-Docker-Stage) **mit diesem Build-Arg** ausfuehren.
+3. Das Dockerfile hat den `ARG EXPO_PUBLIC_VAPID_PUBLIC_KEY` bereits im `web-builder`-Stage verdrahtet (seit 2026-06-13).
+
+Wenn der Key beim Build fehlt (leerer String), kompiliert der Bundle trotzdem; der Settings-Toggle zeigt Push als "nicht unterstuetzt" an und sendet keine Subscriptions ab.
+
+### Datenbank
+
+Die `push_subscriptions`-Tabelle (Migration `20260613130000_push_subscriptions.sql`) speichert Endpoint und VAPID-Keys pro User:
+- Owner-only RLS: `auth.uid() = user_id` fuer SELECT und ALL.
+- Subscriptions werden automatisch geloescht wenn der Server 410 (Gone) oder 404 vom Push-Dienst erhaelt.
+
+### Betrieb
+
+- **Job-Fertigstellung → Push:** `completeJob()` in `src/job-manager.ts` loest `sendPushToUser()` aus, wenn `configureVapid()` true ist und die Job-Owner-UserId bekannt ist. Payload: `{title:'Rezept fertig 🍳', body:<Rezeptname>, url:'/recipe/<recipeId>'}`.
+- **SW Push-Handler:** `mobile/sw/sw.ts` empfaengt das Push-Event und ruft `self.registration.showNotification()` auf. Hilfsfunktionen in `mobile/sw/push-handler.ts` (`buildNotification()`, `resolveClickUrl()`).
+- **Notification-Click:** SW fokussiert ein bestehendes Fenster oder oeffnet ein neues auf der Rezept-URL.
+- **Client Opt-in:** Settings-Toggle ueber `usePushSubscription(vapidKey)` in `mobile/hooks/usePushSubscription.ts` — vollstaendiger Lifecycle: Berechtigung anfragen, bestehende Subscription pruefen, subscribe/unsubscribe, denied-sticky, iOS-needs-install (Push erfordert PWA-Installation auf iOS).
+
+### Notfall-Deaktivierung
+
+VAPID-Keys aus den Northflank Runtime Secrets entfernen (oder leer setzen). `configureVapid()` gibt dann `false` zurueck und loggt einmalig:
+
+```
+[push] VAPID keys not set — notifications disabled (configureVapid=false)
+```
+
+Alle weiteren `sendPushToUser()`-Aufrufe werden zu No-Ops. **Kein Neustart des Servers noetig** — der Warn-Log erscheint beim naechsten Job-Abschluss.
+
+### Operator-Logs
+
+| Log-Zeile | Bedeutung |
+|---|---|
+| `[push] VAPID keys not set — notifications disabled` | VAPID-Keys fehlen → Push deaktiviert |
+| `[push] send failed { endpoint, status: 410 }` | Subscription abgelaufen → wird automatisch geloescht |
+| `[push] send failed { endpoint, status: 404 }` | Endpoint nicht gefunden → wird automatisch geloescht |
+| `[push] send failed { endpoint, status: 429 }` | Rate-Limit → Fehler wird geschluckt (best-effort) |
+
+## X3 — Migrations-Reihenfolge vor dem Deploy
+
+Northflank deployt automatisch nach einem Image-Push. Die Supabase-Migrationen muessen **vor** dem Image-Deploy auf Prod angewendet werden, da der neue Code sofort auf die neuen Tabellen/Indizes zugreift:
+
+| PR | Migration | Grund |
+|---|---|---|
+| **PR2** (Offline-Queue) | `supabase/migrations/20260613120000_offline_idempotency_keys.sql` | Ohne den partiellen Unique-Index `meal_plan_household_opid_uidx` schlaegt der neue `ON CONFLICT … WHERE` INSERT fuer `meal_plan` mit "no unique constraint matching given ON CONFLICT specification" fehl. |
+| **PR3** (Push) | `supabase/migrations/20260613130000_push_subscriptions.sql` | Ohne die `push_subscriptions`-Tabelle schlaegt `POST /api/v1/push/subscribe` mit einem DB-Fehler fehl. |
+
+**Anwenden via Supabase Dashboard:**
+1. Dashboard → SQL Editor → Prod-Projekt auswaehlen.
+2. Inhalt der SQL-Datei einfuegen und ausfuehren.
+3. Erst danach das Docker-Image pushen / Northflank-Redeploy ausloesen.
+
+## X4 — Push-Smoke-Test
+
+Ohne eine vollstaendige Extraktion ausfuehren zu muessen:
+
+**Primaerer Pfad (UI):**
+1. App oeffnen → Settings → Push-Benachrichtigungen aktivieren.
+2. Browser fragt nach Berechtigung → "Zulassen".
+3. Supabase Dashboard → Table Editor → `push_subscriptions` → eine Zeile fuer die eigene `user_id` ist vorhanden.
+4. Eine Extraktion starten und auf Fertigstellung warten → Notification erscheint.
+5. Auf die Notification klicken → App oeffnet `/recipe/<id>`.
+
+**Fallback-Pfad (manuell, ohne UI):**
+
+Voraussetzung: eine gueltige Subscription in `push_subscriptions` fuer die eigene User-ID.
+
+```javascript
+// Node-Snippet (einmalig ausfuehren):
+import webpush from 'web-push';
+
+webpush.setVapidDetails(
+  'mailto:deine@email.de',
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY,
+);
+
+const sub = {
+  endpoint: '<endpoint aus push_subscriptions.endpoint>',
+  keys: JSON.parse('<keys aus push_subscriptions.keys>'), // { p256dh, auth }
+};
+
+await webpush.sendNotification(sub, JSON.stringify({
+  title: 'Test-Push',
+  body: 'Manueller Smoke-Test',
+  url: '/',
+}));
+```
+
+**Erwartetes Ergebnis:** Notification erscheint im Browser/OS, Klick oeffnet die App.
+
+**Operator-Logs beobachten:**
+- `[push] VAPID keys not set …` → Keys fehlen oder wurden falsch gesetzt.
+- `[push] send failed { endpoint, status }` → Delivery-Problem; bei 410/404 automatische Bereinigung.
+
+## X5 — VAPID-Key-Rotation
+
+**Wichtig:** Eine Key-Rotation invalidiert **alle bestehenden Subscriptions**, da deren verschluesselte Verbindung an den alten Public-Key gebunden ist.
+
+**Ablauf:**
+1. Neue Keys generieren: `npx web-push generate-vapid-keys`.
+2. `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` auf Northflank ersetzen.
+3. `EXPO_PUBLIC_VAPID_PUBLIC_KEY` als Build-Arg setzen und `npm run build:mobile` + Docker-Build neu ausfuehren.
+4. Deploy ausloesen.
+
+**Konsequenz:** Alle bestehenden Push-Subscriptions werden beim naechsten Sendeversuch mit 4xx-Fehlern beantwortet und automatisch aus `push_subscriptions` geloescht. Nutzer muessen den Push-Toggle in den Settings einmal deaktivieren und neu aktivieren, um eine neue Subscription zu registrieren.
+
+Eine koordinierte Rotation (z.B. gleichzeitiger Hinweis in der App) ist sinnvoll, wenn die Nutzerbasis gross genug ist.
+
 ## Follow-up Tasks
 
 Tracked in `TODO.md`:
 
 - [ ] **Reduce Precache Cap from 6 MB to 5 MB** — Bundle optimization needed; current export is ~5.26 MB.
-- [ ] **Background Sync / Push Notifications** — Enable offline writes (mutations queue + conflict resolution) and push notifications. Deferred after Phase 6.
-- [ ] **Offline Mutations Queue** — Shopping list and planner edits offline, sync on reconnect. Deferred after Phase 6.
+- [x] **Background Sync / Push Notifications** — Delivered 2026-06-13 (Phase 3). See sections above.
+- [x] **Offline Mutations Queue** — Delivered 2026-06-13 (Phase 2). See sections above.
 - [ ] **Multi-Tab SW Limitation** — Document and consider workarounds if family/multi-account support is added.
 
 ## References
@@ -283,11 +487,18 @@ Tracked in `TODO.md`:
 - **Service Worker Source:** `mobile/sw/sw.ts`
 - **Cache Helpers:** `mobile/sw/cache-names.ts` (naming, `persistUserHash`/`readPersistedUserHash`, `clearLegacyUserCaches`)
 - **Recipe Cache Handler:** `mobile/sw/recipe-cache-handler.ts`
+- **Push Handler (SW):** `mobile/sw/push-handler.ts` (`buildNotification()`, `resolveClickUrl()`)
 - **SW Router:** `mobile/sw/routing.ts`
 - **Build Script:** `scripts/pwa/build-sw.ts`
 - **Verification Sandbox:** `scripts/pwa/verify-sw-sandbox.mjs`
 - **Install Hook:** `mobile/hooks/usePwaInstall.ts`
 - **Update Hook:** `mobile/hooks/usePwaUpdate.ts`
+- **Push Subscription Hook:** `mobile/hooks/usePushSubscription.ts` (`usePushSubscription`, `enablePushNotifications`, `disablePushNotifications`)
 - **Query Client (User Messages + cold-start restore):** `mobile/utils/query-client.ts` (`SET_USER`/`CLEAR_USER`/`SKIP_WAITING` posts; `restoreClient` per-user cold-start restore)
 - **API + 401 recovery:** `mobile/utils/api.ts` (`apiFetch` refresh+retry), `mobile/utils/protected-access.ts` (re-login CTA mapping), `mobile/components/OfflineBanner.tsx` (offline vs. session-expired variants)
-- **Plan:** `docs/superpowers/plans/2026-06-12-pwa-installable-shell-plan.md`
+- **Offline Queue:** `mobile/offline/` — `idb-store.ts`, `mutation-queue.ts`, `queued-mutate.ts`, `queue-singleton.ts`, `background-sync.ts`, `network-status.ts`, `temp-id.ts`, `types.ts`
+- **Server Push:** `src/push.ts` (`configureVapid()`, `sendPushToUser()`)
+- **Job-Manager Push trigger:** `src/job-manager.ts` (`completeJob()`)
+- **Migrations:** `supabase/migrations/20260613120000_offline_idempotency_keys.sql`, `supabase/migrations/20260613130000_push_subscriptions.sql`
+- **Plan (Shell + Offline-Read):** `docs/superpowers/plans/2026-06-12-pwa-installable-shell-plan.md`
+- **Plan (Offline-Writes, Background Sync, Push):** `docs/superpowers/plans/2026-06-13-pwa-followups-plan.md`
