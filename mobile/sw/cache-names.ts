@@ -114,6 +114,56 @@ export async function clearUserCaches(storage: {
   await Promise.all(names.filter(isUserCacheName).map((name) => storage.delete(name)));
 }
 
+// ---------------------------------------------------------------------------
+// Persisted user-hash (RC2)
+//
+// `currentUserHash` lives only in the SW's memory and resets to null whenever
+// the browser terminates an idle SW. On a cold start, recipe requests that
+// arrive before the page's SET_USER message is processed would otherwise go
+// network-only and fail offline (this hits recipe DETAIL deep-links, which read
+// solely from the SW cache). We persist the hash in a tiny cache so a restarted
+// SW can resolve the correct per-user bucket immediately, without waiting for
+// SET_USER.
+//
+// Privacy: the hash is a non-reversible SHA-256, the cache is same-origin only,
+// and it is named `rd-user-meta` so logout's CLEAR_USER (clearUserCaches deletes
+// every `rd-user-*`) wipes it along with the data caches.
+// ---------------------------------------------------------------------------
+
+export const USER_META_CACHE = 'rd-user-meta';
+const USER_HASH_KEY = 'https://rd.local/__user-hash__';
+
+interface CacheLike {
+  put(request: RequestInfo | URL, response: Response): Promise<void>;
+  match(request: RequestInfo | URL): Promise<Response | undefined>;
+}
+
+interface CacheStorageLike {
+  open(name: string): Promise<CacheLike>;
+}
+
+/** Persists the active user's hash so a restarted SW can resolve it offline. */
+export async function persistUserHash(storage: CacheStorageLike, hash: string): Promise<void> {
+  const cache = await storage.open(USER_META_CACHE);
+  await cache.put(USER_HASH_KEY, new Response(hash));
+}
+
+/**
+ * Reads the persisted user hash (or null when none is stored / on any error).
+ * Used as the fallback for getUserHash when the in-memory hash is still null.
+ */
+export async function readPersistedUserHash(storage: CacheStorageLike): Promise<string | null> {
+  try {
+    const cache = await storage.open(USER_META_CACHE);
+    const response = await cache.match(USER_HASH_KEY);
+    if (!response) return null;
+    const text = (await response.text()).trim();
+    return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Deletes legacy build-scoped user caches (`rd-user-<hash>-v<buildHash>`) left
  * over from before the data cache became build-independent. The current-format

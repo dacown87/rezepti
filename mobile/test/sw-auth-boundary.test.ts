@@ -14,6 +14,9 @@ import {
   isCacheableRecipeRequest,
   clearUserCaches,
   clearLegacyUserCaches,
+  persistUserHash,
+  readPersistedUserHash,
+  USER_META_CACHE,
 } from '../sw/cache-names.js';
 
 // ---------------------------------------------------------------------------
@@ -172,6 +175,55 @@ describe('isLegacyBuildScopedUserCacheName', () => {
     const sha = await strongHash('alice@example.com');
     expect(isLegacyBuildScopedUserCacheName(`rd-user-${sha}-voldbuild1`)).toBe(true);
     expect(isLegacyBuildScopedUserCacheName(userCacheName(sha))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// persistUserHash / readPersistedUserHash (RC2 — survive SW restart)
+// ---------------------------------------------------------------------------
+
+function makeFakeCacheStorage() {
+  const stores = new Map<string, Map<string, Response>>();
+  return {
+    open: async (name: string) => {
+      let store = stores.get(name);
+      if (!store) {
+        store = new Map<string, Response>();
+        stores.set(name, store);
+      }
+      const s = store;
+      return {
+        put: async (key: RequestInfo | URL, res: Response) => { s.set(String(key), res); },
+        match: async (key: RequestInfo | URL) => s.get(String(key)),
+      };
+    },
+    _stores: stores,
+  };
+}
+
+describe('persistUserHash / readPersistedUserHash', () => {
+  it('round-trips the hash so a restarted SW can resolve the user offline', async () => {
+    const storage = makeFakeCacheStorage();
+    const hash = await strongHash('alice@example.com');
+
+    await persistUserHash(storage, hash);
+    expect(await readPersistedUserHash(storage)).toBe(hash);
+  });
+
+  it('returns null when no hash has been persisted', async () => {
+    const storage = makeFakeCacheStorage();
+    expect(await readPersistedUserHash(storage)).toBeNull();
+  });
+
+  it('returns null (never throws) when the cache storage rejects', async () => {
+    const failing = { open: async () => { throw new Error('no CacheStorage'); } };
+    expect(await readPersistedUserHash(failing)).toBeNull();
+  });
+
+  it('stores into a rd-user-* cache so logout (clearUserCaches) wipes it too', async () => {
+    expect(isUserCacheName(USER_META_CACHE)).toBe(true);
+    // …but it is NOT a legacy build-scoped cache, so activate-GC keeps it.
+    expect(isLegacyBuildScopedUserCacheName(USER_META_CACHE)).toBe(false);
   });
 });
 
@@ -456,6 +508,48 @@ describe('recipeCacheHandler', () => {
     // This assertion PROVES that passing `event: undefined` (old code) would throw
     // TypeError: Cannot read properties of undefined (reading 'waitUntil').
     expect(fakeEvent.waitUntil).toHaveBeenCalled();
+  });
+
+  it('(RC2) resolves an async getUserHash (persisted-hash fallback) and uses the per-user cache', async () => {
+    const fakeResponse = new Response('{"recipes":[]}', { status: 200 });
+    const handleSpy = vi.fn(async ({ event }: { request: Request; event: ExtendableEvent }) => {
+      event.waitUntil(Promise.resolve());
+      return fakeResponse;
+    });
+    const capturedCacheName: string[] = [];
+    const makeStrategy = vi.fn((cacheName: string) => {
+      capturedCacheName.push(cacheName);
+      return { handle: handleSpy };
+    });
+
+    const fakeEvent = makeFakeEvent();
+    const request = new Request('https://localhost/api/v1/recipes/abc-123');
+    const userHash = await strongHash('cold-start-user');
+
+    const result = await recipeCacheHandler(
+      { request, event: fakeEvent },
+      // getUserHash is async here — mimics `currentUserHash ?? await readPersistedUserHash()`
+      { getUserHash: async () => userHash, fetchFn: vi.fn(), makeStrategy },
+    );
+
+    expect(result.status).toBe(200);
+    expect(capturedCacheName).toContain(`rd-user-${userHash}`);
+    expect(handleSpy).toHaveBeenCalledWith({ request, event: fakeEvent });
+  });
+
+  it('(RC2) async getUserHash resolving null stays network-only — no cache touched', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    const makeStrategy = vi.fn();
+    const request = new Request('https://localhost/api/v1/recipes');
+
+    const result = await recipeCacheHandler(
+      { request, event: makeFakeEvent() },
+      { getUserHash: async () => null, fetchFn, makeStrategy },
+    );
+
+    expect(fetchFn).toHaveBeenCalledWith(request);
+    expect(makeStrategy).not.toHaveBeenCalled();
+    expect(result.status).toBe(200);
   });
 
   it('PROVES the old undefined-event code would throw (regression guard)', async () => {
