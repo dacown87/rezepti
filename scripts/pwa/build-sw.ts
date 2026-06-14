@@ -34,11 +34,16 @@ const swOut = join(publicDir, 'sw.js');
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-// NOTE: The task spec calls for a 5 MB cap; the current Expo export totals ~5.26 MB
-// (6 JS chunks). The cap is set to 6 MB so the builder succeeds with the existing
-// bundle while still catching runaway growth. Reduce JS_SIZE_LIMIT_BYTES back to
-// 5 * 1024 * 1024 once the bundle is below 5 MB (tracked in TODO.md).
-const JS_SIZE_LIMIT_BYTES = 6 * 1024 * 1024; // 6 MB (was 5 MB; see comment above)
+// 5 MB cap is now achievable because the PDF-export-only chunks (pdf-export,
+// html2canvas, purify) are excluded from the precache manifest (see PRECACHE_EXCLUDE
+// below). Those chunks are cached at runtime by the CacheFirst handler on
+// /_expo/static/**, so they are served from cache on first online use without
+// needing to bloat the precache payload.
+const JS_SIZE_LIMIT_BYTES = 5 * 1024 * 1024; // 5 MB
+
+// PDF export is an online-only action; its chunks are cached at runtime
+// (CacheFirst on /_expo/static/**), so they need not bloat the precache.
+const PRECACHE_EXCLUDE = /\/(pdf-export|html2canvas|purify)-[a-f0-9]+\.js$/;
 
 // ---------------------------------------------------------------------------
 // Collect assets to precache
@@ -56,17 +61,22 @@ function buildManifest(): ManifestEntry[] {
   let totalJsBytes = 0;
 
   // JS chunks — filenames embed content hash → revision: null
+  // PDF-export-only chunks are excluded (see PRECACHE_EXCLUDE) — they are served
+  // by the runtime CacheFirst handler for /_expo/static/** on first online use.
   const jsFiles = globSync('_expo/static/js/web/*.js', { cwd: publicDir });
   for (const rel of jsFiles) {
+    const url = `/${rel.replace(/\\/g, '/')}`;
+    if (PRECACHE_EXCLUDE.test(url)) continue;
     const abs = join(publicDir, rel);
     const stat = readFileSync(abs);
     totalJsBytes += stat.length;
-    entries.push({ url: `/${rel.replace(/\\/g, '/')}`, revision: null });
+    entries.push({ url, revision: null });
   }
 
   if (totalJsBytes > JS_SIZE_LIMIT_BYTES) {
+    const limitMb = (JS_SIZE_LIMIT_BYTES / 1024 / 1024).toFixed(0);
     throw new Error(
-      `[build-sw] Precached JS exceeds 6 MB limit: ${(totalJsBytes / 1024 / 1024).toFixed(2)} MB ` +
+      `[build-sw] Precached JS exceeds ${limitMb} MB limit: ${(totalJsBytes / 1024 / 1024).toFixed(2)} MB ` +
       `(${totalJsBytes} bytes). Reduce bundle size before shipping the service worker.`,
     );
   }
