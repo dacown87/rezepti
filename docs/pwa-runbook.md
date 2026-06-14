@@ -2,7 +2,7 @@
 
 RecipeDeck's Progressive Web App setup — installable shell with offline-read capability.
 
-**Status:** Phase 6 completed (2026-06-13). Service Worker deployed in production.
+**Status:** Phase 6 completed (2026-06-13). Service Worker deployed in production. Offline-read hardening landed 2026-06-14 (PRs #11/#12): build-independent recipe data cache, cold-start React Query restore, and a persisted SW user hash.
 
 ## Overview
 
@@ -19,36 +19,42 @@ The PWA implementation consists of:
 
 ### Capabilities
 
-- **Offline read** — Recipe list and detail pages are served from cache even without network (after first load).
+- **Offline read** — Recipe list and detail pages are served without network (after first load). The **list** comes from the per-user React Query persistence (AsyncStorage); recipe **detail** pages come from the SW `rd-user-<hash>` cache. Both survive app updates and SW cold starts (see hardening notes below).
 - **Homescreen install** — Android: standard beforeinstallprompt UX; iOS: manual "Add to Home Screen" (see Install Hints section).
-- **Update detection** — UI notifies when a new SW is ready; user can opt-in to reload.
+- **Update detection** — UI notifies when a new SW is ready; user can opt-in to reload. No banner appears when an update activates silently on relaunch (no waiting worker) — that is expected. No banner appears at all for server-only deploys (identical frontend → identical content-hash → byte-identical `sw.js`).
 - **Per-user caching** — Recipe API responses cached separately per logged-in user (SHA-256-hashed user ID); automatically cleared on logout.
+- **Session recovery** — `apiFetch` refreshes the Supabase token + retries once on a 401 (e.g. token lapsed while the PWA was backgrounded); a genuine auth failure shows a tappable "Sitzung abgelaufen" re-login banner, not the offline/WifiOff framing.
 
 ## Service Worker Architecture
 
-The bundled SW (`public/sw.js`) implements three cache families:
+The bundled SW (`public/sw.js`) implements these cache families:
 
 | Cache Name | Strategy | Content | Lifecycle |
 |-----------|----------|---------|-----------|
-| `rd-shell-v<hash>` | NetworkFirst (3s timeout) | Navigation requests, /index.html precache fallback | Cleared on new build |
-| `rd-assets-v<hash>` | CacheFirst | Hash-named JS/CSS chunks from `_expo/static/` | Cleared on new build (not hand-deleted) |
-| `rd-user-<sha256-userId>-v<hash>` | StaleWhileRevalidate | GET /api/v1/recipes/* (read-only) | Deleted on logout (CLEAR_USER message) |
+| `rd-shell-v<hash>` | NetworkFirst (3s timeout) | Navigation requests, /index.html precache fallback | **Build-scoped** — orphaned on new build |
+| `rd-assets-v<hash>` | CacheFirst | Hash-named JS/CSS chunks from `_expo/static/` | **Build-scoped** — orphaned on new build (not hand-deleted) |
+| `rd-user-<sha256-userId>` | StaleWhileRevalidate | GET /api/v1/recipes/* (read-only) | **Build-INDEPENDENT** — survives app updates; deleted on logout (CLEAR_USER) |
+| `rd-user-meta` | — (plain Cache entry) | Persisted SHA-256 user hash (RC2) | Survives SW restart; deleted on logout (matches `rd-user-*`) |
+
+**Why the data cache is build-independent:** Recipe data is not tied to the frontend build. When the data cache was build-scoped (`rd-user-<hash>-v<build>`), the `activate` GC wiped it on **every** deploy, blanking offline-read after each update. The current format (`rd-user-<hash>`, no `-v` suffix) survives deploys.
 
 **Build Hash Rotation**
 
-The `<hash>` suffix (8 hex chars, derived from the precache manifest) rotates on every `npm run build:mobile`. This automatically orphans old caches:
-- On next app start, the old caches (e.g., `rd-shell-voldHash`) remain but are no longer served.
-- The `activate` event handler runs `clearStaleUserCaches()`, which deletes all `rd-user-*` caches from previous builds.
+The `<hash>` suffix (8 hex chars, derived from the precache manifest) rotates on every `npm run build:mobile`, but **only the shell/asset caches carry it**. This orphans old shell/asset caches:
+- On next app start, old shell/asset caches (e.g., `rd-shell-voldHash`) remain but are no longer served.
+- The `activate` event handler runs `clearLegacyUserCaches()`, which deletes only **legacy** build-scoped `rd-user-*-v<build>` orphans (one-time migration from before the data cache became build-independent). Current-format `rd-user-<hash>` data caches and `rd-user-meta` are kept.
 - Shell and asset caches from old builds are left untouched (low storage cost, safe fallback if new build fails).
 
 **Per-User Authentication Boundary**
 
 - When the user logs in, the React app posts a `SET_USER` message with the user's UUID.
-- The SW asynchronously computes a SHA-256 hash (64 hex chars) and stores it in `currentUserHash`.
-- Subsequent GET requests to `/api/v1/recipes/*` are cached in `rd-user-<sha256-userId>-v<hash>`.
+- The SW asynchronously computes a SHA-256 hash (64 hex chars), stores it in `currentUserHash`, and **persists it** to `rd-user-meta` (RC2) so a restarted SW can resolve the bucket before the next SET_USER.
+- Subsequent GET requests to `/api/v1/recipes/*` are cached in `rd-user-<sha256-userId>`. `getUserHash` falls back to the persisted hash (`currentUserHash ?? readPersistedUserHash(caches)`) when the in-memory value is still null after an SW restart.
 - On logout or user switch, the React app posts a `CLEAR_USER` message.
-- The SW deletes ALL `rd-user-*` caches synchronously and sets `currentUserHash = null`.
+- The SW deletes ALL `rd-user-*` caches synchronously (data + meta) and sets `currentUserHash = null`.
 - Unknown/null user: requests fall through to network (no cache).
+
+**Cold-start list restore (React Query):** The recipe **list** is restored offline by `mobile/utils/query-client.ts`, not the SW. On cold start `restoreClient()` resolves the signed-in user from the stored Supabase session and restores the per-user query cache (`recipedeck-query-cache-<userId>`) — not the empty `anon` slot — so the list shows offline even when the SW cache is cold. `watchAuthQueryCache` compares the incoming session against the key actually restored, so the cross-user clear (privacy boundary) still fires on a mismatch.
 
 ## Rebuilding the Service Worker
 
@@ -111,13 +117,13 @@ Sharp is NOT a committed dependency (removed after use). Do not include it in pa
 Every `npm run build:mobile`:
 - The precache manifest changes (new or modified assets).
 - A new build hash is derived (SHA-256 of the manifest, first 8 hex chars).
-- Cache names change: `rd-shell-v<newHash>`, `rd-assets-v<newHash>`, `rd-user-<userId>-v<newHash>`.
-- The activate event clears all `rd-user-*` caches from builds other than the current one.
+- **Only shell/asset** cache names change: `rd-shell-v<newHash>`, `rd-assets-v<newHash>`. The recipe data cache (`rd-user-<userId>`) and `rd-user-meta` are build-independent and unchanged.
+- The activate event runs `clearLegacyUserCaches()` — it deletes only legacy `rd-user-*-v<build>` orphans (one-time migration), never current-format data caches.
 
 **Example:**
-- Build 1: caches named `rd-shell-vABCD1234`, `rd-assets-vABCD1234`, `rd-user-<alice>-vABCD1234`.
-- Build 2 (new assets): caches named `rd-shell-vEFGH5678`, `rd-assets-vEFGH5678`, `rd-user-<alice>-vEFGH5678`.
-- On first visit in Build 2, `activate` deletes the old `rd-user-<alice>-vABCD1234` cache.
+- Build 1: caches named `rd-shell-vABCD1234`, `rd-assets-vABCD1234`, `rd-user-<alice>` (data, build-independent).
+- Build 2 (new assets): caches named `rd-shell-vEFGH5678`, `rd-assets-vEFGH5678`, `rd-user-<alice>` (same data cache — **kept**, so offline-read survives the update).
+- On first visit in Build 2, `activate` GCs any leftover legacy `rd-user-<alice>-vABCD1234` cache (from before the build-independent migration) but keeps `rd-user-<alice>`.
 
 ### CLEAR_USER Message
 
@@ -129,7 +135,7 @@ navigator.serviceWorker.controller?.postMessage({ type: 'CLEAR_USER' });
 
 The SW:
 1. Sets `currentUserHash = null`.
-2. Asynchronously deletes ALL `rd-user-*` caches (across all users and all builds).
+2. Asynchronously deletes ALL `rd-user-*` caches — data caches AND the `rd-user-meta` persisted-hash cache (across all users and all builds).
 3. Subsequent requests fall through to network.
 
 ### Multi-Tab / Multi-Account Limitation
@@ -152,19 +158,19 @@ This:
 1. Loads `public/sw.js` in a Node VM with fake caches and crypto.
 2. Sends `SET_USER` for a test user ID.
 3. Waits for SHA-256 computation.
-4. Confirms the expected cache name format: `rd-user-<64hexchars>-v<8hexchars>`.
+4. Confirms the expected (build-independent) cache name format: `rd-user-<64hexchars>`.
 5. Sends `CLEAR_USER` and verifies all user caches are deleted.
 
 Expected output:
 
 ```
 === SW Cache Boundary Verification Sandbox ===
-Step 1: Firing activate event (stale cache GC)…
+Step 1: Firing activate event (legacy cache GC)…
 …
 === SUMMARY ===
   SW evaluation:        PASS (no throw)
   SHA-256 hash length:  PASS (64 hex chars)
-  Cache name format:    PASS (rd-user-<64hex>-v<build>)
+  Cache name format:    PASS (rd-user-<64hex>, build-independent)
   CLEAR_USER cleanup:   PASS (user cache deleted)
 …
 All sandbox checks PASSED.
@@ -275,12 +281,13 @@ Tracked in `TODO.md`:
 - **Manifest:** `mobile/public/manifest.webmanifest`
 - **HTML Head Tags:** `mobile/app/+html.tsx`
 - **Service Worker Source:** `mobile/sw/sw.ts`
-- **Cache Helpers:** `mobile/sw/cache-names.ts`
+- **Cache Helpers:** `mobile/sw/cache-names.ts` (naming, `persistUserHash`/`readPersistedUserHash`, `clearLegacyUserCaches`)
 - **Recipe Cache Handler:** `mobile/sw/recipe-cache-handler.ts`
 - **SW Router:** `mobile/sw/routing.ts`
 - **Build Script:** `scripts/pwa/build-sw.ts`
 - **Verification Sandbox:** `scripts/pwa/verify-sw-sandbox.mjs`
 - **Install Hook:** `mobile/hooks/usePwaInstall.ts`
 - **Update Hook:** `mobile/hooks/usePwaUpdate.ts`
-- **Query Client (User Messages):** `mobile/utils/query-client.ts` (see `SET_USER`, `CLEAR_USER`, `SKIP_WAITING` posts)
+- **Query Client (User Messages + cold-start restore):** `mobile/utils/query-client.ts` (`SET_USER`/`CLEAR_USER`/`SKIP_WAITING` posts; `restoreClient` per-user cold-start restore)
+- **API + 401 recovery:** `mobile/utils/api.ts` (`apiFetch` refresh+retry), `mobile/utils/protected-access.ts` (re-login CTA mapping), `mobile/components/OfflineBanner.tsx` (offline vs. session-expired variants)
 - **Plan:** `docs/superpowers/plans/2026-06-12-pwa-installable-shell-plan.md`

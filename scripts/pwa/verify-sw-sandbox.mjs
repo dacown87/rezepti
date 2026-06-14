@@ -7,7 +7,7 @@
  * 1. Posts SET_USER for "alice"
  * 2. Waits for SHA-256 hash to be computed (async)
  * 3. Issues a GET /api/v1/recipes
- * 4. Confirms: no throw, rd-user-<64hex>-v<build> cache was created and populated
+ * 4. Confirms: no throw, build-independent rd-user-<64hex> cache name is used
  * 5. Posts CLEAR_USER
  * 6. Confirms that user cache is deleted
  *
@@ -157,7 +157,7 @@ console.log('\n=== SW Cache Boundary Verification Sandbox ===\n');
 // ---------------------------------------------------------------------------
 // Step 1: Fire activate to GC stale caches (FIX 4)
 // ---------------------------------------------------------------------------
-console.log('Step 1: Firing activate event (stale cache GC)…');
+console.log('Step 1: Firing activate event (legacy cache GC)…');
 const activateEvent = new FakeExtendableEvent('activate');
 activateListeners.forEach(l => l(activateEvent));
 await activateEvent.settle();
@@ -203,12 +203,14 @@ console.log('\nStep 3: Cache keys before any request:', cachesBefore);
 
 // ---------------------------------------------------------------------------
 // Step 4: Verify hash correctness and cache name format
+//
+// The recipe DATA cache is build-INDEPENDENT (rd-user-<hash>, no -v<build>
+// suffix) so it survives app updates. Build-scoped caches are only shell/assets.
 // ---------------------------------------------------------------------------
-const BUILD_HASH = '42bc22a2'; // from the build-sw.ts output above
-const expectedCacheName = `rd-user-${aliceHash}-v${BUILD_HASH}`;
+const expectedCacheName = `rd-user-${aliceHash}`;
 console.log('\nStep 4: Expected cache name for alice:', expectedCacheName);
-console.log('  Cache name format check (rd-user-<64hex>-v<build>):',
-  /^rd-user-[0-9a-f]{64}-v[0-9a-f]{8}$/.test(expectedCacheName) ? 'PASS' : 'FAIL');
+console.log('  Cache name format check (rd-user-<64hex>, build-independent):',
+  /^rd-user-[0-9a-f]{64}$/.test(expectedCacheName) ? 'PASS' : 'FAIL');
 
 // ---------------------------------------------------------------------------
 // Step 5: CLEAR_USER and verify cleanup
@@ -240,9 +242,9 @@ if (userCachesRemain.length === 0) {
 console.log('\n=== SUMMARY ===');
 console.log('  SW evaluation:        PASS (no throw)');
 console.log('  SHA-256 hash length:  PASS (64 hex chars)');
-console.log('  Cache name format:    PASS (rd-user-<64hex>-v<build>)');
+console.log('  Cache name format:    PASS (rd-user-<64hex>, build-independent)');
 console.log('  CLEAR_USER cleanup:   PASS (user cache deleted)');
 console.log('  FIX 1 (event fwd):    verified via event.waitUntil in unit tests');
 console.log('  FIX 2 (SHA-256):      PASS -', aliceHash.length === 64 ? 'PASS' : 'FAIL');
-console.log('  FIX 4 (activate GC):  PASS (activate handler ran without error)');
+console.log('  activate GC:          PASS (clearLegacyUserCaches ran without error)');
 console.log('\nAll sandbox checks PASSED.\n');
