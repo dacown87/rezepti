@@ -43,8 +43,15 @@ COPY scripts/mobile/expo-export-web.mjs ./scripts/mobile/expo-export-web.mjs
 # `undefined` im Bundle ("Supabase Auth ist nicht konfiguriert").
 ARG EXPO_PUBLIC_SUPABASE_URL
 ARG EXPO_PUBLIC_SUPABASE_ANON_KEY
+ARG EXPO_PUBLIC_VAPID_PUBLIC_KEY
 ENV EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
 ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
+# VAPID public key is inlined into the bundle by Expo at build time. Setting it
+# only as a Northflank runtime secret is NOT enough — the mobile bundle must be
+# rebuilt with this value present. Pass it as a Docker build-arg via GitHub Actions
+# (see docs/pwa-runbook.md, Push-Setup section). Defaulting to empty does not break
+# existing builds; push notifications are simply disabled until the key is supplied.
+ENV EXPO_PUBLIC_VAPID_PUBLIC_KEY=$EXPO_PUBLIC_VAPID_PUBLIC_KEY
 # Wrapper umgeht den bekannten Expo-Export-Post-Hang: timeout + Log-Marker-Check.
 # Siehe docs/PROJECT_LEARNINGS.md, Eintrag "expo-export-hangs-postbuild".
 RUN cd mobile && CI=1 EXPO_EXPORT_TIMEOUT_SECONDS=300 node ../scripts/mobile/expo-export-web.mjs --output-dir ../public
