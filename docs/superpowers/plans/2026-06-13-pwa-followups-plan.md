@@ -1741,3 +1741,543 @@ git commit -m "docs(pwa): runbook + TODO/CLAUDE updates for offline writes, back
 - **Migration order:** apply `20260613120000` (idempotency) before `20260613130000` (push). Both are idempotent (`IF NOT EXISTS`).
 - **iOS PWA push:** requires the app to be installed to the home screen (iOS 16.4+). Document this caveat in the Settings UX copy.
 - **web-push send timing:** fired best-effort fire-and-forget from `completeJob` so it never blocks or fails the extraction pipeline.
+
+---
+
+## Review-Korrekturen (Eng Review, 2026-06-14)
+
+Verbindliche Änderungen aus dem Eng-Review. Jede ersetzt/ergänzt die referenzierte Task.
+Lieferung in **3 getrennten PRs**: PR1 = Phase 1, PR2 = Phase 2, PR3 = Phase 3.
+
+### K1 — Offline-Add: Optimistic-Insert + Temp-ID→Server-ID-Reconciliation (Task 9, P1)
+
+Heute ist `handleAddManual` refetch-basiert (`await add(); await load();`,
+[shopping.tsx:188-206](../../../mobile/app/(tabs)/shopping.tsx)) — **kein** optimistisches Insert.
+Offline gäbe `queuedMutate` sofort `{queued:true}` zurück, danach scheitert `load()` → der
+Artikel bleibt unsichtbar. Außerdem fehlt jegliche Temp-ID-Reconciliation.
+
+Task 9 wird so erweitert:
+
+1. **Optimistic-Insert bei Add.** Vor dem `queuedMutate` lokal eine Karte mit Temp-ID einfügen:
+   ```tsx
+   const tmpId = `tmp-${crypto.randomUUID()}`;
+   setItems(prev => [...prev, { id: tmpId, canonical_name: name, checked: 0, /* … */ }]);
+   ```
+   Bei permanentem Fehler (throw aus `queuedMutate`) die Temp-Karte wieder entfernen (Rollback).
+2. **Kein `await load()` direkt nach dem Add im Offline-Fall.** `load()` nur ausführen, wenn
+   `queuedMutate` `{queued:false}` zurückgibt (online erfolgreich) — sonst überschreibt der
+   fehlschlagende Refetch die optimistische Karte.
+3. **Reconciliation nach Flush.** `useOfflineQueue.flush()` ruft nach erfolgreichem Drain einen
+   übergebenen `onFlushed`-Callback; Shopping/Planner hängen dort ihr `load()` ein → Server ist
+   LWW, Temp-IDs werden durch echte ersetzt.
+4. **Temp-Items sind nicht toggle-/löschbar, solange unbestätigt.** `handleToggle`/`handleDelete`
+   früh return, wenn `typeof item.id === 'string'` (Temp-ID). Verhindert queue-PATCH/DELETE auf
+   nicht-existente Server-IDs (404 → permanent-drop). Optisch: Temp-Karte mit reduzierter Opacity
+   + „wird synchronisiert".
+5. **Tests** (Task 9 ergänzen): create-offline → Karte sichtbar (Temp-ID); flush → `load()` läuft,
+   Temp-ID verschwindet; toggle/delete auf Temp-ID ist No-Op (kein enqueue).
+
+```
+ADD (offline)                 FLUSH (reconnect)
+ setItems([...,tmp-x])         drain queue FIFO (POST zuerst)
+ enqueue(POST client_op_id)    -> server vergibt realId
+ {queued:true} -> Karte bleibt onFlushed() -> load() -> tmp-x ersetzt durch realId
+ (kein load())                 toggle/delete auf tmp-x: blockiert bis realId da
+```
+
+### K2 — Partial-Index `ON CONFLICT` braucht `targetWhere` (Task 7, P1)
+
+Der partielle Unique-Index (`WHERE client_op_id IS NOT NULL`) erfordert das Prädikat in der
+Conflict-Klausel, sonst wirft Postgres *"no unique or exclusion constraint matching the ON
+CONFLICT specification"* — bei **jedem** `meal_plan`-Insert, auch online mit `clientOpId = null`.
+`addRecipeToMealPlan` korrigieren:
+
+```ts
+.onConflictDoNothing({
+  target: [mealPlan.householdId, mealPlan.clientOpId],
+  targetWhere: sql`${mealPlan.clientOpId} is not null`,
+})
+```
+
+### K3 — `client_op_id` nur auf `meal_plan`, nicht auf `shopping_list` (Task 7, CQ)
+
+`shopping_list` dedupliziert Retries bereits über den bestehenden Unique-Index
+`(household_id, recipe_id, canonical_name)` ([db-react.ts:749-751](../../../src/db-react.ts)) —
+ein erneuter POST desselben Artikels trifft `onConflictDoNothing` und legt keine zweite Row an.
+Eine zusätzliche `client_op_id`-Spalte + Partial-Index auf `shopping_list` wäre toter Ballast,
+der nirgends als Conflict-Arbiter genutzt wird. **Migration + Drizzle-Schema-Änderung nur für
+`meal_plan`.** `addToShoppingList` bekommt **keinen** `clientOpId`-Parameter; der Client darf
+`client_op_id` im Body mitschicken, der Server ignoriert es für Shopping.
+Idempotenz-Test für Shopping trotzdem ergänzen: doppelter POST gleicher `canonicalName` → genau 1 Row.
+
+### K4 — Push-Sender via `JobManagerDependencies` injizieren + echte Felder nutzen (Task 14, P1/Phase 3)
+
+Der Plan nutzt `job.ownerUserId`, `(jm as any).pushSender` und `new JobManager(...)` — alle drei
+existieren nicht ([job-manager.ts](../../../src/job-manager.ts): Feld heißt `userId`, Konstruktor
+ist `private`, kein `pushSender`). Korrektur:
+
+```ts
+interface JobManagerDependencies {
+  now: () => number;
+  random: () => number;
+  pushSender?: (userId: string, payload: PushPayload) => Promise<void>;
+}
+// completeJob(jobId, result), nach Object.assign(...):
+if (job.userId && configureVapid()) {
+  const name = result?.recipe?.name ?? "Dein Rezept";
+  const id = result?.recipeId;                 // NICHT result.recipe.id — die DB-ID ist recipeId
+  const payload: PushPayload = { title: "Rezept fertig 🍳", body: name, url: id ? `/recipe/${id}` : "/" };
+  void (this.deps.pushSender ?? sendPushToUser)(job.userId, payload).catch(() => {});
+}
+```
+Test über `JobManager.createTestInstance({ pushSender: spy })`, `createJob(url, ua, hash, 'user-9')`,
+und Assertion `payload.url === '/recipe/5'` (aus `result.recipeId = 5`).
+
+### K5 — DRY: Response→`SendOutcome`-Klassifikation zentralisieren (Task 6 + Task 8, CQ)
+
+Die Logik „`res.ok`→ok / `isRetryableStatus`→retry / sonst→drop, Netzfehler(`TypeError`)→retry"
+steckt doppelt in `queuedMutate` (Task 6) und `flushOnce` (Task 8 queue-singleton). In
+`mobile/offline/types.ts` zwei reine Helfer ergänzen und beide Stellen darauf umstellen:
+
+```ts
+export function classifyResponse(res: Response): SendOutcome {
+  if (res.ok) return 'ok';
+  return isRetryableStatus(res.status) ? 'retry' : 'drop';
+}
+export function classifyError(err: unknown): SendOutcome {
+  return err instanceof TypeError ? 'retry' : 'drop'; // Netzfehler → retry
+}
+```
+Hinweis: `queuedMutate` wirft bei `'drop'` weiterhin (Caller-Rollback), `flushOnce` verwirft still.
+
+### K6 — `network-status.test.ts` braucht eine DOM-Umgebung (Task 8, P1 Test-Infra)
+
+Mobile Vitest läuft mit `environment: 'node'` ([mobile/vitest.config.ts](../../../mobile/vitest.config.ts)).
+`onReconnect` gibt unter Node sofort einen No-Op zurück (`typeof window === 'undefined'`), der
+geplante Test (`window.dispatchEvent(new Event('online'))`) kann also **nie** grün werden.
+Fix: am Dateikopf `// @vitest-environment jsdom` setzen und `jsdom` als Dev-Dep im mobile-Workspace
+sicherstellen (`npm --prefix mobile ls jsdom` prüfen, ggf. `npm --prefix mobile i -D jsdom`).
+`idb-store.test.ts` (fake-indexeddb) und `offline-queue-banner.test.tsx` (RNTL-Shim) bleiben node-kompatibel.
+
+### Test-Coverage-Diagramm (Sektion 3)
+
+```
+CODE PATHS (neu)                                  STATUS
+[+] mobile/offline/types.ts
+  ├── isRetryableStatus(5xx/429/408 vs 4xx)       [★★★ geplant — offline-types.test]
+  ├── classifyResponse / classifyError (K5)       [GAP → Test in types.test ergänzen]
+[+] mobile/offline/mutation-queue.ts
+  ├── enqueue/size/list/flush (ok/retry/drop)     [★★★ geplant — mutation-queue.test]
+[+] mobile/offline/idb-store.ts                    [★★ geplant — idb-store.test (fake-idb)]
+[+] mobile/offline/queued-mutate.ts
+  ├── online-ok / offline / retryable / permanent [★★★ geplant — queued-mutate.test]
+  ├── client_op_id-Injektion (POST)               [★★ geplant]
+  ├── create-offline-then-toggle (Temp-ID) (K1)   [GAP → CRITICAL, neuer Test]
+[+] mobile/offline/network-status.ts (onReconnect)[GAP → braucht jsdom (K6)]
+[+] mobile/app/(tabs)/shopping.tsx (K1)
+  ├── optimistic add + rollback                   [GAP → Test ergänzen]
+  ├── flush→load reconciliation (Temp→real)       [GAP → Test ergänzen]
+  ├── toggle/delete auf Temp-ID = No-Op           [GAP → Test ergänzen]
+[+] src/db-react.ts addRecipeToMealPlan (K2)
+  ├── insert / op-id-conflict / null-op-id        [★★★ geplant — planner-idempotency.test]
+[+] src/routes/* shopping POST idempotent (K3)    [GAP → Shopping-Idempotenztest]
+[+] src/push.ts sendPushToUser
+  ├── fan-out / 410-prune                          [★★★ geplant — push-send.test]
+[+] src/routes/push.ts subscribe/unsubscribe
+  ├── 401 unauth / 400 malformed / 201 ok          [★★ geplant — Platzhalter durch echte Assertion ersetzen]
+[+] src/job-manager.ts completeJob push (K4)      [★★ geplant — recipeId statt recipe.id]
+[+] mobile/sw/push-handler.ts (build/resolve)     [★★★ geplant — sw-push-handler.test]
+[+] mobile/offline/background-sync.ts            [★★★ geplant — background-sync.test]
+[+] mobile/hooks/usePushSubscription.ts          [★★ geplant — granted/denied]
+
+COVERAGE-LÜCKEN: 6 (1 CRITICAL: create-offline-then-mutate)
+```
+
+### NOT in scope (bestätigt/ergänzt)
+
+- Feld-Merge / echte Konflikterkennung — LWW-by-Refetch genügt für diesen Slice.
+- Token-loses Background-Replay ohne offenen Tab — Token lebt in der Page-Session; SW-`sync`
+  weckt nur offene Clients. Bewusste, dokumentierte Limitation (Design 3a). → TODO-Kandidat.
+- React-Query-Migration der Shopping/Planner-Screens — bleibt useState + queuedMutate.
+- `client_op_id` für Shopping (K3) — Namens-Index deckt Idempotenz bereits ab.
+
+### What already exists (Reuse)
+
+- `apiFetch` ([api.ts:53-75](../../../mobile/utils/api.ts)) liefert rohe `Response` + macht
+  401→Refresh→Retry. `sendQueuedMutation` baut sauber darauf auf — **nicht** neu bauen.
+- Shopping `toggle`/`delete` haben bereits Optimistic+Rollback — Queue dockt dort an.
+- `shopping_list` Unique-Index `(household_id, recipe_id, canonical_name)` → Shopping-Idempotenz (K3).
+- `JobManagerDependencies` (now/random) ist das vorhandene DI-Muster → `pushSender` dort einreihen (K4).
+- `job.userId` ist bereits gesetzt → kein neues `ownerUserId`-Feld.
+
+### Failure Modes (neue Codepfade)
+
+| Pfad | Realistischer Fehler | Test? | Error-Handling? | Sichtbar? |
+|------|----------------------|-------|-----------------|-----------|
+| Offline-Add ohne Reconciliation | Item unsichtbar bis Reconnect | nach K1 ✓ | K1 Rollback | ja (Temp-Karte) |
+| Create-then-modify (Temp-ID) | PATCH/DELETE→404→drop | nach K1 ✓ (No-Op) | K1 Block | ja |
+| `meal_plan`-Insert | ON CONFLICT wirft (K2) | nach K2 ✓ | K2 targetWhere | 500 sonst |
+| Push-URL | `/recipe/undefined`→`/` | nach K4 ✓ | K4 recipeId | falsch sonst |
+| network-status-Test | Test nie grün (K6) | nach K6 ✓ | — | CI-rot sonst |
+| Push send | Endpoint 410/404 | ✓ push-send | prune | best-effort |
+
+### Parallelisierung (über die 3 PRs)
+
+| PR | Module | Depends on |
+|----|--------|-----------|
+| PR1 Phase 1 | scripts/pwa, mobile (lazy) | — |
+| PR2 Phase 2 (Server) | src/ (schema, db-react, routes) | — |
+| PR2 Phase 2 (Mobile) | mobile/offline, hooks | — |
+| PR2 Screen-Wiring | mobile/app/(tabs) | beide PR2-Lanes |
+| PR3 Phase 3 | sw, src/push, routes, job-manager | PR2 |
+
+Lane A (PR2 Server) und Lane B (PR2 Mobile-Offline) sind unabhängig → parallel.
+Screen-Wiring (K1) erst nach beiden. PR3 erst nach PR2 (Sync braucht die Queue).
+
+---
+
+## Implementation Tasks
+Synthetisiert aus den Review-Befunden. Jede Task referenziert einen Befund oben.
+
+- [x] **T1 (P1, human: ~3h / CC: ~25min)** — mobile/app/(tabs) — Optimistic-Add + Temp-ID-Reconciliation
+  - Surfaced by: Architektur Befund 1 / K1
+  - Files: `mobile/app/(tabs)/shopping.tsx`, `mobile/app/(tabs)/planner.tsx`, `mobile/hooks/useOfflineQueue.ts`
+  - Verify: neue Tests create-offline→sichtbar, flush→reconcile, toggle/delete-Temp=No-Op
+- [x] **T2 (P1, human: ~30min / CC: ~5min)** — src/db-react — `targetWhere` für partiellen Index
+  - Surfaced by: Architektur Befund 2 / K2
+  - Files: `src/db-react.ts`
+  - Verify: `npm test -- --run planner-idempotency` grün (kein ON-CONFLICT-Throw)
+- [x] **T3 (P1, human: ~45min / CC: ~10min)** — src/job-manager + src/push — Push-DI + `recipeId`-Fix
+  - Surfaced by: Architektur Befund 3 / K4
+  - Files: `src/job-manager.ts`, `test/job-completion-push.test.ts`
+  - Verify: `payload.url === '/recipe/5'` über `result.recipeId`
+- [x] **T4 (P1, human: ~20min / CC: ~5min)** — mobile/test — jsdom-Env für network-status
+  - Surfaced by: Code-Quality / K6
+  - Files: `mobile/test/network-status.test.ts`, `mobile/package.json`
+  - Verify: `npm run test:mobile -- network-status` grün
+- [x] **T5 (P2, human: ~30min / CC: ~5min)** — supabase + src/schema — `client_op_id` nur meal_plan
+  - Surfaced by: Code-Quality / K3
+  - Files: Migration `20260613120000_*`, `src/schema.ts`, `src/db-react.ts`, Shopping-Idempotenztest
+  - Verify: Shopping doppelter POST → 1 Row; meal_plan op-id dedupe
+- [x] **T6 (P2, human: ~20min / CC: ~5min)** — mobile/offline — DRY Outcome-Klassifikation
+  - Surfaced by: Code-Quality / K5
+  - Files: `mobile/offline/types.ts`, `queued-mutate.ts`, `queue-singleton.ts`
+  - Verify: `npm run test:mobile -- offline` grün
+
+---
+
+## Design-Review-Korrekturen (Design Review, 2026-06-14)
+
+UI-Klassifizierung: **APP UI** (Utility-Chrome — Sync-Banner, Optimistic-Temp-Cards,
+Push-Toggle, System-Notification; keine Marketing/Landing-Fläche). Kein DESIGN.md im Repo.
+Vier nutzersichtbare Flächen: (A) `OfflineQueueBanner`, (B) Optimistic-Temp-Card (K1),
+(C) Push-Opt-in-Toggle (Task 16), (D) Push-Notification-Inhalt (Task 14/15).
+
+Bewertung der 7 Passes (vorher → nach Korrekturen):
+Info-Arch 7→8 · Interaction-States 4→9 · Journey/Trust 5→9 · AI-Slop 9→9 ·
+Design-System 4→8 · Responsive/A11y 5→9 · Pass 7: 3 Entscheidungen aufgelöst.
+Gesamt-Design-Score: **5/10 → 8/10**.
+
+Verbindliche Änderungen (alle auto-entschieden, Prinzipien *explicit over clever* + *completeness*).
+
+### DD1 — `OfflineQueueBanner` an bestehenden `OfflineBanner` angleichen (Pass 5, P1)
+
+Es existiert bereits [`OfflineBanner.tsx`](../../../mobile/components/OfflineBanner.tsx):
+NativeWind-Klassen (`bg-warm-700 dark:bg-warm-800`), Dark-Mode, lucide-Icon (`WifiOff`/`LogIn`),
+Fade-Animation, eigene `useIsOnline`-Erkennung. Der Plan-Entwurf von `OfflineQueueBanner`
+([Task 9, Step 3](#)) nutzt dagegen Inline-Hex (`#FEF3C7`/`#92400E`), kein Dark-Mode, kein Icon,
+keine Animation und eine zweite Online-Erkennung. Auf Shopping/Planner könnten **beide Banner
+gleichzeitig** stapeln (bestehendes bei Query-Fehler + neues bei Sync) — zwei Offline-Vokabulare.
+
+**Entscheidung: bestehenden `OfflineBanner` um eine `pending`/`syncing`-Variante erweitern statt
+zweite Komponente.** Eine Offline-Sprache, kein Stapeln, DRY. Konkret:
+- `OfflineBanner` bekommt optionale Props `pending?: number` und `syncState?: 'idle'|'syncing'|'synced'`.
+- Reihenfolge der Sichtbarkeit (Precedence, schließt Pass-1-Lücke): `authExpired` > `offline` >
+  `permanent-error` > `syncing` > `synced (2 s, auto-dismiss)` > hidden.
+- **Zwei Farbwelten, nicht eine:** Offline/Fehler = bestehendes `bg-warm-700` (degradiert/rot-warm);
+  Sync-in-Arbeit/Erfolg = `bg-amber-600 dark:bg-amber-700` (benigne, gelb) — wie die `authExpired`-Variante.
+- Inline-Hex entfällt; NativeWind-Tokens + Dark-Mode wie im Rest der Komponente. Schließt zugleich
+  die fehlenden Design-Tokens (kein DESIGN.md) pragmatisch über die vorhandene Tailwind-Skala.
+- lucide-Icon je Zustand: `WifiOff` (offline), `RefreshCw` (syncing), `Check` (synced).
+
+### DD2 — Interaction-State-Tabelle ergänzen (Pass 2, P1)
+
+Die schwächste Stelle: mehrere Zustände sind unspezifiziert. Verbindlich in den Plan aufnehmen:
+
+```
+FLÄCHE                | OFFLINE          | PENDING (n)        | ERROR/DROP            | SUCCESS
+----------------------|------------------|--------------------|-----------------------|------------------
+Sync-Banner (A)       | "Offline …" (rot)| "n werden sync." …  | "n konnten nicht …"   | "Alle gespeichert ✓"
+                      |                  | (gelb, RefreshCw)   | (rot, Retry-CTA)      | (2 s, auto-dismiss)
+Temp-Card (B)         | Card + "⏳ wird   | wie offline         | Card entfernt + Toast | Temp-ID→realId,
+                      | gespeichert"     |                     | "Konnte nicht …"      | normale Card
+Push-Toggle (C)       | n/a (online-only)| Spinner während     | "Im Browser           | Switch = an,
+                      |                  | Round-Trip          | blockiert" (sticky)   | "aktiv"
+Notification (D)      | —                | —                   | best-effort, stumm    | "Rezept fertig 🍳"
+```
+
+Pro Zelle zählt, was der Nutzer **sieht** — nicht das Backend-Verhalten.
+
+### DD3 — Trust-Moment beim Drain (Pass 3)
+
+Heute verschwindet das Banner stumm, wenn die Queue leer wird. Nach „n werden synchronisiert"
+ohne Bestätigung bleibt offen, ob gespeichert wurde. **Kurzer Erfolgszustand „Alle Änderungen
+gespeichert ✓" (~2 s, auto-dismiss)** statt stummem Verschwinden. `useOfflineQueue` liefert dazu
+beim Übergang `pending>0 → 0` ein kurzes `synced`-Flag (siehe `onFlushed`-Callback aus K1).
+
+### DD4 — Permanenter Fehler muss sichtbar sein (Pass 2/3)
+
+Ein permanent verworfener Mutation-Drop (4xx / Temp-Card-Rollback aus K1) darf nicht **stumm**
+verschwinden. Inline-Fehler/Toast „Konnte nicht gespeichert werden" + optionaler Retry. K1
+entfernt die Temp-Card bereits beim Rollback — hier nur die nutzersichtbare Meldung ergänzen.
+`flushOnce`/`MutationQueue.flush` geben die `dropped`-Zahl bereits zurück → an die UI durchreichen.
+
+### DD5 — Push-Toggle als vollständiger Lebenszyklus (Pass 2/6)
+
+Task 16 verdrahtet nur `subscribe`; ein Switch-Affordance ohne Off-Pfad ist inkonsistent
+(DELETE-Endpoint existiert bereits in Task 13). **Vollständig:**
+- Echter Switch, der den **aktuellen** Subscription-Status spiegelt (`pushManager.getSubscription()`),
+  an **subscribe UND** den vorhandenen `DELETE /api/v1/push/subscribe` gebunden.
+- **Loading-State** während Permission-Prompt + `subscribe` + POST.
+- **Denied-sticky:** Browser-Permission-Denial ist klebrig (kein Re-Prompt). Copy:
+  „Benachrichtigungen sind im Browser blockiert — in den Browsereinstellungen aktivieren."
+  Sonst scheint der Toggle dauerhaft kaputt.
+- **iOS nicht installiert:** Toggle disabled + Hinweis „Erst zum Home-Bildschirm hinzufügen
+  (iOS 16.4+)" statt stummem Fehlschlag.
+
+### DD6 — Accessibility (Pass 6)
+
+- `accessibilityRole="status"` (polite) für `syncing`/`synced`; `accessibilityRole="alert"`
+  (assertive) **nur** für offline/permanent-error. Der Plan-Entwurf nutzt fälschlich `alert`
+  für den benignen Sync-Zustand → Screenreader-Lärm.
+- Temp-Card: `accessibilityState={{ disabled: true }}` + Label „wird synchronisiert", nicht nur
+  reduzierte Opacity (Opacity-only liest sich als „kaputt/disabled" mehrdeutig — siehe DD7).
+- Push-Toggle: Touch-Target ≥ 44 px.
+- Jegliche Spinner respektieren `prefers-reduced-motion`.
+
+### DD7 — Temp-Card: nicht nur Opacity (Pass 4)
+
+Reduzierte Opacity allein ist mehrdeutig (laden vs. deaktiviert vs. Fehler). Zusätzlich ein
+expliziter Inline-Chip „⏳ wird gespeichert", damit das Dimmen nicht das einzige Signal ist.
+
+### NOT in scope (Design, bestätigt)
+
+- Eigenes Design-System / DESIGN.md-Tokens — pragmatisch über vorhandene Tailwind-Skala; echtes
+  `/design-consultation` als TODO (nicht blockierend).
+- Animationsfeinschliff/Micro-Interactions über die Fade/Spinner-Specs hinaus.
+- Notification-Rich-Content (Bilder/Actions) — Titel+Body+Click genügen für diesen Slice.
+
+### What already exists (Design-Reuse)
+
+- [`OfflineBanner.tsx`](../../../mobile/components/OfflineBanner.tsx) — NativeWind, Dark-Mode,
+  lucide-Icons, Fade, `useIsOnline`, `authExpired`-Variante. **Erweitern, nicht duplizieren** (DD1).
+- `useOfflineQueue` (`pending`/`online`/`flush`, K1 `onFlushed`) liefert die Datenquelle für die
+  Banner-Zustände — keine zweite Online-Erkennung bauen.
+- Shopping `toggle`/`delete` haben bereits Optimistic+Rollback → Fehler-Sichtbarkeit (DD4) dockt an.
+
+### Implementation Tasks (Design)
+
+- [x] **DT1 (P1, human: ~2h / CC: ~20min)** — mobile/components — `OfflineBanner` um `pending`/`syncState`-Variante erweitern statt `OfflineQueueBanner` (DD1)
+  - Surfaced by: Pass 5 Design-System / DD1
+  - Files: `mobile/components/OfflineBanner.tsx`, `mobile/app/(tabs)/shopping.tsx`, `mobile/app/(tabs)/planner.tsx`, `mobile/test/offline-banner.test.tsx`
+  - Verify: ein Banner pro Screen; Offline=warm/rot, Sync=amber; Dark-Mode; kein Inline-Hex
+- [x] **DT2 (P1, human: ~1h / CC: ~10min)** — mobile/app — Interaction-State-Tabelle umsetzen: drained-success + permanent-drop sichtbar (DD2/DD3/DD4)
+  - Surfaced by: Pass 2 States / Pass 3 Journey
+  - Files: `mobile/hooks/useOfflineQueue.ts`, `mobile/app/(tabs)/shopping.tsx`, `mobile/app/(tabs)/planner.tsx`
+  - Verify: Test pending→0 zeigt „gespeichert ✓"; drop zeigt Fehlertext (kein stummes Verschwinden)
+- [x] **DT3 (P1, human: ~1.5h / CC: ~15min)** — mobile/hooks — Push-Toggle als Switch mit subscribe+unsubscribe, loading, denied-sticky, iOS-disabled (DD5)
+  - Surfaced by: Pass 2 States / Pass 6 A11y
+  - Files: `mobile/hooks/usePushSubscription.ts`, `mobile/app/(tabs)/settings.tsx`, `mobile/test/use-push-subscription.test.ts`
+  - Verify: Switch spiegelt `getSubscription()`; DELETE-Pfad; denied→Hinweis statt stummem Fail
+- [x] **DT4 (P2, human: ~45min / CC: ~10min)** — mobile — A11y: `status` vs `alert`, Temp-Card `disabled`+Label, 44px Toggle, reduced-motion (DD6/DD7)
+  - Surfaced by: Pass 6 Responsive/A11y / Pass 4
+  - Files: `mobile/components/OfflineBanner.tsx`, `mobile/app/(tabs)/shopping.tsx`, `mobile/app/(tabs)/settings.tsx`
+  - Verify: Screenreader-Rolle korrekt; Temp-Card announced als „wird synchronisiert"
+
+### Unresolved Design Decisions (auto-entschieden, überstimmbar)
+
+| Entscheidung | Auto-Wahl (Empfehlung) | Wenn anders gewünscht |
+|--------------|------------------------|------------------------|
+| Banner: erweitern vs. neue Komponente | **Erweitern** (DRY, eine Offline-Sprache) | separate Komponente mit geteilten Tokens |
+| Drain: Erfolgs-Toast vs. stumm | **Kurzer „gespeichert ✓"-Toast** (Trust) | stummes Verschwinden |
+| Push: Switch vs. Enable-Button | **Vollständiger Switch** (DELETE existiert) | One-way Enable-Button |
+| DESIGN.md / Tokens | **TODO `/design-consultation`** (nicht blockierend) | jetzt im PR aufsetzen |
+
+---
+
+## DX-Review-Korrekturen (DevEx Review, 2026-06-14)
+
+**Produkttyp:** API/Service + operative Plattform. **Persona:** der Self-Hosted-Operator
+(du / dacown87) — Full-Stack, deployt via Docker Hub → Northflank, konfiguriert per `.env`.
+**Modus:** DX POLISH. „TTHW"-Analogon = Zeit bis zur ersten funktionierenden Push-Notification.
+
+**Empathie (Operator):** „Ich generiere VAPID-Keys mit `npx web-push generate-vapid-keys`,
+trage sie ein, deploye — und es passiert nichts. Keine Notification, kein Log, kein Fehler.
+Liegt's am Key? An iOS? Am Service Worker? Ich habe keinen Faden zum Ziehen." Genau diese
+stumme Unsicherheit ist der teuerste DX-Bruch dieses Slices.
+
+Bewertung (vorher → nach Korrekturen): Getting-Started 5→8 · API-Design 7→8 ·
+Error/Uncertainty 4→8 · Docs 6→8 · Upgrade/Deploy 6→8 · Dev-Env 7→8 · Community n/a ·
+Measurement 5→6 (deferred). **Gesamt-DX: 5/10 → 8/10. TTHW ~15–20 min → ~5 min.**
+
+Verbindliche Änderungen (auto-entschieden, Prinzipien *Fight Uncertainty* + *Zero Friction at T0*):
+
+### X1 — Zwei VAPID-Public-Key-Vars müssen identisch sein + EXPO_PUBLIC ist build-time-inlined (Pass 1, P1)
+
+`VAPID_PUBLIC_KEY` (Server, Runtime) und `EXPO_PUBLIC_VAPID_PUBLIC_KEY` (Client) müssen
+**denselben Wert** tragen. `subscribeToPush` nutzt den Client-Key als `applicationServerKey`;
+ist er ≠ Server-Key, gelingt das `subscribe`, aber jeder `webpush.sendNotification` scheitert
+(stumm verworfen, X2). Zusätzlich ist jede `EXPO_PUBLIC_*`-Variable **zur Build-Zeit ins Bundle
+inlined** — sie auf Northflank zu setzen reicht nicht; das Mobile-Bundle muss neu gebaut werden
+und der Wert muss bereits in der Docker-`web-builder`-Stage (`npm run build:mobile`) verfügbar sein.
+Verbindlich:
+- Task 12 Step 6 / Task 16 Step 5: `.env.example`-Block ergänzen mit Kommentar
+  *„VAPID_PUBLIC_KEY und EXPO_PUBLIC_VAPID_PUBLIC_KEY MÜSSEN identisch sein (einmal generieren,
+  zweimal eintragen). EXPO_PUBLIC_* wird beim `build:mobile` ins Bundle gebacken — nach Änderung
+  neu bauen + neu deployen."*
+- Task 17 Runbook: dieselbe Doppelschlüssel-/Rebuild-Regel + Hinweis, dass die Docker-`web-builder`-
+  Stage `EXPO_PUBLIC_VAPID_PUBLIC_KEY` als Build-Arg/Env braucht, sonst shipt der Toggle mit leerem Key.
+
+### X2 — Push-Pfad ist stumm best-effort → Operator-Logs ergänzen (Pass 3, P1)
+
+`configureVapid()` gibt bei fehlenden Keys still `false` zurück; `sendPushToUser` schluckt alle
+Nicht-410-Fehler. Für den Operator ist „keine Notifications" damit komplett undebugbar. Verbindlich:
+- **Einmaliges Startup-/erstes-Send-Log**, wenn VAPID nicht konfiguriert ist:
+  `console.warn("[push] VAPID keys not set — notifications disabled (configureVapid=false)")`.
+- In `sendPushToUser` bei Send-Fehlern den Statuscode auf `debug`/`warn` loggen (nicht nur 410-prune
+  still): `console.warn("[push] send failed", { endpoint: row.endpoint, status })`. Best-effort bleibt
+  best-effort — aber mit Faden zum Ziehen. Test (push-send.test) um eine Assertion „loggt bei Fehler" ergänzen.
+
+### X3 — Migration-vor-Deploy-Reihenfolge fixieren (Pass 5, P2)
+
+Northflank redeployt automatisch bei Image-Push. PR2 ist **nicht** best-effort: läuft der neue
+`addRecipeToMealPlan`-Insert mit `targetWhere` bevor die `client_op_id`-Migration (`20260613120000`)
+angewandt ist, wirft Postgres („no unique constraint matching ON CONFLICT"). Verbindlich in
+„Final Verification" + Runbook: **Migration zuerst auf Prod-Supabase anwenden, dann das Image
+deployen** — pro PR explizit (PR2: idempotency-Migration; PR3: push_subscriptions-Migration).
+
+### X4 — „Funktioniert Push?"-Smoke in den Runbook (Pass 1/4, P2)
+
+Nach dem Setup braucht der Operator eine Bestätigung ohne kompletten Extraktions-Job. Task 17
+Runbook um einen Smoke ergänzen: Toggle in Settings aktivieren → Permission `granted` →
+Subscription erscheint in `push_subscriptions` → ein Test-Send (z. B. kurzer Node-Snippet mit
+`webpush.sendNotification` gegen die eigene Subscription, oder ein dokumentierter manueller
+Job-Complete-Trigger) → Notification kommt + Klick öffnet `/recipe/:id`.
+
+### X5 — VAPID-Key-Rotation dokumentieren (Pass 5, P2)
+
+Runbook-Eintrag: VAPID-Keys rotieren invalidiert **alle** bestehenden Subscriptions (mit altem
+Key verschlüsselt) → Sends laufen in 4xx → werden über X2/410-prune nach und nach entfernt; Nutzer
+müssen Push neu aktivieren. Emergency-Disable bleibt: `VAPID_*` leeren → `configureVapid()=false` → no-op.
+
+### NOT in scope (DX, bestätigt)
+
+- Push-Delivery-Metriken (sent/pruned-Counter, Dashboard) — TODO-Kandidat (X6, Pass 8), für
+  Single-Tenant nicht blockierend.
+- Community/Ecosystem (Pass 7) — Self-Hosted Single-Tenant, kein öffentliches Dev-Produkt → n/a.
+- Eigenes Push-SDK / Multi-Language — nicht relevant.
+
+### What already exists (DX-Reuse)
+
+- [`.env.example`](../../../.env.example) — bestehende, gut kommentierte Env-Matrix (Server-only vs
+  EXPO_PUBLIC) → VAPID-Block dort einreihen, Konvention übernehmen (X1).
+- `docs/pwa-runbook.md` — bestehender Runbook → Push/Sync-Sektionen anhängen (Task 17), nicht neu anlegen.
+- `requireUserAuth` + Route-Auth-Inventory in CLAUDE.md → push-Routes folgen exakt dem Muster (Task 13).
+- `JobManagerDependencies`-DI → `pushSender` injizierbar, testbar ohne echtes web-push (K4).
+
+### Implementation Tasks (DX)
+
+- [x] **XT1 (P1, human: ~30min / CC: ~10min)** — .env.example + docs/pwa-runbook — Doppel-VAPID-Key identisch + EXPO_PUBLIC-Rebuild/Build-Arg dokumentieren (X1)
+  - Surfaced by: Pass 1 Getting-Started / X1
+  - Files: `.env.example`, `docs/pwa-runbook.md`, `Dockerfile` (web-builder Build-Arg prüfen)
+  - Verify: frischer Operator-Setup ohne Key-Mismatch; Prod-Bundle enthält den Key
+- [x] **XT2 (P1, human: ~30min / CC: ~10min)** — src/push — Operator-Logs: VAPID-not-configured + Send-Fehler-Status (X2)
+  - Surfaced by: Pass 3 Error/Uncertainty / X2
+  - Files: `src/push.ts`, `test/push-send.test.ts`
+  - Verify: Log bei fehlenden Keys; Log mit Status bei Send-Fehler; Test deckt es ab
+- [x] **XT3 (P2, human: ~20min / CC: ~5min)** — docs — Migration-vor-Deploy-Reihenfolge je PR (X3)
+  - Surfaced by: Pass 5 Upgrade/Deploy / X3
+  - Files: Plan „Final Verification", `docs/pwa-runbook.md`
+  - Verify: Runbook nennt explizit „Migration zuerst, dann Image" pro PR2/PR3
+- [x] **XT4 (P2, human: ~30min / CC: ~10min)** — docs — Push-Verify-Smoke + VAPID-Rotation im Runbook (X4/X5)
+  - Surfaced by: Pass 1/4 + Pass 5 / X4, X5
+  - Files: `docs/pwa-runbook.md`
+  - Verify: Operator kann Push ohne Extraktions-Job bestätigen; Rotations-Folgen dokumentiert
+
+### Unresolved DX Decisions (auto-entschieden, überstimmbar)
+
+| Entscheidung | Auto-Wahl (Empfehlung) | Wenn anders gewünscht |
+|--------------|------------------------|------------------------|
+| Push-Send-Logging-Level | **warn (sichtbar im Default-Log)** | debug (nur mit Verbose) |
+| Verify-Smoke: Node-Snippet vs. UI-Toggle | **Beides im Runbook** (UI primär, Snippet als Fallback) | nur UI-Pfad |
+| Delivery-Metriken | **TODO (X6), nicht in diesem Slice** | jetzt im PR3 |
+
+---
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_found (gefaltet) | 6 Befunde, 0 kritische Lücken offen |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | issues_open (gefaltet) | Score 5→8/10, 7 Befunde (DD1–DD7), 4 Tasks |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 1 | issues_open (gefaltet) | Score 5→8/10, TTHW ~15–20→~5 min, 5 Befunde (X1–X5), 4 Tasks |
+
+**Eng-Befunde (alle in den Plan eingearbeitet — K1–K6):**
+- K1 (P1) Offline-Add: Optimistic-Insert + Temp-ID-Reconciliation — *Vollständig* (User-Entscheidung)
+- K2 (P1) Partial-Index ON CONFLICT braucht `targetWhere` (User-Entscheidung)
+- K3 (CQ) `client_op_id` nur auf `meal_plan`; Shopping nutzt Namens-Index
+- K4 (P1) Push-DI via `JobManagerDependencies` + `result.recipeId`-Bugfix (User-Entscheidung)
+- K5 (CQ) DRY: Outcome-Klassifikation zentralisieren
+- K6 (P1) `network-status.test.ts` braucht jsdom-Env (mobile Vitest ist `node`)
+
+**Design-Befunde (alle in den Plan eingearbeitet — DD1–DD7):**
+- DD1 (P1) `OfflineQueueBanner` an bestehenden `OfflineBanner` angleichen (erweitern statt duplizieren)
+- DD2 (P1) Interaction-State-Tabelle (fehlende success/error/denied/loading-Zustände)
+- DD3 Trust-Moment „gespeichert ✓" beim Queue-Drain statt stummem Verschwinden
+- DD4 (P1) Permanenter Drop muss sichtbar sein (Inline-Fehler statt stummem Entfernen)
+- DD5 (P1) Push-Toggle als vollständiger Switch (subscribe+unsubscribe, loading, denied-sticky, iOS)
+- DD6 A11y: `status` vs `alert`, Temp-Card `disabled`+Label, 44px, reduced-motion
+- DD7 Temp-Card: expliziter „wird gespeichert"-Chip statt Opacity-only
+
+**DX-Befunde (alle in den Plan eingearbeitet — X1–X5):**
+- X1 (P1) Doppel-VAPID-Key identisch + EXPO_PUBLIC build-time-inlined (Rebuild/Build-Arg)
+- X2 (P1) Push-Pfad stumm best-effort → Operator-Logs (VAPID-not-configured + Send-Status)
+- X3 (P2) Migration-vor-Deploy-Reihenfolge je PR (PR2 idempotency, PR3 push_subscriptions)
+- X4 (P2) „Funktioniert Push?"-Smoke im Runbook
+- X5 (P2) VAPID-Key-Rotation dokumentieren
+- X6 (P3) Push-Delivery-Metriken → TODO (deferred, Single-Tenant nicht blockierend)
+
+**Scope:** 3 getrennte PRs (Phase 1 → 2 → 3, User-Entscheidung). Design-Korrekturen in PR2 (DD1–DD4, DD6/7) + PR3 (DD5); DX-Korrekturen in PR2 (X3) + PR3 (X1, X2, X4, X5). Performance-Review: keine Issues.
+**Outside Voice:** übersprungen (Codex nicht installiert; Befunde sind code-verifiziert).
+
+**VERDICT:** ENG CLEARED + DESIGN CLEARED + DX CLEARED — ready to implement (6 Eng- + 7 Design- + 5 DX-Befunde in den Plan gefaltet, keine kritischen Lücken offen; auto-getroffene Entscheidungen überstimmbar).
+
+NO UNRESOLVED DECISIONS
+
+---
+
+## Umsetzungsstatus (As-Built, 2026-06-14) ✅
+
+Vollständig umgesetzt in **3 gestackten PRs** (subagent-driven, fresh agent + Review pro Arbeitseinheit). Merge-Reihenfolge **#14 → #15 → #16**.
+
+| PR | Branch | Phase | Commits |
+|----|--------|-------|---------|
+| [#14](https://github.com/dacown87/rezepti/pull/14) | `feat/pwa-phase1-precache-cap` (base `main`) | Phase 1 | 2 |
+| [#15](https://github.com/dacown87/rezepti/pull/15) | `feat/pwa-phase2-offline-queue` (base `main`) | Phase 2 | 9 |
+| [#16](https://github.com/dacown87/rezepti/pull/16) | `feat/pwa-phase3-push-sync` (base `#15`) | Phase 3 | 8 |
+
+**Verifikation:** Mobile 274 passed · Root 524 passed · **0 failures** · `tsc --noEmit` (Server) + `mobile:typecheck` + `rntl-guard` + `build-sw.ts` clean.
+
+### As-Built-Abweichungen vom Plan (bewusst beim Umsetzen entschieden)
+- **Phase 1 (statt Task 1 Lazy-Load):** Code-Splitting senkt die Precache-Gesamtmenge nicht — `build-sw.ts` globt alle Chunks. Stattdessen werden die reinen PDF-Export-Chunks (`pdf-export`, `html2canvas`, `purify` = 689 KB) vom Precache-Manifest ausgeschlossen (Laufzeit-CacheFirst deckt sie ab). Precache **4.61 MB < 5 MB**. (User-Entscheidung „beides kombinieren".)
+- **K2:** drizzle-orm 0.45.2 kennt für `onConflictDoNothing` kein `targetWhere`; der API-korrekte Schlüssel ist `where` (emittiert dieselbe Partial-Index-Klausel). Vermeidet 500 bei jedem `meal_plan`-Insert.
+- **K4:** Plan-Gate `if (job.userId && configureVapid())` hätte den Job-Completion-Test unmöglich gemacht. Korrigiert zu `if (sender || configureVapid())` — injizierter `pushSender` umgeht das VAPID-Gate; URL aus `result.recipeId`.
+- **Tests:** Server-Idempotenz wird auf Wiring-Ebene getestet (Route-Harness mockt `db-react`); echte Postgres-Deduplizierung deckt das CI-Supabase-Gate. Shopping/Planner-Fallback-Tests von `500/503` auf `422` umgestellt, da retryable Stati jetzt korrekt gequeued statt als Fehler surfaced werden (Coverage erhalten, Review-bestätigt).
+- **Phase-2-Kern:** `useOfflineQueue` wurde Teil der Integrations-Einheit (nicht des Kerns), da seine Endform (`onFlushed`/`syncState`/`lastDropped`) erst durch K1/DD3/DD4 definiert ist.
+
+### Nach Merge aller 3 PRs (Deploy-Checkliste)
+1. Migrationen **vor** Image-Deploy auf Prod-Supabase: PR2 `20260613120000`, PR3 `20260613130000`.
+2. `VAPID_PUBLIC_KEY` == `EXPO_PUBLIC_VAPID_PUBLIC_KEY` setzen (Docker-`web-builder`-Build-Arg, build-time inlined).
+3. Einmal `npx tsx scripts/pwa/build-sw.ts` (sw.js = Build-Artefakt aus PR1 + PR3).
