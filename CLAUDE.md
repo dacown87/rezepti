@@ -145,27 +145,32 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 
 ## PWA (Progressive Web App)
 
-**Status:** Phase 6 completed (2026-06-13). Installable shell + offline-read caching deployed.
+**Status:** Phase 6 completed (2026-06-13). Installable shell + offline-read caching deployed. Offline-read hardening (2026-06-14): the recipe data cache is now build-independent and survives app updates, React Query restores the signed-in user's cache on cold start, and the SW persists the user hash so offline reads work right after a restart. See PRs #11 (RC1+RC3) and #12 (RC2).
 
 **Source files:**
 - Manifest & icons: `mobile/public/manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon-180.png`
 - HTML head tags (SW registration, iOS metadata): `mobile/app/+html.tsx`
 - Service Worker source: `mobile/sw/sw.ts` (bundled to `public/sw.js` via `scripts/pwa/build-sw.ts`)
-- Cache helpers: `mobile/sw/cache-names.ts` (SHA-256 user hashing, cache naming)
+- Cache helpers: `mobile/sw/cache-names.ts` (SHA-256 user hashing, cache naming, persisted user hash)
 - Recipe cache handler: `mobile/sw/recipe-cache-handler.ts` (StaleWhileRevalidate for GET /api/v1/recipes/*)
 - SW router: `mobile/sw/routing.ts` (navigation vs asset request detection)
 - Install hook: `mobile/hooks/usePwaInstall.ts` (beforeinstallprompt + iOS hint)
 - Update hook: `mobile/hooks/usePwaUpdate.ts` (waiting-worker detection + reload prompt)
-- User messages: `mobile/utils/query-client.ts` (SET_USER, CLEAR_USER, SKIP_WAITING posts)
+- User messages: `mobile/utils/query-client.ts` (SET_USER, CLEAR_USER, SKIP_WAITING posts; per-user query-cache persistence + cold-start restore)
 
 **Build flow:** `npm run build:mobile` runs Expo export, then `postbuild:mobile` hook automatically regenerates `public/sw.js` via `npx tsx scripts/pwa/build-sw.ts`. Manual rebuild: `npx tsx scripts/pwa/build-sw.ts`.
 
 **Cache families:**
-- `rd-shell-v<buildHash>` — NetworkFirst navigations (3s timeout, /index.html fallback)
-- `rd-assets-v<buildHash>` — CacheFirst for `/_expo/static/**` JS/CSS (content-hashed filenames)
-- `rd-user-<sha256-userId>-v<buildHash>` — StaleWhileRevalidate for GET recipe list/detail/image (per-user, cleared on logout)
+- `rd-shell-v<buildHash>` — NetworkFirst navigations (3s timeout, /index.html fallback). Build-scoped.
+- `rd-assets-v<buildHash>` — CacheFirst for `/_expo/static/**` JS/CSS (content-hashed filenames). Build-scoped.
+- `rd-user-<sha256-userId>` — StaleWhileRevalidate for GET recipe list/detail/image (per-user, cleared on logout). **Build-INDEPENDENT** (no `-v<buildHash>` suffix) so recipe data survives app updates; recipe data is not tied to the frontend build.
+- `rd-user-meta` — holds the persisted SHA-256 user hash (RC2) so a restarted SW resolves the per-user bucket before the next SET_USER. Wiped on logout (matches `rd-user-*`).
 
-**Auth boundary:** Per-user SHA-256-named caches; CLEAR_USER message deletes all `rd-user-*` caches. Null/unknown user = network-only (no cache). Multi-tab limitation: single SW serves all tabs; last SET_USER wins (acceptable for single-tenant deployment).
+**Auth boundary:** Per-user SHA-256-named caches; CLEAR_USER message deletes all `rd-user-*` caches (data + meta). Null/unknown user = network-only (no cache). The `activate` handler GCs only legacy build-scoped `rd-user-*-v<build>` orphans (`clearLegacyUserCaches`), never current-format data caches. Multi-tab limitation: single SW serves all tabs; last SET_USER wins (acceptable for single-tenant deployment).
+
+**Offline read (two layers):** The recipe **list** is restored offline from the per-user React Query persistence (`mobile/utils/query-client.ts` — `restoreClient` resolves the signed-in user from the stored Supabase session on cold start, so it loads the user's key, not `anon`). Recipe **detail** pages (`mobile/app/recipe/[id].tsx`, raw `apiFetch` + state, not React Query) are served from the SW `rd-user-<hash>` cache.
+
+**Session / 401 handling:** `apiFetch` (`mobile/utils/api.ts`) forces one Supabase token refresh + a single retry on a 401 before surfacing the error (recovers a token that lapsed while the PWA was backgrounded). A genuine auth failure maps to a re-login CTA (`mapProtectedApiError` → `token_expired`/`auth_invalid`/any-401 fallback) and the `OfflineBanner` shows a tappable "Sitzung abgelaufen" variant instead of the offline/WifiOff framing.
 
 **Operations:** See `docs/pwa-runbook.md` for rebuild procedures, icon regeneration, cache verification, and emergency deregistration.
 
