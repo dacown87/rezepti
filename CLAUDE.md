@@ -107,6 +107,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, `requireUserAuth` (server-scoped-singleton — any authenticated user writes global disk file) |
 | `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501), `requireUserAuth` |
+| `/api/v1/push/subscribe` | POST/DELETE | Register/remove a Web Push subscription, `requireUserAuth` |
 | `/api/v1/proxy/image` | GET | Image proxy for PDF export (unauthenticated by design, SSRF-guarded) |
 | `/api/v1/shopping` | GET/POST/PATCH/DELETE | Shopping list CRUD, `requireAuth` (household-scoped) |
 | `/api/v1/dictionary` | GET | Ingredient dictionary read (open, global read-only) |
@@ -133,6 +134,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `ingredient_dictionary` POST/match | Server | global mutation | `requireAuth` | public | any-authed | medium | TODO: add unauth-denied contract test |
 | `/api/v1/images/search` | Server | user-scoped | `requireUserAuth` | — | — | low | added auth 2026-06-12 — prevents unauthenticated Unsplash credit drain |
 | `api_keys` table | DB | deleted | — | — | — | — | dropped in migration 20260609143000 |
+| `push_subscriptions` | Server + RLS | user-scoped | `requireUserAuth` | owner | owner | low | — |
 
 **Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
 - `ExtractionPage` — URL input, job polling, progress display
