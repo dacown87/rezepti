@@ -17,7 +17,6 @@ export interface WorkboxStrategyLike {
 
 export interface RecipeCacheHandlerDeps {
   getUserHash: () => string | null;
-  buildHash: string;
   fetchFn: typeof fetch;
   /**
    * Optional factory that overrides the default StaleWhileRevalidate strategy.
@@ -63,7 +62,7 @@ export async function recipeCacheHandler(
     return deps.fetchFn(request);
   }
 
-  const cacheName = userCacheName(hash, deps.buildHash);
+  const cacheName = userCacheName(hash);
   const strategy = (deps.makeStrategy ?? defaultMakeStrategy)(cacheName);
 
   // Forward the REAL event so Workbox's StrategyHandler can call

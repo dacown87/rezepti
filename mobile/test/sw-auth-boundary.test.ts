@@ -10,10 +10,10 @@ import {
   strongHash,
   userCacheName,
   isUserCacheName,
-  isStaleUserCacheName,
+  isLegacyBuildScopedUserCacheName,
   isCacheableRecipeRequest,
   clearUserCaches,
-  clearStaleUserCaches,
+  clearLegacyUserCaches,
 } from '../sw/cache-names.js';
 
 // ---------------------------------------------------------------------------
@@ -96,20 +96,24 @@ describe('strongHash', () => {
 // ---------------------------------------------------------------------------
 
 describe('userCacheName', () => {
-  it('formats as rd-user-${hash}-v${buildHash}', () => {
+  it('formats as rd-user-${hash} (build-independent — survives deploys)', () => {
     const hash = hashUserId('test-user');
-    const result = userCacheName(hash, '42bc22a2');
-    expect(result).toBe(`rd-user-${hash}-v42bc22a2`);
+    const result = userCacheName(hash);
+    expect(result).toBe(`rd-user-${hash}`);
   });
 
   it('works with known values', () => {
-    expect(userCacheName('aabbccdd', 'deadbeef')).toBe('rd-user-aabbccdd-vdeadbeef');
+    expect(userCacheName('aabbccdd')).toBe('rd-user-aabbccdd');
+  });
+
+  it('has NO build-hash suffix so the data cache is not GC’d on app update', () => {
+    expect(userCacheName('aabbccdd')).not.toMatch(/-v[^-]+$/);
   });
 
   it('works with 64-char SHA-256 hash', async () => {
     const sha = await strongHash('alice@example.com');
-    const name = userCacheName(sha, 'abc12345');
-    expect(name).toMatch(/^rd-user-[0-9a-f]{64}-vabc12345$/);
+    const name = userCacheName(sha);
+    expect(name).toMatch(/^rd-user-[0-9a-f]{64}$/);
   });
 });
 
@@ -144,34 +148,30 @@ describe('isUserCacheName', () => {
 });
 
 // ---------------------------------------------------------------------------
-// isStaleUserCacheName (FIX 4)
+// isLegacyBuildScopedUserCacheName (build-independent data-cache migration)
 // ---------------------------------------------------------------------------
 
-describe('isStaleUserCacheName', () => {
-  it('returns true for a rd-user-* cache with a different build hash', () => {
-    expect(isStaleUserCacheName('rd-user-hash1-vOLDBUILD', 'NEWBUILD')).toBe(true);
+describe('isLegacyBuildScopedUserCacheName', () => {
+  it('returns true for a legacy build-scoped rd-user-* cache (has -v<build> suffix)', () => {
+    expect(isLegacyBuildScopedUserCacheName('rd-user-hash1-vOLDBUILD')).toBe(true);
+    expect(isLegacyBuildScopedUserCacheName('rd-user-hash1-vNEWBUILD')).toBe(true);
   });
 
-  it('returns false for a rd-user-* cache with the CURRENT build hash', () => {
-    expect(isStaleUserCacheName('rd-user-hash1-vNEWBUILD', 'NEWBUILD')).toBe(false);
+  it('returns false for the current build-independent format (rd-user-<hash>)', () => {
+    expect(isLegacyBuildScopedUserCacheName('rd-user-hash1')).toBe(false);
+    expect(isLegacyBuildScopedUserCacheName(userCacheName('aabbccdd'))).toBe(false);
   });
 
-  it('returns false for non-user caches regardless of build hash', () => {
-    expect(isStaleUserCacheName('rd-shell-vOLDBUILD', 'NEWBUILD')).toBe(false);
-    expect(isStaleUserCacheName('rd-assets-vOLDBUILD', 'NEWBUILD')).toBe(false);
-    expect(isStaleUserCacheName('workbox-precache-v2', 'NEWBUILD')).toBe(false);
+  it('returns false for non-user caches', () => {
+    expect(isLegacyBuildScopedUserCacheName('rd-shell-vOLDBUILD')).toBe(false);
+    expect(isLegacyBuildScopedUserCacheName('rd-assets-vOLDBUILD')).toBe(false);
+    expect(isLegacyBuildScopedUserCacheName('workbox-precache-v2')).toBe(false);
   });
 
-  it('returns false when the name has no -v<suffix> segment', () => {
-    expect(isStaleUserCacheName('rd-user-hash1', 'NEWBUILD')).toBe(false);
-  });
-
-  it('handles 64-char SHA-256 user hash in cache name', async () => {
+  it('matches a legacy 64-char SHA-256 user cache name', async () => {
     const sha = await strongHash('alice@example.com');
-    const staleName = userCacheName(sha, 'oldbuild1');
-    const currentName = userCacheName(sha, 'newbuild2');
-    expect(isStaleUserCacheName(staleName, 'newbuild2')).toBe(true);
-    expect(isStaleUserCacheName(currentName, 'newbuild2')).toBe(false);
+    expect(isLegacyBuildScopedUserCacheName(`rd-user-${sha}-voldbuild1`)).toBe(true);
+    expect(isLegacyBuildScopedUserCacheName(userCacheName(sha))).toBe(false);
   });
 });
 
@@ -314,18 +314,18 @@ describe('clearUserCaches', () => {
 });
 
 // ---------------------------------------------------------------------------
-// clearStaleUserCaches (FIX 4)
+// clearLegacyUserCaches (build-independent data-cache migration)
 // ---------------------------------------------------------------------------
 
-describe('clearStaleUserCaches', () => {
-  it('deletes rd-user-* caches with a stale build hash and leaves others untouched', async () => {
+describe('clearLegacyUserCaches', () => {
+  it('deletes only legacy build-scoped rd-user-* caches; keeps current-format data caches and others', async () => {
     const cacheNames = [
-      'rd-user-hash1-vOLDBUILD',
-      'rd-user-hash2-vNEWBUILD',
-      'rd-shell-vOLDBUILD',
-      'rd-assets-vNEWBUILD',
-      'rd-user-hash3-vOLDBUILD',
-      'workbox-precache-v2',
+      'rd-user-hash1-vOLDBUILD',   // legacy → delete
+      'rd-user-hash2-vNEWBUILD',   // legacy → delete
+      'rd-user-hash3',             // current build-independent → KEEP
+      'rd-shell-vOLDBUILD',        // shell → keep
+      'rd-assets-vNEWBUILD',       // assets → keep
+      'workbox-precache-v2',       // precache → keep
     ];
     const deleted: string[] = [];
 
@@ -337,26 +337,26 @@ describe('clearStaleUserCaches', () => {
       },
     };
 
-    await clearStaleUserCaches(fakeStorage, 'NEWBUILD');
+    await clearLegacyUserCaches(fakeStorage);
 
     expect(deleted).toHaveLength(2);
     expect(deleted).toContain('rd-user-hash1-vOLDBUILD');
-    expect(deleted).toContain('rd-user-hash3-vOLDBUILD');
-    // Current build's user cache must survive
-    expect(deleted).not.toContain('rd-user-hash2-vNEWBUILD');
+    expect(deleted).toContain('rd-user-hash2-vNEWBUILD');
+    // Current build-independent data cache must survive (offline-read across deploys)
+    expect(deleted).not.toContain('rd-user-hash3');
     // Shell/asset/precache must never be touched
     expect(deleted).not.toContain('rd-shell-vOLDBUILD');
     expect(deleted).not.toContain('rd-assets-vNEWBUILD');
     expect(deleted).not.toContain('workbox-precache-v2');
   });
 
-  it('does nothing when all user caches are from the current build', async () => {
+  it('does nothing when all user caches are already build-independent', async () => {
     const fakeStorage = {
-      keys: async () => ['rd-user-hash1-vCURRENT', 'rd-user-hash2-vCURRENT'],
+      keys: async () => ['rd-user-hash1', 'rd-user-hash2'],
       delete: vi.fn().mockResolvedValue(true),
     };
 
-    await clearStaleUserCaches(fakeStorage, 'CURRENT');
+    await clearLegacyUserCaches(fakeStorage);
 
     expect(fakeStorage.delete).not.toHaveBeenCalled();
   });
@@ -367,7 +367,7 @@ describe('clearStaleUserCaches', () => {
       delete: vi.fn().mockResolvedValue(true),
     };
 
-    await clearStaleUserCaches(fakeStorage, 'CURRENT');
+    await clearLegacyUserCaches(fakeStorage);
 
     expect(fakeStorage.delete).not.toHaveBeenCalled();
   });
@@ -411,7 +411,7 @@ describe('recipeCacheHandler', () => {
 
     const result = await recipeCacheHandler(
       { request, event: fakeEvent },
-      { getUserHash: () => null, buildHash: 'testbuild1', fetchFn, makeStrategy },
+      { getUserHash: () => null, fetchFn, makeStrategy },
     );
 
     // network-only: fetchFn called, no strategy created
@@ -437,17 +437,16 @@ describe('recipeCacheHandler', () => {
     const fakeEvent = makeFakeEvent();
     const request = new Request('https://localhost/api/v1/recipes');
     const userHash = await strongHash('alice-user-id');
-    const buildHash = 'testbuild2';
 
     const result = await recipeCacheHandler(
       { request, event: fakeEvent },
-      { getUserHash: () => userHash, buildHash, fetchFn: vi.fn(), makeStrategy },
+      { getUserHash: () => userHash, fetchFn: vi.fn(), makeStrategy },
     );
 
     expect(result.status).toBe(200);
 
-    // Correct per-user, per-build cache name
-    const expectedCacheName = `rd-user-${userHash}-v${buildHash}`;
+    // Correct per-user, build-independent cache name (survives deploys)
+    const expectedCacheName = `rd-user-${userHash}`;
     expect(capturedCacheName).toContain(expectedCacheName);
 
     // The REAL event must be forwarded to strategy.handle — NOT undefined
@@ -477,7 +476,7 @@ describe('recipeCacheHandler', () => {
     await expect(
       recipeCacheHandler(
         { request, event: fakeEvent },
-        { getUserHash: () => userHash, buildHash: 'testbuild3', fetchFn: vi.fn(), makeStrategy },
+        { getUserHash: () => userHash, fetchFn: vi.fn(), makeStrategy },
       ),
     ).rejects.toThrow();
     // TypeError: Cannot read properties of undefined (reading 'waitUntil')
@@ -492,7 +491,7 @@ describe('recipeCacheHandler', () => {
 
     const result = await recipeCacheHandler(
       { request, event: fakeEvent },
-      { getUserHash: () => null, buildHash: 'build99', fetchFn, makeStrategy },
+      { getUserHash: () => null, fetchFn, makeStrategy },
     );
 
     // network-only: fetchFn called, no strategy created, no waitUntil

@@ -33,7 +33,7 @@ import {
   isCacheableRecipeRequest,
   strongHash,
   isUserCacheName,
-  clearStaleUserCaches,
+  clearLegacyUserCaches,
 } from './cache-names.js';
 import { recipeCacheHandler } from './recipe-cache-handler.js';
 
@@ -103,19 +103,21 @@ registerRoute(
   ({ request, event }) =>
     recipeCacheHandler(
       { request, event },
-      { getUserHash: () => currentUserHash, buildHash: __CACHE_HASH__, fetchFn: fetch },
+      { getUserHash: () => currentUserHash, fetchFn: fetch },
     ),
 );
 
 // ---------------------------------------------------------------------------
-// Activate — GC orphaned user caches from previous builds (FIX 4)
+// Activate — GC legacy build-scoped user caches (one-time migration)
 //
-// Deletes `rd-user-*` caches whose build-hash suffix is NOT the current
-// __CACHE_HASH__. This prevents unbounded storage growth across deploys.
-// Shell, asset, and precache caches are intentionally NOT touched here.
+// The recipe DATA cache used to be build-scoped (`rd-user-<hash>-v<build>`) and
+// was wiped on every deploy, blanking offline-read after each update. It is now
+// build-independent (`rd-user-<hash>`). Here we delete only the LEGACY
+// `-v<build>`-suffixed orphans; current-format data caches are kept so offline
+// reads survive app updates. Shell/asset/precache caches are never touched.
 // ---------------------------------------------------------------------------
 self.addEventListener('activate', (event: ExtendableEvent) => {
-  event.waitUntil(clearStaleUserCaches(caches, __CACHE_HASH__));
+  event.waitUntil(clearLegacyUserCaches(caches));
 });
 
 // ---------------------------------------------------------------------------

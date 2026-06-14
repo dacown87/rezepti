@@ -37,13 +37,20 @@ export const queryClient = new QueryClient({
 let activeAuthUserId: string | null | undefined;
 
 /**
- * A thin persister wrapper whose storage key tracks the active user.
- * We re-create the underlying base persister on every operation so
- * the correct user-scoped key is always used without needing a React
- * context or prop-drilling.
+ * The cache key that restoreClient() actually loaded on cold start.
+ * watchAuthQueryCache compares this against the incoming session's key to decide
+ * whether the restored cache belongs to the signed-in user (keep it → offline-read
+ * works) or to a different user (clear it → privacy boundary). `undefined` until
+ * restoreClient has run.
  */
-function makePersisterForCurrentUser() {
-  const key = getQueryCacheKey(activeAuthUserId ?? null);
+let restoredCacheKey: string | undefined;
+
+/**
+ * Builds a per-user AsyncStorage persister for a specific key. We re-create the
+ * underlying base persister on every operation so the correct user-scoped key is
+ * always used without needing a React context or prop-drilling.
+ */
+function makePersister(key: string) {
   return createAsyncStoragePersister({
     storage: AsyncStorage,
     key,
@@ -51,15 +58,39 @@ function makePersisterForCurrentUser() {
   });
 }
 
+/**
+ * Resolves the signed-in user's id from the stored Supabase session so the
+ * persister can pick the correct per-user cache key on COLD START.
+ *
+ * Why this matters: PersistQueryClientProvider calls restoreClient() before the
+ * first auth event fires, so activeAuthUserId is still `undefined`. Without
+ * resolving the user here we restore the empty "anon" slot and the recipe list
+ * is blank offline — even though the user's recipes are persisted under their
+ * own key. getSession() reads from storage only (offline-safe); returns null
+ * when Supabase is unconfigured or there is no stored session.
+ */
+async function resolveRestoreUserId(): Promise<string | null> {
+  try {
+    const { getAuthSession } = await import('./auth');
+    const session = await getAuthSession();
+    return session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const asyncStoragePersister = {
   persistClient: async (client: Parameters<ReturnType<typeof createAsyncStoragePersister>['persistClient']>[0]) => {
-    return makePersisterForCurrentUser().persistClient(client);
+    return makePersister(getQueryCacheKey(activeAuthUserId ?? null)).persistClient(client);
   },
   restoreClient: async () => {
-    const persister = makePersisterForCurrentUser();
-    const key = getQueryCacheKey(activeAuthUserId ?? null);
+    // If auth already resolved (warm path) use it; otherwise resolve the stored
+    // session so cold-start restore loads the signed-in user's cache, not "anon".
+    const userId = activeAuthUserId !== undefined ? activeAuthUserId : await resolveRestoreUserId();
+    const key = getQueryCacheKey(userId ?? null);
+    restoredCacheKey = key;
     try {
-      return await persister.restoreClient();
+      return await makePersister(key).restoreClient();
     } catch {
       try {
         await AsyncStorage.removeItem(key);
@@ -68,7 +99,7 @@ export const asyncStoragePersister = {
     }
   },
   removeClient: async () => {
-    return makePersisterForCurrentUser().removeClient();
+    return makePersister(getQueryCacheKey(activeAuthUserId ?? null)).removeClient();
   },
 };
 
@@ -145,11 +176,18 @@ export async function watchAuthQueryCache(): Promise<() => void> {
 
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
     const nextUserId = session?.user.id ?? null;
-    const prevKey = getQueryCacheKey(activeAuthUserId ?? null);
     const nextKey = getQueryCacheKey(nextUserId);
 
     const isFirstEvent = activeAuthUserId === undefined;
     const userChanged = !isFirstEvent && activeAuthUserId !== nextUserId;
+
+    // On cold start the in-memory cache was loaded by restoreClient(), so compare
+    // against the key it actually restored (which reflects the real signed-in user
+    // resolved from the stored session). On a hot switch compare against the
+    // previously-active user's key.
+    const prevKey = isFirstEvent
+      ? (restoredCacheKey ?? getQueryCacheKey(activeAuthUserId ?? null))
+      : getQueryCacheKey(activeAuthUserId ?? null);
 
     if (isFirstEvent && _sessionRestoring) {
       _sessionRestoring = false;

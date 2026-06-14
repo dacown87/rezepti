@@ -55,10 +55,15 @@ export function hashUserId(userId: string): string {
 
 /**
  * Returns the user-scoped API cache name.
- * Format: `rd-user-${userIdHash}-v${buildHash}`
+ * Format: `rd-user-${userIdHash}`
+ *
+ * IMPORTANT: this name is intentionally NOT build-hash-scoped. Recipe DATA is
+ * not tied to the frontend build, so the cache must survive app updates —
+ * otherwise every deploy wipes the offline-read cache (the activate handler GCs
+ * caches from previous builds). Shell/asset caches stay build-scoped; data does not.
  */
-export function userCacheName(userIdHash: string, buildHash: string): string {
-  return `rd-user-${userIdHash}-v${buildHash}`;
+export function userCacheName(userIdHash: string): string {
+  return `rd-user-${userIdHash}`;
 }
 
 /**
@@ -70,18 +75,15 @@ export function isUserCacheName(name: string): boolean {
 }
 
 /**
- * Returns true for rd-user-* caches belonging to a DIFFERENT build than buildHash.
- * Used in the activate handler to GC orphaned caches from previous deploys.
- * Returns false for non-user caches, the current build's user caches, and
- * user caches whose build-hash suffix cannot be determined.
+ * Returns true for legacy build-scoped user caches (`rd-user-<hash>-v<buildHash>`)
+ * left over from before the data cache became build-independent. Used by the
+ * activate handler to GC those orphans once. The new format (`rd-user-<hash>`,
+ * no `-v` suffix) is intentionally NOT matched, so live data caches are kept.
  */
-export function isStaleUserCacheName(name: string, buildHash: string): boolean {
+export function isLegacyBuildScopedUserCacheName(name: string): boolean {
   if (!isUserCacheName(name)) return false;
-  // Format: rd-user-<hash>-v<buildHash>
-  // Match the last "-v<suffix>" segment
-  const match = name.match(/-v([^-]+)$/);
-  if (!match) return false;
-  return match[1] !== buildHash;
+  // Legacy format embedded a "-v<buildHash>" suffix; the current format does not.
+  return /-v[^-]+$/.test(name);
 }
 
 /**
@@ -113,21 +115,21 @@ export async function clearUserCaches(storage: {
 }
 
 /**
- * Deletes all user caches from previous builds (stale build-hash suffix).
- * Only removes `rd-user-*` caches where the build-hash suffix != currentBuildHash.
+ * Deletes legacy build-scoped user caches (`rd-user-<hash>-v<buildHash>`) left
+ * over from before the data cache became build-independent. The current-format
+ * `rd-user-<hash>` data caches are kept so offline-read survives app updates.
  * Shell, asset, and precache caches are never touched.
  */
-export async function clearStaleUserCaches(
+export async function clearLegacyUserCaches(
   storage: {
     keys(): Promise<string[]>;
     delete(name: string): Promise<boolean>;
   },
-  currentBuildHash: string,
 ): Promise<void> {
   const names = await storage.keys();
   await Promise.all(
     names
-      .filter((name) => isStaleUserCacheName(name, currentBuildHash))
+      .filter(isLegacyBuildScopedUserCacheName)
       .map((name) => storage.delete(name)),
   );
 }
