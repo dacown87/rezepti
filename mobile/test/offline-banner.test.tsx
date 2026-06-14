@@ -117,35 +117,36 @@ describe('OfflineBanner', () => {
 
   // a11y role checks: RNTL's getByRole only matches accessible elements (those
   // with `accessible` prop or host Text/TextInput/Switch). The mocked View is a
-  // plain string element, so we check accessibilityRole via the rendered JSON
-  // props directly. The DD6 role contracts are: syncing/synced → "status"
-  // (polite), offline/error → "alert" (assertive).
-  it('(a11y) syncing banner View has accessibilityRole="status"', async () => {
+  // plain string element, so we check the role/accessibilityRole prop via the
+  // rendered JSON props directly.
+  // DD6 contracts: syncing/synced → role="status" (polite),
+  //                offline/error  → accessibilityRole="alert" (assertive).
+  it('(a11y) syncing banner View has role="status"', async () => {
     const { OfflineBanner } = await import('@/components/OfflineBanner');
     const { toJSON } = render(
       React.createElement(OfflineBanner, { pending: 2, syncState: 'syncing' }),
     );
-    const json = toJSON() as { children: Array<{ props: { accessibilityRole?: string }; children?: unknown[] }> };
-    // AnimatedView > View with accessibilityRole="status"
+    const json = toJSON() as { children: Array<{ props: Record<string, unknown> }> };
+    // AnimatedView > View with role="status"
     const innerView = json?.children?.[0];
-    expect((innerView as { props?: { accessibilityRole?: string } })?.props?.accessibilityRole).toBe('status');
+    expect((innerView as { props?: Record<string, unknown> })?.props?.role).toBe('status');
   });
 
-  it('(a11y) synced banner View has accessibilityRole="status"', async () => {
+  it('(a11y) synced banner View has role="status"', async () => {
     const { OfflineBanner } = await import('@/components/OfflineBanner');
     const { toJSON } = render(
       React.createElement(OfflineBanner, { syncState: 'synced' }),
     );
-    const json = toJSON() as { children: Array<{ props: { accessibilityRole?: string }; children?: unknown[] }> };
+    const json = toJSON() as { children: Array<{ props: Record<string, unknown> }> };
     const innerView = json?.children?.[0];
-    expect((innerView as { props?: { accessibilityRole?: string } })?.props?.accessibilityRole).toBe('status');
+    expect((innerView as { props?: Record<string, unknown> })?.props?.role).toBe('status');
   });
 
   it('(a11y) isError banner View has accessibilityRole="alert"', async () => {
     const { OfflineBanner } = await import('@/components/OfflineBanner');
     const { toJSON } = render(React.createElement(OfflineBanner, { isError: true }));
-    const json = toJSON() as { children: Array<{ props: { accessibilityRole?: string }; children?: unknown[] }> };
+    const json = toJSON() as { children: Array<{ props: Record<string, unknown> }> };
     const innerView = json?.children?.[0];
-    expect((innerView as { props?: { accessibilityRole?: string } })?.props?.accessibilityRole).toBe('alert');
+    expect((innerView as { props?: Record<string, unknown> })?.props?.accessibilityRole).toBe('alert');
   });
 });

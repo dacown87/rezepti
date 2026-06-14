@@ -129,14 +129,14 @@ export function OfflineBanner({
     );
   }
 
-  // Syncing: amber, RefreshCw, status role (polite)
+  // Syncing: amber, RefreshCw, status role (polite, DD6)
   if (isSyncing) {
     const n = pending ?? 1;
     return (
       <Animated.View style={{ opacity }}>
         <View
           className="bg-amber-600 dark:bg-amber-700 flex-row items-center justify-center gap-2 py-1.5 px-4"
-          accessibilityRole="status"
+          role="status"
         >
           <RefreshCw size={13} color="#fffbeb" />
           <Text className="text-xs text-amber-50 font-medium">
@@ -147,13 +147,13 @@ export function OfflineBanner({
     );
   }
 
-  // Synced: amber, Check icon, status role (polite)
+  // Synced: amber, Check icon, status role (polite, DD6)
   if (isSynced) {
     return (
       <Animated.View style={{ opacity }}>
         <View
           className="bg-amber-600 dark:bg-amber-700 flex-row items-center justify-center gap-2 py-1.5 px-4"
-          accessibilityRole="status"
+          role="status"
         >
           <Check size={13} color="#fffbeb" />
           <Text className="text-xs text-amber-50 font-medium">
