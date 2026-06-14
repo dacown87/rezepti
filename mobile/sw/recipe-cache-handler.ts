@@ -16,7 +16,11 @@ export interface WorkboxStrategyLike {
 }
 
 export interface RecipeCacheHandlerDeps {
-  getUserHash: () => string | null;
+  /**
+   * Resolves the active user's hash. May be async so the SW can fall back to a
+   * persisted hash on a cold start (RC2) when the in-memory value is still null.
+   */
+  getUserHash: () => string | null | Promise<string | null>;
   fetchFn: typeof fetch;
   /**
    * Optional factory that overrides the default StaleWhileRevalidate strategy.
@@ -53,7 +57,7 @@ export async function recipeCacheHandler(
   { request, event }: { request: Request; event: ExtendableEvent },
   deps: RecipeCacheHandlerDeps,
 ): Promise<Response> {
-  const hash = deps.getUserHash();
+  const hash = await deps.getUserHash();
 
   // CRITICAL SAFETY: if no user is set (SW restarted, signed out, or during
   // the switch window after CLEAR_USER) go network-only — never read from or

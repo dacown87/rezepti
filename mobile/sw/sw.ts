@@ -34,6 +34,8 @@ import {
   strongHash,
   isUserCacheName,
   clearLegacyUserCaches,
+  persistUserHash,
+  readPersistedUserHash,
 } from './cache-names.js';
 import { recipeCacheHandler } from './recipe-cache-handler.js';
 
@@ -103,7 +105,13 @@ registerRoute(
   ({ request, event }) =>
     recipeCacheHandler(
       { request, event },
-      { getUserHash: () => currentUserHash, fetchFn: fetch },
+      {
+        // RC2: fall back to the persisted hash when the in-memory value is still
+        // null (SW restarted, SET_USER not yet processed) so offline recipe reads
+        // — including detail deep-links — resolve the correct cache on cold start.
+        getUserHash: async () => currentUserHash ?? (await readPersistedUserHash(caches)),
+        fetchFn: fetch,
+      },
     ),
 );
 
@@ -131,16 +139,20 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (event.data?.type === 'SET_USER') {
     const userId = event.data.userId as string | undefined;
     if (userId) {
-      // Compute a strong SHA-256 hash asynchronously and store it.
-      // Requests that arrive before the hash is ready (currentUserHash still null)
-      // are safely served network-only — no stale hash is ever used.
-      void strongHash(userId)
-        .then((hash) => {
-          currentUserHash = hash;
-        })
-        .catch(() => {
-          currentUserHash = null;
-        });
+      // Compute a strong SHA-256 hash asynchronously, store it in memory, and
+      // persist it (RC2) so a restarted SW can resolve the user's cache offline
+      // before the next SET_USER. Requests that arrive before the hash is ready
+      // (currentUserHash still null) are safely served network-only.
+      event.waitUntil(
+        strongHash(userId)
+          .then((hash) => {
+            currentUserHash = hash;
+            return persistUserHash(caches, hash);
+          })
+          .catch(() => {
+            currentUserHash = null;
+          }),
+      );
     } else {
       currentUserHash = null;
     }
