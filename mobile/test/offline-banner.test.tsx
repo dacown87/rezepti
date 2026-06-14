@@ -19,6 +19,8 @@ g.window = g.window ?? { addEventListener: () => undefined, removeEventListener:
 vi.mock('lucide-react-native', () => ({
   WifiOff: (props: Record<string, unknown>) => React.createElement('WifiOff', props),
   LogIn: (props: Record<string, unknown>) => React.createElement('LogIn', props),
+  RefreshCw: (props: Record<string, unknown>) => React.createElement('RefreshCw', props),
+  Check: (props: Record<string, unknown>) => React.createElement('Check', props),
 }));
 
 vi.mock('react-native', () => {
@@ -76,5 +78,74 @@ describe('OfflineBanner', () => {
     const { OfflineBanner } = await import('@/components/OfflineBanner');
     const { toJSON } = render(React.createElement(OfflineBanner, {}));
     expect(toJSON()).toBeNull();
+  });
+
+  // ─── New sync/pending state tests ─────────────────────────────────────────
+
+  it('renders nothing when online, pending=0, syncState=idle', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(
+      React.createElement(OfflineBanner, { pending: 0, syncState: 'idle' }),
+    );
+    expect(toJSON()).toBeNull();
+    expect(screen.queryByText(/synchronisiert|gespeichert|offline/i)).toBeNull();
+  });
+
+  it('shows syncing text for plural pending mutations', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    render(
+      React.createElement(OfflineBanner, { pending: 3, syncState: 'syncing' }),
+    );
+    expect(screen.getByText(/3 Änderungen werden synchronisiert/i)).toBeTruthy();
+  });
+
+  it('shows syncing text for a single pending mutation', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    render(
+      React.createElement(OfflineBanner, { pending: 1, syncState: 'syncing' }),
+    );
+    expect(screen.getByText(/1 Änderung wird synchronisiert/i)).toBeTruthy();
+  });
+
+  it('shows synced confirmation text when syncState=synced', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    render(
+      React.createElement(OfflineBanner, { syncState: 'synced' }),
+    );
+    expect(screen.getByText(/gespeichert/i)).toBeTruthy();
+  });
+
+  // a11y role checks: RNTL's getByRole only matches accessible elements (those
+  // with `accessible` prop or host Text/TextInput/Switch). The mocked View is a
+  // plain string element, so we check accessibilityRole via the rendered JSON
+  // props directly. The DD6 role contracts are: syncing/synced → "status"
+  // (polite), offline/error → "alert" (assertive).
+  it('(a11y) syncing banner View has accessibilityRole="status"', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(
+      React.createElement(OfflineBanner, { pending: 2, syncState: 'syncing' }),
+    );
+    const json = toJSON() as { children: Array<{ props: { accessibilityRole?: string }; children?: unknown[] }> };
+    // AnimatedView > View with accessibilityRole="status"
+    const innerView = json?.children?.[0];
+    expect((innerView as { props?: { accessibilityRole?: string } })?.props?.accessibilityRole).toBe('status');
+  });
+
+  it('(a11y) synced banner View has accessibilityRole="status"', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(
+      React.createElement(OfflineBanner, { syncState: 'synced' }),
+    );
+    const json = toJSON() as { children: Array<{ props: { accessibilityRole?: string }; children?: unknown[] }> };
+    const innerView = json?.children?.[0];
+    expect((innerView as { props?: { accessibilityRole?: string } })?.props?.accessibilityRole).toBe('status');
+  });
+
+  it('(a11y) isError banner View has accessibilityRole="alert"', async () => {
+    const { OfflineBanner } = await import('@/components/OfflineBanner');
+    const { toJSON } = render(React.createElement(OfflineBanner, { isError: true }));
+    const json = toJSON() as { children: Array<{ props: { accessibilityRole?: string }; children?: unknown[] }> };
+    const innerView = json?.children?.[0];
+    expect((innerView as { props?: { accessibilityRole?: string } })?.props?.accessibilityRole).toBe('alert');
   });
 });
