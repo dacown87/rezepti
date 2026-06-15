@@ -1,17 +1,86 @@
 # CI / Supabase / Northflank Check
 
-Stand: 2026-06-08
+Stand: 2026-06-15
 
-Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und Northflank sowie den naechsten Vorgehensplan.
+Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und Northflank sowie den naechsten Vorgehensplan. Der detaillierte Arbeitsplan zum aktuellen Stand liegt in [2026-06-15-ci-supabase-northflank-execution-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-ci-supabase-northflank-execution-plan.md).
 
 ## Kurzfazit
 
-- Der akute CI-Blocker im `mobile-release-gate` ist lokal behoben.
-- Die Expo-SDK-56-Patch-Drift im Mobile-Projekt wurde auf die von `expo-doctor` erwarteten Versionen angehoben.
-- Ein separater safe Dependency-Patch-Slice fuer Root und Mobile ist lokal nachgezogen.
-- Der Mobile-Coverage-Upload ist nach aktuellem Repo-Stand kein eigener Defekt, sondern nur ein Folgefehler des fruehen Abbruchs vor `Run mobile coverage`.
-- Supabase Staging ist weiter gruen; Northflank bleibt funktional gruen.
-- Der fruehere GitHub-Actions-Warnfall rund um `northflank/deploy-to-northflank@v1` wurde am 2026-06-08 durch einen direkten API-Deploy in `.github/workflows/docker-publish.yml` entfernt.
+- Der historische Expo-SDK-56-Drift-Fix bleibt relevant, ist aber nicht mehr der einzige CI-Befund.
+- Aktuell ist der letzte rote Push-Run auf `main` `27566390926` vom 2026-06-15.
+- In diesem Push-Run fallen `test` bei `Run unit coverage` und `mobile-release-gate` bei `Run Expo Doctor`.
+- Der `test`-Fehler ist lokal reproduzierbar: `npm run test:coverage` faellt aktuell an einem veralteten Expectation-Test in `test/unit/photo-extraction.test.ts`.
+- Der letzte rote Scheduled-Run `27529833799` vom 2026-06-15 hat andere Befunde: `performance-audit` strict und `e2e-legacy-soak`.
+- `supabase-rls-smoke` ist in den aktuellen roten Push- und Scheduled-Runs gruen.
+- Northflank bleibt nach aktuellem Remote-Stand funktional gruen.
+
+## Update 2026-06-15
+
+### Remote-Stand
+
+- Lokaler `main` ist aktuell `ahead 2, behind 1` gegen `origin/main`.
+- `origin/main` steht auf `9006fae` (`chore: v1.0.165 [skip ci]`).
+- Der aktuelle CI-Track darf deshalb nicht nur gegen den lokalen Stand bewertet werden; der Remote-Beweis bleibt notwendig.
+
+### Letzter roter Push-Run
+
+- Run: `27566390926`
+- Trigger: `push`
+- Zeit: `2026-06-15T18:08:43Z`
+
+Rote Jobs:
+
+- `test`
+  - failt in `Run unit coverage`
+  - `Upload root coverage artifacts` ist Folgefehler
+- `mobile-release-gate`
+  - failt in `Run Expo Doctor`
+  - `Upload mobile coverage artifacts` ist Folgefehler
+
+Gruene Jobs:
+
+- `supabase-rls-smoke`
+- `performance-audit`
+- `e2e`
+
+### Letzter roter Scheduled-Run
+
+- Run: `27529833799`
+- Trigger: `schedule`
+- Zeit: `2026-06-15T07:06:42Z`
+
+Rote Jobs:
+
+- `performance-audit`
+  - failt in `Validate performance status`
+- `e2e-legacy-soak`
+  - failt in `Run E2E legacy soak`
+
+Gruene Jobs:
+
+- `test`
+- `mobile-release-gate`
+- `supabase-rls-smoke`
+- `e2e`
+
+### Lokale Reproduktion
+
+- `npm run test:coverage` ist am 2026-06-15 lokal reproduzierbar rot.
+- Konkreter Fehler:
+  - `test/unit/photo-extraction.test.ts`
+  - die Erwartung fuer `mockCreateJob` ist veraltet
+  - aktuell kommt ein zusaetzliches fuenftes Argument `null`
+- Das ist derzeit die direkt reproduzierbare Hauptursache im Push-CI-Track.
+
+### Arbeitsentscheidung
+
+- Push-CI-Fixes zuerst:
+  - `test`-Job lokal wieder gruen bekommen
+  - `mobile-release-gate` danach gezielt gegen den aktuellen Stand verifizieren
+- Nightly-/Schedule-Themen separat behandeln:
+  - `performance-audit` strict
+  - `e2e-legacy-soak`
+- Supabase und Northflank bleiben aktuell Beobachtungspfade, nicht primaere Fix-Baustellen.
 
 ## GitHub CI
 
