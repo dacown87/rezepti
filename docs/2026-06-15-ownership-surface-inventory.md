@@ -12,9 +12,6 @@ keine produktive `unknown`-Flaeche mehr ohne benannte Folgeentscheidung.
 
 Offene, aber bewusst akzeptierte Sonderfaelle:
 
-- `cookidoo/credentials` ist aktuell noch `server-scoped-singleton`, hat jetzt
-  aber ein beschlossenes Zielmodell: `user-scoped` als Default mit optionaler
-  expliziter Household-Freigabe.
 - `ingredient_dictionary` bleibt absichtlich `global`:
   `GET`/`match` public read, `POST` admin-only mutation.
 - Extract-Job-Daten bleiben `user-scoped`, aber nur in-memory und ohne
@@ -26,7 +23,6 @@ Offene, aber bewusst akzeptierte Sonderfaelle:
 - `workspace-scoped`
 - `global`
 - `admin-only`
-- `server-scoped-singleton`
 - `disabled`
 - `open-by-design`
 
@@ -49,8 +45,9 @@ Zusatzmarker:
 | `extract/react/:jobId` GET/DELETE | Server + in-memory | `user-scoped` | inline ownership check | owning user only | owning user only | medium | boundary is correct, but stays middleware-free by design |
 | `keys/validate` | Server + DB rate-limit table | `user-scoped` | `requireUserAuth` | caller only | caller only | low | — |
 | `push/subscribe` | Server + RLS | `user-scoped` | `requireUserAuth` | caller only | caller only | low | — |
-| `cookidoo/status` | Server (disk) | `server-scoped-singleton` | `requireUserAuth` | any authenticated user can observe global connection state | — | medium | interim only; replace with user-default + optional household-share |
-| `cookidoo/credentials` | Server (disk) | `server-scoped-singleton` | `requireUserAuth` | no direct readback of secret | any authenticated user can replace/delete global credentials | medium | replace with user-default + optional household-share; old global file gets dropped |
+| `cookidoo/status` | Server + Postgres | `user-scoped` with optional `workspace-scoped` fallback | `requireUserAuth` | caller sees resolved scope (`user > household > none`) plus household-share flag | — | low | implemented |
+| `cookidoo/credentials` | Server + Postgres | private `user-scoped` row | `requireUserAuth` | no direct readback of secret | caller only mutates own private row | low | implemented |
+| `cookidoo/credentials/share` | Server + Postgres | explicit `workspace-scoped` share | `requireUserAuth` | household members can use shared credentials via resolver | active-household owner only | low | implemented |
 | `pinterest/*`, `facebook/*` | Server | `disabled` | `requireUserAuth` | — | — | low | stays `501` until real model exists |
 | `dictionary` GET | Server | `global` `read-only` | none | public | — | low | intentional public read |
 | `dictionary/match` GET | Server | `global` `read-only` | none | public | — | low | intentional public read |
@@ -73,6 +70,7 @@ Zusatzmarker:
 | `user_default_households` | Postgres + RLS | `user-scoped` pointer into workspace | caller only | caller only via bootstrap/system helpers | low | — |
 | `push_subscriptions` | Postgres + RLS | `user-scoped` | caller only | caller only | low | — |
 | `byok_validation_rate_limits` | Postgres | `user-scoped` | backend-only; user influence via own validate calls | backend-only for caller's own rows | low | no UI needed for ownership track |
+| `cookidoo_credentials` | Postgres | private `user-scoped` or explicit `workspace-scoped` | backend-only; effective access via resolver `user > household` | private row by caller, household row by owner-only share route | low | implemented 2026-06-15 |
 | `api_keys` | removed | deleted | — | — | — | already dropped |
 
 ## Local / Device Persistence
@@ -90,20 +88,12 @@ Zusatzmarker:
 
 | Surface | Layer | Owner model | Persistence | Read boundary | Write boundary | Risk | Required action |
 |---|---|---|---|---|---|---|---|
-| Cookidoo credentials file + session cache | Server disk + memory | `server-scoped-singleton` | survives restart | any authenticated user sees status only | any authenticated user can replace/delete | medium | temporary state only; target plan removes singleton semantics |
 | Extract job registry | Server memory | `user-scoped` `transient` | lost on restart | owner only | owner only | low | acceptable for polling workflow |
 | `photoDataStore` / `textDataStore` | Server memory | `user-scoped` `transient` | lost on restart | internal only | internal only | low | ephemeral by design |
 
 ## Findings
 
 ### P1
-
-- `cookidoo/credentials` is still a shared server singleton behind user auth.
-  That is not a leak anymore, but it is not true per-user ownership either.
-  Follow-up is now explicit: user-default with optional household-share, global
-  legacy credentials dropped on migration.
-
-### P2
 
 - `ingredient_dictionary` intentionally mixes public read with admin-only write.
   This is acceptable because the product position is "shared system dictionary",
@@ -122,6 +112,4 @@ separierte Produktarbeit:
 - Workspace invitations
 - Multi-workspace switching
 - Recipe sharing / collections / favorites
-- Cookidoo user-default ownership with optional explicit household-share:
-  [2026-06-15-cookidoo-user-household-ownership-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-cookidoo-user-household-ownership-plan.md)
 - full credential ownership beyond the remaining interim states

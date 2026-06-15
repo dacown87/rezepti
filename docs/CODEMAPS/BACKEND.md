@@ -39,7 +39,8 @@ Main HTTP server using Hono framework. Serves:
 | `/api/v1/planner/:id` | DELETE | Remove from meal plan |
 | `/api/v1/planner/week/:weekStart` | DELETE | Clear week |
 | `/api/v1/cookidoo/status` | GET | Cookidoo connection status |
-| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove credentials |
+| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove private credentials |
+| `/api/v1/cookidoo/credentials/share` | POST/DELETE | Share/unshare private credentials with active household |
 | `/api/v1/health` | GET | Server + DB status |
 
 ## Pipeline Module

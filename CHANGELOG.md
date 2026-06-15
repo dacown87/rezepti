@@ -78,6 +78,10 @@
 
 ## [1.0.145] – 2026-06-12
 
+- Cookidoo ownership ist jetzt von der globalen Server-Singleton-Semantik auf private User-Credentials mit optionaler expliziter Household-Freigabe umgestellt. `cookidoo_credentials` haelt Credentials und Session scoped in Postgres, `GET /api/v1/cookidoo/status` liefert den aufgeloesten Scope, und Share/Unshare laeuft ueber neue Owner-gated Endpunkte.
+- Der Cookidoo-Fetcher liest keine globalen Disk-Credentials oder `cookidoo-session.json` mehr. Background-Jobs snapshotten `activeHouseholdId`, damit Settings-Flow und Async-Extraktion denselben Resolver `user > household > none` verwenden.
+- Die Settings-UI zeigt jetzt die echten Scope-Zustaende `Privat verbunden` / `Ueber Haushalt verbunden`, trennt privates Speichern von Household-Share und nutzt dedizierte API-Helper statt inline Singleton-Calls.
+
 - add @emnapi/core and @emnapi/runtime as optionalDependencies to fix CI lock file sync
 - S3 route auth inventory — add requireUserAuth to images/search, update CLAUDE.md
 - update cold-start cache test to expect legacy-key cleanup call

@@ -115,20 +115,22 @@ article, main, .post-content, .entry-content
 
 **Location:** `src/fetchers/cookidoo.ts`
 
-**Purpose:** Cookidoo.de recipe extraction via OAuth2
+**Purpose:** Cookidoo.de recipe extraction via scoped web-login session
 
 **Auth Flow:**
-- ROPC (Resource Owner Password Credentials) flow
-- Hardcoded client credentials (public in app binary)
-- Token refresh on 401/403
+- CF-clearance bootstrap via local scraper service
+- Manual redirect-following login against Vorwerk CIAM
+- Scoped session invalidation on 401/403
 
 **Endpoints:**
-- Auth: `POST https://eu.tmmobile.vorwerk-digital.com/ciam/auth/token`
-- Recipes: `GET https://eu.tmmobile.vorwerk-digital.com/api/v1/recipes/{id}`
+- Clearance: `POST {CF_SCRAPER_URL}/cf-clearance-scraper`
+- Login: `GET cookidoo.de/profile/...` -> `POST ciam.prod.cookidoo.vorwerk-digital.com/login-srv/login`
+- Recipes: standard authenticated HTML fetch against `cookidoo.de`
 
 **Session Management:**
-- Stored in `data/cookidoo-session.json`
-- Auto-refresh 60 seconds before expiry
+- Stored per scope in `cookidoo_credentials.session_*`
+- In-memory cache plus scoped DB writeback
+- Legacy disk files are ignored and removed best-effort
 
 **Strategy:**
 1. Fast path: Schema.org JSON-LD in response

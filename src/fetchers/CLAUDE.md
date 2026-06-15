@@ -3,54 +3,41 @@
 ## Cookidoo (`cookidoo.ts`)
 
 ### Übersicht
-Cookidoo-Rezepte werden per OAuth 2.0 (ROPC-Flow) abgerufen. Kein Headless-Browser, kein Scraping mit Cookies — ausschließlich Bearer-Token via Vorwerk Mobile App API.
+Cookidoo-Rezepte werden ueber den echten Web-Login-Flow von cookidoo.de
+abgerufen. Der Fetcher nutzt den lokalen CF-Clearance-Scraper fuer WAF-Cookies,
+folgt den Redirects manuell und speichert die resultierende Web-Session scoped
+in Postgres statt in einer globalen Datei.
 
 ### Auth-Flow
 
-**Endpunkt:**
-```
-POST https://eu.tmmobile.vorwerk-digital.com/ciam/auth/token
-```
-
-**Headers:**
-```
-Authorization: Basic a3VwZmVyd2Vyay1jbGllbnQtbndvdDpMczUwT04xd295U3FzMWRDZEpnZQ==
-Content-Type: application/x-www-form-urlencoded
-```
-> Der Basic-Auth-Wert ist die hardcodierte Client-ID/Secret der Vorwerk-App — kein privates Secret, bereits öffentlich im App-Binary.
-
-**Login-Body:**
-```
-grant_type=password&username=EMAIL&password=PASSWORD
-```
-
-**Refresh-Body:**
-```
-grant_type=refresh_token&refresh_token=TOKEN
-```
-
-**Response:**
-```json
-{ "access_token": "...", "refresh_token": "...", "expires_in": 3600 }
-```
-
-**Rezeptseiten:** `Authorization: Bearer {access_token}`
+1. `POST {CF_SCRAPER_URL}/cf-clearance-scraper` fuer eine frische WAF-Session
+2. `GET https://cookidoo.de/profile/de-DE/login?redirectAfterLogin=%2F`
+3. Redirect-Folge zu Vorwerk CIAM, `requestId` extrahieren
+4. `POST https://ciam.prod.cookidoo.vorwerk-digital.com/login-srv/login`
+   mit Formularfeldern `requestId`, `username`, `password`
+5. Erfolgsfall: Session-Cookies inklusive `v-authenticated`
+6. Rezeptseiten werden anschliessend mit Cookie-Header und passendem
+   User-Agent geladen
 
 ### Session-Management
 
-- Session (`access_token`, `refresh_token`, `expires_at`) wird in **`data/cookidoo-session.json`** gespeichert
-- Token-Ablauf: 60 Sekunden Puffer (`EXPIRY_BUFFER_MS`)
-- Priorität: In-Memory-Cache → Disk → Token-Refresh → Full Login
-- Bei 401/403: Session löschen, einmal neu einloggen
+- Session-Felder (`session_cookies`, `session_user_agent`,
+  `session_expires_at`) liegen in `public.cookidoo_credentials`
+- Prioritaet: In-Memory-Cache -> scoped DB-Session -> Full Web Login
+- Bei `401/403`: nur die Session des betroffenen Scopes loeschen, dann einmal
+  neu einloggen
+- Legacy-Dateien `data/cookidoo-session.json` und
+  `data/cookidoo-credentials.json` werden nicht mehr gelesen, nur best-effort
+  entfernt
 
 ### Konfiguration
 
-```
-COOKIDOO_EMAIL=...     # in .env
-COOKIDOO_PASSWORD=...  # in .env
-```
-
-Zugriff via `config.cookidoo.email` / `config.cookidoo.password`
+- Credentials kommen nicht mehr aus `.env` oder `config.cookidoo.*`
+- Aufloesung erfolgt serverseitig ueber `resolveCookidooCredentials(...)`
+  mit Prioritaet `user > household > none`
+- BYOK bleibt davon unberuehrt; nur der Connector-Scope wurde umgebaut
+- Optionaler Laufzeit-Parameter: `CF_SCRAPER_URL` fuer den lokalen Clearance-
+  Service
 
 ### Scraping-Strategie
 
@@ -59,17 +46,21 @@ Zugriff via `config.cookidoo.email` / `config.cookidoo.password`
 
 ### Bekannte Einschränkungen
 
-- `BASIC_AUTH` ist hardcodiert — wenn Vorwerk das ändert, muss der Wert aktualisiert werden
-- `doLogin()` und `doRefresh()` sind strukturell sehr ähnlich (bewusstes Trade-off, YAGNI)
-- Kein Android-Support für `node:fs` — bei Android-Migration muss die Session-Persistenz ersetzt werden
+- Der Auth-Pfad braucht einen laufenden lokalen CF-Clearance-Scraper
+- Background-Jobs muessen `activeHouseholdId` snapshotten, damit Household-
+  Fallback im Async-Pfad denselben Resolver nutzen kann
+- Ohne gespeicherte scoped Credentials faellt der Fetcher auf unauthenticated
+  HTML-Fetches zurueck; damit fehlen je nach Seite echte Steps/Details
 
 ### Relevante Dateien
 
 | Datei | Zweck |
 |---|---|
 | `src/fetchers/cookidoo.ts` | Fetcher (diese Datei) |
+| `src/db-react.ts` | Scoped Credential-Resolver + Session-Writeback |
+| `src/routes/platforms.ts` | Private Save/Delete + Household Share/Unshare |
 | `src/types.ts` | `SourceType` enthält `"cookidoo"` |
 | `src/classifier.ts` | Regex `/cookidoo\.de\//i` |
 | `src/pipeline.ts` | `case "cookidoo"` im Switch |
-| `src/config.ts` | `config.cookidoo.{email,password}` |
-| `data/cookidoo-session.json` | Persistente Session (gitignored) |
+| `src/routes/extraction.ts` / `src/job-manager.ts` | Snapshot von `activeHouseholdId` fuer Background-Jobs |
+| `supabase/migrations/20260615170413_cookidoo_credentials_scoped.sql` | Scoped DB-Tabelle |

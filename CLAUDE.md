@@ -104,7 +104,8 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/health` | GET | Server + DB status, open by design |
 | `/api/v1/images/search` | GET | Search recipe image suggestions, `requireUserAuth` |
 | `/api/v1/cookidoo/status` | GET | Cookidoo connection status, `requireUserAuth` |
-| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, `requireUserAuth` (current state: server-scoped-singleton; target state: user-default with optional household share — see 2026-06-15 plan) |
+| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove the caller's private Cookidoo credentials, `requireUserAuth` |
+| `/api/v1/cookidoo/credentials/share` | POST/DELETE | Share/unshare the caller's private Cookidoo credentials with the active household, `requireUserAuth` (owner-only mutation) |
 | `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/push/subscribe` | POST/DELETE | Register/remove a Web Push subscription, `requireUserAuth` |
@@ -127,8 +128,8 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `auth/bootstrap` | Server + DB | user-scoped bootstrap with household side-effect | `requireUserAuth` | caller | caller | low | — |
 | extraction jobs create/list | Server | user-scoped | `requireUserAuth` | user | user | low | — |
 | extraction job poll/cancel | Server | user-scoped | inline ownership check | owner | owner | medium | middleware-free by design |
-| `cookidoo/credentials` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | any-authed | medium | current interim only; target is user-default + optional household-share (plan 2026-06-15) |
-| `cookidoo/status` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | — | low | current interim only; target is scoped status resolution |
+| `cookidoo/credentials` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | resolved scope (`user > household`) | private row by caller; household share by active-household owner only | low | implemented 2026-06-15; legacy disk singleton removed |
+| `cookidoo/status` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | caller sees resolved scope + share flag | — | low | returns `scope`, `connected`, `sharedByCurrentHousehold` |
 | Pinterest / Facebook routes | Server | disabled | `requireUserAuth` + 501 | — | — | low | — |
 | `/api/v1/proxy/image` | Server | open-by-design | none | public | — | low | SSRF-guarded, needed for PDF export |
 | `/api/v1/health` | Server | open-by-design | none | public | — | low | — |
