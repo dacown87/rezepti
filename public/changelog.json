@@ -1,6 +1,11 @@
 {
-  "version": "1.0.164",
+  "version": "1.0.165",
   "entries": [
+    {
+      "version": "1.0.165",
+      "date": "2026-06-15",
+      "changes": []
+    },
     {
       "version": "1.0.164",
       "date": "2026-06-14",
@@ -178,15 +183,10 @@
         "entkoppelt den mobilen Web-Auth-Startpfad durch lazy geladene Auth-Observer und Cache-Watcher",
         "zieht die Performance-Baselines fuer den stabilen Juni-Web-Export nach"
       ]
-    },
-    {
-      "version": "1.0.133",
-      "date": "2026-06-07",
-      "changes": []
     }
   ],
   "lastUpdated": {
-    "date": "2026-06-14",
-    "time": "15:53"
+    "date": "2026-06-15",
+    "time": "20:08"
   }
 }
