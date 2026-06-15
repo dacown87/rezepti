@@ -73,7 +73,7 @@ Stand 2026-06-02: Die alte Lueckenliste wurde gegen den aktuellen Testbestand ab
   - **T6** (`test/unit/cookidoo-credentials.test.ts`): Unauth-denied-Tests fuer Cookidoo-Credentials-Routen — `POST`/`DELETE` ohne Bearer → 401, Email-Leak aus `status` behoben, Disney TOCTOU-safe atomic write.
   - **T6** (`test/unit/planner-auth-routes.test.ts`): Unauth-denied-Tests erweitert fuer Pinterest/Facebook-Stub-Routes — 501 + `requireUserAuth`.
   - **T12** (`mobile/test/query-client-auth-cache.test.ts`): Cold-Start-Cache-Isolation — Keys match → kein Clear; Keys differ → Clear + RemoveItem. Legacy-Key-Cleanup (QUERY_CACHE_STORAGE_KEY) wird explizit assertiert. 4/4 Tests gruen.
-  - **T13** (`test/unit/planner-routes.test.ts` oder Inline): ingredient_dictionary POST-Auth: `requireAuth` ist vorhanden (Code-verifiziert); formaler unauth-denied Contract-Test steht noch aus (als T12-Followup in TODO eingetragen).
+  - **T13** (`test/unit/planner-auth-routes.test.ts`): ingredient_dictionary POST-Auth ist explizit per Contract-Test abgesichert: ohne Bearer `401 auth_missing`, als Non-Admin `403 admin_required`.
   - **Session-Persistence-Suite** (`mobile/test/session-persistence.test.ts`): Session-Restore-Interstitial (T11), INITIAL_SESSION-Handling, Hot-Switch-Clear-Flow — Grundabdeckung gruen.
   - `/api/v1/images/search` nun `requireUserAuth`-gated (S3-Fund, kein dedizierter Test noetig — Auth-Middleware deckt dies ab).
   - Verifiziert mit: `npm test -- --run --exclude=test/e2e/**` (40/41 pass; `secret-scan.test.ts` ist Windows-lokaler Shebang-Flake, auf Linux/CI gruen), `npm run test:mobile -- --run` (21 pass), `npm run test:mobile:rntl-guard` (OK), `npx tsc --noEmit` (clean).

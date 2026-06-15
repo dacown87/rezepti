@@ -104,7 +104,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/health` | GET | Server + DB status, open by design |
 | `/api/v1/images/search` | GET | Search recipe image suggestions, `requireUserAuth` |
 | `/api/v1/cookidoo/status` | GET | Cookidoo connection status, `requireUserAuth` |
-| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, `requireUserAuth` (server-scoped-singleton — any authenticated user writes global disk file) |
+| `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove Cookidoo credentials, `requireUserAuth` (current state: server-scoped-singleton; target state: user-default with optional household share — see 2026-06-15 plan) |
 | `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/push/subscribe` | POST/DELETE | Register/remove a Web Push subscription, `requireUserAuth` |
@@ -116,7 +116,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/planner` | GET/POST/DELETE | Meal planner CRUD, `requireAuth` (household-scoped) |
 | `/api/v1/auth/bootstrap` | POST | Bootstrap user account after first sign-in, `requireUserAuth` |
 
-BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths. No server-side key storage (the api_keys store was removed).
+BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths. No server-side key storage (the api_keys store was removed). If no user BYOK key is supplied, Groq calls continue to fall back to the server-side `GROQ_API_KEY`.
 
 ## Route Auth Inventory (S3, 2026-06-12)
 
@@ -124,14 +124,17 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 |---------|-------|-------------|------|---------------|----------------|------|--------|
 | `recipes` | Server + RLS | user/household | `requireUserAuth` + `recipeVisibilityForAuth` | owner | owner | low | — |
 | `planner` / `shopping` | Server + RLS | household-scoped | `requireAuth` | household | household | low | — |
-| extraction jobs | Server | user-scoped | `requireUserAuth` | user | user | low | — |
-| `cookidoo/credentials` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | any-authed | medium | admin/global by design — single-tenant |
-| `cookidoo/status` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | — | low | — |
+| `auth/bootstrap` | Server + DB | user-scoped bootstrap with household side-effect | `requireUserAuth` | caller | caller | low | — |
+| extraction jobs create/list | Server | user-scoped | `requireUserAuth` | user | user | low | — |
+| extraction job poll/cancel | Server | user-scoped | inline ownership check | owner | owner | medium | middleware-free by design |
+| `cookidoo/credentials` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | any-authed | medium | current interim only; target is user-default + optional household-share (plan 2026-06-15) |
+| `cookidoo/status` | Server (disk) | server-scoped-singleton | `requireUserAuth` | any-authed | — | low | current interim only; target is scoped status resolution |
 | Pinterest / Facebook routes | Server | disabled | `requireUserAuth` + 501 | — | — | low | — |
 | `/api/v1/proxy/image` | Server | open-by-design | none | public | — | low | SSRF-guarded, needed for PDF export |
 | `/api/v1/health` | Server | open-by-design | none | public | — | low | — |
 | `ingredient_dictionary` GET | Server | global read-only | none | public | — | low | intentional public read |
-| `ingredient_dictionary` POST/match | Server | global mutation | `requireAuth` | public | any-authed | medium | TODO: add unauth-denied contract test |
+| `ingredient_dictionary/match` GET | Server | global read-only | none | public | — | low | intentional public read |
+| `ingredient_dictionary` POST | Server | admin-only global mutation | `requireAuth` + admin gate | — | admin only | medium | unauth + non-admin contract tests present |
 | `/api/v1/images/search` | Server | user-scoped | `requireUserAuth` | — | — | low | added auth 2026-06-12 — prevents unauthenticated Unsplash credit drain |
 | `api_keys` table | DB | deleted | — | — | — | — | dropped in migration 20260609143000 |
 | `push_subscriptions` | Server + RLS | user-scoped | `requireUserAuth` | owner | owner | low | — |

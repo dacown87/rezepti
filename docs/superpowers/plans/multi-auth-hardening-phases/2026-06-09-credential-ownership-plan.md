@@ -65,14 +65,18 @@ Kandidaten + verifizierter Ist-Zustand + Zielregel (/autoplan 2026-06-09):
 |------|---------------------------|-----------|
 | `/api/v1/keys` POST/DELETE/validate (`src/routes/keys.ts`) | **kein Auth**; `DELETE` per Hash ohne Owner-Check | `requireUserAuth` pro Route; Store droppen (siehe unten) |
 | `api_keys`-Persistenz (`src/db-react.ts`, `schema.ts`) | **totes Table**: `getApiKeyByHash` hat 0 Aufrufer, `userId` immer null, jede Zeile Waise; BYOK laeuft real ueber `x-groq-key`-Header | **droppen** statt scopen (keine Migration noetig) |
-| Cookidoo (`src/routes/platforms.ts`, `src/fetchers/cookidoo.ts`) | **kein Auth**; globale Plaintext-Disk-Datei; `cookidoo/status` leakt Account-Email | `admin/global` + ehrliche Copy; Email aus `status` strippen |
+| Cookidoo (`src/routes/platforms.ts`, `src/fetchers/cookidoo.ts`) | **kein Auth**; globale Plaintext-Disk-Datei; `cookidoo/status` leakt Account-Email | Hotfix-Zwischenregel war `admin/global` + ehrliche Copy; neuer Folgeplan ersetzt das durch user-default + optional household-share |
 | Pinterest-Credentials (`platforms.ts`) | **kein Auth**; Connector 0% (unfertig) | `disabled` (501) |
 | Facebook-Cookies (`platforms.ts`) | **kein Auth**; Connector unfertig | `disabled` (501) |
 | `/api/v1/proxy/image` (`platforms.ts:181`) | unauth **by design** (PDF-Export, pre-auth), hat SSRF-Guard | **offen lassen** — NICHT Router-weit blanket-authen |
 
 Konsequenz: kein Router-weites `requireAuth` (wuerde PDF-Export brechen), sondern Auth
-pro Credential-Route. BYOK-Groq-Key bleibt user-lokal (SecureStore); der serverseitige
-Hash-Store entfaellt.
+pro Credential-Route. BYOK-Groq-Key bleibt user-lokal (SecureStore) mit
+Server-Fallback bei fehlendem User-Key; der serverseitige Hash-Store entfaellt.
+
+Cookidoo ist fuer den Hotfix bewusst global geblieben, hat jetzt aber einen
+eigenen Folgeplan fuer das Zielmodell:
+[2026-06-15-cookidoo-user-household-ownership-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-cookidoo-user-household-ownership-plan.md).
 
 ### Schritt 2: Zwischenregel statt Wunschmodell
 

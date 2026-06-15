@@ -5,6 +5,9 @@ import { requireUserAuth } from "../auth.js";
 const app = new Hono();
 
 // Cookidoo credentials management
+// Intentional interim boundary: this is a server-scoped singleton for the
+// current single-tenant deployment. Any authenticated user can update or clear
+// the stored Cookidoo credentials until a real workspace-scoped model exists.
 app.get("/api/v1/cookidoo/status", requireUserAuth(), (c) => {
   try {
     const status = getSessionStatus();
