@@ -112,11 +112,18 @@ export class JobManager {
     Object.assign(job, { status: "completed", progress: 100, result, completedAt: now, updatedAt: now });
     if (job.userId) {
       const sender = this.deps.pushSender;
-      if (sender || await configureVapid()) {
-        const name = result?.recipe?.name ?? "Dein Rezept";
-        const id = result?.recipeId;                // NOT result.recipe.id
-        const payload: PushPayload = { title: "Rezept fertig 🍳", body: name, url: id ? `/recipe/${id}` : "/" };
-        void (sender ?? sendPushToUser)(job.userId, payload).catch(() => {});
+      const name = result?.recipe?.name ?? "Dein Rezept";
+      const id = result?.recipeId;                // NOT result.recipe.id
+      const payload: PushPayload = { title: "Rezept fertig 🍳", body: name, url: id ? `/recipe/${id}` : "/" };
+      if (sender) {
+        void sender(job.userId, payload).catch(() => {});
+      } else {
+        void configureVapid()
+          .then((ready) => {
+            if (!ready) return;
+            return sendPushToUser(job.userId!, payload);
+          })
+          .catch(() => {});
       }
     }
     return true;
