@@ -12,6 +12,7 @@ import {
   householdMemberships,
   userDefaultHouseholds,
   pushSubscriptions,
+  byokValidationRateLimits,
 } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
@@ -108,6 +109,8 @@ function getDb() {
         households,
         householdMemberships,
         userDefaultHouseholds,
+        pushSubscriptions,
+        byokValidationRateLimits,
       },
     });
   }
@@ -649,6 +652,56 @@ export async function ensureDefaultHouseholdForUser(userId: string): Promise<{ c
   });
 }
 
+export async function recordByokValidationAttempt(
+  userId: string,
+  keyHash: string,
+  windowMinutes = 60,
+  maxRequests = 20,
+): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+  const db = getDb();
+  const now = new Date();
+  const windowMs = windowMinutes * 60 * 1000;
+  const windowStart = new Date(Math.floor(now.getTime() / windowMs) * windowMs);
+  const resetTime = windowStart.getTime() + windowMs;
+  const cleanupBefore = new Date(now.getTime() - (windowMs * 24));
+
+  await db
+    .delete(byokValidationRateLimits)
+    .where(sql`${byokValidationRateLimits.windowStart} < ${cleanupBefore}`);
+
+  const [row] = await db
+    .insert(byokValidationRateLimits)
+    .values({
+      userId,
+      keyHash,
+      windowStart,
+      requestCount: 1,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        byokValidationRateLimits.userId,
+        byokValidationRateLimits.keyHash,
+        byokValidationRateLimits.windowStart,
+      ],
+      set: {
+        requestCount: sql`${byokValidationRateLimits.requestCount} + 1`,
+        updatedAt: now,
+      },
+    })
+    .returning({
+      requestCount: byokValidationRateLimits.requestCount,
+    });
+
+  const requestCount = row?.requestCount ?? 1;
+
+  return {
+    allowed: requestCount <= maxRequests,
+    remaining: Math.max(0, maxRequests - requestCount),
+    resetTime,
+  };
+}
+
 export async function getAccountBootstrapStatus(userId: string): Promise<AccountBootstrapStatus | null> {
   const db = getDb();
 
@@ -879,4 +932,3 @@ export async function deletePushSubscriptionById(id: number): Promise<void> {
   const db = getDb();
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, id));
 }
-

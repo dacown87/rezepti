@@ -17,6 +17,8 @@ vi.mock('../../src/fetchers/cookidoo.js', () => cookidooMocks)
 
 const byokMocks = vi.hoisted(() => ({
   BYOKValidator: {
+    hashKey: vi.fn((key: string) => `hash:${key}`),
+    checkRateLimit: vi.fn(async () => ({ allowed: true, remaining: 19, resetTime: 1234567890 })),
     validateKey: vi.fn(),
   },
 }))
@@ -130,6 +132,53 @@ describe('Cookidoo + BYOK route auth boundary (no token → 401)', () => {
     await expect(res.json()).resolves.toMatchObject({
       error: { code: 'auth_missing' },
     })
+    expect(byokMocks.BYOKValidator.checkRateLimit).not.toHaveBeenCalled()
+    expect(byokMocks.BYOKValidator.validateKey).not.toHaveBeenCalled()
+  })
+})
+
+describe('BYOK validation rate limit', () => {
+  afterEach(() => {
+    resetAuthAdaptersForTests()
+  })
+
+  it('returns 429 before live key validation when the validation limit is exhausted', async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'user@example.com',
+      }),
+      loadAuthorization: async () => ({
+        appRole: 'user' as const,
+        memberships: [],
+        activeHouseholdId: null,
+      }),
+    })
+    byokMocks.BYOKValidator.checkRateLimit.mockResolvedValueOnce({
+      allowed: false,
+      remaining: 0,
+      resetTime: 1234567890,
+    })
+
+    const res = await keysRouter.request(
+      '/api/v1/keys/validate',
+      new Request('http://localhost/api/v1/keys/validate', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer valid-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey: 'gsk_some_key_1234567890' }),
+      }),
+    )
+
+    expect(res.status).toBe(429)
+    await expect(res.json()).resolves.toMatchObject({
+      code: 'byok_validation_rate_limited',
+      remaining: 0,
+      resetTime: 1234567890,
+    })
+    expect(byokMocks.BYOKValidator.hashKey).toHaveBeenCalledWith('gsk_some_key_1234567890')
     expect(byokMocks.BYOKValidator.validateKey).not.toHaveBeenCalled()
   })
 })

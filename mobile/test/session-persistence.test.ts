@@ -267,6 +267,32 @@ describe('session-restoring interstitial state', () => {
     vi.clearAllMocks();
   });
 
+  it('clears sessionRestoring immediately when Supabase is not configured', async () => {
+    vi.doMock('@/utils/auth', () => ({
+      getSupabaseClient: () => null,
+    }));
+
+    const {
+      getSessionRestoring,
+      subscribeSessionRestoring,
+      watchAuthQueryCache,
+    } = await import('@/utils/query-client');
+
+    expect(getSessionRestoring()).toBe(true);
+
+    const listener = vi.fn();
+    const unsubscribeListener = subscribeSessionRestoring(listener);
+
+    const stopWatching = await watchAuthQueryCache();
+
+    expect(getSessionRestoring()).toBe(false);
+    expect(listener).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledWith(false);
+
+    unsubscribeListener();
+    stopWatching();
+  });
+
   it('getSessionRestoring() starts true and becomes false after the first auth event', async () => {
     const authStateCallbacks: AuthStateChangeCallback[] = [];
     const unsubscribe = vi.fn();

@@ -147,3 +147,19 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
 ]);
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type NewPushSubscriptionRow = typeof pushSubscriptions.$inferInsert;
+
+export const byokValidationRateLimits = pgTable("byok_validation_rate_limits", {
+  userId: uuid("user_id").notNull(),
+  keyHash: text("key_hash").notNull(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  requestCount: integer("request_count").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (t) => [
+  primaryKey({
+    columns: [t.userId, t.keyHash, t.windowStart],
+    name: "byok_validation_rate_limits_pkey",
+  }),
+  index("byok_validation_rate_limits_user_window_idx").on(t.userId, t.windowStart),
+]);
+export type ByokValidationRateLimitRow = typeof byokValidationRateLimits.$inferSelect;

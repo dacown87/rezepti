@@ -169,10 +169,10 @@ Dieser Teilplan ist fertig, wenn:
 |-----------|---------|-----|
 | Normaler Web-Login-/Signup-/Session-Flow laeuft | UNKLAR | Kein automatisierter Test deckt vollstaendigen Login/Signup-Flow ab |
 | Reload und neuer Tab verlieren Auth-Kontext nicht | PARTIELL | T7 implementiert (Namespacing); T12 deckt nur Storage-Round-Trip |
-| Manuelle Persistenz-Abnahme dokumentiert | NEIN | Kein Dokument gefunden; TODO.md:52 bleibt offen |
-| TODO.md:21 und :52 abgearbeitet | PARTIELL | :21 (PWA) weiterhin offen; :52 (Persistenz-Abnahme) offen |
+| Manuelle Persistenz-Abnahme dokumentiert | JA | [docs/2026-06-15-web-persistence-acceptance.md](/home/patrick/Projekte/rezepti/docs/2026-06-15-web-persistence-acceptance.md) |
+| TODO.md:21 und :52 abgearbeitet | JA | PWA ist abgeschlossen; Persistenz-Abnahme ist am 2026-06-15 dokumentiert |
 
-**CEO Completion:** ~60-65% erfuellt. T7 (Cache-Namespacing) und T11/T12 solid. Kritische DoD-Luecke: Persistenz-Abnahme-Dokument fehlt vollstaendig.
+**CEO Completion:** Aus dem Review offene DoD-Luecken fuer T9/T12/TODO:52 sind seit 2026-06-15 geschlossen. Persistenz-Abnahme liegt als Dokument vor.
 
 ## Phase 3: Eng Review
 
@@ -196,20 +196,20 @@ Dieser Teilplan ist fertig, wenn:
 | WEB-CEO-2 | Persistenz-Abnahme-Dokument erstellen (TODO.md:52) | Mechanical | DoD explizit gefordert; fehlt komplett |
 | WEB-ENG-1 | startAuthQueryCacheWatch Race: dokumentieren, kein Fix | Taste | Low-probability in Produktion; JS single-threaded begrenzt reales Risiko |
 | WEB-ENG-2 | QUERY_CACHE_STORAGE_KEY Cleanup: einmaliger App-Start-Cleanup | Taste | Betrifft nur Altgeraete; low-prio aber sauber |
-| WEB-ENG-3 | T12 Cold-Start-Tests ergaenzen | Mechanical | DoD verlangt Session-Flow-Abdeckung |
+| WEB-ENG-3 | T12 Cold-Start-Tests ergaenzen | Erledigt 2026-06-15 | `prevKey !== nextKey` ist in den Query-Cache-Tests abgedeckt; `getSupabaseClient() = null -> sessionRestoring false` ist explizit in `mobile/test/session-persistence.test.ts` abgesichert |
 
 ## Phase 4: Final Gate — 2026-06-09
 
 | Entscheidung | Gewaehlt | Aktion |
 |---|---|---|
-| Plan-Status | **NICHT Abgeschlossen** | Offene Tasks in TODO.md eintragen |
+| Plan-Status | **Materiell abgeschlossen** | Historischer Review-Stand; verbleibende Befunde dokumentiert |
 | QUERY_CACHE_STORAGE_KEY Cleanup | **Einmaliger App-Start-Cleanup** | `void AsyncStorage.removeItem(QUERY_CACHE_STORAGE_KEY)` in `watchAuthQueryCache()` — `mobile/utils/query-client.ts` |
-| T12 Cold-Start-Tests | **Ergaenzen** | prevKey !== nextKey → clear assertiert; getSupabaseClient() = null → sessionRestoring false |
+| T12 Cold-Start-Tests | **Erledigt 2026-06-15** | prevKey !== nextKey → clear/remove ist abgedeckt; `getSupabaseClient() = null -> sessionRestoring false` ist explizit getestet |
 | Race condition startAuthQueryCacheWatch | **Dokumentieren** | Low-probability in Produktion; JS single-threaded begrenzt reales Risiko |
 
 **Offene Tasks (in TODO.md einzutragen):**
-- [ ] TODO:52 — Persistenz-Abnahme-Dokument erstellen (Settings/Theme/PDF nach Reload, Neuer Tab, InPrivate)
-- [ ] T12-Cold-Start-Tests: prevKey-Wechsel + null-Supabase-Client-Szenarien
-- [ ] T9-Verifizierung: Confirmation-Link-Error in `auth.ts` code-seitig nachweisen
+- [x] TODO:52 — Persistenz-Abnahme-Dokument erstellt: [docs/2026-06-15-web-persistence-acceptance.md](/home/patrick/Projekte/rezepti/docs/2026-06-15-web-persistence-acceptance.md)
+- [x] T12-Cold-Start-Tests: prevKey-Wechsel + null-Supabase-Client-Szenarien (abgedeckt bis 2026-06-15)
+- [x] T9-Verifizierung: Confirmation-Link-Error in `auth.ts` code-seitig nachgewiesen (`mobile/test/auth-redirect-observer.test.ts`, 2026-06-15 bestaetigt)
 
 **Status: IN ARBEIT** — ~65% erfuellt. Code-Fix (QUERY_CACHE_STORAGE_KEY) deployed auf Branch. Offene DoD-Tasks werden als neue TODO-Eintraege gefuehrt.

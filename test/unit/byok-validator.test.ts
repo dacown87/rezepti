@@ -20,9 +20,15 @@ const { mockOpenAI, OpenAIConstructor } = vi.hoisted(() => {
   return { mockOpenAI, OpenAIConstructor }
 })
 
+const dbMocks = vi.hoisted(() => ({
+  recordByokValidationAttempt: vi.fn(),
+}))
+
 vi.mock('openai', () => ({
   default: OpenAIConstructor,
 }))
+
+vi.mock('../../src/db-react.js', () => dbMocks)
 
 describe('BYOKValidator', () => {
   beforeEach(() => {
@@ -163,23 +169,31 @@ describe('BYOKValidator', () => {
   })
 
   describe('checkRateLimit', () => {
-    it('should always return allowed for now (placeholder implementation)', async () => {
-      const result = await BYOKValidator.checkRateLimit('test_hash_123')
+    it('returns the persisted DB-backed decision when a user id is provided', async () => {
+      dbMocks.recordByokValidationAttempt.mockResolvedValue({
+        allowed: true,
+        remaining: 19,
+        resetTime: 1234567890,
+      })
+
+      const result = await BYOKValidator.checkRateLimit('test_hash_123', 60, 20, 'user-1')
 
       expect(result.allowed).toBe(true)
-      expect(result.remaining).toBe(100)
+      expect(result.remaining).toBe(19)
+      expect(dbMocks.recordByokValidationAttempt).toHaveBeenCalledWith('user-1', 'test_hash_123', 60, 20)
     })
 
-    it('should include reset time in response', async () => {
+    it('includes reset time in fallback mode when no user id is provided', async () => {
       const before = Date.now()
       const result = await BYOKValidator.checkRateLimit('test_hash_456')
       const after = Date.now()
 
       expect(result.resetTime).toBeGreaterThanOrEqual(before)
       expect(result.resetTime).toBeLessThanOrEqual(after + 60 * 60 * 1000)
+      expect(dbMocks.recordByokValidationAttempt).not.toHaveBeenCalled()
     })
 
-    it('should respect custom max requests parameter', async () => {
+    it('respects custom parameters in fallback mode', async () => {
       const result = await BYOKValidator.checkRateLimit('test_hash_789', 30, 50)
 
       expect(result.allowed).toBe(true)

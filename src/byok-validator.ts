@@ -6,6 +6,7 @@
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { config } from "./config.js";
+import { recordByokValidationAttempt } from "./db-react.js";
 
 /**
  * BYOK validation result
@@ -152,22 +153,40 @@ export class BYOKValidator {
   /**
    * Rate limiting for BYOK keys (simple implementation)
    */
-  static async checkRateLimit(keyHash: string, windowMinutes = 60, maxRequests = 100): Promise<{
+  static async checkRateLimit(keyHash: string, windowMinutes?: number, maxRequests?: number): Promise<{
+    allowed: boolean;
+    remaining?: number;
+    resetTime?: number;
+  }>;
+  static async checkRateLimit(
+    keyHash: string,
+    windowMinutes: number,
+    maxRequests: number,
+    userId: string,
+  ): Promise<{
+    allowed: boolean;
+    remaining?: number;
+    resetTime?: number;
+  }>;
+  static async checkRateLimit(
+    keyHash: string,
+    windowMinutes = 60,
+    maxRequests = 100,
+    userId?: string,
+  ): Promise<{
     allowed: boolean;
     remaining?: number;
     resetTime?: number;
   }> {
-    // Simple in-memory rate limiting
-    // In production, use Redis or similar for distributed rate limiting
-    
-    // TODO: Implement proper rate limiting with persistence
-    // For now, always allow
-    
-    return {
-      allowed: true,
-      remaining: maxRequests,
-      resetTime: Date.now() + (windowMinutes * 60 * 1000),
-    };
+    if (!userId) {
+      return {
+        allowed: true,
+        remaining: maxRequests,
+        resetTime: Date.now() + (windowMinutes * 60 * 1000),
+      };
+    }
+
+    return recordByokValidationAttempt(userId, keyHash, windowMinutes, maxRequests);
   }
   
   /**
