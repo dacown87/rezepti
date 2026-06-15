@@ -12,24 +12,32 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 ## Naechste Reihenfolge
 
-1. **CI / Supabase / Northflank Track sauber remote verifizieren**
+1. **[x] Progressive Web App (PWA) — Phase 6 abgeschlossen (2026-06-13)**
+   - [x] Installierbare App-Shell mit Manifest, Service Worker, Offline-Read.
+   - [x] Homescreen-Installationspfad fuer iOS/Android implementiert.
+   - [x] Per-User-Cache-Boundary (SHA-256-Hashing, CLEAR_USER auf Logout).
+   - [x] Dokumentation: `docs/pwa-runbook.md` + PWA-Subsection in `CLAUDE.md`.
+   - Plan: `docs/superpowers/plans/2026-06-12-pwa-installable-shell-plan.md`
+   - **Reststatus nach Deploy-QA:** Der QA-Durchlauf ist laut [PWA Post-Deploy QA](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-13-pwa-post-deploy-qa.md) seit 2026-06-14 weitgehend abgeschlossen; der Prod-Lighthouse-Lauf gegen `https://p01--rezepti-app--2s7hvlwm5zc5.code.run` war am 2026-06-15 fuer die bestehende Route-/Viewport-Matrix gruen (`9/9` erfolgreich). Offene manuelle Restpruefung bleibt nur noch iOS, sobald wieder Hardware verfuegbar ist.
+
+2. **CI / Supabase / Northflank Track sauber remote verifizieren**
    - Der akute lokale Fix fuer den historischen `mobile-release-gate`-Blocker ist dokumentiert.
    - Offen ist vor allem der naechste Push-/PR-Lauf als echter Remote-Beweis fuer CI, Deploy und Workflow-Hygiene.
    - Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-2. **Produkt-/Ops-Follow-ups mit klarer Slice-Grenze**
+3. **Produkt-/Ops-Follow-ups mit klarer Slice-Grenze**
    - Cookidoo auf user-default mit optionalem Household-Share umbauen.
    - BYOK-Rate-Limit im Admin sichtbar und aenderbar machen.
    - Bug-Reporting-Flow als eigenen Slice planen und umsetzen.
    - Recipes Sharing/Favorites/Collections getrennt vom Ownership-Slice planen.
 
-3. **PWA nur noch als Rest-QA / optionale Nachpruefung**
+4. **PWA nur noch als Rest-QA / optionale Nachpruefung**
    - PWA Phase 6 ist abgeschlossen; der deployte QA-Durchlauf vom 2026-06-14 ist weitgehend gruen.
    - Live verifiziert sind Install, Persistenz, Cross-User-Cache-Isolation und Offline-Lesepfad.
    - Offen bleiben nur optionale bzw. nicht separat gepruefte Restpunkte wie Lighthouse-PWA-Audit und iOS-spezifische Install-/Share-Sheet-Checks.
    - Details: [PWA Post-Deploy QA](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-13-pwa-post-deploy-qa.md).
 
-4. **Spaeter oder trigger-basiert**
+5. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
    - `unused_index` erst nach Nutzungsperiode plus Staging-Plananalyse anfassen.
    - Northflank nur bei Deploy-Fehlern, Runtime-Warnungen, API-Aenderungen oder Auth-/Secret-Problemen im Workflow neu bewerten.
@@ -58,6 +66,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [ ] **BYOK-Rate-Limit im Admin sichtbar und aenderbar machen** — Im Admin-Bereich den aktiven Grenzwert und das Zeitfenster fuer `/api/v1/keys/validate` anzeigen und pflegbar machen, damit die serverseitige Begrenzung nicht nur im Code konfiguriert ist.
 - [ ] **Cookidoo-Credential-Ownership nachziehen** — Zielmodell festgelegt: private User-Credentials als Default, optional explizite Freigabe fuer den aktiven Haushalt; bisherige globale Server-Credentials werden beim Umstieg verworfen. Design: [2026-06-15-cookidoo-user-household-ownership-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-cookidoo-user-household-ownership-plan.md). Umsetzung: [2026-06-15-cookidoo-user-household-ownership-implementation-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-cookidoo-user-household-ownership-implementation-plan.md).
 - [ ] **Bug-Reporting-Flow planen und umsetzen** — Globalen Bug-Button, Importfehler-Report mit Modal, `bug_reports`-Tabelle, Admin-Uebersicht und kleinen Nutzerbereich `Meine Meldungen` in Settings als eigenen Slice umsetzen. Grobskizze: [2026-06-15-bug-reporting-design.md](/home/patrick/Projekte/rezepti/docs/superpowers/specs/2026-06-15-bug-reporting-design.md).
+- [ ] **PWA: Rest-QA nur noch iOS-Hardwarelauf** — Post-Deploy-QA ist weitgehend gruen; der Prod-Lighthouse-Lauf war am 2026-06-15 fuer die bestehende Matrix gruen. Die frueher notierten PWA-Audit-IDs (`installable-manifest`, `service-worker`, `offline-start-url`) stehen in `lighthouse@13.3.0` nicht mehr als verwertbarer Automationsnachweis zur Verfuegung; offen bleiben damit nur noch Safari-/Homescreen-Pruefungen, sobald wieder iOS-Hardware verfuegbar ist. Referenz: [PWA Post-Deploy QA](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-13-pwa-post-deploy-qa.md).
 - [ ] **PWA: Multi-Tab/Multi-Account SW-Limitation** — Known issue: single SW shares one currentUserHash; letzte SET_USER gewinnt. Aktuell ok fuer Single-Tenant; revisiten bei Multi-Account-Support. Dokumentiert in `docs/pwa-runbook.md`.
 - [ ] **Recipes Sharing/Favorites Folgeslices planen** — Teilen erzeugt Kopien; Favoriten/Collections werden eigene private oder haushaltsbezogene Owner-Objekte. Nicht in den aktuellen Ownership-Slice ziehen.
 

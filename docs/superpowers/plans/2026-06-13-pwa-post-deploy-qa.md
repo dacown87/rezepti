@@ -1,11 +1,11 @@
 # PWA Post-Deploy QA — Verifikationsplan
 
-Datum: 2026-06-13 (QA-Durchlauf abgeschlossen 2026-06-14)
-Status: **Weitgehend abgeschlossen** — alle headless/gerätebasiert prüfbaren Kriterien sind grün; nur das optionale Lighthouse-PWA-Audit ist offen.
+Datum: 2026-06-13 (QA-Durchlauf abgeschlossen 2026-06-14, Prod-Lighthouse-Matrix verifiziert 2026-06-15)
+Status: **Weitgehend abgeschlossen** — alle headless/geraetebasiert pruefbaren Kriterien sind gruen; offen bleibt nur noch die separate iOS-Hardware-Pruefung. Der frueher notierte Lighthouse-PWA-Restpunkt ist in der alten Form obsolet, weil `lighthouse@13.3.0` die historischen PWA-Audit-IDs nicht mehr als verwertbaren Automationsnachweis liefert.
 Owner: dacown / KI
 Trigger: PWA Installable Shell (Phasen 1-6) ist gemergt; alle Code-Deliverables sind unit-getestet (Mobile 211, Root 498), aber 11 Akzeptanzkriterien sind nur am **deployten** Build prüfbar.
 
-## QA-Durchlauf-Ergebnis (2026-06-14)
+## QA-Durchlauf-Ergebnis (2026-06-14 / 2026-06-15)
 
 Während der Geräte-QA gefunden und behoben (jeweils root-cause-untersucht, per TDD gefixt, gemergt, deployt):
 
@@ -15,6 +15,11 @@ Während der Geräte-QA gefunden und behoben (jeweils root-cause-untersucht, per
 - **Kein Update-Banner** → **kein Bug**: stilles Update beim Relaunch (kein wartender Worker) bzw. Server-only Deploys erzeugen byte-identisches `sw.js`. Erwartetes Verhalten.
 
 Cross-User-Cache-Isolation, Install, Persistenz und „stay logged in" wurden live verifiziert. Privacy-Boundary-Tests bleiben grün.
+
+Zusatznachweis 2026-06-15:
+
+- Die bestehende Prod-Lighthouse-Matrix lief gegen `https://p01--rezepti-app--2s7hvlwm5zc5.code.run` gruen: `9/9` erfolgreiche Runs (`/`, `/shopping`, `/recipe/1` je in Mobile/Tablet/Desktop, `throttling=simulate`). Artefakte: `artifacts/performance/lighthouse/`.
+- Ein gezielter Versuch, die frueheren PWA-Audits (`installable-manifest`, `service-worker`, `offline-start-url`, `apple-touch-icon`, `maskable-icon`) direkt mit `lighthouse@13.3.0` zu ziehen, erzeugte ein leeres `audits`-Objekt. Fazit: dieser fruehere Lighthouse-PWA-Check ist mit der aktuellen Toolchain kein sinnvoller blockernder Automatismus mehr.
 
 Feature-Plan: [2026-06-12-pwa-installable-shell-plan.md](2026-06-12-pwa-installable-shell-plan.md)
 Runbook: [docs/pwa-runbook.md](../../pwa-runbook.md)
@@ -33,13 +38,13 @@ Service-Worker-Verhalten, Installierbarkeit, iOS-Share-Sheet, Cross-User-Cache-I
 
 ## Phase 1 — Installierbarkeit (Manifest + Icons)
 
-- [ ] **Lighthouse:** PWA-Audit → „Installable" = pass (kein rotes Finding in der PWA-Kategorie). — **einziger offener Punkt** (optionaler Desktop-Chrome-Mess-Check).
+- [x] **Lighthouse / Prod-Matrix:** Bestehende Route-/Viewport-Matrix gegen Prod am 2026-06-15 gruen (`9/9` erfolgreich).
 - [x] **Chrome Desktop/Android:** Install startet die App standalone mit korrektem Namen „RecipeDeck" und Icon. (am Gerät installiert + bestätigt)
 - [ ] **Safari iOS:** Teilen → „Zum Home-Bildschirm" zeigt korrekten Titel „RecipeDeck" + Icon (apple-touch-icon-180); App öffnet standalone. (nicht separat geprüft)
 
 ## Phase 2 — Service Worker App-Shell (Offline)
 
-- [ ] **Lighthouse:** „Has a registered service worker" = pass; „Responds with a 200 when offline" = pass. (Teil des offenen Lighthouse-Audits)
+- [x] **Lighthouse / Prod-Matrix:** Root-/Route-Lighthouse-Lauf gegen Prod am 2026-06-15 erfolgreich; historische PWA-Einzel-Audits stehen in `lighthouse@13.3.0` nicht mehr als nutzbarer Automatismus bereit.
 - [x] **Offline-Reload:** App-Shell + OfflineBanner erscheinen offline statt der Browser-Fehlerseite. (am Gerät bestätigt; Liste lädt offline aus React-Query-Persistenz)
 
 ## Phase 3 — Install/Update-Flow
