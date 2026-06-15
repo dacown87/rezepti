@@ -1,15 +1,19 @@
 import * as cheerio from "cheerio";
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, renameSync } from "node:fs";
+import { writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { config } from "../config.js";
+import {
+  clearCookidooScopedSession,
+  resolveCookidooCredentials,
+  updateCookidooScopedSession,
+  type CookidooAuthContext,
+  type CookidooResolvedCredential,
+} from "../db-react.js";
 import type { ContentBundle, SchemaOrgRecipe } from "../types.js";
 
 // CF Clearance Scraper service (Docker, port 3001)
 const CF_SCRAPER_URL = process.env.CF_SCRAPER_URL || "http://localhost:3001";
 const CF_SESSION_TTL_MS = 25 * 60 * 1000;  // cf_clearance lasts ~30 min
 const WEB_SESSION_TTL_MS = 55 * 60 * 1000; // session cookies ~1 h
-
-const SESSION_FILE = join(process.cwd(), "data", "cookidoo-session.json");
 
 interface WebSession {
   cookiesCookidoo: string; // Cookie header for cookidoo.de
@@ -24,7 +28,24 @@ interface CFResult {
 }
 
 let cachedCF: CFResult | null = null;
-let cachedSession: WebSession | null = null;
+const cachedSessions = new Map<string, WebSession>();
+const LEGACY_SESSION_FILE = join(process.cwd(), "data", "cookidoo-session.json");
+const LEGACY_CREDENTIALS_FILE = join(process.cwd(), "data", "cookidoo-credentials.json");
+
+function scopeCacheKey(scope: Pick<CookidooResolvedCredential, "scopeType" | "userId" | "householdId">) {
+  return scope.scopeType === "user" ? `user:${scope.userId}` : `household:${scope.householdId}`;
+}
+
+export function removeLegacyCookidooFiles(): void {
+  for (const file of [LEGACY_SESSION_FILE, LEGACY_CREDENTIALS_FILE]) {
+    if (!existsSync(file)) continue;
+    try {
+      unlinkSync(file);
+    } catch {
+      // best effort cleanup for deprecated singleton state
+    }
+  }
+}
 
 // ─── CF Clearance ──────────────────────────────────────────────────────────
 
@@ -113,11 +134,7 @@ async function fetchManual(
 
 // ─── Web Login Flow ────────────────────────────────────────────────────────
 
-async function doWebLogin(): Promise<WebSession> {
-  if (!config.cookidoo.email || !config.cookidoo.password) {
-    throw new Error("Cookidoo credentials missing: set COOKIDOO_EMAIL and COOKIDOO_PASSWORD");
-  }
-
+async function doWebLogin(credentials: CookidooResolvedCredential): Promise<WebSession> {
   const cf = await getCFResult();
   const baseHeaders = {
     "User-Agent": cf.userAgent,
@@ -163,8 +180,8 @@ async function doWebLogin(): Promise<WebSession> {
   // Form action is https://ciam.prod.cookidoo.vorwerk-digital.com/login-srv/login
   const postBody = new URLSearchParams({
     requestId,
-    username: config.cookidoo.email,
-    password: config.cookidoo.password,
+    username: credentials.email,
+    password: credentials.password,
   }).toString();
 
   await fetchManual(
@@ -193,54 +210,55 @@ async function doWebLogin(): Promise<WebSession> {
     expires_at: Date.now() + WEB_SESSION_TTL_MS,
   };
 
-  // Persist to disk
-  mkdirSync(dirname(SESSION_FILE), { recursive: true });
-  writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2), "utf-8");
-
-  cachedSession = session;
+  cachedSessions.set(scopeCacheKey(credentials), session);
+  await updateCookidooScopedSession(credentials, {
+    sessionCookies: session.cookiesCookidoo,
+    sessionUserAgent: session.userAgent,
+    sessionExpiresAt: new Date(session.expires_at),
+  });
   return session;
 }
 
-async function getWebSession(): Promise<WebSession> {
-  // In-memory cache
+async function getWebSession(credentials: CookidooResolvedCredential): Promise<WebSession> {
+  const cacheKey = scopeCacheKey(credentials);
+  const cachedSession = cachedSessions.get(cacheKey);
   if (cachedSession && Date.now() < cachedSession.expires_at) return cachedSession;
 
-  // Disk cache
-  if (existsSync(SESSION_FILE)) {
-    try {
-      const raw = readFileSync(SESSION_FILE, "utf-8");
-      const parsed = JSON.parse(raw) as WebSession;
-      if (parsed.cookiesCookidoo && Date.now() < parsed.expires_at) {
-        cachedSession = parsed;
-        return cachedSession;
-      }
-    } catch {
-      // corrupt file — re-login
-    }
+  if (
+    credentials.sessionCookies &&
+    credentials.sessionUserAgent &&
+    credentials.sessionExpiresAt &&
+    Date.now() < credentials.sessionExpiresAt.getTime()
+  ) {
+    const restoredSession: WebSession = {
+      cookiesCookidoo: credentials.sessionCookies,
+      userAgent: credentials.sessionUserAgent,
+      expires_at: credentials.sessionExpiresAt.getTime(),
+    };
+    cachedSessions.set(cacheKey, restoredSession);
+    return restoredSession;
   }
 
   // Login with one automatic retry (CF scraper may need time to warm up on first call)
   try {
-    return await doWebLogin();
+    return await doWebLogin(credentials);
   } catch (firstErr) {
     console.warn("Cookidoo login attempt 1 failed, retrying in 4s:", (firstErr as Error).message);
     await new Promise(r => setTimeout(r, 4000));
-    return doWebLogin();
+    return doWebLogin(credentials);
   }
 }
 
-export function clearSession(): void {
-  cachedSession = null;
+async function clearSession(credentials: CookidooResolvedCredential): Promise<void> {
+  cachedSessions.delete(scopeCacheKey(credentials));
   cachedCF = null;
-  if (existsSync(SESSION_FILE)) {
-    try { unlinkSync(SESSION_FILE); } catch { /* best effort */ }
-  }
+  await clearCookidooScopedSession(credentials);
 }
 
 // ─── Authenticated fetch ───────────────────────────────────────────────────
 
-async function fetchAuthenticated(url: string, retry = true): Promise<Response> {
-  const session = await getWebSession();
+async function fetchAuthenticated(url: string, credentials: CookidooResolvedCredential, retry = true): Promise<Response> {
+  const session = await getWebSession(credentials);
   const cf = await getCFResult();
 
   // Merge session cookies with fresh CF cookies (cf_clearance may rotate)
@@ -262,8 +280,8 @@ async function fetchAuthenticated(url: string, retry = true): Promise<Response> 
   });
 
   if ((response.status === 401 || response.status === 403) && retry) {
-    clearSession();
-    return fetchAuthenticated(url, false);
+    await clearSession(credentials);
+    return fetchAuthenticated(url, credentials, false);
   }
 
   return response;
@@ -492,16 +510,17 @@ function extractImages($: cheerio.CheerioAPI, baseUrl: string): string[] {
 
 // ─── Main export ───────────────────────────────────────────────────────────
 
-export async function fetchCookidoo(url: string): Promise<ContentBundle> {
-  const hasCreds = config.cookidoo.email && config.cookidoo.password;
-  const scraperReachable = hasCreds && await fetch(`${CF_SCRAPER_URL}/health`, { signal: AbortSignal.timeout(2000) })
+export async function fetchCookidoo(url: string, auth?: CookidooAuthContext): Promise<ContentBundle> {
+  removeLegacyCookidooFiles();
+  const resolvedCredentials = auth ? await resolveCookidooCredentials(auth) : null;
+  const scraperReachable = !!resolvedCredentials && await fetch(`${CF_SCRAPER_URL}/health`, { signal: AbortSignal.timeout(2000) })
     .then(() => true).catch(() => false);
 
   let html: string;
 
   if (scraperReachable) {
     // Authenticated path: get real recipe steps
-    const response = await fetchAuthenticated(url);
+    const response = await fetchAuthenticated(url, resolvedCredentials!);
     if (!response.ok) throw new Error(`HTTP ${response.status} beim Abrufen von ${url}`);
     html = await response.text();
   } else {
@@ -553,63 +572,5 @@ export async function fetchCookidoo(url: string): Promise<ContentBundle> {
     schemaRecipe,
     equipment: equipment.length > 0 ? equipment : undefined,
     ingredientGroups,
-  };
-}
-
-// ─── Credentials management (for UI-based storage) ─────────────────────────
-
-const CREDENTIALS_FILE = join(process.cwd(), "data", "cookidoo-credentials.json");
-interface CookidooCredentials { email: string; password: string; }
-let cachedCredentials: CookidooCredentials | null = null;
-
-function loadCredentialsFromDisk(): CookidooCredentials | null {
-  if (!existsSync(CREDENTIALS_FILE)) return null;
-  try {
-    const raw = readFileSync(CREDENTIALS_FILE, "utf-8");
-    const parsed = JSON.parse(raw) as unknown;
-    if (parsed && typeof parsed === "object" && "email" in parsed && "password" in parsed) {
-      return parsed as CookidooCredentials;
-    }
-    return null;
-  } catch { return null; }
-}
-
-export function saveCredentialsToDisk(email: string, password: string): void {
-  mkdirSync(dirname(CREDENTIALS_FILE), { recursive: true });
-  const data: CookidooCredentials = { email, password };
-  // Atomic write: write to .tmp first, then rename. renameSync is atomic on
-  // POSIX (Linux/Docker); on Windows it is best-effort.
-  const tmp = CREDENTIALS_FILE + ".tmp";
-  writeFileSync(tmp, JSON.stringify(data, null, 2), "utf-8");
-  renameSync(tmp, CREDENTIALS_FILE);
-  cachedCredentials = data;
-}
-
-export function clearCredentialsFromDisk(): void {
-  cachedCredentials = null;
-  if (existsSync(CREDENTIALS_FILE)) {
-    try { unlinkSync(CREDENTIALS_FILE); } catch { /* best effort */ }
-  }
-}
-
-export function getCredentials(): CookidooCredentials | null {
-  if (cachedCredentials) return cachedCredentials;
-  cachedCredentials = loadCredentialsFromDisk();
-  if (cachedCredentials) return cachedCredentials;
-  if (config.cookidoo.email && config.cookidoo.password) {
-    cachedCredentials = { email: config.cookidoo.email, password: config.cookidoo.password };
-    return cachedCredentials;
-  }
-  return null;
-}
-
-export function hasCredentials(): boolean {
-  return getCredentials() !== null;
-}
-
-export function getSessionStatus(): { connected: boolean; hasFileCredentials: boolean } {
-  return {
-    connected: getCredentials() !== null,
-    hasFileCredentials: existsSync(CREDENTIALS_FILE),
   };
 }

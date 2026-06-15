@@ -18,7 +18,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User } from 'lucide-react-native';
 import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
-import { apiFetch } from '@/utils/api';
+import {
+  deleteCookidooHouseholdShare,
+  deletePrivateCookidooCredentials,
+  fetchCookidooStatus,
+  savePrivateCookidooCredentials,
+  shareCookidooCredentials,
+  type CookidooStatusResponse,
+} from '@/utils/cookidoo-settings';
 import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url';
 import { usePwaUpdate } from '@/hooks/usePwaUpdate';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
@@ -276,6 +283,8 @@ export default function SettingsScreen() {
   const [cookidooPassword, setCookidooPassword] = useState('');
   const [showCookidooPassword, setShowCookidooPassword] = useState(false);
   const [cookidooConnected, setCookidooConnected] = useState(false);
+  const [cookidooScope, setCookidooScope] = useState<CookidooStatusResponse['scope']>('none');
+  const [cookidooSharedByCurrentHousehold, setCookidooSharedByCurrentHousehold] = useState(false);
   const [savingCookidoo, setSavingCookidoo] = useState(false);
   const [loadingCookidooStatus, setLoadingCookidooStatus] = useState(true);
 
@@ -389,13 +398,15 @@ export default function SettingsScreen() {
   const loadCookidooStatus = useCallback(async () => {
     setLoadingCookidooStatus(true);
     try {
-      const res = await apiFetch('/api/v1/cookidoo/status');
-      if (res.ok) {
-        const data = await res.json();
-        setCookidooConnected(data.connected ?? false);
-      }
+      const data = await fetchCookidooStatus();
+      setCookidooConnected(data.connected ?? false);
+      setCookidooScope(data.scope ?? 'none');
+      setCookidooSharedByCurrentHousehold(data.sharedByCurrentHousehold ?? false);
     } catch {
       // Server not reachable — treat as disconnected
+      setCookidooConnected(false);
+      setCookidooScope('none');
+      setCookidooSharedByCurrentHousehold(false);
     } finally {
       setLoadingCookidooStatus(false);
     }
@@ -515,19 +526,10 @@ export default function SettingsScreen() {
     }
     setSavingCookidoo(true);
     try {
-      const res = await apiFetch('/api/v1/cookidoo/credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cookidooEmail.trim(), password: cookidooPassword }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
-      // Refresh status
+      await savePrivateCookidooCredentials(cookidooEmail.trim(), cookidooPassword);
       await loadCookidooStatus();
       setCookidooPassword('');
-      Alert.alert('Verbunden', 'Cookidoo-Zugangsdaten wurden gespeichert.');
+      Alert.alert('Gespeichert', 'Deine Cookidoo-Zugangsdaten sind jetzt privat gespeichert.');
     } catch (e: any) {
       Alert.alert('Fehler', e.message || 'Zugangsdaten konnten nicht gespeichert werden.');
     } finally {
@@ -537,8 +539,8 @@ export default function SettingsScreen() {
 
   const handleDisconnectCookidoo = () => {
     Alert.alert(
-      'Trennen',
-      'Möchtest du die Cookidoo-Verbindung wirklich trennen?',
+      'Private Verbindung trennen',
+      'Möchtest du deine privaten Cookidoo-Zugangsdaten wirklich entfernen?',
       [
         { text: 'Abbrechen', style: 'cancel' },
         {
@@ -546,16 +548,51 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await apiFetch('/api/v1/cookidoo/credentials', { method: 'DELETE' });
-              setCookidooConnected(false);
+              await deletePrivateCookidooCredentials();
               setCookidooEmail('');
               setCookidooPassword('');
+              await loadCookidooStatus();
             } catch {
               Alert.alert('Fehler', 'Trennung fehlgeschlagen.');
             }
           },
         },
       ]
+    );
+  };
+
+  const handleShareCookidoo = async () => {
+    setSavingCookidoo(true);
+    try {
+      await shareCookidooCredentials();
+      await loadCookidooStatus();
+      Alert.alert('Freigegeben', 'Deine privaten Cookidoo-Zugangsdaten sind jetzt für den Haushalt freigegeben.');
+    } catch (e: any) {
+      Alert.alert('Fehler', e.message || 'Haushaltsfreigabe fehlgeschlagen.');
+    } finally {
+      setSavingCookidoo(false);
+    }
+  };
+
+  const handleRemoveCookidooShare = () => {
+    Alert.alert(
+      'Haushaltsfreigabe entfernen',
+      'Möchtest du die Cookidoo-Freigabe für den Haushalt wirklich entfernen?',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Entfernen',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCookidooHouseholdShare();
+              await loadCookidooStatus();
+            } catch (e: any) {
+              Alert.alert('Fehler', e.message || 'Haushaltsfreigabe konnte nicht entfernt werden.');
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -838,9 +875,13 @@ export default function SettingsScreen() {
             <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">Cookidoo</Text>
             {loadingCookidooStatus ? (
               <ActivityIndicator size="small" color="#9E8878" style={{ marginLeft: 'auto' }} />
-            ) : cookidooConnected ? (
+            ) : cookidooScope === 'user' ? (
               <View className="ml-auto bg-green-100 rounded-full px-2 py-0.5">
-                <Text className="text-xs text-green-700 font-medium">Verbunden</Text>
+                <Text className="text-xs text-green-700 font-medium">Privat verbunden</Text>
+              </View>
+            ) : cookidooScope === 'household' ? (
+              <View className="ml-auto bg-blue-100 rounded-full px-2 py-0.5">
+                <Text className="text-xs text-blue-700 font-medium">Über Haushalt verbunden</Text>
               </View>
             ) : (
               <View className="ml-auto bg-yellow-100 rounded-full px-2 py-0.5">
@@ -849,82 +890,124 @@ export default function SettingsScreen() {
             )}
           </View>
           <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
-            Zugangsdaten für Cookidoo (Thermomix)
+            Private Cookidoo-Zugangsdaten pro Account mit optionaler Haushaltsfreigabe
           </Text>
 
-          {cookidooConnected ? (
-            /* Connected state */
-            <View>
-              <View className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
-                <Text className="text-sm text-green-700 font-medium">
-                  Server verbunden
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={handleDisconnectCookidoo}
-                className="flex-row items-center justify-center rounded-xl py-3 bg-red-50 border border-red-200"
-              >
-                <Trash2 size={16} color="#DC2626" />
-                <Text className="text-red-600 font-semibold text-sm ml-2">Trennen</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            /* Disconnected — show input form */
-            <View>
-              <View className="border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-2">
-                <TextInput
-                  className="px-4 py-3 text-sm text-warm-900 dark:text-warm-50"
-                  value={cookidooEmail}
-                  onChangeText={setCookidooEmail}
-                  placeholder="deine@email.de"
-                  placeholderTextColor="#9E8878"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                />
-              </View>
+          <View className="bg-warm-50 dark:bg-espresso-900 border border-warm-200 dark:border-warm-700 rounded-xl p-3 mb-3">
+            <Text className="text-sm text-warm-800 dark:text-warm-100 font-medium mb-1">Privat</Text>
+            <Text className="text-xs text-warm-500 dark:text-warm-400">
+              Deine Cookidoo-Zugangsdaten sind privat.
+            </Text>
+          </View>
 
-              <View className="flex-row items-center border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-3">
-                <TextInput
-                  className="flex-1 px-4 py-3 text-sm text-warm-900 dark:text-warm-50"
-                  value={cookidooPassword}
-                  onChangeText={setCookidooPassword}
-                  placeholder="Passwort"
-                  placeholderTextColor="#9E8878"
-                  secureTextEntry={!showCookidooPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowCookidooPassword((v) => !v)}
-                  className="px-3 py-3"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  {showCookidooPassword
-                    ? <EyeOff size={18} color="#9E8878" />
-                    : <Eye size={18} color="#9E8878" />}
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                onPress={handleSaveCookidoo}
-                disabled={savingCookidoo || !cookidooEmail.trim() || !cookidooPassword.trim()}
-                className={`flex-row items-center justify-center rounded-xl py-3 ${
-                  savingCookidoo || !cookidooEmail.trim() || !cookidooPassword.trim()
-                    ? 'bg-blue-300'
-                    : 'bg-blue-600'
-                }`}
-              >
-                {savingCookidoo
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Save size={16} color="#fff" />}
-                <Text className="text-white font-semibold text-sm ml-2">Verbinden</Text>
-              </TouchableOpacity>
+          {cookidooScope === 'user' && (
+            <View className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
+              <Text className="text-sm text-green-700 font-medium">Privat verbunden</Text>
             </View>
           )}
 
+          {cookidooScope === 'household' && (
+            <View className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+              <Text className="text-sm text-blue-700 font-medium">Über Haushalt verbunden</Text>
+            </View>
+          )}
+
+          <View className="border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-2">
+            <TextInput
+              className="px-4 py-3 text-sm text-warm-900 dark:text-warm-50"
+              value={cookidooEmail}
+              onChangeText={setCookidooEmail}
+              placeholder="deine@email.de"
+              placeholderTextColor="#9E8878"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+          </View>
+
+          <View className="flex-row items-center border border-warm-200 dark:border-warm-700 rounded-xl overflow-hidden mb-3">
+            <TextInput
+              className="flex-1 px-4 py-3 text-sm text-warm-900 dark:text-warm-50"
+              value={cookidooPassword}
+              onChangeText={setCookidooPassword}
+              placeholder="Passwort"
+              placeholderTextColor="#9E8878"
+              secureTextEntry={!showCookidooPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              onPress={() => setShowCookidooPassword((v) => !v)}
+              className="px-3 py-3"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {showCookidooPassword
+                ? <EyeOff size={18} color="#9E8878" />
+                : <Eye size={18} color="#9E8878" />}
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-row gap-2 mb-4">
+            <TouchableOpacity
+              onPress={handleSaveCookidoo}
+              disabled={savingCookidoo || !cookidooEmail.trim() || !cookidooPassword.trim()}
+              className={`flex-1 flex-row items-center justify-center rounded-xl py-3 ${
+                savingCookidoo || !cookidooEmail.trim() || !cookidooPassword.trim()
+                  ? 'bg-blue-300'
+                  : 'bg-blue-600'
+              }`}
+            >
+              {savingCookidoo
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Save size={16} color="#fff" />}
+              <Text className="text-white font-semibold text-sm ml-2">Privat speichern</Text>
+            </TouchableOpacity>
+
+            {cookidooScope === 'user' && (
+              <TouchableOpacity
+                onPress={handleDisconnectCookidoo}
+                className="flex-row items-center justify-center rounded-xl py-3 px-4 bg-red-50 border border-red-200"
+              >
+                <Trash2 size={16} color="#DC2626" />
+                <Text className="text-red-600 font-semibold text-sm ml-2">Privat trennen</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View className="bg-warm-50 dark:bg-espresso-900 border border-warm-200 dark:border-warm-700 rounded-xl p-3 mb-3">
+            <Text className="text-sm text-warm-800 dark:text-warm-100 font-medium mb-1">Haushalt</Text>
+            <Text className="text-xs text-warm-500 dark:text-warm-400">
+              {cookidooSharedByCurrentHousehold ? 'Für Haushalt freigegeben' : 'Nicht für Haushalt freigegeben'}
+            </Text>
+          </View>
+
+          {cookidooSharedByCurrentHousehold ? (
+            <TouchableOpacity
+              onPress={handleRemoveCookidooShare}
+              className="flex-row items-center justify-center rounded-xl py-3 bg-red-50 border border-red-200"
+            >
+              <Trash2 size={16} color="#DC2626" />
+              <Text className="text-red-600 font-semibold text-sm ml-2">Haushaltsfreigabe entfernen</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={handleShareCookidoo}
+              disabled={savingCookidoo || cookidooScope !== 'user'}
+              className={`flex-row items-center justify-center rounded-xl py-3 ${
+                savingCookidoo || cookidooScope !== 'user'
+                  ? 'bg-warm-200 dark:bg-espresso-700'
+                  : 'bg-warm-800'
+              }`}
+            >
+              {savingCookidoo
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Save size={16} color="#fff" />}
+              <Text className="text-white font-semibold text-sm ml-2">Für Haushalt freigeben</Text>
+            </TouchableOpacity>
+          )}
+
           <Text className="text-xs text-warm-500 dark:text-warm-400 mt-3">
-            Zugangsdaten gelten für die gesamte Server-Instanz, nicht pro Account.
+            Private Zugangsdaten haben Vorrang. Ohne private Verbindung wird eine vorhandene Haushaltsfreigabe genutzt.
           </Text>
         </View>
 

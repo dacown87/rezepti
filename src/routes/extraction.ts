@@ -98,7 +98,7 @@ app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
     }
 
     const userAgent = c.req.header("User-Agent");
-    const job = jobManager.createJob(url, userAgent, apiKeyHash, auth.userId);
+    const job = jobManager.createJob(url, userAgent, apiKeyHash, auth.userId, auth.activeHouseholdId);
 
     setTimeout(() => {
       processJobInBackground(job.id, apiKey).catch(console.error);
@@ -464,7 +464,11 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
         throw new Error("Authenticated job owner is required to process an extraction job");
       }
 
-      const result = await processURL(job.url, onEvent, { apiKey: userApiKey, userId: job.userId });
+      const result = await processURL(job.url, onEvent, {
+        apiKey: userApiKey,
+        userId: job.userId,
+        activeHouseholdId: job.activeHouseholdId ?? null,
+      });
 
       if (result.success) {
         jobManager.completeJob(jobId, result);

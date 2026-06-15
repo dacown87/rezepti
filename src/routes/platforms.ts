@@ -1,20 +1,23 @@
 import { Hono } from "hono";
-import { saveCredentialsToDisk, clearCredentialsFromDisk, getSessionStatus, clearSession } from "../fetchers/cookidoo.js";
-import { requireUserAuth } from "../auth.js";
+import { getUserAuth, requireUserAuth } from "../auth.js";
+import { removeLegacyCookidooFiles } from "../fetchers/cookidoo.js";
+import {
+  deleteHouseholdCookidooShare,
+  deleteUserCookidooCredentials,
+  getCookidooStatus,
+  saveUserCookidooCredentials,
+  shareCookidooCredentialsToHousehold,
+} from "../db-react.js";
 
 const app = new Hono();
 
 // Cookidoo credentials management
-// Intentional interim boundary: this is a server-scoped singleton for the
-// current single-tenant deployment. Any authenticated user can update or clear
-// the stored Cookidoo credentials until a real workspace-scoped model exists.
-app.get("/api/v1/cookidoo/status", requireUserAuth(), (c) => {
+app.get("/api/v1/cookidoo/status", requireUserAuth(), async (c) => {
   try {
-    const status = getSessionStatus();
-    return c.json({
-      connected: status.connected,
-      hasFileCredentials: status.hasFileCredentials,
-    });
+    removeLegacyCookidooFiles();
+    const auth = getUserAuth(c);
+    const status = await getCookidooStatus(auth);
+    return c.json(status);
   } catch (error) {
     console.error("Error getting Cookidoo status:", error);
     return c.json({ error: "Failed to get Cookidoo status" }, 500);
@@ -23,6 +26,8 @@ app.get("/api/v1/cookidoo/status", requireUserAuth(), (c) => {
 
 app.post("/api/v1/cookidoo/credentials", requireUserAuth(), async (c) => {
   try {
+    removeLegacyCookidooFiles();
+    const auth = getUserAuth(c);
     const body = await c.req.json<{ email?: string; password?: string }>().catch(() => null);
     if (!body || typeof body !== "object") {
       return c.json({ error: "Invalid request body" }, 400);
@@ -33,11 +38,11 @@ app.post("/api/v1/cookidoo/credentials", requireUserAuth(), async (c) => {
       return c.json({ error: "Email and password are required" }, 400);
     }
 
-    saveCredentialsToDisk(email, password);
-    clearSession();
+    await saveUserCookidooCredentials(auth.userId, email, password);
 
     return c.json({
       success: true,
+      scope: "user",
       message: "Cookidoo credentials saved successfully"
     });
   } catch (error) {
@@ -46,18 +51,70 @@ app.post("/api/v1/cookidoo/credentials", requireUserAuth(), async (c) => {
   }
 });
 
-app.delete("/api/v1/cookidoo/credentials", requireUserAuth(), (c) => {
+app.delete("/api/v1/cookidoo/credentials", requireUserAuth(), async (c) => {
   try {
-    clearCredentialsFromDisk();
-    clearSession();
+    removeLegacyCookidooFiles();
+    const auth = getUserAuth(c);
+    await deleteUserCookidooCredentials(auth.userId);
 
     return c.json({
       success: true,
+      scope: "user",
       message: "Cookidoo credentials removed"
     });
   } catch (error) {
     console.error("Error removing Cookidoo credentials:", error);
     return c.json({ error: "Failed to remove Cookidoo credentials" }, 500);
+  }
+});
+
+app.post("/api/v1/cookidoo/credentials/share", requireUserAuth(), async (c) => {
+  try {
+    removeLegacyCookidooFiles();
+    const auth = getUserAuth(c);
+    const shared = await shareCookidooCredentialsToHousehold(auth).catch((error) => {
+      if (error instanceof Error && error.message.includes("Private Cookidoo credentials")) {
+        return error;
+      }
+      throw error;
+    });
+
+    if (shared instanceof Error) {
+      return c.json({ error: shared.message }, 400);
+    }
+
+    if (!shared) {
+      return c.json({ error: "Only household owners can manage Cookidoo sharing" }, 403);
+    }
+
+    return c.json({
+      success: true,
+      scope: "household",
+      message: "Cookidoo credentials shared with household",
+    });
+  } catch (error) {
+    console.error("Error sharing Cookidoo credentials:", error);
+    return c.json({ error: "Failed to share Cookidoo credentials" }, 500);
+  }
+});
+
+app.delete("/api/v1/cookidoo/credentials/share", requireUserAuth(), async (c) => {
+  try {
+    removeLegacyCookidooFiles();
+    const auth = getUserAuth(c);
+    const removed = await deleteHouseholdCookidooShare(auth);
+    if (!removed) {
+      return c.json({ error: "Only household owners can manage Cookidoo sharing" }, 403);
+    }
+
+    return c.json({
+      success: true,
+      scope: "household",
+      message: "Cookidoo household sharing removed",
+    });
+  } catch (error) {
+    console.error("Error removing Cookidoo household share:", error);
+    return c.json({ error: "Failed to remove Cookidoo household share" }, 500);
   }
 });
 

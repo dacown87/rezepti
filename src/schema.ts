@@ -122,6 +122,38 @@ export const userDefaultHouseholds = pgTable("user_default_households", {
   index("user_default_households_household_idx").on(t.householdId),
 ]);
 
+export const cookidooCredentials = pgTable("cookidoo_credentials", {
+  id: serial("id").primaryKey(),
+  scopeType: text("scope_type").notNull(),
+  userId: uuid("user_id"),
+  householdId: uuid("household_id"),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  createdBy: uuid("created_by").notNull(),
+  sessionCookies: text("session_cookies"),
+  sessionUserAgent: text("session_user_agent"),
+  sessionExpiresAt: timestamp("session_expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (t) => [
+  check("cookidoo_credentials_scope_type_check", sql`${t.scopeType} IN ('user', 'household')`),
+  check(
+    "cookidoo_credentials_scope_shape_check",
+    sql`(
+      (${t.scopeType} = 'user' AND ${t.userId} IS NOT NULL AND ${t.householdId} IS NULL)
+      OR
+      (${t.scopeType} = 'household' AND ${t.userId} IS NULL AND ${t.householdId} IS NOT NULL)
+    )`,
+  ),
+  uniqueIndex("cookidoo_credentials_user_uidx")
+    .on(t.userId)
+    .where(sql`${t.scopeType} = 'user'`),
+  uniqueIndex("cookidoo_credentials_household_uidx")
+    .on(t.householdId)
+    .where(sql`${t.scopeType} = 'household'`),
+  index("cookidoo_credentials_created_by_idx").on(t.createdBy),
+]);
+
 export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type IngredientDictionaryEntry = typeof ingredientDictionary.$inferSelect;
@@ -134,6 +166,8 @@ export type UserProfile = typeof userProfiles.$inferSelect;
 export type Household = typeof households.$inferSelect;
 export type HouseholdMembership = typeof householdMemberships.$inferSelect;
 export type UserDefaultHousehold = typeof userDefaultHouseholds.$inferSelect;
+export type CookidooCredential = typeof cookidooCredentials.$inferSelect;
+export type NewCookidooCredential = typeof cookidooCredentials.$inferInsert;
 
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),

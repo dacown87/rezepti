@@ -60,22 +60,57 @@ vi.mock('lucide-react-native', () => ({
   User: () => null,
 }));
 
-// ---------------------------------------------------------------------------
-// TODO: Full component tests for the Cookidoo handlers in settings.tsx are
-// deferred. The previous 4 tests in this file were tautological: they called
-// apiFetchMock(...) directly and then asserted the mock was called — they
-// never imported or invoked any code from settings.tsx and therefore provided
-// zero real coverage.
-//
-// The real coverage gap: the three async handler functions in settings.tsx
-// (loadCookidooStatus, handleSaveCookidoo, handleDisconnectCookidoo) are
-// defined as inline closures inside the component body and are not exported,
-// so they cannot be tested without rendering the component. A proper test
-// requires RNTL + full server-mocking for the apiFetch layer, and is tracked
-// as a follow-up item.
-// ---------------------------------------------------------------------------
-describe('settings.tsx — Cookidoo handlers (placeholder)', () => {
-  it.todo('loadCookidooStatus calls apiFetch GET /api/v1/cookidoo/status with auth headers');
-  it.todo('handleSaveCookidoo calls apiFetch POST /api/v1/cookidoo/credentials with auth headers');
-  it.todo('handleDisconnectCookidoo calls apiFetch DELETE /api/v1/cookidoo/credentials with auth headers');
+describe('cookidoo settings API helpers', () => {
+  beforeEach(() => {
+    apiFetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetchCookidooStatus uses GET /api/v1/cookidoo/status', async () => {
+    const payload = { scope: 'user', connected: true, sharedByCurrentHousehold: true };
+    apiFetchMock.mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }));
+    const { fetchCookidooStatus } = await import('@/utils/cookidoo-settings');
+
+    await expect(fetchCookidooStatus()).resolves.toEqual(payload);
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/cookidoo/status');
+  });
+
+  it('savePrivateCookidooCredentials uses POST /api/v1/cookidoo/credentials', async () => {
+    apiFetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    const { savePrivateCookidooCredentials } = await import('@/utils/cookidoo-settings');
+
+    await savePrivateCookidooCredentials('user@example.com', 'secret');
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/cookidoo/credentials', expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'user@example.com', password: 'secret' }),
+    }));
+  });
+
+  it('deletePrivateCookidooCredentials uses DELETE /api/v1/cookidoo/credentials', async () => {
+    apiFetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    const { deletePrivateCookidooCredentials } = await import('@/utils/cookidoo-settings');
+
+    await deletePrivateCookidooCredentials();
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/cookidoo/credentials', { method: 'DELETE' });
+  });
+
+  it('shareCookidooCredentials uses POST /api/v1/cookidoo/credentials/share', async () => {
+    apiFetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    const { shareCookidooCredentials } = await import('@/utils/cookidoo-settings');
+
+    await shareCookidooCredentials();
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/cookidoo/credentials/share', { method: 'POST' });
+  });
+
+  it('deleteCookidooHouseholdShare uses DELETE /api/v1/cookidoo/credentials/share', async () => {
+    apiFetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    const { deleteCookidooHouseholdShare } = await import('@/utils/cookidoo-settings');
+
+    await deleteCookidooHouseholdShare();
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/cookidoo/credentials/share', { method: 'DELETE' });
+  });
 });

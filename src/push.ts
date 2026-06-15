@@ -1,17 +1,29 @@
-import webpush from 'web-push';
-
 export interface PushPayload { title: string; body: string; url: string; }
 interface PushSubRow { id: number; endpoint: string; keys: string; }
+interface PushSubscriptionLike { endpoint: string; keys: { p256dh: string; auth: string } }
+interface WebPushModuleLike {
+  setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
+  sendNotification: (sub: PushSubscriptionLike, payload: string) => Promise<unknown>;
+}
 
 export interface SendPushDeps {
   loadSubscriptions: (userId: string) => Promise<PushSubRow[]>;
-  sendNotification: (sub: webpush.PushSubscription, payload: string) => Promise<unknown>;
+  sendNotification: (sub: PushSubscriptionLike, payload: string) => Promise<unknown>;
   deleteSubscription: (id: number) => Promise<void>;
+}
+
+let webpushModulePromise: Promise<WebPushModuleLike> | null = null;
+
+async function loadWebPush(): Promise<WebPushModuleLike> {
+  if (!webpushModulePromise) {
+    webpushModulePromise = import('web-push').then((mod) => mod.default as WebPushModuleLike);
+  }
+  return webpushModulePromise;
 }
 
 let configured = false;
 let warnedNoVapid = false; // X2: warn once when keys are missing
-export function configureVapid(): boolean {
+export async function configureVapid(): Promise<boolean> {
   if (configured) return true;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
@@ -23,6 +35,7 @@ export function configureVapid(): boolean {
     }
     return false;
   }
+  const webpush = await loadWebPush();
   webpush.setVapidDetails(subject, pub, priv);
   configured = true;
   return true;
@@ -30,7 +43,10 @@ export function configureVapid(): boolean {
 
 const defaultDeps = (): SendPushDeps => ({
   loadSubscriptions: (userId) => import('./db-react.js').then((m) => m.getPushSubscriptionsForUser(userId)),
-  sendNotification: (sub, payload) => webpush.sendNotification(sub, payload),
+  sendNotification: async (sub, payload) => {
+    const webpush = await loadWebPush();
+    return webpush.sendNotification(sub, payload);
+  },
   deleteSubscription: (id) => import('./db-react.js').then((m) => m.deletePushSubscriptionById(id)),
 });
 

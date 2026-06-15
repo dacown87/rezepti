@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-describe('cookidoo credential disk storage', () => {
+describe('cookidoo legacy file cleanup', () => {
   const originalCwd = process.cwd()
   let tempDir = ''
 
@@ -21,60 +21,20 @@ describe('cookidoo credential disk storage', () => {
     }
   })
 
-  it('writes credentials via temp file rename and exposes them via getSessionStatus/getCredentials', async () => {
-    vi.doMock('../../src/config.js', () => ({
-      config: { cookidoo: { email: '', password: '' } },
-    }))
-
-    const {
-      saveCredentialsToDisk,
-      getCredentials,
-      getSessionStatus,
-    } = await import('../../src/fetchers/cookidoo.js')
-
-    saveCredentialsToDisk('cookidoo@example.com', 'secret-pw')
-
+  it('removes deprecated singleton credential and session files', async () => {
     const credentialsPath = join(tempDir, 'data', 'cookidoo-credentials.json')
-    const tmpPath = `${credentialsPath}.tmp`
+    const sessionPath = join(tempDir, 'data', 'cookidoo-session.json')
+    const dataDir = join(tempDir, 'data')
+    mkdirSync(dataDir, { recursive: true })
+    writeFileSync(credentialsPath, JSON.stringify({ email: 'cookidoo@example.com', password: 'secret-pw' }), { encoding: 'utf-8', flag: 'w' })
+    writeFileSync(sessionPath, JSON.stringify({ cookiesCookidoo: 'a=b', userAgent: 'ua', expires_at: Date.now() + 1000 }), { encoding: 'utf-8', flag: 'w' })
 
-    expect(existsSync(credentialsPath)).toBe(true)
-    expect(existsSync(tmpPath)).toBe(false)
-    expect(JSON.parse(readFileSync(credentialsPath, 'utf-8'))).toEqual({
-      email: 'cookidoo@example.com',
-      password: 'secret-pw',
-    })
-    expect(getCredentials()).toEqual({
-      email: 'cookidoo@example.com',
-      password: 'secret-pw',
-    })
-    expect(getSessionStatus()).toEqual({
-      connected: true,
-      hasFileCredentials: true,
-    })
-  })
+    expect(existsSync(dataDir)).toBe(true)
 
-  it('clears cached credentials and removes the persisted credentials file', async () => {
-    vi.doMock('../../src/config.js', () => ({
-      config: { cookidoo: { email: '', password: '' } },
-    }))
-
-    const {
-      saveCredentialsToDisk,
-      clearCredentialsFromDisk,
-      getCredentials,
-      getSessionStatus,
-    } = await import('../../src/fetchers/cookidoo.js')
-
-    saveCredentialsToDisk('cookidoo@example.com', 'secret-pw')
-    clearCredentialsFromDisk()
-
-    const credentialsPath = join(tempDir, 'data', 'cookidoo-credentials.json')
+    const { removeLegacyCookidooFiles } = await import('../../src/fetchers/cookidoo.js')
+    removeLegacyCookidooFiles()
 
     expect(existsSync(credentialsPath)).toBe(false)
-    expect(getCredentials()).toBeNull()
-    expect(getSessionStatus()).toEqual({
-      connected: false,
-      hasFileCredentials: false,
-    })
+    expect(existsSync(sessionPath)).toBe(false)
   })
 })

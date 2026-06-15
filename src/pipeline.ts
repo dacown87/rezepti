@@ -30,6 +30,7 @@ type EventCallback = (event: PipelineEvent) => void | Promise<void>;
 interface PipelineOptions {
   apiKey?: string;
   userId?: string;
+  activeHouseholdId?: string | null;
 }
 
 export function buildQualityWarnings(recipe: Partial<RecipeData>, sourceUrl?: string): string[] {
@@ -81,7 +82,11 @@ export async function processURL(
         bundle = await fetchTikTok(classified.url, tempDir, { apiKey: options.apiKey });
         break;
       case "cookidoo":
-        bundle = await fetchCookidoo(classified.url);
+        bundle = await fetchCookidoo(classified.url, options.userId ? {
+          userId: options.userId,
+          memberships: [],
+          activeHouseholdId: options.activeHouseholdId ?? null,
+        } : undefined);
         break;
       case "chefkoch":
         bundle = await fetchChefkoch(classified.url);

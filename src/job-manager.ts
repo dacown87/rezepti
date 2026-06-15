@@ -25,6 +25,7 @@ export interface ExtractionJob {
   apiKeyHash?: string;
   userAgent?: string;
   userId?: string | null;
+  activeHouseholdId?: string | null;
 }
 
 export interface JobEvent {
@@ -69,12 +70,12 @@ export class JobManager {
     });
   }
 
-  createJob(url: string, userAgent?: string, apiKeyHash?: string, userId?: string | null): ExtractionJob {
+  createJob(url: string, userAgent?: string, apiKeyHash?: string, userId?: string | null, activeHouseholdId?: string | null): ExtractionJob {
     const id = `job_${this.deps.now()}_${this.deps.random().toString(36).substring(2, 11)}`;
     const now = this.deps.now();
     const job: ExtractionJob = {
       id, url, status: "pending", progress: 0,
-      createdAt: now, updatedAt: now, userAgent, apiKeyHash, userId: userId ?? null,
+      createdAt: now, updatedAt: now, userAgent, apiKeyHash, userId: userId ?? null, activeHouseholdId: activeHouseholdId ?? null,
     };
     this.jobs.set(id, job);
     return job;
@@ -111,7 +112,7 @@ export class JobManager {
     Object.assign(job, { status: "completed", progress: 100, result, completedAt: now, updatedAt: now });
     if (job.userId) {
       const sender = this.deps.pushSender;
-      if (sender || configureVapid()) {
+      if (sender || await configureVapid()) {
         const name = result?.recipe?.name ?? "Dein Rezept";
         const id = result?.recipeId;                // NOT result.recipe.id
         const payload: PushPayload = { title: "Rezept fertig 🍳", body: name, url: id ? `/recipe/${id}` : "/" };

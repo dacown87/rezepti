@@ -6,11 +6,7 @@ import { AuthFlowError, configureAuthForTests, resetAuthAdaptersForTests } from 
 // ---------------------------------------------------------------------------
 
 const cookidooMocks = vi.hoisted(() => ({
-  getSessionStatus: vi.fn(() => ({ connected: false, hasFileCredentials: false })),
-  getCredentials: vi.fn(() => null),
-  saveCredentialsToDisk: vi.fn(),
-  clearCredentialsFromDisk: vi.fn(),
-  clearSession: vi.fn(),
+  removeLegacyCookidooFiles: vi.fn(),
 }))
 
 vi.mock('../../src/fetchers/cookidoo.js', () => cookidooMocks)
@@ -28,6 +24,11 @@ vi.mock('../../src/byok-validator.js', () => byokMocks)
 const dbMocks = vi.hoisted(() => ({
   ensureReactSchema: vi.fn(),
   loadUserAuthorization: vi.fn(),
+  getCookidooStatus: vi.fn(async () => ({ scope: 'none', connected: false, sharedByCurrentHousehold: false })),
+  saveUserCookidooCredentials: vi.fn(async () => undefined),
+  deleteUserCookidooCredentials: vi.fn(async () => true),
+  shareCookidooCredentialsToHousehold: vi.fn(async () => true),
+  deleteHouseholdCookidooShare: vi.fn(async () => true),
 }))
 
 vi.mock('../../src/db-react.js', () => ({
@@ -93,7 +94,7 @@ describe('Cookidoo + BYOK route auth boundary (no token → 401)', () => {
     await expect(res.json()).resolves.toMatchObject({
       error: { code: 'auth_missing' },
     })
-    expect(cookidooMocks.getSessionStatus).not.toHaveBeenCalled()
+    expect(dbMocks.getCookidooStatus).not.toHaveBeenCalled()
   })
 
   it('POST /api/v1/cookidoo/credentials — returns 401 without Bearer token', async () => {
@@ -106,7 +107,7 @@ describe('Cookidoo + BYOK route auth boundary (no token → 401)', () => {
     await expect(res.json()).resolves.toMatchObject({
       error: { code: 'auth_missing' },
     })
-    expect(cookidooMocks.saveCredentialsToDisk).not.toHaveBeenCalled()
+    expect(dbMocks.saveUserCookidooCredentials).not.toHaveBeenCalled()
   })
 
   it('DELETE /api/v1/cookidoo/credentials — returns 401 without Bearer token', async () => {
@@ -119,7 +120,7 @@ describe('Cookidoo + BYOK route auth boundary (no token → 401)', () => {
     await expect(res.json()).resolves.toMatchObject({
       error: { code: 'auth_missing' },
     })
-    expect(cookidooMocks.clearCredentialsFromDisk).not.toHaveBeenCalled()
+    expect(dbMocks.deleteUserCookidooCredentials).not.toHaveBeenCalled()
   })
 
   it('POST /api/v1/keys/validate — returns 401 without Bearer token', async () => {
@@ -365,9 +366,13 @@ describe('Cookidoo routes — authenticated happy-path (G5)', () => {
     })
   }
 
-  it('GET /api/v1/cookidoo/status with valid token → 200 with { connected, hasFileCredentials }', async () => {
+  it('GET /api/v1/cookidoo/status with valid token → 200 with scoped status payload', async () => {
     configureValidAuth()
-    cookidooMocks.getSessionStatus.mockReturnValue({ connected: true, hasFileCredentials: true })
+    dbMocks.getCookidooStatus.mockResolvedValueOnce({
+      scope: 'user',
+      connected: true,
+      sharedByCurrentHousehold: true,
+    })
 
     const res = await platformsRouter.request('/api/v1/cookidoo/status', {
       headers: { Authorization: 'Bearer valid-token' },
@@ -375,11 +380,12 @@ describe('Cookidoo routes — authenticated happy-path (G5)', () => {
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body).toHaveProperty('connected')
-    expect(body).toHaveProperty('hasFileCredentials')
-    // Must NOT include an email field (the route strips it)
-    expect(body).not.toHaveProperty('email')
-    expect(cookidooMocks.getSessionStatus).toHaveBeenCalled()
+    expect(body).toEqual({
+      scope: 'user',
+      connected: true,
+      sharedByCurrentHousehold: true,
+    })
+    expect(dbMocks.getCookidooStatus).toHaveBeenCalled()
   })
 
   it('POST /api/v1/cookidoo/credentials with valid token → 200 { success: true }', async () => {
@@ -392,8 +398,9 @@ describe('Cookidoo routes — authenticated happy-path (G5)', () => {
     })
 
     expect(res.status).toBe(200)
-    await expect(res.json()).resolves.toMatchObject({ success: true })
-    expect(cookidooMocks.saveCredentialsToDisk).toHaveBeenCalledWith(
+    await expect(res.json()).resolves.toMatchObject({ success: true, scope: 'user' })
+    expect(dbMocks.saveUserCookidooCredentials).toHaveBeenCalledWith(
+      '00000000-0000-0000-0000-000000000001',
       'chef@example.com',
       'thermomix123',
     )
@@ -408,8 +415,72 @@ describe('Cookidoo routes — authenticated happy-path (G5)', () => {
     })
 
     expect(res.status).toBe(200)
-    await expect(res.json()).resolves.toMatchObject({ success: true })
-    expect(cookidooMocks.clearCredentialsFromDisk).toHaveBeenCalled()
+    await expect(res.json()).resolves.toMatchObject({ success: true, scope: 'user' })
+    expect(dbMocks.deleteUserCookidooCredentials).toHaveBeenCalledWith(
+      '00000000-0000-0000-0000-000000000001',
+    )
+  })
+
+  it('POST /api/v1/cookidoo/credentials/share with owner token → 200 { success: true }', async () => {
+    configureValidAuth()
+
+    const res = await platformsRouter.request('/api/v1/cookidoo/credentials/share', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ success: true, scope: 'household' })
+    expect(dbMocks.shareCookidooCredentialsToHousehold).toHaveBeenCalledWith(expect.objectContaining({
+      userId: '00000000-0000-0000-0000-000000000001',
+      activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+    }))
+  })
+
+  it('DELETE /api/v1/cookidoo/credentials/share with owner token → 200 { success: true }', async () => {
+    configureValidAuth()
+
+    const res = await platformsRouter.request('/api/v1/cookidoo/credentials/share', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ success: true, scope: 'household' })
+    expect(dbMocks.deleteHouseholdCookidooShare).toHaveBeenCalledWith(expect.objectContaining({
+      userId: '00000000-0000-0000-0000-000000000001',
+      activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+    }))
+  })
+
+  it('POST /api/v1/cookidoo/credentials/share with non-owner token → 403', async () => {
+    configureValidAuth()
+    dbMocks.shareCookidooCredentialsToHousehold.mockResolvedValueOnce(false)
+
+    const res = await platformsRouter.request('/api/v1/cookidoo/credentials/share', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'Only household owners can manage Cookidoo sharing',
+    })
+  })
+
+  it('DELETE /api/v1/cookidoo/credentials/share with non-owner token → 403', async () => {
+    configureValidAuth()
+    dbMocks.deleteHouseholdCookidooShare.mockResolvedValueOnce(false)
+
+    const res = await platformsRouter.request('/api/v1/cookidoo/credentials/share', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'Only household owners can manage Cookidoo sharing',
+    })
   })
 })
 

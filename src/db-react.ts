@@ -11,6 +11,7 @@ import {
   households,
   householdMemberships,
   userDefaultHouseholds,
+  cookidooCredentials,
   pushSubscriptions,
   byokValidationRateLimits,
 } from "./schema.js";
@@ -109,6 +110,7 @@ function getDb() {
         households,
         householdMemberships,
         userDefaultHouseholds,
+        cookidooCredentials,
         pushSubscriptions,
         byokValidationRateLimits,
       },
@@ -462,6 +464,34 @@ export interface UserAuthorization {
   activeHouseholdId: string | null;
 }
 
+export type CookidooScopeType = "user" | "household";
+
+export interface CookidooScopeRef {
+  scopeType: CookidooScopeType;
+  userId: string | null;
+  householdId: string | null;
+}
+
+export interface CookidooAuthContext {
+  userId: string;
+  memberships: Array<{ householdId: string; role: HouseholdRole }>;
+  activeHouseholdId: string | null;
+}
+
+export interface CookidooResolvedCredential extends CookidooScopeRef {
+  email: string;
+  password: string;
+  sessionCookies: string | null;
+  sessionUserAgent: string | null;
+  sessionExpiresAt: Date | null;
+}
+
+export interface CookidooStatus {
+  scope: CookidooScopeType | "none";
+  connected: boolean;
+  sharedByCurrentHousehold: boolean;
+}
+
 export interface AccountBootstrapStatus {
   status: "ready";
   profile: {
@@ -534,6 +564,254 @@ export async function loadUserAuthorization(userId: string, email?: string | nul
     memberships: normalizedMemberships,
     activeHouseholdId,
   };
+}
+
+function isHouseholdOwner(
+  memberships: Array<{ householdId: string; role: HouseholdRole }>,
+  householdId: string,
+) {
+  return memberships.some((membership) => membership.householdId === householdId && membership.role === "owner");
+}
+
+export async function saveUserCookidooCredentials(
+  userId: string,
+  email: string,
+  password: string,
+): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+  await db
+    .insert(cookidooCredentials)
+    .values({
+      scopeType: "user",
+      userId,
+      householdId: null,
+      email,
+      password,
+      createdBy: userId,
+      sessionCookies: null,
+      sessionUserAgent: null,
+      sessionExpiresAt: null,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: cookidooCredentials.userId,
+      targetWhere: sql`${cookidooCredentials.scopeType} = 'user'`,
+      set: {
+        email,
+        password,
+        createdBy: userId,
+        sessionCookies: null,
+        sessionUserAgent: null,
+        sessionExpiresAt: null,
+        updatedAt: now,
+      },
+    });
+}
+
+export async function deleteUserCookidooCredentials(userId: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db
+    .delete(cookidooCredentials)
+    .where(and(eq(cookidooCredentials.scopeType, "user"), eq(cookidooCredentials.userId, userId)))
+    .returning({ id: cookidooCredentials.id });
+  return rows.length > 0;
+}
+
+export async function getCookidooPrivateCredentials(userId: string): Promise<Pick<CookidooResolvedCredential, "email" | "password"> | null> {
+  const db = getDb();
+  const [row] = await db
+    .select({
+      email: cookidooCredentials.email,
+      password: cookidooCredentials.password,
+    })
+    .from(cookidooCredentials)
+    .where(and(eq(cookidooCredentials.scopeType, "user"), eq(cookidooCredentials.userId, userId)))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function shareCookidooCredentialsToHousehold(auth: CookidooAuthContext): Promise<boolean> {
+  const householdId = auth.activeHouseholdId;
+  if (!householdId || !isHouseholdOwner(auth.memberships, householdId)) {
+    return false;
+  }
+
+  const privateCreds = await getCookidooPrivateCredentials(auth.userId);
+  if (!privateCreds) {
+    throw new Error("Private Cookidoo credentials are required before sharing");
+  }
+
+  const db = getDb();
+  const now = new Date();
+  await db
+    .insert(cookidooCredentials)
+    .values({
+      scopeType: "household",
+      userId: null,
+      householdId,
+      email: privateCreds.email,
+      password: privateCreds.password,
+      createdBy: auth.userId,
+      sessionCookies: null,
+      sessionUserAgent: null,
+      sessionExpiresAt: null,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: cookidooCredentials.householdId,
+      targetWhere: sql`${cookidooCredentials.scopeType} = 'household'`,
+      set: {
+        email: privateCreds.email,
+        password: privateCreds.password,
+        createdBy: auth.userId,
+        sessionCookies: null,
+        sessionUserAgent: null,
+        sessionExpiresAt: null,
+        updatedAt: now,
+      },
+    });
+
+  return true;
+}
+
+export async function deleteHouseholdCookidooShare(auth: CookidooAuthContext): Promise<boolean> {
+  const householdId = auth.activeHouseholdId;
+  if (!householdId || !isHouseholdOwner(auth.memberships, householdId)) {
+    return false;
+  }
+
+  const db = getDb();
+  const rows = await db
+    .delete(cookidooCredentials)
+    .where(and(eq(cookidooCredentials.scopeType, "household"), eq(cookidooCredentials.householdId, householdId)))
+    .returning({ id: cookidooCredentials.id });
+  return rows.length > 0;
+}
+
+export async function resolveCookidooCredentials(auth: CookidooAuthContext): Promise<CookidooResolvedCredential | null> {
+  const db = getDb();
+
+  const [userRow] = await db
+    .select({
+      scopeType: cookidooCredentials.scopeType,
+      userId: cookidooCredentials.userId,
+      householdId: cookidooCredentials.householdId,
+      email: cookidooCredentials.email,
+      password: cookidooCredentials.password,
+      sessionCookies: cookidooCredentials.sessionCookies,
+      sessionUserAgent: cookidooCredentials.sessionUserAgent,
+      sessionExpiresAt: cookidooCredentials.sessionExpiresAt,
+    })
+    .from(cookidooCredentials)
+    .where(and(eq(cookidooCredentials.scopeType, "user"), eq(cookidooCredentials.userId, auth.userId)))
+    .limit(1);
+
+  if (userRow) {
+    return {
+      scopeType: "user",
+      userId: userRow.userId,
+      householdId: userRow.householdId,
+      email: userRow.email,
+      password: userRow.password,
+      sessionCookies: userRow.sessionCookies,
+      sessionUserAgent: userRow.sessionUserAgent,
+      sessionExpiresAt: userRow.sessionExpiresAt,
+    };
+  }
+
+  if (!auth.activeHouseholdId) {
+    return null;
+  }
+
+  const [householdRow] = await db
+    .select({
+      scopeType: cookidooCredentials.scopeType,
+      userId: cookidooCredentials.userId,
+      householdId: cookidooCredentials.householdId,
+      email: cookidooCredentials.email,
+      password: cookidooCredentials.password,
+      sessionCookies: cookidooCredentials.sessionCookies,
+      sessionUserAgent: cookidooCredentials.sessionUserAgent,
+      sessionExpiresAt: cookidooCredentials.sessionExpiresAt,
+    })
+    .from(cookidooCredentials)
+    .where(and(eq(cookidooCredentials.scopeType, "household"), eq(cookidooCredentials.householdId, auth.activeHouseholdId)))
+    .limit(1);
+
+  if (!householdRow) {
+    return null;
+  }
+
+  return {
+    scopeType: "household",
+    userId: householdRow.userId,
+    householdId: householdRow.householdId,
+    email: householdRow.email,
+    password: householdRow.password,
+    sessionCookies: householdRow.sessionCookies,
+    sessionUserAgent: householdRow.sessionUserAgent,
+    sessionExpiresAt: householdRow.sessionExpiresAt,
+  };
+}
+
+export async function getCookidooStatus(auth: CookidooAuthContext): Promise<CookidooStatus> {
+  const resolved = await resolveCookidooCredentials(auth);
+  const db = getDb();
+  const [sharedRow] = auth.activeHouseholdId
+    ? await db
+        .select({ id: cookidooCredentials.id })
+        .from(cookidooCredentials)
+        .where(and(eq(cookidooCredentials.scopeType, "household"), eq(cookidooCredentials.householdId, auth.activeHouseholdId)))
+        .limit(1)
+    : [];
+
+  return {
+    scope: resolved?.scopeType ?? "none",
+    connected: resolved !== null,
+    sharedByCurrentHousehold: !!sharedRow,
+  };
+}
+
+export async function updateCookidooScopedSession(
+  scope: CookidooScopeRef,
+  session: {
+    sessionCookies: string;
+    sessionUserAgent: string;
+    sessionExpiresAt: Date;
+  },
+): Promise<void> {
+  const db = getDb();
+  const where = scope.scopeType === "user"
+    ? and(eq(cookidooCredentials.scopeType, "user"), eq(cookidooCredentials.userId, scope.userId!))
+    : and(eq(cookidooCredentials.scopeType, "household"), eq(cookidooCredentials.householdId, scope.householdId!));
+
+  await db
+    .update(cookidooCredentials)
+    .set({
+      sessionCookies: session.sessionCookies,
+      sessionUserAgent: session.sessionUserAgent,
+      sessionExpiresAt: session.sessionExpiresAt,
+      updatedAt: new Date(),
+    })
+    .where(where);
+}
+
+export async function clearCookidooScopedSession(scope: CookidooScopeRef): Promise<void> {
+  const db = getDb();
+  const where = scope.scopeType === "user"
+    ? and(eq(cookidooCredentials.scopeType, "user"), eq(cookidooCredentials.userId, scope.userId!))
+    : and(eq(cookidooCredentials.scopeType, "household"), eq(cookidooCredentials.householdId, scope.householdId!));
+
+  await db
+    .update(cookidooCredentials)
+    .set({
+      sessionCookies: null,
+      sessionUserAgent: null,
+      sessionExpiresAt: null,
+      updatedAt: new Date(),
+    })
+    .where(where);
 }
 
 export async function ensureUserProfile(userId: string, email?: string | null): Promise<{ created: boolean }> {
