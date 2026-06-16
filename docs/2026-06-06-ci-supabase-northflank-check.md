@@ -1,18 +1,39 @@
 # CI / Supabase / Northflank Check
 
-Stand: 2026-06-15
+Stand: 2026-06-16
 
 Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und Northflank sowie den naechsten Vorgehensplan. Der detaillierte Arbeitsplan zum aktuellen Stand liegt in [2026-06-15-ci-supabase-northflank-execution-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-ci-supabase-northflank-execution-plan.md).
 
 ## Kurzfazit
 
-- Der historische Expo-SDK-56-Drift-Fix bleibt relevant, ist aber nicht mehr der einzige CI-Befund.
-- Aktuell ist der letzte rote Push-Run auf `main` `27566390926` vom 2026-06-15.
-- In diesem Push-Run fallen `test` bei `Run unit coverage` und `mobile-release-gate` bei `Run Expo Doctor`.
-- Der `test`-Fehler ist lokal reproduzierbar: `npm run test:coverage` faellt aktuell an einem veralteten Expectation-Test in `test/unit/photo-extraction.test.ts`.
-- Der letzte rote Scheduled-Run `27529833799` vom 2026-06-15 hat andere Befunde: `performance-audit` strict und `e2e-legacy-soak`.
-- `supabase-rls-smoke` ist in den aktuellen roten Push- und Scheduled-Runs gruen.
-- Northflank bleibt nach aktuellem Remote-Stand funktional gruen.
+- PR #19 `v1.0.166 fix(ci): restore root and mobile release gates` wurde am 2026-06-16 gemergt.
+- Der zuvor offene Push-CI-Track ist damit remote verifiziert: PR-Checks `27599696794` und Push-CI auf `main` `27599914223` waren gruen.
+- Die nachgelagerten Docker-/Deploy-Runs `27599914284` und `27599929657` waren ebenfalls gruen; Northflank bleibt nach aktuellem Remote-Stand funktional gruen.
+- `supabase-rls-smoke` ist im relevanten PR-/Push-Lauf gruen.
+- Aus dem frueheren Sammel-Track bleibt fuer Northflank nur noch der getrennte Deploy-Hygiene-Follow-up `post-deploy health poll` offen.
+
+## Update 2026-06-16
+
+### Remote-Nachweis abgeschlossen
+
+- PR: [#19](https://github.com/dacown87/rezepti/pull/19) `v1.0.166 fix(ci): restore root and mobile release gates`
+- Merge-Zeit: `2026-06-16T06:55:44Z`
+- PR-Checks Run: `27599696794`
+  - `test`: gruen
+  - `mobile-release-gate`: gruen
+  - `supabase-rls-smoke`: gruen
+  - `performance-audit`: gruen
+  - `e2e`: gruen
+  - `e2e-legacy-soak`: beim PR erwartbar skipped
+- Push-CI auf `main`: `27599914223` gruen
+- Docker Build/Push + Northflank Deploy auf `main`: `27599914284` gruen
+- Nachgelagerter `workflow_run`-Deploy: `27599929657` gruen
+
+### Konsequenz
+
+- Der bisher offene CI-/Supabase-/Northflank-Remote-Beweis ist erbracht.
+- Northflank ist fuer diesen Track nicht mehr blockierend.
+- Offen bleibt nur ein separater Infra-Polish: Nach dem Northflank-Deploy-API-Call einen echten `/api/v1/health`-Poll einbauen, damit `deploy accepted` nicht weiter als stilles False-Green durchgeht.
 
 ## Update 2026-06-15
 
