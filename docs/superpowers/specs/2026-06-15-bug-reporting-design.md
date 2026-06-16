@@ -1,7 +1,11 @@
 # Bug Reporting Design
 
-Stand: 2026-06-15
-Status: Grobe Produktskizze
+Stand: 2026-06-16
+Status: Design steht; Umsetzungsplan verlinkt
+
+Umsetzungsplan:
+
+- [2026-06-16-bug-reporting-implementation-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-16-bug-reporting-implementation-plan.md)
 
 ## Ziel
 
