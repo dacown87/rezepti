@@ -10,7 +10,7 @@ Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und No
 - Der zuvor offene Push-CI-Track ist damit remote verifiziert: PR-Checks `27599696794` und Push-CI auf `main` `27599914223` waren gruen.
 - Die nachgelagerten Docker-/Deploy-Runs `27599914284` und `27599929657` waren ebenfalls gruen; Northflank bleibt nach aktuellem Remote-Stand funktional gruen.
 - `supabase-rls-smoke` ist im relevanten PR-/Push-Lauf gruen.
-- Aus dem frueheren Sammel-Track bleibt fuer Northflank nur noch der getrennte Deploy-Hygiene-Follow-up `post-deploy health poll` offen.
+- Der fruehere Deploy-Hygiene-Follow-up `post-deploy health poll` ist jetzt umgesetzt; die Ziel-URL wird ueber das GitHub-Secret `NORTHFLANK_HEALTHCHECK_URL` gesteuert.
 
 ## Update 2026-06-16
 
@@ -33,7 +33,14 @@ Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und No
 
 - Der bisher offene CI-/Supabase-/Northflank-Remote-Beweis ist erbracht.
 - Northflank ist fuer diesen Track nicht mehr blockierend.
-- Offen bleibt nur ein separater Infra-Polish: Nach dem Northflank-Deploy-API-Call einen echten `/api/v1/health`-Poll einbauen, damit `deploy accepted` nicht weiter als stilles False-Green durchgeht.
+- Der fruehere Infra-Polish ist jetzt umgesetzt: Nach dem Northflank-Deploy-API-Call pollt der Workflow `/api/v1/health` mit Retry-Schleife, statt nur auf ein API-`2xx` zu vertrauen.
+
+### Update 2026-06-16 — Health Poll umgesetzt
+
+- GitHub-Secret `NORTHFLANK_HEALTHCHECK_URL` wurde fuer die aktuelle Prod-URL gesetzt.
+- `.github/workflows/docker-publish.yml` nutzt das Secret jetzt im Deploy-Schritt.
+- Nach erfolgreichem Northflank-API-Call prueft der Workflow die Health-URL bis zu 10 Mal mit je 15 Sekunden Abstand.
+- Fehlt das Secret oder bleibt der Health-Endpunkt rot/nicht erreichbar, failt der Deploy-Job explizit.
 
 ## Update 2026-06-15
 
