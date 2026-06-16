@@ -1,4 +1,4 @@
-<!DOCTYPE html><html  lang="en"><head><title data-rh="true"></title><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><style id="expo-reset">#root,body,html{height:100%}body{overflow:hidden}#root{display:flex}</style><style>
+<!DOCTYPE html><html  lang="en"><head><title data-rh="true"></title><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="theme-color" content="#c84b31"/><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180.png"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="apple-mobile-web-app-title" content="RecipeDeck"/><style id="expo-reset">#root,body,html{height:100%}body{overflow:hidden}#root{display:flex}</style><style>
 body {
   background-color: #fff;
 }
@@ -84,10 +84,13 @@ html[data-audit-shell='recipe'] .rd-audit-shell {
   .rd-audit-shell__subtitle {
     color: #dbc7b7;
   }
-}</style><script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for (var r of registrations) { r.unregister(); }
+}</style><script>if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(function() {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(r) {
+        if (!r.scriptURL.endsWith('/sw.js')) r.unregister();
+      });
+    });
   });
 }</script><script>
 (function() {
@@ -134,7 +137,6 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 .r-60ke3l{border-bottom-color:rgba(0,128,0,1.00);border-left-color:rgba(0,128,0,1.00);border-right-color:rgba(0,128,0,1.00);border-top-color:rgba(0,128,0,1.00);}
 .r-6t2glc{border-bottom-left-radius:40px;border-bottom-right-radius:40px;border-top-left-radius:40px;border-top-right-radius:40px;}
 .r-9x6qib{border-bottom-color:rgba(204,214,221,1.00);border-left-color:rgba(204,214,221,1.00);border-right-color:rgba(204,214,221,1.00);border-top-color:rgba(204,214,221,1.00);}
-.r-cdmcib{border-bottom-left-radius:3px;border-bottom-right-radius:3px;border-top-left-radius:3px;border-top-right-radius:3px;}
 .r-crgep1{margin:0px;}
 .r-d045u9{border-bottom-width:2px;border-left-width:2px;border-right-width:2px;border-top-width:2px;}
 .r-d23pfw{padding:24px;}
@@ -152,16 +154,13 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 .r-11gswi8{padding-left:3px;padding-right:3px;}
 .r-17q4wm6{margin-left:5px;margin-right:5px;}
 .r-184id4b{margin-bottom:12px;margin-top:12px;}
-.r-19jyx45{margin-bottom:30px;margin-top:30px;}
 .r-1d7mnkm{padding-bottom:15px;padding-top:15px;}
 .r-1e084wi{padding-left:0px;padding-right:0px;}
-.r-1f1ottj{margin-bottom:7px;margin-top:7px;}
 .r-1mmae3n{padding-bottom:12px;padding-top:12px;}
 .r-1ntr0p{padding-left:5px;padding-right:5px;}
 .r-1rsorjc{padding-left:36px;padding-right:36px;}
 .r-1yd117h{padding-bottom:7px;padding-top:7px;}
 .r-3o4zer{padding-left:12px;padding-right:12px;}
-.r-bhtmuz{margin-left:20px;margin-right:20px;}
 .r-cxgwc0{padding-left:24px;padding-right:24px;}
 .r-f8sm7e{margin-left:auto;margin-right:auto;}
 .r-is05cd{padding-left:8px;padding-right:8px;}
@@ -172,7 +171,6 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 .r-u9wvl5{padding-left:20px;padding-right:20px;}
 .r-ugi1tw{padding-left:5%;padding-right:5%;}
 .r-w7s2jr{padding-bottom:16px;padding-top:16px;}
-.r-xatgq8{margin-left:50px;margin-right:50px;}
 .r-ytbthy{padding-bottom:10px;padding-top:10px;}
 [stylesheet-group="2.2"]{}
 .r-10s2tm5{left:0%;}
@@ -197,7 +195,6 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 .r-wizibn{margin-left:5px;}
 [stylesheet-group="3"]{}
 .r-105ug2t{pointer-events:auto!important;}
-.r-109y4c4{height:1px;}
 .r-10ptun7{height:16px;}
 .r-10v3vxq{transform:scaleX(-1);}
 .r-10x49cs{font-size:10px;}
@@ -329,7 +326,6 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 .r-633pao>* {pointer-events:none;}
 .r-633pao{pointer-events:none!important;}
 .r-6dt33c{opacity:1;}
-.r-6e0ovw{width:80%;}
 .r-6gpygo{margin-bottom:12px;}
 .r-6taxm2:-ms-input-placeholder{color:var(--placeholderTextColor);opacity:1;}
 .r-6taxm2::-moz-placeholder{color:var(--placeholderTextColor);opacity:1;}
@@ -427,8 +423,8 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
 @keyframes r-1pzkwqh{0%{transform:translateY(100%);}100%{transform:translateY(0%);}}
 @keyframes r-imtty0{0%{opacity:0;}100%{opacity:1;}}
 @keyframes r-q67da2{0%{transform:translateX(-100%);}100%{transform:translateX(400%);}}
-@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-494e08cf39d4823eb86d8edf085fdf41.css" as="style">
-<link rel="stylesheet" href="/_expo/static/css/web-494e08cf39d4823eb86d8edf085fdf41.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="rd-audit-shell" class="rd-audit-shell" aria-hidden="true"><div class="rd-audit-shell__brand">RecipeDeck</div><div class="rd-audit-shell__card"><div class="rd-audit-shell__title">Ansicht wird vorbereitet</div><div class="rd-audit-shell__subtitle">Inhalte fuer die mobile Ansicht werden geladen.</div></div></div><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script>
+@keyframes r-t2lo5v{0%{opacity:1;}100%{opacity:0;}}</style><script type="module">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script><link rel="preload" href="/_expo/static/css/web-bd5fd0ebe142c1ad0d0fcd03f57f8e06.css" as="style">
+<link rel="stylesheet" href="/_expo/static/css/web-bd5fd0ebe142c1ad0d0fcd03f57f8e06.css"><link rel="icon" href="/favicon.ico" /></head><body><div id="rd-audit-shell" class="rd-audit-shell" aria-hidden="true"><div class="rd-audit-shell__brand">RecipeDeck</div><div class="rd-audit-shell__card"><div class="rd-audit-shell__title">Ansicht wird vorbereitet</div><div class="rd-audit-shell__subtitle">Inhalte fuer die mobile Ansicht werden geladen.</div></div></div><div id="root"><div class="css-g5y9jx r-13awgt0"></div></div><script>
 (function() {
   var shell = document.getElementById('rd-audit-shell');
   if (!shell) return;
@@ -440,5 +436,5 @@ input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-web
       shell.style.display = 'none';
     }, 220);
   }, 5200);
-})();</script><script src="/_expo/static/js/web/entry-8dd103be87393f56c7b89979b5833c3c.js" defer></script>
+})();</script><script src="/_expo/static/js/web/entry-8d15aa214e9c0f834687fbb76617e482.js" defer></script>
 </body></html>

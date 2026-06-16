@@ -294,6 +294,7 @@ describe('URL extraction route', () => {
       undefined,
       undefined,
       userId,
+      null,
     )
   })
 
