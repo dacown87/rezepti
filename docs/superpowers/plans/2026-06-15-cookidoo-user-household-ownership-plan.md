@@ -1,3 +1,4 @@
+<!-- /autoplan restore point: /home/patrick/.gstack/projects/rezepti/fix-ci-supabase-northflank-execution-autoplan-restore-20260616-084557.md -->
 # Cookidoo User-Default + Optional Household-Share Plan
 
 Datum: 2026-06-15
