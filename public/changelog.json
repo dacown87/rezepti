@@ -1,6 +1,11 @@
 {
-  "version": "1.0.167",
+  "version": "1.0.168",
   "entries": [
+    {
+      "version": "1.0.168",
+      "date": "2026-06-16",
+      "changes": []
+    },
     {
       "version": "1.0.167",
       "date": "2026-06-16",
@@ -171,17 +176,10 @@
       "version": "1.0.137",
       "date": "2026-06-08",
       "changes": []
-    },
-    {
-      "version": "1.0.136",
-      "date": "2026-06-08",
-      "changes": [
-        "hebt GitHub-Actions auf Node-24-kompatible Action-Majors fuer Artifacts, Cache und Chrome-Setup"
-      ]
     }
   ],
   "lastUpdated": {
     "date": "2026-06-16",
-    "time": "09:00"
+    "time": "09:04"
   }
 }
