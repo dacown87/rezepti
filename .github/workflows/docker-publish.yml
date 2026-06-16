@@ -48,7 +48,6 @@ jobs:
           NORTHFLANK_API_KEY: ${{ secrets.NORTHFLANK_API_KEY }}
           NORTHFLANK_PROJECT_ID: ${{ secrets.NORTHFLANK_PROJECT_ID }}
           NORTHFLANK_SERVICE_ID: ${{ secrets.NORTHFLANK_SERVICE_ID }}
-          NORTHFLANK_HEALTHCHECK_URL: ${{ secrets.NORTHFLANK_HEALTHCHECK_URL }}
           IMAGE_PATH: dacown/rezepti:latest
         run: |
           payload=$(jq -nc --arg imagePath "$IMAGE_PATH" '{external: {imagePath: $imagePath}}')
@@ -68,6 +67,10 @@ jobs:
 
           echo "Northflank deploy succeeded"
 
+      - name: Poll Northflank health
+        env:
+          NORTHFLANK_HEALTHCHECK_URL: ${{ secrets.NORTHFLANK_HEALTHCHECK_URL }}
+        run: |
           if [ -z "${NORTHFLANK_HEALTHCHECK_URL:-}" ]; then
             echo "NORTHFLANK_HEALTHCHECK_URL secret is missing"
             exit 1
