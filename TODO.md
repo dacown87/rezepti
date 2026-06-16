@@ -12,25 +12,22 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 ## Naechste Reihenfolge
 
-1. **[x] Progressive Web App (PWA) — Phase 6 abgeschlossen (2026-06-13)**
-   - [x] Installierbare App-Shell mit Manifest, Service Worker, Offline-Read.
-   - [x] Homescreen-Installationspfad fuer iOS/Android implementiert.
-   - [x] Per-User-Cache-Boundary (SHA-256-Hashing, CLEAR_USER auf Logout).
-   - [x] Dokumentation: `docs/pwa-runbook.md` + PWA-Subsection in `CLAUDE.md`.
-   - Plan: `docs/superpowers/plans/2026-06-12-pwa-installable-shell-plan.md`
-   - **➡️ Naechster Schritt (nach Deploy):** Post-Deploy-QA der 11 nur am deployten Build pruefbaren Akzeptanzkriterien (Lighthouse Installable, Chrome/iOS Install, Cross-User-Cache-Isolation, Flugmodus-Offline). Plan: [PWA Post-Deploy QA](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-13-pwa-post-deploy-qa.md) — ausfuehrbar via `/qa` gegen die Prod-URL.
+1. **CI / Supabase / Northflank Track sauber remote verifizieren**
+   - Der akute lokale Fix fuer den historischen `mobile-release-gate`-Blocker ist dokumentiert.
+   - Offen ist vor allem der naechste Push-/PR-Lauf als echter Remote-Beweis fuer CI, Deploy und Workflow-Hygiene.
+   - Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-2. **Multi-Auth-Hardening-Track abarbeiten**
-   - Offener Rest ist jetzt vor allem die Ownership-Inventur der verbleibenden Flaechen.
-   - Web-Auth-/Session-Gate, Persistenz-Abnahme und Credential-Boundaries sind dokumentiert bzw. nachgezogen.
-   - Das Session-Gate bleibt konzeptionell ein automatisierter E2E (`Login -> Reload -> authed; neuer Kontext -> persisted/cleared`), auch wenn der manuelle Smoke fuer Settings/Theme/PDF am 2026-06-15 bereits gruen dokumentiert ist.
-   - Details: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md).
-
-3. **Produkt-/Ops-Follow-ups mit klarer Slice-Grenze**
-   - BYOK-Rate-Limit im Admin sichtbar und aenderbar machen.
+2. **Produkt-/Ops-Follow-ups mit klarer Slice-Grenze**
    - Cookidoo auf user-default mit optionalem Household-Share umbauen.
+   - BYOK-Rate-Limit im Admin sichtbar und aenderbar machen.
    - Bug-Reporting-Flow als eigenen Slice planen und umsetzen.
    - Recipes Sharing/Favorites/Collections getrennt vom Ownership-Slice planen.
+
+3. **PWA nur noch als Rest-QA / optionale Nachpruefung**
+   - PWA Phase 6 ist abgeschlossen; der deployte QA-Durchlauf vom 2026-06-14 ist weitgehend gruen.
+   - Live verifiziert sind Install, Persistenz, Cross-User-Cache-Isolation und Offline-Lesepfad.
+   - Offen bleiben nur optionale bzw. nicht separat gepruefte Restpunkte wie Lighthouse-PWA-Audit und iOS-spezifische Install-/Share-Sheet-Checks.
+   - Details: [PWA Post-Deploy QA](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-13-pwa-post-deploy-qa.md).
 
 4. **Spaeter oder trigger-basiert**
    - NativeWind 5/Tailwind 4 separat planen.
@@ -57,6 +54,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 
 - [x] **Multi-Auth-Hardening-Track** — Web-Auth-Stabilisierung, Persistenz-Abnahme, Credential-Boundaries und Ownership-Inventur sind dokumentiert bzw. nachgezogen. Referenzen: [Multi-Auth Hardening Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-09-multi-auth-hardening-plan.md), [Ownership Surface Inventory](/home/patrick/Projekte/rezepti/docs/2026-06-15-ownership-surface-inventory.md).
 - [ ] **CI / Supabase / Northflank Track** — aktueller Betriebsstand, Findings und Vorgehen: [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
+- [ ] **Northflank post-deploy health poll** — Nach dem Deploy-API-Call im Northflank-Workflow einen echten `/api/v1/health`-Poll nachziehen, damit ein akzeptierter Deploy-Request nicht weiter als stilles False-Green durchgeht.
 - [ ] **BYOK-Rate-Limit im Admin sichtbar und aenderbar machen** — Im Admin-Bereich den aktiven Grenzwert und das Zeitfenster fuer `/api/v1/keys/validate` anzeigen und pflegbar machen, damit die serverseitige Begrenzung nicht nur im Code konfiguriert ist.
 - [ ] **Cookidoo-Credential-Ownership nachziehen** — Zielmodell festgelegt: private User-Credentials als Default, optional explizite Freigabe fuer den aktiven Haushalt; bisherige globale Server-Credentials werden beim Umstieg verworfen. Plan: [2026-06-15-cookidoo-user-household-ownership-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-cookidoo-user-household-ownership-plan.md).
 - [ ] **Bug-Reporting-Flow planen und umsetzen** — Globalen Bug-Button, Importfehler-Report mit Modal, `bug_reports`-Tabelle, Admin-Uebersicht und kleinen Nutzerbereich `Meine Meldungen` in Settings als eigenen Slice umsetzen. Grobskizze: [2026-06-15-bug-reporting-design.md](/home/patrick/Projekte/rezepti/docs/superpowers/specs/2026-06-15-bug-reporting-design.md).
