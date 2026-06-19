@@ -4,6 +4,7 @@ export type CookidooStatusResponse = {
   scope: 'user' | 'household' | 'none';
   connected: boolean;
   sharedByCurrentHousehold: boolean;
+  canManageHouseholdShare: boolean;
 };
 
 async function readJsonError(response: Response) {

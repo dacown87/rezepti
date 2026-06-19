@@ -490,6 +490,7 @@ export interface CookidooStatus {
   scope: CookidooScopeType | "none";
   connected: boolean;
   sharedByCurrentHousehold: boolean;
+  canManageHouseholdShare: boolean;
 }
 
 export interface AccountBootstrapStatus {
@@ -758,6 +759,7 @@ export async function resolveCookidooCredentials(auth: CookidooAuthContext): Pro
 export async function getCookidooStatus(auth: CookidooAuthContext): Promise<CookidooStatus> {
   const resolved = await resolveCookidooCredentials(auth);
   const db = getDb();
+  const canManageHouseholdShare = !!auth.activeHouseholdId && isHouseholdOwner(auth.memberships, auth.activeHouseholdId);
   const [sharedRow] = auth.activeHouseholdId
     ? await db
         .select({ id: cookidooCredentials.id })
@@ -770,6 +772,7 @@ export async function getCookidooStatus(auth: CookidooAuthContext): Promise<Cook
     scope: resolved?.scopeType ?? "none",
     connected: resolved !== null,
     sharedByCurrentHousehold: !!sharedRow,
+    canManageHouseholdShare,
   };
 }
 

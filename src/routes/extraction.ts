@@ -256,8 +256,8 @@ app.post("/api/v1/extract/photo", requireUserAuth(), async (c) => {
 
     const userAgent = c.req.header("User-Agent");
     const job = apiKeyHash
-      ? jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, apiKeyHash, auth.userId)
-      : jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, undefined, auth.userId);
+      ? jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, apiKeyHash, auth.userId, auth.activeHouseholdId)
+      : jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, undefined, auth.userId, auth.activeHouseholdId);
     photoDataStore.set(job.id, dataUrl);
 
     setTimeout(() => {
@@ -353,7 +353,7 @@ app.post("/api/v1/extract/text", requireUserAuth(), async (c) => {
     }
 
     const userAgent = c.req.header("User-Agent");
-    const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent, apiKeyHash, auth.userId);
+    const job = jobManager.createJob(`text://manual-${Date.now()}`, userAgent, apiKeyHash, auth.userId, auth.activeHouseholdId);
     textDataStore.set(job.id, text);
 
     setTimeout(() => {
