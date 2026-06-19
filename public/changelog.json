@@ -1,6 +1,11 @@
 {
-  "version": "1.0.174",
+  "version": "1.0.175",
   "entries": [
+    {
+      "version": "1.0.175",
+      "date": "2026-06-19",
+      "changes": []
+    },
     {
       "version": "1.0.174",
       "date": "2026-06-19",
@@ -163,25 +168,10 @@
       "changes": [
         "inline EXPO_PUBLIC Supabase vars at web bundle build time"
       ]
-    },
-    {
-      "version": "1.0.145",
-      "date": "2026-06-12",
-      "changes": [
-        "add @emnapi/core and @emnapi/runtime as optionalDependencies to fix CI lock file sync",
-        "S3 route auth inventory — add requireUserAuth to images/search, update CLAUDE.md",
-        "update cold-start cache test to expect legacy-key cleanup call",
-        "Implement post-hotfix auth hardening plan and related changes"
-      ]
-    },
-    {
-      "version": "1.0.143",
-      "date": "2026-06-09",
-      "changes": []
     }
   ],
   "lastUpdated": {
     "date": "2026-06-19",
-    "time": "14:48"
+    "time": "16:02"
   }
 }

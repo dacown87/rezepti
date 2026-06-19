@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.175] – 2026-06-19
+
+
+
 ## [1.0.174] – 2026-06-19
 
 - fuehre einen Admin Hub mit eigener BYOK-Validation-Policy-Seite und Bug-Reports-Andockpunkt ein
