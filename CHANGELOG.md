@@ -1,8 +1,12 @@
 # Changelog
 
+## [1.0.174] – 2026-06-19
+
+- fuehre einen Admin Hub mit eigener BYOK-Validation-Policy-Seite und Bug-Reports-Andockpunkt ein
+- zentralisiere die BYOK-Validation-Policy fuer `keys/validate` und alle BYOK-Extraction-Einstiege inklusive admin-only Runtime-Config
+- ergaenze `GET /api/v1/auth/me`, den Operator-Runbook fuer Set/Verify/Rollback und halte den bisherigen `keys/validate`-Invalid-Key-Vertrag kompatibel
+
 ## [1.0.173] – 2026-06-19
-
-
 
 ## [1.0.172] – 2026-06-19
 

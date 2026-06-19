@@ -12,6 +12,7 @@ import keysRouter from "./routes/keys.js";
 import plannerRouter from "./routes/planner.js";
 import platformsRouter from "./routes/platforms.js";
 import pushRouter from "./routes/push.js";
+import adminRouter from "./routes/admin.js";
 
 // Initialize React database schema once at startup
 ensureReactSchema();
@@ -25,5 +26,6 @@ app.route("/", keysRouter);
 app.route("/", plannerRouter);
 app.route("/", platformsRouter);
 app.route("/", pushRouter);
+app.route("/", adminRouter);
 
 export default app;

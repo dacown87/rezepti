@@ -157,6 +157,9 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="account" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/index" options={{ title: 'Admin Hub' }} />
+        <Stack.Screen name="admin/byok-validation-policy" options={{ title: 'BYOK Validation Policy' }} />
+        <Stack.Screen name="admin/bug-reports" options={{ title: 'Bug Reports' }} />
         <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>

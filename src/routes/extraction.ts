@@ -1,6 +1,6 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { jobManager } from "../job-manager.js";
-import { BYOKValidator } from "../byok-validator.js";
 import { processURL, toUserFriendlyError, buildQualityWarnings } from "../pipeline.js";
 import { extractRecipeFromImage, extractRecipeFromText } from "../processors/llm.js";
 import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
@@ -10,6 +10,7 @@ import type { PipelineEvent } from "../types.js";
 import { searchRecipeImages } from "../utils/image-search.js";
 import { AuthFlowError, authErrorResponse, getUserAuth, requireUserAuth, resolveUserAuthContext } from "../auth.js";
 import type { ExtractionJob } from "../job-manager.js";
+import { ByokValidationFailure, enforceByokValidation } from "../byok-policy.js";
 
 // In-memory store for base64 photo data, keyed by jobId (cleaned up after processing)
 const photoDataStore = new Map<string, string>();
@@ -25,13 +26,17 @@ function getApiKeyFromRequest(c: { req: { header: (name: string) => string | und
   return bodyKey || undefined;
 }
 
-async function validateOptionalApiKey(apiKey: string | undefined): Promise<string | undefined> {
+async function validateOptionalApiKey(apiKey: string | undefined, userId: string): Promise<string | undefined> {
   if (!apiKey) return undefined;
-  const validation = await BYOKValidator.validateKey(apiKey);
-  if (!validation.valid) {
-    throw new Error(`Invalid API key: ${validation.reason}`);
+  const enforcement = await enforceByokValidation(apiKey, userId);
+  return enforcement.keyHash;
+}
+
+function byokValidationFailureResponse(c: Context, error: unknown) {
+  if (!(error instanceof ByokValidationFailure)) {
+    return null;
   }
-  return BYOKValidator.hashKey(apiKey);
+  return c.json(error.payload, error.status);
 }
 
 async function authorizeJobAccess(c: { req: { header: (name: string) => string | undefined } }, job: ExtractionJob): Promise<void> {
@@ -89,12 +94,11 @@ app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
 
     let apiKeyHash: string | undefined;
     try {
-      apiKeyHash = await validateOptionalApiKey(apiKey);
+      apiKeyHash = await validateOptionalApiKey(apiKey, auth.userId);
     } catch (error) {
-      return c.json({
-        error: "Invalid API key",
-        details: error instanceof Error ? error.message.replace(/^Invalid API key: /, "") : "Unknown validation error"
-      }, 400);
+      const failure = byokValidationFailureResponse(c, error);
+      if (failure) return failure;
+      throw error;
     }
 
     const userAgent = c.req.header("User-Agent");
@@ -242,12 +246,11 @@ app.post("/api/v1/extract/photo", requireUserAuth(), async (c) => {
 
     let apiKeyHash: string | undefined;
     try {
-      apiKeyHash = await validateOptionalApiKey(apiKey);
+      apiKeyHash = await validateOptionalApiKey(apiKey, auth.userId);
     } catch (error) {
-      return c.json({
-        error: "Invalid API key",
-        details: error instanceof Error ? error.message.replace(/^Invalid API key: /, "") : "Unknown validation error"
-      }, 400);
+      const failure = byokValidationFailureResponse(c, error);
+      if (failure) return failure;
+      throw error;
     }
 
     const buffer = await file.arrayBuffer();
@@ -344,12 +347,11 @@ app.post("/api/v1/extract/text", requireUserAuth(), async (c) => {
 
     let apiKeyHash: string | undefined;
     try {
-      apiKeyHash = await validateOptionalApiKey(apiKey);
+      apiKeyHash = await validateOptionalApiKey(apiKey, auth.userId);
     } catch (error) {
-      return c.json({
-        error: "Invalid API key",
-        details: error instanceof Error ? error.message.replace(/^Invalid API key: /, "") : "Unknown validation error"
-      }, 400);
+      const failure = byokValidationFailureResponse(c, error);
+      if (failure) return failure;
+      throw error;
     }
 
     const userAgent = c.req.header("User-Agent");

@@ -6,6 +6,17 @@ const app = new Hono();
 
 const BOOTSTRAP_DOCS = "docs/auth-runbook-route-privacy.md#auth-onboarding-bootstrap";
 
+app.get("/api/v1/auth/me", requireUserAuth(), async (c) => {
+  const auth = getUserAuth(c);
+  return c.json({
+    userId: auth.userId,
+    email: auth.email,
+    appRole: auth.appRole,
+    activeHouseholdId: auth.activeHouseholdId,
+    memberships: auth.memberships,
+  });
+});
+
 app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
   const authUserId = () => {
     try {

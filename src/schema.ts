@@ -197,3 +197,16 @@ export const byokValidationRateLimits = pgTable("byok_validation_rate_limits", {
   index("byok_validation_rate_limits_user_window_idx").on(t.userId, t.windowStart),
 ]);
 export type ByokValidationRateLimitRow = typeof byokValidationRateLimits.$inferSelect;
+
+export const byokValidationPolicies = pgTable("byok_validation_policies", {
+  singletonKey: text("singleton_key").primaryKey(),
+  windowMinutes: integer("window_minutes").notNull(),
+  maxRequests: integer("max_requests").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedByUserId: uuid("updated_by_user_id"),
+}, (t) => [
+  check("byok_validation_policies_window_minutes_check", sql`${t.windowMinutes} >= 1 AND ${t.windowMinutes} <= 1440`),
+  check("byok_validation_policies_max_requests_check", sql`${t.maxRequests} >= 1 AND ${t.maxRequests} <= 1000`),
+  index("byok_validation_policies_updated_by_idx").on(t.updatedByUserId),
+]);
+export type ByokValidationPolicyRow = typeof byokValidationPolicies.$inferSelect;

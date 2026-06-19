@@ -15,9 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User } from 'lucide-react-native';
+import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User, Shield } from 'lucide-react-native';
 import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
+import { fetchAuthMe } from '@/utils/admin';
 import {
   deleteCookidooHouseholdShare,
   deletePrivateCookidooCredentials,
@@ -264,6 +265,7 @@ export default function SettingsScreen() {
 
   // Account
   const [authSessionEmail, setAuthSessionEmail] = useState<string | null>(null);
+  const [authAppRole, setAuthAppRole] = useState<'admin' | 'user' | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authConfigured, setAuthConfigured] = useState(false);
 
@@ -389,8 +391,19 @@ export default function SettingsScreen() {
     try {
       const session = await getAuthSession();
       setAuthSessionEmail(session?.user.email ?? null);
+      if (session?.user) {
+        try {
+          const me = await fetchAuthMe();
+          setAuthAppRole(me.appRole);
+        } catch {
+          setAuthAppRole(null);
+        }
+      } else {
+        setAuthAppRole(null);
+      }
     } catch {
       setAuthSessionEmail(null);
+      setAuthAppRole(null);
     } finally {
       setAuthLoading(false);
     }
@@ -427,6 +440,15 @@ export default function SettingsScreen() {
 
     const { data } = client.auth.onAuthStateChange((_event, session) => {
       setAuthSessionEmail(session?.user.email ?? null);
+      if (session?.user) {
+        void fetchAuthMe().then((me) => {
+          setAuthAppRole(me.appRole);
+        }).catch(() => {
+          setAuthAppRole(null);
+        });
+      } else {
+        setAuthAppRole(null);
+      }
     });
 
     return () => data.subscription.unsubscribe();
@@ -638,6 +660,27 @@ export default function SettingsScreen() {
           <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">Einstellungen</Text>
           <Text className="text-warm-500 dark:text-warm-400 mt-1">API-Keys, Server & Integrationen</Text>
         </View>
+
+        {authAppRole === 'admin' && (
+          <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
+            <View className="flex-row items-center mb-2">
+              <Shield size={18} color="#8B7355" />
+              <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-2">Admin</Text>
+              <View className="ml-auto bg-blue-100 rounded-full px-2 py-0.5">
+                <Text className="text-xs text-blue-700 font-medium">Operator</Text>
+              </View>
+            </View>
+            <Text className="text-sm text-warm-600 dark:text-warm-300 mb-4">
+              Globaler Admin-Bereich für Runtime-Policies und spätere Bug-Reporting-Übersichten.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/admin')}
+              className="bg-blue-600 rounded-xl py-3 items-center"
+            >
+              <Text className="text-white font-semibold">Admin Hub öffnen</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Account ── */}
         <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">

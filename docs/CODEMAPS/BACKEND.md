@@ -1,6 +1,6 @@
 # Backend Codemap
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-06-19
 
 ## Entry Point
 
@@ -25,10 +25,11 @@ Main HTTP server using Hono framework. Serves:
 | `/api/v1/extract/react/:jobId` | GET | Poll job status as the owning user |
 | `/api/v1/extract/react/:jobId` | DELETE | Cancel job as the owning user |
 | `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user |
-| `/api/v1/extract/photo` | POST | Extract from image upload |
+| `/api/v1/extract/photo` | POST | Extract from image upload; snapshots the caller's active household into the async job |
+| `/api/v1/extract/text` | POST | Extract from free text; snapshots the caller's active household into the async job |
+| `/api/v1/images/search` | GET | Search recipe images as an authenticated user |
 | `/api/v1/keys/validate` | POST | Validate BYOK API key |
-| `/api/v1/keys` | POST | Store API key |
-| `/api/v1/keys/:keyHash` | DELETE | Remove API key |
+| `/api/v1/auth/bootstrap` | POST | Bootstrap profile + default household for the authenticated user |
 | `/api/v1/shopping` | GET/POST | Shopping list CRUD |
 | `/api/v1/shopping/:id` | PATCH/DELETE | Toggle/delete item |
 | `/api/v1/shopping/checked` | DELETE | Clear checked items |
@@ -41,6 +42,7 @@ Main HTTP server using Hono framework. Serves:
 | `/api/v1/cookidoo/status` | GET | Cookidoo connection status |
 | `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove private credentials |
 | `/api/v1/cookidoo/credentials/share` | POST/DELETE | Share/unshare private credentials with active household |
+| `/api/v1/push/subscribe` | POST/DELETE | Register/remove a push subscription for the authenticated user |
 | `/api/v1/health` | GET | Server + DB status |
 
 ## Pipeline Module
@@ -89,7 +91,7 @@ Main HTTP server using Hono framework. Serves:
 - `JobManager` - Singleton with SQLite persistence
 
 **Key Methods:**
-- `createJob(url, userAgent?, apiKeyHash?)` - Create new job
+- `createJob(url, userAgent?, apiKeyHash?, userId?, householdId?)` - Create new job with caller scope snapshot
 - `startJob(jobId)` - Mark job as running
 - `updateJob(jobId, updates)` - Update progress
 - `completeJob(jobId, result)` - Mark success

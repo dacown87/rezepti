@@ -1,6 +1,6 @@
 # Ownership Surface Inventory
 
-Stand: 2026-06-15
+Stand: 2026-06-19
 
 Scope: aktueller Code-Stand fuer API-Routen, persistente DB-Flaechen, lokale
 Persistenz und serverseitige Singleton-/In-Memory-Pfade.
@@ -41,11 +41,11 @@ Zusatzmarker:
 | `shopping` | Server + RLS | `workspace-scoped` | `requireAuth` | active household | active household | low | — |
 | `planner` | Server + RLS | `workspace-scoped` | `requireAuth` | active household | active household | low | — |
 | `auth/bootstrap` | Server + DB | `user-scoped` bootstrap with workspace side-effect | `requireUserAuth` | caller only | caller only creates/ensures own profile + default household | low | — |
-| `extract/react`, `extract/photo`, `extract/text`, `extract/jobs` | Server + in-memory | `user-scoped` | `requireUserAuth` | caller only | caller only | low | — |
+| `extract/react`, `extract/photo`, `extract/text`, `extract/jobs` | Server + in-memory | `user-scoped` with household snapshot on async jobs | `requireUserAuth` | caller only | caller only | low | implemented |
 | `extract/react/:jobId` GET/DELETE | Server + in-memory | `user-scoped` | inline ownership check | owning user only | owning user only | medium | boundary is correct, but stays middleware-free by design |
 | `keys/validate` | Server + DB rate-limit table | `user-scoped` | `requireUserAuth` | caller only | caller only | low | — |
 | `push/subscribe` | Server + RLS | `user-scoped` | `requireUserAuth` | caller only | caller only | low | — |
-| `cookidoo/status` | Server + Postgres | `user-scoped` with optional `workspace-scoped` fallback | `requireUserAuth` | caller sees resolved scope (`user > household > none`) plus household-share flag | — | low | implemented |
+| `cookidoo/status` | Server + Postgres | `user-scoped` with optional `workspace-scoped` fallback | `requireUserAuth` | caller sees resolved scope (`user > household > none`) plus household-share + owner-capability flags | — | low | implemented |
 | `cookidoo/credentials` | Server + Postgres | private `user-scoped` row | `requireUserAuth` | no direct readback of secret | caller only mutates own private row | low | implemented |
 | `cookidoo/credentials/share` | Server + Postgres | explicit `workspace-scoped` share | `requireUserAuth` | household members can use shared credentials via resolver | active-household owner only | low | implemented |
 | `pinterest/*`, `facebook/*` | Server | `disabled` | `requireUserAuth` | — | — | low | stays `501` until real model exists |
@@ -70,7 +70,7 @@ Zusatzmarker:
 | `user_default_households` | Postgres + RLS | `user-scoped` pointer into workspace | caller only | caller only via bootstrap/system helpers | low | — |
 | `push_subscriptions` | Postgres + RLS | `user-scoped` | caller only | caller only | low | — |
 | `byok_validation_rate_limits` | Postgres | `user-scoped` | backend-only; user influence via own validate calls | backend-only for caller's own rows | low | no UI needed for ownership track |
-| `cookidoo_credentials` | Postgres | private `user-scoped` or explicit `workspace-scoped` | backend-only; effective access via resolver `user > household` | private row by caller, household row by owner-only share route | low | implemented 2026-06-15 |
+| `cookidoo_credentials` | Postgres | private `user-scoped` or explicit `workspace-scoped` | backend-only; effective access via resolver `user > household` | private row by caller, household row by owner-only share route | low | implemented 2026-06-19 incl. RLS + revoked direct grants + household FK cascade |
 | `api_keys` | removed | deleted | — | — | — | already dropped |
 
 ## Local / Device Persistence

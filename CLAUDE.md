@@ -119,7 +119,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 
 BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths. No server-side key storage (the api_keys store was removed). If no user BYOK key is supplied, Groq calls continue to fall back to the server-side `GROQ_API_KEY`.
 
-## Route Auth Inventory (S3, 2026-06-12)
+## Route Auth Inventory (S3, 2026-06-19)
 
 | Surface | Layer | Owner Model | Auth | Read Boundary | Write Boundary | Risk | Action |
 |---------|-------|-------------|------|---------------|----------------|------|--------|
@@ -129,7 +129,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | extraction jobs create/list | Server | user-scoped | `requireUserAuth` | user | user | low | — |
 | extraction job poll/cancel | Server | user-scoped | inline ownership check | owner | owner | medium | middleware-free by design |
 | `cookidoo/credentials` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | resolved scope (`user > household`) | private row by caller; household share by active-household owner only | low | implemented 2026-06-15; legacy disk singleton removed |
-| `cookidoo/status` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | caller sees resolved scope + share flag | — | low | returns `scope`, `connected`, `sharedByCurrentHousehold` |
+| `cookidoo/status` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | caller sees resolved scope + share flag | — | low | returns `scope`, `connected`, `sharedByCurrentHousehold`, `canManageHouseholdShare` |
 | Pinterest / Facebook routes | Server | disabled | `requireUserAuth` + 501 | — | — | low | — |
 | `/api/v1/proxy/image` | Server | open-by-design | none | public | — | low | SSRF-guarded, needed for PDF export |
 | `/api/v1/health` | Server | open-by-design | none | public | — | low | — |

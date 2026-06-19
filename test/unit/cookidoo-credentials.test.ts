@@ -24,6 +24,18 @@ vi.mock('../../src/byok-validator.js', () => byokMocks)
 const dbMocks = vi.hoisted(() => ({
   ensureReactSchema: vi.fn(),
   loadUserAuthorization: vi.fn(),
+  loadRuntimeByokValidationPolicy: vi.fn(async () => ({
+    policy: {
+      windowMinutes: 60,
+      maxRequests: 20,
+      source: 'default',
+      status: 'uninitialized',
+      updatedAt: null,
+      updatedBy: null,
+      updatedByUserId: null,
+      appliesTo: ['keys_validate', 'extract_react', 'extract_photo', 'extract_text'],
+    },
+  })),
   getCookidooStatus: vi.fn(async () => ({
     scope: 'none',
     connected: false,
@@ -186,6 +198,51 @@ describe('BYOK validation rate limit', () => {
     })
     expect(byokMocks.BYOKValidator.hashKey).toHaveBeenCalledWith('gsk_some_key_1234567890')
     expect(byokMocks.BYOKValidator.validateKey).not.toHaveBeenCalled()
+  })
+
+  it('preserves the validate endpoint contract for invalid API keys', async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'user@example.com',
+      }),
+      loadAuthorization: async () => ({
+        appRole: 'user' as const,
+        memberships: [],
+        activeHouseholdId: null,
+      }),
+    })
+    byokMocks.BYOKValidator.validateKey.mockResolvedValueOnce({
+      valid: false,
+      reason: 'Invalid Groq API key format',
+      model: undefined,
+    })
+
+    const res = await keysRouter.request(
+      '/api/v1/keys/validate',
+      new Request('http://localhost/api/v1/keys/validate', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer valid-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey: 'invalid_key_123' }),
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({
+      valid: false,
+      reason: 'Invalid Groq API key format',
+      remaining: 19,
+      resetTime: 1234567890,
+      policy: {
+        windowMinutes: 60,
+        maxRequests: 20,
+        source: 'default',
+        status: 'uninitialized',
+      },
+    })
   })
 })
 
