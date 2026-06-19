@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.172] – 2026-06-19
+
+- härte den Cookidoo-Credential-Store mit RLS, direkten GRANT-Entzügen und Household-FK-Cascade
+- snapshotte `activeHouseholdId` auch für Foto- und Text-Extraktionsjobs, damit asynchrone Imports im korrekten Haushalt landen
+- sperre die Haushaltsfreigabe im Settings-Screen sichtbar für Nicht-Owner und liefere die Owner-Berechtigung im Status-API-Response mit
+
 ## [1.0.171] – 2026-06-16
 
 
