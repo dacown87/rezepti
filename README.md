@@ -16,6 +16,7 @@ Rezepte aus URLs extrahieren — YouTube, Instagram, TikTok, Webseiten, Cookidoo
 - **Einkaufsliste** — Multi-Rezept-Aggregation, Abhaken, Export
 - **PDF-Export** — Rezeptkarte mit QR-Code
 - **BYOK** — Bring Your Own Groq Key für URL-, Text-, Foto-, Audio- und Vision-Extraktion
+- **Cookidoo Ownership** — private Cookidoo-Credentials pro Account mit optionaler Household-Freigabe
 - **Auth Onboarding** — Account erstellen, anmelden, Passwort-Reset, Account & Workspace
 - **PWA** — Homescreen-Installation auf iOS/Android
 
@@ -183,8 +184,9 @@ npx drizzle-kit push
 | `/api/v1/extract/jobs` | GET | Eigene Extraktionsjobs auflisten, nur mit Supabase Bearer Token |
 | `/api/v1/images/search` | GET | Rezeptbilder suchen (`q`, optional `limit`) |
 | `/api/v1/keys/validate` | POST | BYOK Key validieren |
-| `/api/v1/keys` | POST | BYOK Key speichern |
-| `/api/v1/keys/:keyHash` | DELETE | BYOK Key löschen |
+| `/api/v1/cookidoo/status` | GET | Cookidoo-Status fuer den aktuellen User inkl. Scope/Freigabezustand |
+| `/api/v1/cookidoo/credentials` | POST/DELETE | Private Cookidoo-Zugangsdaten speichern/entfernen |
+| `/api/v1/cookidoo/credentials/share` | POST/DELETE | Private Cookidoo-Zugangsdaten fuer den aktiven Haushalt freigeben/zurueckziehen (Owner-only) |
 | `/api/v1/health` | GET | Server + DB Status |
 | `/api/v1/auth/bootstrap` | POST | Profil + Default-Workspace idempotent bootstrapen, mit Supabase Bearer Token |
 | `/api/v1/planner` | GET/POST/DELETE | Meal Planner, ab Multi-User-Slice mit Supabase Bearer Token + aktivem Haushalt |
@@ -194,6 +196,8 @@ npx drizzle-kit push
 | `/api/v1/dictionary/match` | GET | Kanonischen Zutatennamen matchen |
 
 BYOK kann bei Extraktionsrequests über `x-groq-key` oder als `apiKey` im JSON-Body mitgegeben werden. Der Key wird validiert, für den Job gehasht gespeichert und explizit bis zu LLM-, Whisper-, Vision-, Nutrition- und TikTok-OCR-Aufrufen weitergereicht; die Server-Umgebungsvariable bleibt unverändert.
+
+Cookidoo wird nicht mehr als globaler Server-Singleton behandelt: die App speichert private Credentials pro User und kann sie bei Bedarf explizit fuer den aktiven Haushalt freigeben. Der Resolver folgt `user > household > none`; Haushaltsfreigaben duerfen nur Household-Owner aendern.
 
 Lokaler Supabase-RLS-Smoke fuer den Multi-User-Slice:
 

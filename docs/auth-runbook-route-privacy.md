@@ -165,17 +165,18 @@ Geplante Codes fuer Slice 1:
 |---|---|---|---|
 | `GET /` | Public | Public | App-Shell bleibt oeffentlich erreichbar |
 | `GET /api/v1/health` | Public | Public | Keine userbezogenen Details ausgeben |
-| `POST /api/v1/keys/validate` | Deferred-but-warned | Authenticated oder backend-only entscheiden | BYOK-Privacy noch nicht als user-isoliert versprechen |
-| `POST /api/v1/keys` | Backend-only/deferred | Authenticated spaeter nur mit per-user Ownership | `api_keys` bleibt Sicherheitsobjekt |
-| `DELETE /api/v1/keys/:keyHash` | Backend-only/deferred | Authenticated spaeter nur eigene Keys | Hash darf keine fremde Loeschung erlauben |
+| `POST /api/v1/keys/validate` | Authenticated | Authenticated | Live; serverseitiges Rate-Limit ist per User + Key-Hash persistiert |
 | `GET/POST /api/v1/recipes` | Authenticated | Authenticated mit Owner-Scope | Private User-Rezepte sind serverseitig aktiv; Sharing bleibt spaeter |
 | `GET/PATCH/DELETE /api/v1/recipes/:id` | Authenticated | Authenticated mit Owner-Scope | Kein Sharing-/Collections-Modell in diesem Slice |
-| `POST /api/v1/extract/react` | Deferred-but-warned | Authenticated spaeter klaeren | Import-Jobs und BYOK-Isolation folgen |
-| `GET/DELETE /api/v1/extract/react/:jobId` | Deferred-but-warned | Authenticated spaeter klaeren | Job-Ownership explizit modellieren |
-| `POST /api/v1/extract/text` | Deferred-but-warned | Authenticated spaeter klaeren | Import-Ergebnis-Ownership offen |
-| `POST /api/v1/extract/photo` | Deferred-but-warned | Authenticated spaeter klaeren | Upload-/Bild-Privacy offen |
-| `GET /api/v1/extract/jobs` | Deferred-but-warned | Authenticated spaeter nur eigene Jobs | Keine globale Jobliste nach Login zeigen |
-| `GET /api/v1/images/search` | Public/deferred | Public oder authenticated entscheiden | Suchanbieter-/Rate-Limit-Privacy pruefen |
+| `POST /api/v1/extract/react` | Authenticated | Authenticated | Job ist user-scoped; `activeHouseholdId` wird in den Async-Job gesnapshottet |
+| `GET/DELETE /api/v1/extract/react/:jobId` | Authenticated | Authenticated | Inline Owner-Check; nur der Job-Owner sieht oder stoppt den Job |
+| `POST /api/v1/extract/text` | Authenticated | Authenticated | Text-Imports sind user-scoped; `activeHouseholdId` wird mitgespeichert |
+| `POST /api/v1/extract/photo` | Authenticated | Authenticated | Foto-Imports sind user-scoped; `activeHouseholdId` wird mitgespeichert |
+| `GET /api/v1/extract/jobs` | Authenticated | Authenticated | Nur eigene Jobs; keine globale Jobliste |
+| `GET /api/v1/images/search` | Authenticated | Authenticated | Auth-Gate schuetzt externe Suchquote |
+| `GET /api/v1/cookidoo/status` | Authenticated | Authenticated | Liefert nur Statusdaten (`scope`, `connected`, Share-Flags), keine Secrets |
+| `POST/DELETE /api/v1/cookidoo/credentials` | Authenticated | Authenticated | Nur private User-Credentials; keine globale Singleton-Policy mehr |
+| `POST/DELETE /api/v1/cookidoo/credentials/share` | Authenticated | Authenticated | Household-Share nur fuer den aktiven Haushalt und nur durch Owner mutierbar |
 | `GET/POST/DELETE /api/v1/planner` | Authenticated | Authenticated mit active household | Slice-1-Pflichtbereich |
 | `GET/POST/DELETE /api/v1/shopping` | Authenticated | Authenticated mit active household | Slice-1-Pflichtbereich |
 | `GET /api/v1/dictionary` | Public read | Public read/deferred | System-/Kanonisierungsdaten lesbar, keine Data-API-Freigabe |
@@ -200,4 +201,4 @@ Zusaetzlich decken Unit-Tests die Serverroute ab:
 - Ungueltige Tokens liefern `auth_invalid`.
 - Verifizierte Nutzer ohne Haushalt liefern `no_household`.
 
-Noch offen: derselbe Smoke gegen bestaetigtes Cloud-/Staging-Projekt vor Release.
+Der entsprechende Staging-/Cloud-Smoke gegen `rezepti-staging` wurde inzwischen erfolgreich nachgezogen.
