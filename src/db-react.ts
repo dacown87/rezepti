@@ -14,6 +14,7 @@ import {
   cookidooCredentials,
   pushSubscriptions,
   byokValidationRateLimits,
+  byokValidationPolicies,
 } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
@@ -24,6 +25,18 @@ import {
 } from "./ingredient-category-domain.js";
 
 export { CATEGORY_KEYWORDS, detectCategory };
+
+export const BYOK_POLICY_APPLIES_TO = [
+  "keys_validate",
+  "extract_react",
+  "extract_photo",
+  "extract_text",
+] as const;
+
+export const DEFAULT_BYOK_VALIDATION_POLICY = {
+  windowMinutes: 60,
+  maxRequests: 20,
+} as const;
 
 export type RecipeOwner =
   | { type: "user"; userId: string }
@@ -113,6 +126,7 @@ function getDb() {
         cookidooCredentials,
         pushSubscriptions,
         byokValidationRateLimits,
+        byokValidationPolicies,
       },
     });
   }
@@ -515,6 +529,22 @@ export interface AccountBootstrapStatus {
   warnings: string[];
 }
 
+export interface ByokValidationPolicy {
+  windowMinutes: number;
+  maxRequests: number;
+  source: "default" | "database";
+  status: "uninitialized" | "active";
+  updatedAt: string | null;
+  updatedBy: string | null;
+  updatedByUserId: string | null;
+  appliesTo: string[];
+}
+
+export interface RuntimeByokValidationPolicyLoad {
+  policy: ByokValidationPolicy;
+  fallbackReason?: "missing_table" | "read_failed";
+}
+
 function normalizeAppRole(role: string | null | undefined): AppRole {
   return role === "admin" ? "admin" : "user";
 }
@@ -572,6 +602,45 @@ function isHouseholdOwner(
   householdId: string,
 ) {
   return memberships.some((membership) => membership.householdId === householdId && membership.role === "owner");
+}
+
+function serializeByokValidationPolicyRow(row?: {
+  windowMinutes: number;
+  maxRequests: number;
+  updatedAt: Date | null;
+  updatedByUserId: string | null;
+  updatedByEmail: string | null;
+} | null): ByokValidationPolicy {
+  if (!row) {
+    return {
+      windowMinutes: DEFAULT_BYOK_VALIDATION_POLICY.windowMinutes,
+      maxRequests: DEFAULT_BYOK_VALIDATION_POLICY.maxRequests,
+      source: "default",
+      status: "uninitialized",
+      updatedAt: null,
+      updatedBy: null,
+      updatedByUserId: null,
+      appliesTo: [...BYOK_POLICY_APPLIES_TO],
+    };
+  }
+
+  return {
+    windowMinutes: row.windowMinutes,
+    maxRequests: row.maxRequests,
+    source: "database",
+    status: "active",
+    updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
+    updatedBy: row.updatedByEmail ?? null,
+    updatedByUserId: row.updatedByUserId ?? null,
+    appliesTo: [...BYOK_POLICY_APPLIES_TO],
+  };
+}
+
+function isMissingTableError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String(error.code ?? "") : "";
+  const message = "message" in error ? String(error.message ?? "") : "";
+  return code === "42P01" || /relation .*byok_validation_policies.* does not exist/i.test(message);
 }
 
 export async function saveUserCookidooCredentials(
@@ -931,6 +1000,80 @@ export async function ensureDefaultHouseholdForUser(userId: string): Promise<{ c
 
     return { created: true, householdId };
   });
+}
+
+export async function getByokValidationPolicy(): Promise<ByokValidationPolicy> {
+  const db = getDb();
+  try {
+    const [row] = await db
+      .select({
+        windowMinutes: byokValidationPolicies.windowMinutes,
+        maxRequests: byokValidationPolicies.maxRequests,
+        updatedAt: byokValidationPolicies.updatedAt,
+        updatedByUserId: byokValidationPolicies.updatedByUserId,
+        updatedByEmail: userProfiles.email,
+      })
+      .from(byokValidationPolicies)
+      .leftJoin(userProfiles, eq(userProfiles.userId, byokValidationPolicies.updatedByUserId))
+      .where(eq(byokValidationPolicies.singletonKey, "global"))
+      .limit(1);
+
+    return serializeByokValidationPolicyRow(row);
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return serializeByokValidationPolicyRow(null);
+    }
+    throw error;
+  }
+}
+
+export async function loadRuntimeByokValidationPolicy(): Promise<RuntimeByokValidationPolicyLoad> {
+  try {
+    const policy = await getByokValidationPolicy();
+    return { policy };
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return {
+        policy: serializeByokValidationPolicyRow(null),
+        fallbackReason: "missing_table",
+      };
+    }
+
+    return {
+      policy: serializeByokValidationPolicyRow(null),
+      fallbackReason: "read_failed",
+    };
+  }
+}
+
+export async function upsertByokValidationPolicy(input: {
+  windowMinutes: number;
+  maxRequests: number;
+  updatedByUserId: string;
+}): Promise<ByokValidationPolicy> {
+  const db = getDb();
+  const now = new Date();
+
+  await db
+    .insert(byokValidationPolicies)
+    .values({
+      singletonKey: "global",
+      windowMinutes: input.windowMinutes,
+      maxRequests: input.maxRequests,
+      updatedAt: now,
+      updatedByUserId: input.updatedByUserId,
+    })
+    .onConflictDoUpdate({
+      target: byokValidationPolicies.singletonKey,
+      set: {
+        windowMinutes: input.windowMinutes,
+        maxRequests: input.maxRequests,
+        updatedAt: now,
+        updatedByUserId: input.updatedByUserId,
+      },
+    });
+
+  return getByokValidationPolicy();
 }
 
 export async function recordByokValidationAttempt(

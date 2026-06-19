@@ -49,6 +49,18 @@ vi.mock('../../src/processors/llm.js', () => ({
 vi.mock('../../src/db-react.js', () => ({
   saveRecipeToReactDb: vi.fn().mockReturnValue(42),
   loadUserAuthorization: vi.fn(),
+  loadRuntimeByokValidationPolicy: vi.fn(async () => ({
+    policy: {
+      windowMinutes: 60,
+      maxRequests: 20,
+      source: 'default',
+      status: 'uninitialized',
+      updatedAt: null,
+      updatedBy: null,
+      updatedByUserId: null,
+      appliesTo: ['keys_validate', 'extract_react', 'extract_photo', 'extract_text'],
+    },
+  })),
 }))
 
 vi.mock('../../src/pipeline.js', () => ({
@@ -78,6 +90,7 @@ vi.mock('../../src/byok-validator.js', () => ({
   BYOKValidator: {
     validateKey: vi.fn(),
     hashKey: vi.fn(),
+    checkRateLimit: vi.fn(async () => ({ allowed: true, remaining: 19, resetTime: 1234567890 })),
   },
 }))
 
