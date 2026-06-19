@@ -24,7 +24,12 @@ vi.mock('../../src/byok-validator.js', () => byokMocks)
 const dbMocks = vi.hoisted(() => ({
   ensureReactSchema: vi.fn(),
   loadUserAuthorization: vi.fn(),
-  getCookidooStatus: vi.fn(async () => ({ scope: 'none', connected: false, sharedByCurrentHousehold: false })),
+  getCookidooStatus: vi.fn(async () => ({
+    scope: 'none',
+    connected: false,
+    sharedByCurrentHousehold: false,
+    canManageHouseholdShare: false,
+  })),
   saveUserCookidooCredentials: vi.fn(async () => undefined),
   deleteUserCookidooCredentials: vi.fn(async () => true),
   shareCookidooCredentialsToHousehold: vi.fn(async () => true),

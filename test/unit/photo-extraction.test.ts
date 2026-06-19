@@ -36,7 +36,14 @@ vi.mock('../../src/processors/llm.js', () => ({
     ingredients: ['1 Testzutat'],
     steps: ['Testen.'],
   }),
-  extractRecipeFromText: vi.fn(),
+  extractRecipeFromText: vi.fn().mockResolvedValue({
+    name: 'Text-Testrezept',
+    duration: 'kurz',
+    tags: [],
+    emoji: '🍽️',
+    ingredients: ['1 Testzutat'],
+    steps: ['Testen.'],
+  }),
 }))
 
 vi.mock('../../src/db-react.js', () => ({
@@ -200,6 +207,7 @@ describe('photo extraction route', () => {
         undefined,
         undefined,
         userId,
+        householdId,
       )
     })
   })
@@ -365,6 +373,45 @@ describe('URL extraction route', () => {
       jobs: [{ id: 'own-job' }],
       total: 1,
     })
+  })
+})
+
+describe('text extraction route', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    configureAuthForTests({
+      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      loadAuthorization: async () => ({
+        appRole: 'user',
+        memberships: [{ householdId, role: 'owner' }],
+        activeHouseholdId: householdId,
+      }),
+    })
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
+  })
+
+  it('snapshots activeHouseholdId for text extraction jobs', async () => {
+    mockCreateJob.mockReturnValue({ id: 'text-job-household' })
+
+    const res = await extractionRouter.request('/api/v1/extract/text', {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Das ist ein ausreichend langer Rezepttext mit Zutaten, Schritten und genug Inhalt für die Validierung.',
+      }),
+    })
+
+    expect(res.status).toBe(202)
+    expect(mockCreateJob).toHaveBeenCalledWith(
+      expect.stringContaining('text://manual-'),
+      undefined,
+      undefined,
+      userId,
+      householdId,
+    )
   })
 })
 

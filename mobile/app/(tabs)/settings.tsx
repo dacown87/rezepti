@@ -285,6 +285,7 @@ export default function SettingsScreen() {
   const [cookidooConnected, setCookidooConnected] = useState(false);
   const [cookidooScope, setCookidooScope] = useState<CookidooStatusResponse['scope']>('none');
   const [cookidooSharedByCurrentHousehold, setCookidooSharedByCurrentHousehold] = useState(false);
+  const [cookidooCanManageHouseholdShare, setCookidooCanManageHouseholdShare] = useState(false);
   const [savingCookidoo, setSavingCookidoo] = useState(false);
   const [loadingCookidooStatus, setLoadingCookidooStatus] = useState(true);
 
@@ -402,11 +403,13 @@ export default function SettingsScreen() {
       setCookidooConnected(data.connected ?? false);
       setCookidooScope(data.scope ?? 'none');
       setCookidooSharedByCurrentHousehold(data.sharedByCurrentHousehold ?? false);
+      setCookidooCanManageHouseholdShare(data.canManageHouseholdShare ?? false);
     } catch {
       // Server not reachable — treat as disconnected
       setCookidooConnected(false);
       setCookidooScope('none');
       setCookidooSharedByCurrentHousehold(false);
+      setCookidooCanManageHouseholdShare(false);
     } finally {
       setLoadingCookidooStatus(false);
     }
@@ -981,10 +984,20 @@ export default function SettingsScreen() {
             </Text>
           </View>
 
+          {!cookidooCanManageHouseholdShare && (
+            <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3">
+              <Text className="text-xs text-yellow-800">
+                Nur Haushalts-Owner können die Cookidoo-Freigabe für den Haushalt ändern.
+              </Text>
+            </View>
+          )}
+
           {cookidooSharedByCurrentHousehold ? (
             <TouchableOpacity
               onPress={handleRemoveCookidooShare}
+              disabled={!cookidooCanManageHouseholdShare}
               className="flex-row items-center justify-center rounded-xl py-3 bg-red-50 border border-red-200"
+              style={!cookidooCanManageHouseholdShare ? { opacity: 0.5 } : undefined}
             >
               <Trash2 size={16} color="#DC2626" />
               <Text className="text-red-600 font-semibold text-sm ml-2">Haushaltsfreigabe entfernen</Text>
@@ -992,9 +1005,9 @@ export default function SettingsScreen() {
           ) : (
             <TouchableOpacity
               onPress={handleShareCookidoo}
-              disabled={savingCookidoo || cookidooScope !== 'user'}
+              disabled={savingCookidoo || cookidooScope !== 'user' || !cookidooCanManageHouseholdShare}
               className={`flex-row items-center justify-center rounded-xl py-3 ${
-                savingCookidoo || cookidooScope !== 'user'
+                savingCookidoo || cookidooScope !== 'user' || !cookidooCanManageHouseholdShare
                   ? 'bg-warm-200 dark:bg-espresso-700'
                   : 'bg-warm-800'
               }`}
