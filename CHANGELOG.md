@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.173] – 2026-06-19
+
+
+
 ## [1.0.172] – 2026-06-19
 
 - härte den Cookidoo-Credential-Store mit RLS, direkten GRANT-Entzügen und Household-FK-Cascade
