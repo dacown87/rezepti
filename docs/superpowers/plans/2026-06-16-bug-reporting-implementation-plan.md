@@ -135,6 +135,35 @@ Vorgeschlagene Felder:
 - optional kombinierter Index auf `user_id, created_at desc` fuer
   `Meine Meldungen`
 
+### RLS und Grants
+
+`bug_reports` liegt im exposed `public`-Schema und braucht deshalb im ersten
+Commit explizit dieselbe Haertung wie die restlichen nutzerspezifischen Tabellen.
+
+Pflichtumfang fuer die Migration:
+
+- `alter table public.bug_reports enable row level security`
+- Grant-Matrix bewusst klein halten:
+  - `authenticated`: nur die benoetigten Table-Rechte
+  - kein offener Zugriff fuer `anon`
+- Select-Policy fuer normale Nutzer:
+  - nur eigene Reports (`user_id = auth.uid()`)
+- Insert-Policy fuer normale Nutzer:
+  - nur eigene Reports; `user_id` muss dem JWT-User entsprechen
+- Select-Policy fuer Admins:
+  - alle Reports lesbar
+- Update-Policy fuer Admins:
+  - nur Admins duerfen `status` und `admin_notes` aendern
+- keine Delete-Policy fuer diesen Slice
+
+Wichtig:
+
+- Fuer `UPDATE` ist in Supabase/Postgres zusaetzlich eine passende `SELECT`-Policy
+  noetig, sonst laufen Updates still ins Leere.
+- Die Admin-Berechtigung darf nicht aus user-editable JWT-Metadaten kommen,
+  sondern muss an das bestehende serverseitige `app_role`-/Profilmodell
+  andocken.
+
 ### Bewusste Vereinfachung
 
 Im ersten Slice gibt es kein separates `title`-Pflichtfeld.
@@ -166,6 +195,20 @@ Grund:
 - der Household-Kontext dient Diagnose und Triage, nicht einer separaten
   Berechtigungslogik
 
+### Abuse- und Spam-Schutz
+
+Der Slice ist kein anonymer Briefkasten. Weil Reports serverseitig persistiert
+werden, braucht der erste Wurf eine kleine Missbrauchsbremse:
+
+- nur fuer angemeldete Nutzer (`requireUserAuth()`)
+- serverseitige Laengenlimits fuer `description` und String-Metadaten
+- einfacher Per-User-Rate-Limit-Guard fuer Report-Erstellung
+  - z. B. kleines Sliding/Fixed Window in DB oder vorhandenes Runtime-Muster
+- bei Limit-Treffern klare `429`-Antwort mit user-lesbarer Fehlermeldung
+
+Das ist kein Vollschutz, aber verhindert den trivialen Spam-Pfad schon im
+ersten Slice.
+
 ## Diagnosekontext und Sanitizing
 
 ### Allgemeiner Kontext
@@ -194,6 +237,32 @@ Jeder Report darf automatisch folgende Metadaten erhalten, soweit verfuegbar:
 - `errorMessage`
 - `errorHint`
 - `qualityWarnings`
+
+### Failure-Snapshot fuer Importfehler
+
+Der Import-Report darf sich nicht darauf verlassen, dass der aktuelle
+Screen-State zum Klickzeitpunkt noch vollstaendig ist. Der Extract-Screen hat
+mehrere Reset-/Transition-Pfade; darum braucht der Client einen expliziten
+letzten Fehler-Snapshot.
+
+Empfohlene Client-Struktur:
+
+- `lastFailureSnapshot`
+  - `mode`
+  - `submittedUrl` oder Text-/Foto-Hinweis
+  - `jobId | null`
+  - `jobStatus`
+  - `currentStage`
+  - `errorMessage`
+  - `errorHint`
+  - `qualityWarnings`
+  - `timestamp`
+
+Regel:
+
+- Snapshot bei jedem terminalen Fehler aktualisieren
+- `reset()` loescht ihn bewusst
+- Bug-Report nutzt bevorzugt den Snapshot statt losem Live-State
 
 ### Harte Ausschluesse
 
@@ -252,6 +321,22 @@ Regeln:
 - `reportType` und `sourceArea` validieren
 - serverseitig Household-/User-Kontext anreichern
 - `status` initial immer `new`
+- serverseitige Sanitizing-Allowlist fuer `metadata`
+- Request-Laengenlimit + kleiner Per-User-Rate-Limit-Guard
+
+### Anonyme / Pre-Auth-Flaechen
+
+Der Produktwunsch ist ein global sichtbarer Einstieg. Gleichzeitig ist die
+serverseitige Quelle der Wahrheit absichtlich auth-pflichtig.
+
+Deshalb muss der UX-Vertrag explizit in den Plan:
+
+- auf authentifizierten Screens: Bug-Modal direkt verfuegbar
+- auf Pre-Auth-/anon-Flaechen:
+  - entweder Button ausblenden
+  - oder denselben Einstieg als Sign-in-CTA verwenden
+- kein Flow, der fuer anonyme Nutzer scheinbar submitten kann und erst am
+  Endpoint auf `401` faellt
 
 Response:
 
@@ -368,13 +453,25 @@ Settings-Utilities verwenden.
 
 Empfohlener Einhaengepunkt:
 
-- [mobile/app/(tabs)/_layout.tsx](/home/patrick/Projekte/rezepti/mobile/app/(tabs)/_layout.tsx)
+- shared App-Shell auf Root-Ebene, primaer
+  [mobile/app/_layout.tsx](/home/patrick/Projekte/rezepti/mobile/app/_layout.tsx)
+- `mobile/app/(tabs)/_layout.tsx` nur, wenn der Einstieg bewusst auf Tab-Screens
+  begrenzt waere
 
 Empfohlene Umsetzung:
 
-- ein kleiner, global sichtbarer Secondary-Button im Header oder als dezente
-  floating Action
+- ein kleiner, global sichtbarer Secondary-Button oder Trigger aus einer
+  shared Overlay-/Shell-Komponente
 - Oeffnen eines gemeinsamen `BugReportModal`
+
+Begruendung:
+
+- das Repo hat neben den Tab-Screens bereits eigene Root-Stack-Flows fuer
+  `account` und `admin/*`
+- ein Trigger im Tab-Layout waere daher nur auf einem Teil der App sichtbar und
+  nicht wirklich global
+- Root-Level vermeidet doppelte Implementierung fuer Tabs, Admin-Hub und
+  weitere Vollbild-Screens
 
 Neue Komponente:
 
@@ -433,14 +530,17 @@ Im ersten Slice nur Read-only. Keine Nutzerantworten, keine Bearbeitung.
 
 Empfohlener Ort fuer Slice 1:
 
-- eigene Admin-Section innerhalb von `settings.tsx`, nur sichtbar wenn
-  `authSession` bzw. Bootstrap-Kontext `appRole === 'admin'` liefert
+- dedizierter Admin-Screen
+  [mobile/app/admin/bug-reports.tsx](/home/patrick/Projekte/rezepti/mobile/app/admin/bug-reports.tsx)
+- verlinkt aus dem bestehenden
+  [mobile/app/admin/index.tsx](/home/patrick/Projekte/rezepti/mobile/app/admin/index.tsx)
 
 Warum dort:
 
-- das Repo hat bereits einen starken Settings-Hub
-- kein weiterer Navigationspfad noetig
-- kleinerer Scope als ein komplett neuer Admin-Screen-Stack
+- der Screen-Stack und die Route existieren bereits als Andockstelle
+- der Admin-Hub ist schon live und klar vom normalen Settings-Bereich getrennt
+- `settings.tsx` bleibt fuer Nutzer-/Selbstservice lesbar und waechst nicht in
+  ein zweites Admin-CMS hinein
 
 Empfohlene Unterteilung:
 
@@ -448,12 +548,13 @@ Empfohlene Unterteilung:
 2. Detailbereich fuer selektierten Report
 3. Status-Aenderung und `adminNotes`
 
-Wenn der Abschnitt in `settings.tsx` zu schwer wird:
+Wenn der Screen zu schwer wird:
 
 - Extraktion in `mobile/components/settings/AdminBugReportsSection.tsx`
 - `Meine Meldungen` optional in eigene `MyBugReportsSection.tsx`
 
-Das ist im Sinne der Dateigroesse sogar empfohlen.
+Fuer den Admin-Screen ist ein eigener `mobile/components/admin/`-Bereich sogar
+sauberer als Settings-Komponenten-Reuse.
 
 ## UI- und Textregeln
 
@@ -514,6 +615,7 @@ Abnahme:
 - Migration laeuft lokal
 - Drizzle-Schema passt
 - DB-Helfer fuer Create/List/Get/Update vorhanden
+- RLS + Policies + Grants sind Teil derselben Migration und verifiziert
 
 ### Phase 2: Server-Routen + Validierung
 
@@ -537,11 +639,15 @@ Dateien:
 
 - neu: `mobile/utils/bug-reporting.ts`
 - neu: `mobile/components/BugReportModal.tsx`
-- anpassen: `mobile/app/(tabs)/_layout.tsx`
+- anpassen: `mobile/app/_layout.tsx`
+- optional anpassen: `mobile/app/(tabs)/_layout.tsx` nur fuer tab-spezifische
+  Platzierung/Finetuning
 
 Abnahme:
 
 - globaler Einstieg oeffnet Modal
+- Einstieg ist auch ausserhalb des Tab-Layouts verfuegbar oder bewusst als
+  Sign-in-CTA geregelt
 - erfolgreicher Submit erzeugt Report
 - Fehler- und Success-Zustaende sichtbar
 
@@ -562,14 +668,16 @@ Abnahme:
 Dateien:
 
 - anpassen: `mobile/app/(tabs)/settings.tsx`
+- anpassen: `mobile/app/admin/bug-reports.tsx`
 - empfohlen neu:
   - `mobile/components/settings/MyBugReportsSection.tsx`
-  - `mobile/components/settings/AdminBugReportsSection.tsx`
+  - `mobile/components/admin/AdminBugReportsScreen.tsx` oder aehnliche
+    Extraktion fuer Listen-/Detaillogik
 
 Abnahme:
 
 - `Meine Meldungen` rendert eigene Reports
-- Admin sieht Admin-Uebersicht
+- Admin sieht Admin-Uebersicht auf `/admin/bug-reports`
 - Statuswechsel aktualisiert Liste/Detailansicht
 
 ### Phase 6: Doku und TODO
@@ -604,6 +712,8 @@ Abdecken:
 - `PATCH /api/v1/admin/bug-reports/:id` fuer Admin -> Status update funktioniert
 - `resolved_at`-Semantik stimmt
 - Sanitizer verwirft sensible Felder
+- RLS-Contract: normaler Nutzer sieht via DB/API nie fremde Reports
+- Rate-Limit/Abuse-Guard liefert bei Trigger saubere `429`
 
 ### Mobile/UI
 
@@ -619,8 +729,10 @@ Abdecken:
 - Modal submittet Nutzereingabe
 - Importfehler-Button schickt `import_failure`
 - `Meine Meldungen` rendert Status und Beschreibung
-- Admin-Section ist nur fuer Admin sichtbar
+- Admin-Screen ist nur fuer Admin sichtbar
 - Statusupdate in Admin-UI triggert Refresh
+- globaler Einstieg ist auf Root-Level-Screens sichtbar oder liefert fuer anon
+  bewusst einen Sign-in-CTA
 
 ### Sicherheits-/Regressionschecks
 
@@ -635,18 +747,22 @@ Abdecken:
 
 Fuer diesen Slice wird empfohlen:
 
-- zuerst in `settings.tsx` integrieren
+- den bestehenden Admin-Screen `/admin/bug-reports` als Zielpfad nutzen
 
 Begruendung:
 
-- geringster Routing-Aufwand
-- passt zum existierenden Integrations-Hub
-- der TODO verlangt keinen separaten Admin-Navigationsbaum
+- der Routing-Aufwand ist praktisch schon investiert, weil die Route als
+  Platzhalter existiert
+- der normale Settings-Screen bleibt Nutzerflaeche; Admin-Triage bleibt im
+  Operator-Bereich
+- der Slice ersetzt damit einen bestehenden Platzhalter statt eine zweite
+  Admin-Flaeche aufzubauen
 
 Exit-Kriterium fuer Split:
 
-- wenn der Settings-Screen dadurch unuebersichtlich wird, Komponenten extrahieren,
-  aber den Screenpfad gleich lassen
+- wenn die Admin-Flows wachsen, Detail/Filter/Notizen in eigene
+  `mobile/components/admin/*`-Bausteine extrahieren, den Screenpfad aber
+  beibehalten
 
 ## Risiken und Gegenmassnahmen
 
@@ -668,6 +784,8 @@ Gegenmassnahme:
 
 - Bug-Report strikt additiv halten
 - primare Fehler- und Retry-UI nicht umbauen
+- Fehlerkontext als `lastFailureSnapshot` explizit sichern statt ihn implizit
+  aus losem Screen-State zu rekonstruieren
 
 ### Risiko 4: Admin-Liste wird spaeter mehr als ein Mini-Slice
 
