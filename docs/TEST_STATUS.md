@@ -69,6 +69,8 @@ Stand 2026-06-02: Die alte Lueckenliste wurde gegen den aktuellen Testbestand ab
 
 ## Durchgeführte Tests
 
+- ✅ BYOK Validation Policy Live-Smokes abgeschlossen (2026-06-20): Browser-/PWA-Save auf Production mit echtem Admin-Login verifiziert, danach Runtime-Hotfix fuer den gemeinsamen BYOK-Rate-Limit-Cleanup ueber PR #22 auf `main` gemergt. PR-Checks `27865614040` gruen; `main`-Nachlauf `27865714254` gruen; Docker-/Northflank-Deploy `27865720834` gruen inklusive Health-Poll. Post-Deploy-Production-Smoke gegen `v1.0.177` bestaetigt: `POST /api/v1/keys/validate` liefert bei ungueltigem Key wieder `200` + `valid:false`, `extract/react`, `extract/photo` und `extract/text` liefern `400 byok_key_invalid`, und das geteilte Budget ueber mehrere Entry-Points kippt korrekt auf `429 byok_validation_rate_limited`. Die temporaere Smoke-Policy `15 / 3` wurde danach wieder auf `60 / 20` zurueckgesetzt.
+
 - ✅ Credential-Auth-Hotfix + Post-Hotfix Auth Hardening (2026-06-12, PR #7, Branch feat/credential-auth-hotfix):
   - **T6** (`test/unit/cookidoo-credentials.test.ts`): Unauth-denied-Tests fuer Cookidoo-Credentials-Routen — `POST`/`DELETE` ohne Bearer → 401, Email-Leak aus `status` behoben, Disney TOCTOU-safe atomic write.
   - **T6** (`test/unit/planner-auth-routes.test.ts`): Unauth-denied-Tests erweitert fuer Pinterest/Facebook-Stub-Routes — 501 + `requireUserAuth`.

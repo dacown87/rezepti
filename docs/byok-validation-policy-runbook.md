@@ -1,6 +1,6 @@
 # BYOK Validation Policy Runbook
 
-Stand: 2026-06-19
+Stand: 2026-06-20
 
 ## Zweck
 
@@ -64,6 +64,16 @@ Erwartung:
 - `status: "active"`
 
 ## Verifizieren
+
+### Verifizierter Live-Stand
+
+Production wurde am 2026-06-20 nach dem Hotfix-Deploy `v1.0.177` erfolgreich gegen dieses Runbook geprueft:
+
+- Browser-/PWA-Save auf `Settings -> Admin Hub -> BYOK Validation Policy` lief mit echtem `PUT /api/v1/admin/byok-validation-policy` auf `200 OK`.
+- `POST /api/v1/keys/validate` liefert mit ungueltigem Key `200` + `valid: false` und spiegelt die aktive Policy.
+- `POST /api/v1/extract/react`, `extract/photo` und `extract/text` liefern mit ungueltigem Key `400` + `code: "byok_key_invalid"`.
+- Das geteilte Budget ueber mehrere Entry-Points kippt wie erwartet auf `429` + `code: "byok_validation_rate_limited"`.
+- Die fuer den Smoke gesetzte Policy `15 / 3` wurde danach wieder auf `60 / 20` zurueckgesetzt.
 
 ### 1. Read-back pruefen
 
@@ -150,6 +160,9 @@ Danach:
 2. `POST /api/v1/keys/validate` einmal gegenpruefen
 
 ## Failure Modes
+
+- `500` vor `byok_key_invalid` oder `byok_validation_rate_limited` auf allen Entry-Points
+  - Verdacht auf Runtime-/DB-Fehler im gemeinsamen Rate-Limit-Pfad. Zuletzt trat das am 2026-06-20 vor dem Hotfix in `recordByokValidationAttempt()` beim Cleanup von `public.byok_validation_rate_limits` auf.
 
 - `source: "default"` und `status: "uninitialized"`
   - Es existiert noch kein DB-Eintrag. Runtime laeuft mit Code-Default.
