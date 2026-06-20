@@ -1,11 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { useFonts } from 'expo-font';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable } from 'react-native';
 import 'react-native-reanimated';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { Bug } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useThemeInit } from '@/utils/use-theme';
@@ -16,6 +17,9 @@ import {
   getSessionRestoring,
   subscribeSessionRestoring,
 } from '@/utils/query-client';
+import { getAuthSession, getSupabaseClient } from '@/utils/auth';
+import BugReportModal from '@/components/BugReportModal';
+import { openBugReportModal, registerBugReportModalController, type OpenBugReportIntent } from '@/utils/bug-reporting';
 import '../global.css';
 
 export { ErrorBoundary } from 'expo-router';
@@ -53,7 +57,12 @@ function RootLayoutNav() {
   const { colorScheme } = useColorScheme();
   useThemeInit();
   const router = useRouter();
+  const pathname = usePathname();
   const [sessionRestoring, setSessionRestoring] = useState<boolean>(() => getSessionRestoring());
+  const [bugReportIntent, setBugReportIntent] = useState<OpenBugReportIntent | null>(null);
+  const [bugReportVisible, setBugReportVisible] = useState(false);
+  const [authConfigured, setAuthConfigured] = useState<boolean>(() => getSupabaseClient() !== null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Subscribe to session-restore state so we stop showing the interstitial
@@ -141,6 +150,44 @@ function RootLayoutNav() {
     };
   }, [router]);
 
+  useEffect(() => {
+    setAuthConfigured(getSupabaseClient() !== null);
+    let active = true;
+
+    void getAuthSession().then((session) => {
+      if (!active) return;
+      setIsAuthenticated(!!session?.user);
+    }).catch(() => {
+      if (!active) return;
+      setIsAuthenticated(false);
+    });
+
+    const client = getSupabaseClient();
+    if (!client) {
+      setIsAuthenticated(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      setIsAuthenticated(!!session?.user);
+    });
+
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    return registerBugReportModalController((intent) => {
+      setBugReportIntent(intent);
+      setBugReportVisible(true);
+    });
+  }, []);
+
   if (sessionRestoring) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colorScheme === 'dark' ? '#1a1008' : '#faf7f2' }}>
@@ -154,15 +201,73 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="account" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/index" options={{ title: 'Admin Hub' }} />
-        <Stack.Screen name="admin/byok-validation-policy" options={{ title: 'BYOK Validation Policy' }} />
-        <Stack.Screen name="admin/bug-reports" options={{ title: 'Bug Reports' }} />
-        <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      <View style={{ flex: 1 }}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="account" options={{ headerShown: false }} />
+          <Stack.Screen name="admin/index" options={{ title: 'Admin Hub' }} />
+          <Stack.Screen name="admin/byok-validation-policy" options={{ title: 'BYOK Validation Policy' }} />
+          <Stack.Screen name="admin/bug-reports" options={{ title: 'Bug Reports' }} />
+          <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+
+        {authConfigured ? (
+          <Pressable
+            onPress={() => {
+              if (isAuthenticated) {
+                openBugReportModal({
+                  reportType: 'general',
+                  sourceArea: 'global_button',
+                  route: pathname,
+                });
+                return;
+              }
+
+              router.push({
+                pathname: '/account',
+                params: {
+                  mode: 'signin',
+                  returnTo: pathname || '/(tabs)',
+                },
+              });
+            }}
+            style={{
+              position: 'absolute',
+              right: 16,
+              bottom: 24,
+              backgroundColor: '#F5E6D8',
+              borderColor: '#D9C2A8',
+              borderWidth: 1,
+              borderRadius: 999,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              shadowColor: '#000',
+              shadowOpacity: 0.08,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 4,
+            }}
+          >
+            <Bug size={16} color="#8B7355" />
+            <Text style={{ color: '#6B4F3A', fontWeight: '600', fontSize: 13 }}>
+              {isAuthenticated ? 'Problem melden' : 'Anmelden für Report'}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        <BugReportModal
+          visible={bugReportVisible}
+          intent={bugReportIntent}
+          onClose={() => {
+            setBugReportVisible(false);
+            setBugReportIntent(null);
+          }}
+        />
+      </View>
     </ThemeProvider>
   );
 }

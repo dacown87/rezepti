@@ -23,6 +23,7 @@ import { compressIfNeeded } from '@/utils/image-compress';
 
 import { getServerUrl } from '@/utils/server-url';
 import { apiFetch, assertApiOk } from '@/utils/api';
+import { openBugReportModal } from '@/utils/bug-reporting';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -94,6 +95,20 @@ interface RecipePayload {
   nutritionInfo?: { carbs?: string; fat?: string; protein?: string };
 }
 
+interface LastFailureSnapshot {
+  mode: Mode;
+  submittedUrl?: string;
+  textHint?: string;
+  photoHint?: string;
+  jobId: string | null;
+  jobStatus: string;
+  currentStage: string | null;
+  errorMessage: string;
+  errorHint: string | null;
+  qualityWarnings: string[];
+  timestamp: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getGroqKey(): Promise<string | null> {
@@ -128,11 +143,36 @@ export default function ExtractScreen() {
   const [recipeImageUrl, setRecipeImageUrl] = useState<string | null>(null);
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [imageCount, setImageCount] = useState(4);
+  const [lastFailureSnapshot, setLastFailureSnapshot] = useState<LastFailureSnapshot | null>(null);
   const navRecipeIdRef = useRef<number | null>(null);
 
   const handledRef = useRef(false);
   const submittedUrlRef = useRef<string | undefined>(undefined);
   const submittedModeRef = useRef<Mode>('url');
+
+  const captureFailureSnapshot = useCallback((input: {
+    mode: Mode;
+    jobId?: string | null;
+    jobStatus: string;
+    currentStage?: string | null;
+    errorMessage: string;
+    errorHint?: string | null;
+    qualityWarnings?: string[];
+  }) => {
+    setLastFailureSnapshot({
+      mode: input.mode,
+      submittedUrl: input.mode === 'url' ? submittedUrlRef.current : undefined,
+      textHint: input.mode === 'text' ? `chars:${textInput.trim().length}` : undefined,
+      photoHint: input.mode === 'photo' ? (photoUri ? 'selected_photo' : 'no_photo') : undefined,
+      jobId: input.jobId ?? null,
+      jobStatus: input.jobStatus,
+      currentStage: input.currentStage ?? stage,
+      errorMessage: input.errorMessage,
+      errorHint: input.errorHint ?? errorHint,
+      qualityWarnings: input.qualityWarnings ?? qualityWarnings,
+      timestamp: new Date().toISOString(),
+    });
+  }, [errorHint, photoUri, qualityWarnings, stage, textInput]);
 
   // ── Load image count setting (bei jedem Tab-Focus neu laden) ─────────────
   useFocusEffect(useCallback(() => {
@@ -194,8 +234,19 @@ export default function ExtractScreen() {
         } else if (status.status === 'failed') {
           handledRef.current = true;
           clearInterval(interval);
-          setError(status.result?.error || status.message || 'Extraktion fehlgeschlagen');
-          setErrorHint(status.hint ?? null);
+          const failureMessage = status.result?.error || status.message || 'Extraktion fehlgeschlagen';
+          const failureHint = status.hint ?? null;
+          setError(failureMessage);
+          setErrorHint(failureHint);
+          captureFailureSnapshot({
+            mode: submittedModeRef.current,
+            jobId,
+            jobStatus: status.status,
+            currentStage: status.currentStage ?? stage,
+            errorMessage: failureMessage,
+            errorHint: failureHint,
+            qualityWarnings: status.result?.qualityWarnings ?? [],
+          });
           setIsLoading(false);
           setJobId(null);
         }
@@ -205,7 +256,7 @@ export default function ExtractScreen() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [jobId]);
+  }, [captureFailureSnapshot, jobId, stage]);
 
   // ── Reset ──────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
@@ -227,6 +278,7 @@ export default function ExtractScreen() {
     setRecipeNameForImage(undefined);
     setRecipeImageUrl(null);
     setShowImagePickerModal(false);
+    setLastFailureSnapshot(null);
     submittedUrlRef.current = undefined;
     submittedModeRef.current = 'url';
     navRecipeIdRef.current = null;
@@ -267,6 +319,12 @@ export default function ExtractScreen() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Fehler beim Starten der Extraktion';
       setError(msg);
+      captureFailureSnapshot({
+        mode: 'url',
+        jobStatus: 'failed',
+        currentStage: null,
+        errorMessage: msg,
+      });
       setIsLoading(false);
       setProgress(0);
       setStage(null);
@@ -307,6 +365,12 @@ export default function ExtractScreen() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Fehler beim Starten der Extraktion';
       setError(msg);
+      captureFailureSnapshot({
+        mode: 'text',
+        jobStatus: 'failed',
+        currentStage: 'extracting',
+        errorMessage: msg,
+      });
       setIsLoading(false);
       setProgress(0);
       setStage(null);
@@ -393,6 +457,12 @@ export default function ExtractScreen() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Fehler beim Hochladen des Fotos';
       setError(msg);
+      captureFailureSnapshot({
+        mode: 'photo',
+        jobStatus: 'failed',
+        currentStage: 'analyzing_image',
+        errorMessage: msg,
+      });
       setIsLoading(false);
       setProgress(0);
       setStage(null);
@@ -819,6 +889,28 @@ export default function ExtractScreen() {
                 className="flex-1 border border-red-200 rounded-lg py-2 items-center"
               >
                 <Text className="text-red-600 text-sm font-medium">Zurücksetzen</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  openBugReportModal({
+                    reportType: 'import_failure',
+                    sourceArea: 'import_error',
+                    route: '/(tabs)/extract',
+                    metadata: {
+                      importMode: submittedModeRef.current,
+                      jobId,
+                      jobStatus: 'failed',
+                      currentStage: stage,
+                      errorMessage: error,
+                      errorHint,
+                      qualityWarnings,
+                      lastFailureSnapshot,
+                    },
+                  });
+                }}
+                className="flex-1 border border-red-200 rounded-lg py-2 items-center bg-white"
+              >
+                <Text className="text-red-600 text-sm font-medium">Problem melden</Text>
               </Pressable>
               {errorHint === 'byok' && (
                 <Pressable

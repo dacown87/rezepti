@@ -12,10 +12,13 @@ import {
   householdMemberships,
   userDefaultHouseholds,
   cookidooCredentials,
+  bugReports,
+  bugReportSubmissionRateLimits,
   pushSubscriptions,
   byokValidationRateLimits,
   byokValidationPolicies,
 } from "./schema.js";
+import type { BugReportRow } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
 import {
@@ -23,6 +26,16 @@ import {
   detectCategory,
   evaluateIngredientSearch,
 } from "./ingredient-category-domain.js";
+import {
+  BUG_REPORT_LIST_DEFAULT_LIMIT,
+  BUG_REPORT_RATE_LIMIT_MAX_REQUESTS,
+  BUG_REPORT_RATE_LIMIT_WINDOW_MINUTES,
+  deriveResolvedAt,
+  type BugReportAdminPatchInput,
+  type BugReportFilters,
+  type BugReportStatus,
+  type BugReportType,
+} from "./bug-reports.js";
 
 export { CATEGORY_KEYWORDS, detectCategory };
 
@@ -124,6 +137,8 @@ function getDb() {
         householdMemberships,
         userDefaultHouseholds,
         cookidooCredentials,
+        bugReports,
+        bugReportSubmissionRateLimits,
         pushSubscriptions,
         byokValidationRateLimits,
         byokValidationPolicies,
@@ -545,6 +560,25 @@ export interface RuntimeByokValidationPolicyLoad {
   fallbackReason?: "missing_table" | "read_failed";
 }
 
+export interface BugReportListItem {
+  id: string;
+  reportType: BugReportType;
+  status: BugReportStatus;
+  description: string;
+  route: string | null;
+  sourceArea: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BugReportDetail extends BugReportListItem {
+  userId: string;
+  householdId: string | null;
+  metadata: Record<string, unknown>;
+  adminNotes: string | null;
+  resolvedAt: string | null;
+}
+
 function normalizeAppRole(role: string | null | undefined): AppRole {
   return role === "admin" ? "admin" : "user";
 }
@@ -641,6 +675,46 @@ function isMissingTableError(error: unknown) {
   const code = "code" in error ? String(error.code ?? "") : "";
   const message = "message" in error ? String(error.message ?? "") : "";
   return code === "42P01" || /relation .*byok_validation_policies.* does not exist/i.test(message);
+}
+
+function serializeBugReportListItem(row: {
+  id: string;
+  reportType: string;
+  status: string;
+  description: string;
+  route: string | null;
+  sourceArea: string;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}): BugReportListItem {
+  return {
+    id: row.id,
+    reportType: row.reportType as BugReportType,
+    status: row.status as BugReportStatus,
+    description: row.description,
+    route: row.route ?? null,
+    sourceArea: row.sourceArea,
+    createdAt: row.createdAt?.toISOString() ?? new Date(0).toISOString(),
+    updatedAt: row.updatedAt?.toISOString() ?? new Date(0).toISOString(),
+  };
+}
+
+function serializeBugReportDetail(row: BugReportRow): BugReportDetail {
+  return {
+    id: row.id,
+    reportType: row.reportType as BugReportType,
+    status: row.status as BugReportStatus,
+    description: row.description,
+    userId: row.userId,
+    householdId: row.householdId ?? null,
+    route: row.route ?? null,
+    sourceArea: row.sourceArea,
+    metadata: (row.metadataJson ?? {}) as Record<string, unknown>,
+    adminNotes: row.adminNotes ?? null,
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    createdAt: row.createdAt?.toISOString() ?? new Date(0).toISOString(),
+    updatedAt: row.updatedAt?.toISOString() ?? new Date(0).toISOString(),
+  };
 }
 
 export async function saveUserCookidooCredentials(
@@ -884,6 +958,169 @@ export async function clearCookidooScopedSession(scope: CookidooScopeRef): Promi
       updatedAt: new Date(),
     })
     .where(where);
+}
+
+export async function recordBugReportSubmissionAttempt(
+  userId: string,
+  windowMinutes = BUG_REPORT_RATE_LIMIT_WINDOW_MINUTES,
+  maxRequests = BUG_REPORT_RATE_LIMIT_MAX_REQUESTS,
+): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+  const db = getDb();
+  const now = new Date();
+  const windowMs = windowMinutes * 60 * 1000;
+  const windowStart = new Date(Math.floor(now.getTime() / windowMs) * windowMs);
+  const resetTime = windowStart.getTime() + windowMs;
+  const cleanupBefore = new Date(now.getTime() - (windowMs * 24));
+
+  await db
+    .delete(bugReportSubmissionRateLimits)
+    .where(lt(bugReportSubmissionRateLimits.windowStart, cleanupBefore));
+
+  const [row] = await db
+    .insert(bugReportSubmissionRateLimits)
+    .values({
+      userId,
+      windowStart,
+      requestCount: 1,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        bugReportSubmissionRateLimits.userId,
+        bugReportSubmissionRateLimits.windowStart,
+      ],
+      set: {
+        requestCount: sql`${bugReportSubmissionRateLimits.requestCount} + 1`,
+        updatedAt: now,
+      },
+    })
+    .returning({
+      requestCount: bugReportSubmissionRateLimits.requestCount,
+    });
+
+  const requestCount = row?.requestCount ?? 1;
+
+  return {
+    allowed: requestCount <= maxRequests,
+    remaining: Math.max(0, maxRequests - requestCount),
+    resetTime,
+  };
+}
+
+export async function createBugReport(input: {
+  reportType: BugReportType;
+  sourceArea: string;
+  description: string;
+  userId: string;
+  householdId?: string | null;
+  route?: string | null;
+  metadata: Record<string, unknown>;
+}): Promise<BugReportDetail> {
+  const db = getDb();
+  const now = new Date();
+  const [row] = await db
+    .insert(bugReports)
+    .values({
+      id: randomUUID(),
+      reportType: input.reportType,
+      status: "new",
+      description: input.description,
+      userId: input.userId,
+      householdId: input.householdId ?? null,
+      route: input.route ?? null,
+      sourceArea: input.sourceArea,
+      metadataJson: input.metadata,
+      adminNotes: null,
+      resolvedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+
+  return serializeBugReportDetail(row);
+}
+
+export async function listMyBugReports(
+  userId: string,
+  limit = BUG_REPORT_LIST_DEFAULT_LIMIT,
+): Promise<BugReportListItem[]> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: bugReports.id,
+      reportType: bugReports.reportType,
+      status: bugReports.status,
+      description: bugReports.description,
+      route: bugReports.route,
+      sourceArea: bugReports.sourceArea,
+      createdAt: bugReports.createdAt,
+      updatedAt: bugReports.updatedAt,
+    })
+    .from(bugReports)
+    .where(eq(bugReports.userId, userId))
+    .orderBy(desc(bugReports.createdAt), desc(bugReports.id))
+    .limit(limit);
+
+  return rows.map(serializeBugReportListItem);
+}
+
+export async function listBugReportsForAdmin(filters: BugReportFilters = {}): Promise<BugReportListItem[]> {
+  const db = getDb();
+  const conditions = [
+    filters.status ? eq(bugReports.status, filters.status) : undefined,
+    filters.reportType ? eq(bugReports.reportType, filters.reportType) : undefined,
+    filters.sourceArea ? eq(bugReports.sourceArea, filters.sourceArea) : undefined,
+  ].filter((value): value is Exclude<typeof value, undefined> => Boolean(value));
+
+  const rows = await db
+    .select({
+      id: bugReports.id,
+      reportType: bugReports.reportType,
+      status: bugReports.status,
+      description: bugReports.description,
+      route: bugReports.route,
+      sourceArea: bugReports.sourceArea,
+      createdAt: bugReports.createdAt,
+      updatedAt: bugReports.updatedAt,
+    })
+    .from(bugReports)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(bugReports.createdAt), desc(bugReports.id))
+    .limit(filters.limit ?? BUG_REPORT_LIST_DEFAULT_LIMIT)
+    .offset(filters.offset ?? 0);
+
+  return rows.map(serializeBugReportListItem);
+}
+
+export async function getBugReportByIdForAdmin(id: string): Promise<BugReportDetail | null> {
+  const db = getDb();
+  const [row] = await db
+    .select()
+    .from(bugReports)
+    .where(eq(bugReports.id, id))
+    .limit(1);
+
+  return row ? serializeBugReportDetail(row) : null;
+}
+
+export async function updateBugReportAdminFields(
+  id: string,
+  patch: { status: BugReportStatus; adminNotes: string | null },
+): Promise<BugReportDetail | null> {
+  const db = getDb();
+  const now = new Date();
+  const [row] = await db
+    .update(bugReports)
+    .set({
+      status: patch.status,
+      adminNotes: patch.adminNotes,
+      resolvedAt: deriveResolvedAt(patch.status, now),
+      updatedAt: now,
+    })
+    .where(eq(bugReports.id, id))
+    .returning();
+
+  return row ? serializeBugReportDetail(row) : null;
 }
 
 export async function ensureUserProfile(userId: string, email?: string | null): Promise<{ created: boolean }> {

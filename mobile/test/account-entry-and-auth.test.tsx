@@ -101,6 +101,7 @@ vi.mock('lucide-react-native', () => {
     Mail: icon,
     RefreshCcw: icon,
     UserPlus: icon,
+    Bug: icon,
   };
 });
 

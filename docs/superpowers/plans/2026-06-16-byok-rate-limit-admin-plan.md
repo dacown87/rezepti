@@ -681,10 +681,10 @@ DX DUAL VOICES — CONSENSUS TABLE:
 - [ ] read response shows `source`, `status`, `updatedAt`, `updatedBy`
 - [ ] read response shows governed entry-points explicitly
 - [ ] all admin errors use structured envelope
-- [ ] browser write path is proven with real method + CORS combination
-- [ ] runbook documents set / verify / rollback
-- [ ] post-deploy smoke proves live runtime change affects `/api/v1/keys/validate`
-- [ ] post-deploy smoke proves the same policy also affects `extract/react`, `extract/photo`, and `extract/text`
+- [x] browser write path is proven with real method + CORS combination
+- [x] runbook documents set / verify / rollback
+- [x] post-deploy smoke proves live runtime change affects `/api/v1/keys/validate`
+- [x] post-deploy smoke proves the same policy also affects `extract/react`, `extract/photo`, and `extract/text`
 
 ### Cross-Phase Themes
 

@@ -91,7 +91,7 @@ export default function AdminHubScreen() {
                 <View className="flex-1 ml-3">
                   <Text className="text-base font-semibold text-warm-800 dark:text-warm-100">Bug Reports</Text>
                   <Text className="text-sm text-warm-500 dark:text-warm-400 mt-1">
-                    Platzhalter für den nächsten Slice mit Admin-Übersicht und Bearbeitung.
+                    Eingehende Reports prüfen, Diagnosekontext ansehen und Status pflegen.
                   </Text>
                 </View>
                 <ChevronRight size={18} color="#9E8878" />
