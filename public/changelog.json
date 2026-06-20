@@ -1,6 +1,11 @@
 {
-  "version": "1.0.176",
+  "version": "1.0.177",
   "entries": [
+    {
+      "version": "1.0.177",
+      "date": "2026-06-20",
+      "changes": []
+    },
     {
       "version": "1.0.176",
       "date": "2026-06-19",
@@ -161,15 +166,10 @@
       "changes": [
         "server auth falls back to EXPO_PUBLIC_ Supabase env vars"
       ]
-    },
-    {
-      "version": "1.0.147",
-      "date": "2026-06-12",
-      "changes": []
     }
   ],
   "lastUpdated": {
-    "date": "2026-06-19",
-    "time": "16:03"
+    "date": "2026-06-20",
+    "time": "10:31"
   }
 }
