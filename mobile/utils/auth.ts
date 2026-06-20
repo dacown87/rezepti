@@ -1,5 +1,6 @@
 import * as Linking from 'expo-linking';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import { authStorage } from './auth-storage';
 
 declare const require: (id: string) => unknown;
@@ -48,6 +49,13 @@ export function getSupabaseClient(): SupabaseClient | null {
   if (!supabaseUrl || !supabaseKey) {
     supabaseClient = null;
     return supabaseClient;
+  }
+
+  // Expo static web export renders routes in a Node environment first.
+  // Supabase auth storage touches browser-only globals there, so skip client
+  // initialization during SSR and let hydration create it in the browser.
+  if (Platform.OS === 'web' && typeof window === 'undefined') {
+    return null;
   }
 
   ensureUrlPolyfill();
