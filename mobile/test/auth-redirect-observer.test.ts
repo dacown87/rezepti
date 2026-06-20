@@ -19,11 +19,17 @@ describe('registerAuthRedirectObserver — onConfirmationSuccess callback', () =
     // Provide env vars so getSupabaseClient() proceeds past the null-guard.
     vi.stubEnv('EXPO_PUBLIC_SUPABASE_URL', 'https://test.supabase.co');
     vi.stubEnv('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'test-anon-key');
+    Object.defineProperty(globalThis, 'window', {
+      value: {},
+      configurable: true,
+      writable: true,
+    });
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    delete (globalThis as { window?: unknown }).window;
   });
 
   it('calls onConfirmationSuccess when syncAuthSessionFromUrl succeeds with no extra mode', async () => {
@@ -128,11 +134,17 @@ describe('registerAuthRedirectObserver — onLinkError callback', () => {
     vi.clearAllMocks();
     vi.stubEnv('EXPO_PUBLIC_SUPABASE_URL', 'https://test.supabase.co');
     vi.stubEnv('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'test-anon-key');
+    Object.defineProperty(globalThis, 'window', {
+      value: {},
+      configurable: true,
+      writable: true,
+    });
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    delete (globalThis as { window?: unknown }).window;
   });
 
   it('calls onLinkError with German message when exchangeCodeForSession returns an error', async () => {

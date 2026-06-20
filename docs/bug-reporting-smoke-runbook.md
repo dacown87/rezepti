@@ -141,34 +141,47 @@ $B js "document.body.innerText.includes('Bug Reports')"
 
 ## Production-Befund vom 2026-06-20
 
+### Fruher Befund vor Merge/Deploy
+
 Live geprueft mit echtem Production-Login und Production-Web-App:
 
-- `GET /api/v1/auth/me` und `POST /api/v1/auth/bootstrap` funktionieren fuer den QA-User.
-- `GET /api/v1/bug-reports/me` liefert auf Production aktuell `404 Not Found`.
-- `POST /api/v1/bug-reports` liefert auf Production aktuell `404 Not Found`.
-- `GET /api/v1/admin/bug-reports` liefert auf Production aktuell `404 Not Found`.
-- Die authentifizierte Settings-Seite zeigt aktuell weder `Problem melden` noch `Meine Meldungen`.
-- Die auf Production geladenen Web-Assets enthalten den alten Admin-Placeholder-Stand (`Bug Reports` als Andockstelle), aber noch nicht den echten Bug-Reporting-Slice.
+- `GET /api/v1/auth/me` und `POST /api/v1/auth/bootstrap` funktionierten fuer den QA-User.
+- `GET /api/v1/bug-reports/me` lieferte `404 Not Found`.
+- `POST /api/v1/bug-reports` lieferte `404 Not Found`.
+- `GET /api/v1/admin/bug-reports` lieferte `404 Not Found`.
+- Die authentifizierte Settings-Seite zeigte weder `Problem melden` noch `Meine Meldungen`.
+- Die auf Production geladenen Web-Assets enthielten nur den alten Admin-Placeholder-Stand.
+
+Arbeitsannahme aus diesem ersten Befund:
+
+- Der Bug-Reporting-Slice war auf der damaligen Production-App noch nicht live.
+- Hauptursache war der fehlende Rollout auf `main`, nicht ein belegter DB-/Runtime-Mismatch.
+
+### Aktueller Live-Befund nach Merge + Hotfix-Deploy
+
+Stand nach Merge von PR #23 auf `main`, Hotfix `d0948f3` und erfolgreichem Docker-/Northflank-Deploy:
+
+- `GET /api/v1/auth/me` funktioniert fuer den QA-User.
+- `POST /api/v1/auth/bootstrap` funktioniert fuer den QA-User.
+- `GET /api/v1/bug-reports/me` funktioniert und liefert die eigene Liste.
+- `POST /api/v1/bug-reports` funktioniert live; Production antwortete mit `201` und erzeugte Report `21f7218f-6589-4a2d-b7ac-4213f04b444b`.
+- Der erzeugte Report ist direkt in `GET /api/v1/bug-reports/me` sichtbar.
+- `GET /api/v1/admin/bug-reports` liefert fuer den normalen QA-User korrekt `403 admin_required`.
+- Eine temporaere Promotion des QA-Users auf `public.user_profiles.app_role='admin'` war ueber `GET /api/v1/auth/me` sofort sichtbar.
+- `GET /api/v1/admin/bug-reports` funktionierte danach live und lieferte fuer den leeren Stand `{ "reports": [] }`.
+- Die QA-Rolle wurde anschliessend wieder auf `user` zurueckgesetzt.
 
 Nachtrag 2026-06-20 zur frueheren Rollen-Unstimmigkeit:
 
-- Die temporaere Promotion des QA-Users auf `public.user_profiles.app_role='admin'` ist ueber `GET /api/v1/auth/me` reproduzierbar sichtbar.
-- Ein belastbarer Runtime-/DB-Mismatch konnte damit nicht bestaetigt werden.
-- Die fruehere Abweichung war sehr wahrscheinlich ein Timing-/Session-Effekt waehrend des ersten manuellen Smokes, nicht der eigentliche Hauptbefund.
-
-Arbeitsannahme aus diesem Befund:
-
-- Der Bug-Reporting-Slice ist auf der aktuellen Production-App noch nicht live.
-- Der wahrscheinlichste Grund ist nicht eine kaputte Runtime, sondern dass die beiden Branch-Commits des Slices noch nicht auf `main` gelandet und deshalb weder deployt noch per `supabase-db-push` ausgerollt wurden.
+- Die temporaere Promotion des QA-Users auf `public.user_profiles.app_role='admin'` ist reproduzierbar sichtbar.
+- Ein belastbarer Runtime-/DB-Mismatch konnte nicht bestaetigt werden.
+- Die fruehere Abweichung war sehr wahrscheinlich ein Timing-/Session-Effekt waehrend des ersten manuellen Smokes.
 
 ## Konsequenz fuer TODO / Release
 
-Der offene TODO-Punkt `Bug-Reporting: Staging-/Production-Smoke nachziehen` ist aktuell nicht fachlich erledigt, sondern live blockiert:
+Der fachliche Production-Smoke fuer den Bug-Reporting-Slice ist jetzt erledigt.
 
-- Es fehlt der Merge/Deploy des Slices auf `main` und damit der echte Production-Rollout.
+Offen bleibt nur noch ein getrennter CI-Test-Follow-up:
 
-Vor dem naechsten Smoke zuerst klaeren:
-
-1. Bug-Reporting-Slice auf `main` mergen.
-2. Northflank-Deploy und `supabase-db-push` fuer `main` abwarten.
-3. Danach den Live-Smoke gegen denselben QA-User wiederholen.
+1. `mobile-release-gate` ist beim Hotfix-Run nicht wegen Deploy/Export, sondern wegen vier fehlschlagender Tests in `mobile/test/auth-redirect-observer.test.ts` rot gewesen.
+2. Das ist ein separater Test-/Coverage-Track und blockiert den erfolgreichen Production-Deploy des Bug-Reporting-Slices nicht mehr.
