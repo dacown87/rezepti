@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc, and, inArray, isNull, or, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, isNull, or, sql, lt } from "drizzle-orm";
 import {
   recipes,
   ingredientDictionary,
@@ -1091,7 +1091,7 @@ export async function recordByokValidationAttempt(
 
   await db
     .delete(byokValidationRateLimits)
-    .where(sql`${byokValidationRateLimits.windowStart} < ${cleanupBefore}`);
+    .where(lt(byokValidationRateLimits.windowStart, cleanupBefore));
 
   const [row] = await db
     .insert(byokValidationRateLimits)
