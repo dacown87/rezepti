@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, integer, text, boolean, timestamp, uuid, unique, primaryKey, index, uniqueIndex, check } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, timestamp, uuid, unique, primaryKey, index, uniqueIndex, check, jsonb } from "drizzle-orm/pg-core";
 
 export const recipes = pgTable("recipes", {
   id:          serial("id").primaryKey(),
@@ -154,6 +154,45 @@ export const cookidooCredentials = pgTable("cookidoo_credentials", {
   index("cookidoo_credentials_created_by_idx").on(t.createdBy),
 ]);
 
+export const bugReports = pgTable("bug_reports", {
+  id: uuid("id").primaryKey(),
+  reportType: text("report_type").notNull(),
+  status: text("status").notNull(),
+  description: text("description").notNull(),
+  userId: uuid("user_id").notNull(),
+  householdId: uuid("household_id"),
+  route: text("route"),
+  sourceArea: text("source_area").notNull(),
+  metadataJson: jsonb("metadata_json").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  adminNotes: text("admin_notes"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check("bug_reports_report_type_check", sql`${t.reportType} IN ('general', 'import_failure')`),
+  check("bug_reports_status_check", sql`${t.status} IN ('new', 'triaging', 'in_progress', 'resolved', 'closed')`),
+  check("bug_reports_source_area_check", sql`${t.sourceArea} IN ('global_button', 'import_error')`),
+  index("bug_reports_user_idx").on(t.userId),
+  index("bug_reports_status_idx").on(t.status),
+  index("bug_reports_report_type_idx").on(t.reportType),
+  index("bug_reports_created_at_idx").on(t.createdAt, t.id),
+  index("bug_reports_user_created_at_idx").on(t.userId, t.createdAt, t.id),
+]);
+
+export const bugReportSubmissionRateLimits = pgTable("bug_report_submission_rate_limits", {
+  userId: uuid("user_id").notNull(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  requestCount: integer("request_count").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({
+    columns: [t.userId, t.windowStart],
+    name: "bug_report_submission_rate_limits_pkey",
+  }),
+  index("bug_report_submission_rate_limits_user_window_idx").on(t.userId, t.windowStart),
+]);
+
 export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type IngredientDictionaryEntry = typeof ingredientDictionary.$inferSelect;
@@ -168,6 +207,9 @@ export type HouseholdMembership = typeof householdMemberships.$inferSelect;
 export type UserDefaultHousehold = typeof userDefaultHouseholds.$inferSelect;
 export type CookidooCredential = typeof cookidooCredentials.$inferSelect;
 export type NewCookidooCredential = typeof cookidooCredentials.$inferInsert;
+export type BugReportRow = typeof bugReports.$inferSelect;
+export type NewBugReportRow = typeof bugReports.$inferInsert;
+export type BugReportSubmissionRateLimitRow = typeof bugReportSubmissionRateLimits.$inferSelect;
 
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),

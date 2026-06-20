@@ -19,6 +19,7 @@ import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCirc
 import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
 import { fetchAuthMe } from '@/utils/admin';
+import MyBugReportsSection from '@/components/settings/MyBugReportsSection';
 import {
   deleteCookidooHouseholdShare,
   deletePrivateCookidooCredentials,
@@ -725,6 +726,8 @@ export default function SettingsScreen() {
             </>
           )}
         </View>
+
+        <MyBugReportsSection enabled={!!authSessionEmail} />
 
         {/* ── GROQ Help Modal ── */}
         <Modal visible={showGroqHelp} transparent animationType="fade" onRequestClose={() => setShowGroqHelp(false)}>

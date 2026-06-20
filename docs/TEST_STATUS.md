@@ -69,6 +69,8 @@ Stand 2026-06-02: Die alte Lueckenliste wurde gegen den aktuellen Testbestand ab
 
 ## Durchgeführte Tests
 
+- ✅ Bug-Reporting-Slice lokal verifiziert (2026-06-20): `bug_reports`-Schema/Router/Mobile-Flow inkl. Root-Level-Einstieg, `Meine Meldungen`, Admin-Triage und Importfehler-Reporting mit `lastFailureSnapshot` umgesetzt. Verifiziert mit `npx vitest run test/unit/bug-reports-routes.test.ts test/unit/admin-routes.test.ts`, `npm --prefix mobile run test:unit -- test/bug-reporting-utils.test.ts test/my-bug-reports-section.test.tsx test/extract-bug-reporting.test.tsx test/account-entry-and-auth.test.tsx`, `npx tsc --noEmit` und `npm --prefix mobile run typecheck`.
+
 - ✅ BYOK Validation Policy Live-Smokes abgeschlossen (2026-06-20): Browser-/PWA-Save auf Production mit echtem Admin-Login verifiziert, danach Runtime-Hotfix fuer den gemeinsamen BYOK-Rate-Limit-Cleanup ueber PR #22 auf `main` gemergt. PR-Checks `27865614040` gruen; `main`-Nachlauf `27865714254` gruen; Docker-/Northflank-Deploy `27865720834` gruen inklusive Health-Poll. Post-Deploy-Production-Smoke gegen `v1.0.177` bestaetigt: `POST /api/v1/keys/validate` liefert bei ungueltigem Key wieder `200` + `valid:false`, `extract/react`, `extract/photo` und `extract/text` liefern `400 byok_key_invalid`, und das geteilte Budget ueber mehrere Entry-Points kippt korrekt auf `429 byok_validation_rate_limited`. Die temporaere Smoke-Policy `15 / 3` wurde danach wieder auf `60 / 20` zurueckgesetzt.
 
 - ✅ Credential-Auth-Hotfix + Post-Hotfix Auth Hardening (2026-06-12, PR #7, Branch feat/credential-auth-hotfix):
