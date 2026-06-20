@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.178] – 2026-06-20
+
+- implement bug reporting slice
+
 ## [1.0.177] – 2026-06-20
 
 

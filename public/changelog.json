@@ -1,6 +1,13 @@
 {
-  "version": "1.0.177",
+  "version": "1.0.178",
   "entries": [
+    {
+      "version": "1.0.178",
+      "date": "2026-06-20",
+      "changes": [
+        "implement bug reporting slice"
+      ]
+    },
     {
       "version": "1.0.177",
       "date": "2026-06-20",
@@ -159,17 +166,10 @@
       "version": "1.0.149",
       "date": "2026-06-12",
       "changes": []
-    },
-    {
-      "version": "1.0.148",
-      "date": "2026-06-12",
-      "changes": [
-        "server auth falls back to EXPO_PUBLIC_ Supabase env vars"
-      ]
     }
   ],
   "lastUpdated": {
     "date": "2026-06-20",
-    "time": "10:31"
+    "time": "19:37"
   }
 }
