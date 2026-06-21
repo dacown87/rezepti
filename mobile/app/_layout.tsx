@@ -9,6 +9,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Bug } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { BugReportHeaderAction } from '@/components/BugReportHeaderAction';
 import { useThemeInit } from '@/utils/use-theme';
 import {
   queryClient,
@@ -20,6 +21,11 @@ import {
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
 import BugReportModal from '@/components/BugReportModal';
 import { openBugReportModal, registerBugReportModalController, type OpenBugReportIntent } from '@/utils/bug-reporting';
+import {
+  buildLoginFirstAccountHref,
+  isPublicLoginFirstPath,
+  LOGIN_FIRST_ACCOUNT_GATE_ENABLED,
+} from '@/utils/login-first-routing';
 import '../global.css';
 
 export { ErrorBoundary } from 'expo-router';
@@ -62,7 +68,7 @@ function RootLayoutNav() {
   const [bugReportIntent, setBugReportIntent] = useState<OpenBugReportIntent | null>(null);
   const [bugReportVisible, setBugReportVisible] = useState(false);
   const [authConfigured, setAuthConfigured] = useState<boolean>(() => getSupabaseClient() !== null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authState, setAuthState] = useState<'unknown' | 'signed_out' | 'signed_in'>('unknown');
 
   useEffect(() => {
     // Subscribe to session-restore state so we stop showing the interstitial
@@ -156,15 +162,15 @@ function RootLayoutNav() {
 
     void getAuthSession().then((session) => {
       if (!active) return;
-      setIsAuthenticated(!!session?.user);
+      setAuthState(session?.user ? 'signed_in' : 'signed_out');
     }).catch(() => {
       if (!active) return;
-      setIsAuthenticated(false);
+      setAuthState('signed_out');
     });
 
     const client = getSupabaseClient();
     if (!client) {
-      setIsAuthenticated(false);
+      setAuthState('signed_out');
       return () => {
         active = false;
       };
@@ -172,7 +178,7 @@ function RootLayoutNav() {
 
     const { data } = client.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
-      setIsAuthenticated(!!session?.user);
+      setAuthState(session?.user ? 'signed_in' : 'signed_out');
     });
 
     return () => {
@@ -180,6 +186,18 @@ function RootLayoutNav() {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!LOGIN_FIRST_ACCOUNT_GATE_ENABLED || sessionRestoring) {
+      return;
+    }
+
+    if (authState !== 'signed_out' || isPublicLoginFirstPath(pathname)) {
+      return;
+    }
+
+    router.replace(buildLoginFirstAccountHref(pathname));
+  }, [authState, pathname, router, sessionRestoring]);
 
   useEffect(() => {
     return registerBugReportModalController((intent) => {
@@ -199,38 +217,91 @@ function RootLayoutNav() {
     );
   }
 
+  const redirectingToAccount = LOGIN_FIRST_ACCOUNT_GATE_ENABLED
+    && authState === 'signed_out'
+    && !isPublicLoginFirstPath(pathname);
+
+  const showHeaderBugAction = LOGIN_FIRST_ACCOUNT_GATE_ENABLED
+    && authConfigured
+    && authState === 'signed_in'
+    && pathname !== '/account';
+
+  const openGlobalBugReport = () => {
+    openBugReportModal({
+      reportType: 'general',
+      sourceArea: 'global_button',
+      route: pathname,
+    });
+  };
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <View style={{ flex: 1 }}>
+        {redirectingToAccount ? (
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colorScheme === 'dark' ? '#1a1008' : '#faf7f2',
+            }}
+          >
+            <ActivityIndicator size="large" color="#C84B31" />
+            <Text
+              style={{
+                marginTop: 12,
+                fontSize: 14,
+                color: colorScheme === 'dark' ? '#c8b89a' : '#8B7355',
+              }}
+            >
+              Anmeldung wird geöffnet…
+            </Text>
+          </View>
+        ) : (
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ headerShown: false }} />
-          <Stack.Screen name="admin/index" options={{ title: 'Admin Hub' }} />
-          <Stack.Screen name="admin/byok-validation-policy" options={{ title: 'BYOK Validation Policy' }} />
-          <Stack.Screen name="admin/bug-reports" options={{ title: 'Bug Reports' }} />
+          <Stack.Screen
+            name="admin/index"
+            options={{
+              title: 'Admin Hub',
+              headerRight: showHeaderBugAction ? () => (
+                <BugReportHeaderAction onPress={openGlobalBugReport} />
+              ) : undefined,
+            }}
+          />
+          <Stack.Screen
+            name="admin/byok-validation-policy"
+            options={{
+              title: 'BYOK Validation Policy',
+              headerRight: showHeaderBugAction ? () => (
+                <BugReportHeaderAction onPress={openGlobalBugReport} />
+              ) : undefined,
+            }}
+          />
+          <Stack.Screen
+            name="admin/bug-reports"
+            options={{
+              title: 'Bug Reports',
+              headerRight: showHeaderBugAction ? () => (
+                <BugReportHeaderAction onPress={openGlobalBugReport} />
+              ) : undefined,
+            }}
+          />
           <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
+        )}
 
-        {authConfigured ? (
+        {!LOGIN_FIRST_ACCOUNT_GATE_ENABLED && authConfigured ? (
           <Pressable
             onPress={() => {
-              if (isAuthenticated) {
-                openBugReportModal({
-                  reportType: 'general',
-                  sourceArea: 'global_button',
-                  route: pathname,
-                });
+              if (authState === 'signed_in') {
+                openGlobalBugReport();
                 return;
               }
 
-              router.push({
-                pathname: '/account',
-                params: {
-                  mode: 'signin',
-                  returnTo: pathname || '/(tabs)',
-                },
-              });
+              router.push(buildLoginFirstAccountHref(pathname));
             }}
             style={{
               position: 'absolute',
@@ -254,7 +325,7 @@ function RootLayoutNav() {
           >
             <Bug size={16} color="#8B7355" />
             <Text style={{ color: '#6B4F3A', fontWeight: '600', fontSize: 13 }}>
-              {isAuthenticated ? 'Problem melden' : 'Anmelden für Report'}
+              {authState === 'signed_in' ? 'Problem melden' : 'Anmelden für Report'}
             </Text>
           </Pressable>
         ) : null}

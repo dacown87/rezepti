@@ -18,4 +18,11 @@ describe('auth redirect helpers', () => {
       returnTo: '/(tabs)/shopping',
     });
   });
+
+  it('falls back to the default app route for unsafe external return intents', () => {
+    expect(buildAuthRedirectUrl('/account', {
+      mode: 'signin',
+      returnTo: 'https://evil.example.test/phish',
+    })).toBe('recipedeck://account?mode=signin&returnTo=%2F%28tabs%29');
+  });
 });

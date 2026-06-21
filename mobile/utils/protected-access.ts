@@ -1,5 +1,6 @@
 import type { Href } from 'expo-router';
 import { ApiRequestError } from './api';
+import { buildLoginFirstAccountHref } from './login-first-routing';
 
 export interface ProtectedAccessState {
   code: 'auth_missing' | 'token_expired' | 'auth_invalid' | 'no_household' | 'bootstrap_failed';
@@ -10,13 +11,7 @@ export interface ProtectedAccessState {
 }
 
 export function buildAccountHref(returnTo: string, mode: 'signin' | 'signup' | 'reset' = 'signin'): Href {
-  return {
-    pathname: '/account',
-    params: {
-      mode,
-      returnTo,
-    },
-  };
+  return buildLoginFirstAccountHref(returnTo, mode);
 }
 
 export function mapProtectedApiError(
