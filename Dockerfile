@@ -43,9 +43,11 @@ COPY scripts/mobile/expo-export-web.mjs ./scripts/mobile/expo-export-web.mjs
 # `undefined` im Bundle ("Supabase Auth ist nicht konfiguriert").
 ARG EXPO_PUBLIC_SUPABASE_URL
 ARG EXPO_PUBLIC_SUPABASE_ANON_KEY
+ARG EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE
 ARG EXPO_PUBLIC_VAPID_PUBLIC_KEY
 ENV EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
 ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
+ENV EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE=$EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE
 # VAPID public key is inlined into the bundle by Expo at build time. Setting it
 # only as a Northflank runtime secret is NOT enough — the mobile bundle must be
 # rebuilt with this value present. Pass it as a Docker build-arg via GitHub Actions
