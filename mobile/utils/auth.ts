@@ -2,6 +2,7 @@ import * as Linking from 'expo-linking';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import { authStorage } from './auth-storage';
+import { normalizeReturnTo } from './login-first-routing';
 
 declare const require: (id: string) => unknown;
 
@@ -138,7 +139,7 @@ export function buildAuthRedirectUrl(
     search.set('mode', options.mode);
   }
   if (options?.returnTo) {
-    search.set('returnTo', options.returnTo);
+    search.set('returnTo', normalizeReturnTo(options.returnTo));
   }
 
   const suffix = search.size > 0 ? `?${search.toString()}` : '';

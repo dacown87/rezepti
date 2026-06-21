@@ -23,6 +23,12 @@ import {
   signUpWithPassword,
   updatePassword,
 } from '@/utils/auth';
+import {
+  DEFAULT_AUTHENTICATED_PATH,
+  isSafeInternalReturnTo,
+  LOGIN_FIRST_ACCOUNT_GATE_ENABLED,
+  normalizeReturnTo,
+} from '@/utils/login-first-routing';
 
 type AccountMode = 'signin' | 'signup' | 'reset' | 'update-password';
 type WorkspaceState =
@@ -71,16 +77,13 @@ export default function AccountScreen() {
   const skipNextAutoBootstrapRef = useRef(false);
 
   const isSignedIn = sessionEmail !== null;
-
-  // Only allow relative app-internal paths to prevent open-redirect attacks.
-  const isSafeReturnTo = (value: string | undefined): boolean =>
-    typeof value === 'string' && value.startsWith('/') && !value.startsWith('//');
+  const safeReturnTo = normalizeReturnTo(returnTo);
+  const resumeTargetLabel = safeReturnTo === DEFAULT_AUTHENTICATED_PATH ? 'deiner App-Startseite' : 'deinem angeforderten Bereich';
+  const shouldShowGuardedEntry = LOGIN_FIRST_ACCOUNT_GATE_ENABLED && !isSignedIn;
 
   const finishWithReturnIntent = useCallback(() => {
-    if (isSafeReturnTo(returnTo)) {
-      router.replace(returnTo as never);
-    }
-  }, [returnTo]);
+    router.replace(safeReturnTo as never);
+  }, [safeReturnTo]);
 
   const loadSession = useCallback(async () => {
     setAuthConfigured(getSupabaseClient() !== null);
@@ -336,17 +339,37 @@ export default function AccountScreen() {
     }
   };
 
+  const handlePrimaryNavigation = () => {
+    if (!LOGIN_FIRST_ACCOUNT_GATE_ENABLED) {
+      router.back();
+      return;
+    }
+
+    if (isSignedIn) {
+      router.replace(safeReturnTo as never);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
       <ScrollView className="flex-1" contentContainerClassName="px-4 py-5 pb-10">
         <View className="mb-5 flex-row items-center">
-          <Pressable onPress={() => router.back()} className="mr-3 rounded-full bg-white p-2">
-            <ArrowLeft size={18} color="#8B7355" />
-          </Pressable>
+          {(!LOGIN_FIRST_ACCOUNT_GATE_ENABLED || isSignedIn) ? (
+            <Pressable
+              onPress={handlePrimaryNavigation}
+              accessibilityRole="button"
+              accessibilityLabel="Zurück"
+              className="mr-3 rounded-full bg-white p-2"
+            >
+              <ArrowLeft size={18} color="#8B7355" />
+            </Pressable>
+          ) : null}
           <View className="flex-1">
             <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50">Account & Workspace</Text>
             <Text className="mt-1 text-sm text-warm-500 dark:text-warm-400">
-              Login, Bootstrap und dein erster Workspace an einem Ort.
+              {shouldShowGuardedEntry
+                ? 'Melde dich an, um wieder in deinen geschützten Bereich zurückzukehren.'
+                : 'Login, Bootstrap und dein Workspace an einem Ort.'}
             </Text>
           </View>
         </View>
@@ -423,6 +446,19 @@ export default function AccountScreen() {
           </View>
         ) : null}
 
+        {shouldShowGuardedEntry && authConfigured ? (
+          <View className="mb-4 rounded-2xl border border-warm-200 bg-white px-4 py-4 dark:border-warm-700 dark:bg-espresso-800">
+            <Text className="text-sm font-medium text-warm-800 dark:text-warm-100">
+              Nach erfolgreicher Anmeldung geht es direkt weiter zu {resumeTargetLabel}.
+            </Text>
+            {isSafeInternalReturnTo(returnTo) ? (
+              <Text className="mt-2 text-xs text-warm-500 dark:text-warm-400">
+                Zielroute: {safeReturnTo}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
         {isSignedIn && mode !== 'update-password' ? (
           <View className="rounded-2xl border border-warm-200 bg-white p-5 dark:border-warm-700 dark:bg-espresso-800">
             <Text className="text-base font-semibold text-warm-900 dark:text-warm-50">Dein Account</Text>
@@ -430,9 +466,16 @@ export default function AccountScreen() {
               {sessionEmail}
             </Text>
             <Pressable
+              onPress={finishWithReturnIntent}
+              className="mt-4 flex-row items-center justify-center rounded-xl bg-primary-500 py-3"
+            >
+              <ArrowLeft size={16} color="#fff" />
+              <Text className="ml-2 font-semibold text-white">Zur App zurück</Text>
+            </Pressable>
+            <Pressable
               onPress={handleLogout}
               disabled={busy}
-              className="mt-4 flex-row items-center justify-center rounded-xl bg-warm-100 py-3 dark:bg-espresso-700"
+              className="mt-3 flex-row items-center justify-center rounded-xl bg-warm-100 py-3 dark:bg-espresso-700"
             >
               {busy ? <ActivityIndicator size="small" color="#8B7355" /> : <LogOut size={16} color="#8B7355" />}
               <Text className="ml-2 font-semibold text-warm-700 dark:text-warm-200">Abmelden</Text>

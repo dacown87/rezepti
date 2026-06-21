@@ -32,6 +32,7 @@ import { getServerUrl, PRODUCTION_URL, SERVER_URL_KEY } from '@/utils/server-url
 import { usePwaUpdate } from '@/hooks/usePwaUpdate';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
+import { LOGIN_FIRST_ACCOUNT_GATE_ENABLED } from '@/utils/login-first-routing';
 
 const SECURE_KEY_GROQ = 'groq_key';
 const STORAGE_KEY_FB_TOS = 'facebook_tos_accepted';
@@ -710,17 +711,23 @@ export default function SettingsScreen() {
           ) : (
             <>
               <Text className="text-sm text-warm-600 dark:text-warm-300 mb-1">
-                {authSessionEmail ?? 'Öffne den dedizierten Account-&-Workspace-Screen für Login, Signup, Passwort-Reset und Bootstrap.'}
+                {LOGIN_FIRST_ACCOUNT_GATE_ENABLED
+                  ? (authSessionEmail ?? 'Verwalte hier deinen Account, deinen Workspace-Status und Logout.')
+                  : (authSessionEmail ?? 'Öffne den dedizierten Account-&-Workspace-Screen für Login, Signup, Passwort-Reset und Bootstrap.')}
               </Text>
-              <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
-                Settings bleibt ein Einstiegspunkt, aber die primäre Auth-Oberfläche liegt jetzt separat.
-              </Text>
+              {LOGIN_FIRST_ACCOUNT_GATE_ENABLED ? null : (
+                <Text className="text-xs text-warm-500 dark:text-warm-400 mb-4">
+                  Settings bleibt ein Einstiegspunkt, aber die primäre Auth-Oberfläche liegt jetzt separat.
+                </Text>
+              )}
               <TouchableOpacity
                 onPress={() => router.push('/account')}
-                className="bg-primary-500 rounded-xl py-3 items-center"
+                className={`${LOGIN_FIRST_ACCOUNT_GATE_ENABLED ? 'bg-warm-100 dark:bg-espresso-700' : 'bg-primary-500'} rounded-xl py-3 items-center`}
               >
-                <Text className="text-white font-semibold">
-                  {authSessionEmail ? 'Account & Workspace öffnen' : 'Anmelden oder Account erstellen'}
+                <Text className={`${LOGIN_FIRST_ACCOUNT_GATE_ENABLED ? 'text-warm-700 dark:text-warm-200' : 'text-white'} font-semibold`}>
+                  {LOGIN_FIRST_ACCOUNT_GATE_ENABLED || authSessionEmail
+                    ? 'Account & Workspace öffnen'
+                    : 'Anmelden oder Account erstellen'}
                 </Text>
               </TouchableOpacity>
             </>
