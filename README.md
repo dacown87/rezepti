@@ -231,7 +231,7 @@ Fresh-User-Smoke und Cleanup-Details stehen im Runbook: [docs/auth-runbook-route
 - `test/README.md` — Teststruktur und lokale Testbefehle
 - `docs/TEST_STATUS.md` — Historischer Teststatus und bekannte Testlücken
 - `docs/auth-runbook-route-privacy.md` — Multi-User Auth Phase 0.5: Env-Matrix, API-Error-Kontrakt, Route-Privacy-Matrix und Staging-Smoke
-- `docs/testing/rntl-migration-phase-0-inventory.md` — RNTL-Migrationsstand, Runtime-Blocker und verbleibende `UNSAFE_*`-Altfaelle
+- `docs/testing/rntl-migration-phase-0-inventory.md` — RNTL-Migrationsstand, aktueller Vitest-Status und verbleibende `UNSAFE_*`-Altfaelle
 - `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests waehrend der RNTL-Uebergangsphase
 - `docs/SupaBase/supabase-advisor-remediation-plan.md` — reviewed Plan fuer die naechste Supabase-Advisor-Remediation
 - `docs/performance/throttling-analysis.md` — Phase-4c Throttling-Vergleich, App-Shell-LCP-Fix und Budget-Hardening-Regeln

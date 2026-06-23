@@ -61,7 +61,7 @@ Noch offen:
 
 - **Nightly-Strict-Beobachtung** (passiv) — Erste 1-2 Wochen Nightly-Cron-Runs auf Drift/Flakes beobachten. Bei stabil gruen: Eskalation auf `pull_request` strict erwaegen. Bei rot: Root-Cause-Analyse + ggf. Budget-Anpassung via `perf:budget:suggest`.
 - **Phase 5 (Optional Web Vitals)** bleibt deferred bis konkrete Feldmetrik-Frage entsteht, die Lighthouse/Bundle nicht beantwortet.
-- **Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native`** (Follow-up, kein Blocker): wartet auf den aktuellen Vitest/RN-Runtime-Blocker.
+- **Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native`** (Follow-up, kein Blocker): historischer Hinweis. Der damalige Vitest/RN-Runtime-Blocker ist inzwischen geloest; offener Follow-up bleibt nur weiteres Test-/Warnungs-Hardening.
 
 Aktuelle lokale Verifikation am 2026-05-13:
 
@@ -231,7 +231,7 @@ Naechste priorisierte Reihenfolge (aktualisiert 2026-05-13):
 1. Nightly-Strict-Cron (02:00 UTC) ueber die ersten 1-2 Wochen beobachten; bei stabil gruen `pull_request` strict erwaegen.
 2. Bei rotem Nightly-Run zuerst klassifizieren (Budget / Flake / Infrastruktur) — kein Reflex-Rollback der Schedule-Policy.
 3. Phase 5 (Optional Web Vitals) bleibt deferred, bis Lighthouse/Bundle/Throttling-Daten eine konkrete Feldmetrik-Frage stellen.
-4. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt separat offen. Grund ist weiterhin der aktuelle Vitest/RN-Runtime-Blocker; bis dahin bleiben die UI-nahen Tests stabil auf `react-test-renderer`.
+4. Follow-up, nicht Blocker: Migration auf `@testing-library/react-native` bleibt als historischer Planpunkt separat dokumentiert. Der damalige Vitest/RN-Runtime-Blocker ist inzwischen geloest; die verbliebene Folgearbeit betrifft nur weiteres Test-/Warnungs-Hardening.
 
 ## Summary
 
@@ -1055,7 +1055,7 @@ Der zweite Commit (`chore: Cleanup-PR Punkte 3–9, 12`) bringt Backend-Änderun
 | Workflow-Tests (list→detail→shopping) | DONE | `mobile-workflow-list-detail-shopping-ui.test.tsx` |
 | Shopping-/Detail-Mutations in Service-Layer verschieben | DONE | `mobile/utils/shopping-service.ts`, `mobile/app/recipe/[id].tsx`, `mobile/app/(tabs)/planner.tsx` |
 | State-Matrix (offline recovery, retry, shopping use) | DONE | `recipe-list-screen-fallbacks`, `recipe-detail-fallbacks`, `shopping-screen-fallbacks`, `planner-screen-fallbacks`, `query-client-integration`, `mobile-workflow-shopping-recovery` |
-| Migration auf `@testing-library/react-native` | NOT DONE | Absichtlich verschoben (Runtime-Blocker) |
+| Migration auf `@testing-library/react-native` | DONE | Echte RNTL laeuft unter Vitest; direkte `react-test-renderer`-Imports sind entfernt und per Guard blockiert |
 | `perf:bundle`, `perf:lighthouse`, `perf:audit` Skripte | DONE | `package.json` |
 | Performance CI-Job mit Artefakt-Upload | DONE | `.github/workflows/ci.yml` |
 | Echter Lighthouse-Run in CI | DONE | `.github/workflows/ci.yml`, `browser-actions/setup-chrome@v1` |
@@ -1139,7 +1139,7 @@ Status: erledigt am 2026-05-13 durch Empirie — E2E-Job ist seit dem Cleanup be
 | History-/Readiness-Mechanismus | ✅ |
 | Planner-/Shopping-State-Matrix Kernpfade | ✅ |
 
-**Fazit (aktualisiert 2026-05-12, nach Strict-Probe-Run):** Phase 1, 2, 3, 4 und 4c sind abgeschlossen. Phase 3 war empirisch fuer die Foundation erledigt — `artifacts/performance/readiness.json` zeigte am 2026-05-08 `ready=true` mit allen vier Checks gruen, basierend auf 10 lokal geseedeten Lighthouse-Runs (Spread <2% pro Route). Nach dem Phase-4b-/Phase-4c-Befund zaehlt fuer Budget-Hardening jetzt die neue methodenmarkierte Messbasis. Der Strict-Hardening-Seed vom 2026-05-12 lieferte 10 vollstaendige `simulate/mobile-375x812`-Runs und eine geschaerfte `baseline.json`. Danach wurden 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs erreicht und der erste manuelle Strict-Probe-Run (`workflow_dispatch`, Run `25742783313`) ist gruen abgeschlossen. Aktive Arbeit ist jetzt PR-Aufraeumarbeit (vier leere Trigger-Commits squashen) und die separate Entscheidung, ob `strict` ueber den Manual-Dispatch hinaus ausgeweitet wird. Phase 5 (Optional Web Vitals) bleibt deferred. Verschoben: Test-Infra-Migration `react-test-renderer` → `@testing-library/react-native` (Vitest/RN-Runtime-Blocker).
+**Fazit (aktualisiert 2026-05-12, mit Nachtrag 2026-06-23):** Phase 1, 2, 3, 4 und 4c sind abgeschlossen. Phase 3 war empirisch fuer die Foundation erledigt — `artifacts/performance/readiness.json` zeigte am 2026-05-08 `ready=true` mit allen vier Checks gruen, basierend auf 10 lokal geseedeten Lighthouse-Runs (Spread <2% pro Route). Nach dem Phase-4b-/Phase-4c-Befund zaehlt fuer Budget-Hardening jetzt die neue methodenmarkierte Messbasis. Der Strict-Hardening-Seed vom 2026-05-12 lieferte 10 vollstaendige `simulate/mobile-375x812`-Runs und eine geschaerfte `baseline.json`. Danach wurden 5/5 aufeinanderfolgende gruene Warn-Mode-CI-Runs erreicht und der erste manuelle Strict-Probe-Run (`workflow_dispatch`, Run `25742783313`) ist gruen abgeschlossen. Aktive Arbeit ist jetzt PR-Aufraeumarbeit (vier leere Trigger-Commits squashen) und die separate Entscheidung, ob `strict` ueber den Manual-Dispatch hinaus ausgeweitet wird. Phase 5 (Optional Web Vitals) bleibt deferred. Nachtrag 2026-06-23: Der hier historisch erwaehnte Vitest/RN-Runtime-Blocker ist im aktuellen Repo-Stand nicht mehr reproduzierbar; `npm --prefix mobile run test:unit`, `npm run test:mobile`, `npm --prefix mobile run test:coverage` und `npx vitest run -c mobile/vitest.config.ts` liefen gruen.
 
 Folgearbeit API-Mock erledigt (Commit `3c2c7fd`, 2026-05-09): `matchApiRoute()` aus `handleApiMock()` extrahiert und auf parametrisierte Pfade erweitert — `/api/v1/recipes/:id` gibt validen Recipe-Stub zurueck; `/api/v1/shopping/:id|checked|all` abgedeckt; 17 Unit-Tests in `test/unit/lighthouse-runner-api-mock.test.ts`. Mock-Korrektheit verifiziert ueber Unit-Tests + Network-Requests.
 

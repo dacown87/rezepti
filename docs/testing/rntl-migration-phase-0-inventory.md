@@ -1,10 +1,10 @@
 # RNTL Migration Phase 0 Inventory
 
-Stand: 2026-05-31
+Stand: 2026-06-23
 
 ## Ergebnis
 
-Phase 0 ist inventarisiert und der Runtime-Follow-up vom 2026-05-31 ist abgeschlossen. Echte `@testing-library/react-native` laeuft unter Vitest, weil der RNTL-Import gezielt optimiert wird und `react-native` weiter auf den lokalen Test-Shim zeigt. Der alte Compat-Layer ist entfernt; aktiv bleibt nur ein duennes Real-RNTL-Modul fuer den live weitergereichten `screen`-Export und Uebergangstypen.
+Phase 0 ist inventarisiert und der Runtime-Follow-up vom 2026-05-31 ist abgeschlossen. Echte `@testing-library/react-native` laeuft unter Vitest, weil der RNTL-Import gezielt optimiert wird und `react-native` weiter auf den lokalen Test-Shim zeigt. Der alte Compat-Layer ist entfernt; aktiv bleibt nur ein duennes Real-RNTL-Modul fuer den live weitergereichten `screen`-Export und Uebergangstypen. Der frueher dokumentierte "normaler Mobile-Vitest-Lauf ist blockiert"-Hinweis ist im aktuellen Repo-Stand ueberholt: Am 2026-06-23 liefen `npm --prefix mobile run test:unit`, `npm run test:mobile`, `npm --prefix mobile run test:coverage` und `npx vitest run -c mobile/vitest.config.ts` jeweils gruen.
 
 ## Direkte `react-test-renderer`-Imports
 
@@ -57,7 +57,7 @@ Reproduktion:
 - Mit dem alten Compat-Alias lief der fokussierte Detail-Test gruen.
 - Ohne RNTL-Optimizer brach der Suite-Start vor Testausfuehrung mit `SyntaxError: Unexpected token 'typeof'` ab.
 - Derselbe Fehler tritt bei direktem Import des echten `react-native`-Entrypoints auf; `mobile/node_modules/react-native/index.js` enthaelt Flow-Imports wie `import typeof`.
-- Mit dem Runtime-Fix laeuft `npm --prefix mobile run test:unit` mit `87 passed` und `npm --prefix mobile run typecheck` gruen.
+- Mit dem Runtime-Fix laeuft `npm --prefix mobile run test:unit` im historischen Follow-up mit `87 passed`; im aktuellen Repo-Stand vom 2026-06-23 lief derselbe Befehl mit `45` Dateien und `299` Tests gruen. `npm --prefix mobile run typecheck` ist ebenfalls gruen.
 - Nach dem Strukturquery-Abbau laeuft der fokussierte Slice `npm --prefix mobile run test:unit -- recipe-detail-fallbacks recipe-list-screen-fallbacks shopping-screen-fallbacks planner-screen-fallbacks mobile-workflow-list-detail-shopping-ui` mit `22 passed`.
 
 Bekannte Warnungen nach Real-RNTL, aktualisiert nach Warnungs-Triage am

@@ -42,7 +42,7 @@ Noch offen:
 - Kein Expo-SDK-Upgrade in diesem Track.
 - Keine gleichzeitige NativeWind-/Styling-Migration.
 - Keine grossen Screen-Refactors, ausser eine sehr kleine Testbarkeitsergaenzung ist nachweislich notwendig.
-- Kein Blindwechsel auf Jest. Ziel bleibt Vitest, solange der Runtime-Blocker loesbar ist.
+- Kein Blindwechsel auf Jest. Ziel bleibt Vitest; der damals offene Runtime-Blocker ist inzwischen geloest.
 
 ## Leitplanken
 
@@ -56,7 +56,7 @@ Noch offen:
 
 ## Vorgehen
 
-### Phase 0: Inventory, Guardrails und Runtime-Blocker dokumentieren
+### Phase 0: Inventory, Guardrails und historischen Runtime-Blocker dokumentieren
 
 Ziel: Der aktuelle Zustand ist vollstaendig inventarisiert, Backsliding ist blockiert, und der Grund fuer den Compat-Layer ist reproduzierbar.
 
@@ -308,7 +308,7 @@ Exit-Kriterium:
 
 | Risiko | Auswirkung | Gegenmassnahme |
 | --- | --- | --- |
-| Echte RNTL bleibt unter Vitest blockiert | Compat-Layer kann nicht entfernt werden | Phase 1 als harte Gate-Entscheidung; bei grossem Fix separaten Runtime-Track schreiben |
+| Echte RNTL bleibt unter Vitest blockiert | Compat-Layer kann nicht entfernt werden | Historisches Risiko. Im Repo-Stand 2026-06-23 nicht mehr reproduzierbar; aktueller Fokus ist nur Warnungs-/DX-Hardening |
 | `react-native`-Alias macht Fake-Erfolg moeglich | Tests laufen, aber nicht gegen realistische RNTL/RN-Resolution | Phase 1 und Phase 6 behandeln `react-native`-Alias und Setup-Mocks explizit |
 | Compat-Layer wird zur dauerhaften Schattenbibliothek | Neue Tests lernen falsche API und machen den spaeteren Wechsel teurer | Compat API einfrieren, Test-Autoren-Checkliste schreiben, compat-only API vor Phase 6 entfernen |
 | Tests werden durch `UNSAFE_queryAllByType` nur scheinbar besser | Migration bleibt strukturell fragil | Sichtbare Queries und Accessibility bevorzugen; compat-only `UNSAFE_*` vor echter RNTL entfernen |
@@ -344,7 +344,7 @@ Noch sinnvoll vor Umsetzung der naechsten Code-Slices:
    - Ist Shopping -> Workflow -> Planner die richtige Reihenfolge?
    - Sind die Exit-Kriterien eng genug?
    - Ist Phase 4 bewusst genug vom Testdatei-Umbau getrennt?
-2. Test-Infra-Review gegen Runtime-Blocker:
+2. Test-Infra-Review gegen den damaligen Runtime-Blocker:
    - Ist Vitest weiter die richtige Zielumgebung?
    - Gibt es einen kleineren Transform-Fix fuer echte RNTL?
    - Muss Jest als separater Fallback-Track ernsthaft bewertet werden?
