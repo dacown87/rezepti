@@ -1,6 +1,13 @@
 {
-  "version": "1.0.182",
+  "version": "1.0.183",
   "entries": [
+    {
+      "version": "1.0.183",
+      "date": "2026-06-23",
+      "changes": [
+        "harden recipe sw cache routing per request (#26)"
+      ]
+    },
     {
       "version": "1.0.182",
       "date": "2026-06-21",
@@ -157,15 +164,10 @@
       "changes": [
         "surface readable extraction errors instead of \"[object Object]\""
       ]
-    },
-    {
-      "version": "1.0.153",
-      "date": "2026-06-13",
-      "changes": []
     }
   ],
   "lastUpdated": {
-    "date": "2026-06-21",
-    "time": "20:00"
+    "date": "2026-06-23",
+    "time": "09:08"
   }
 }

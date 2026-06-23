@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.183] – 2026-06-23
+
+- harden recipe sw cache routing per request (#26)
+
 ## [1.0.182] – 2026-06-21
 
 
