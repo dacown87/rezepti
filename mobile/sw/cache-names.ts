@@ -15,8 +15,9 @@
  *   cross-user cache leak. SHA-256 gives 64 hex chars (2^256 buckets) — negligible
  *   collision risk for any realistic user population.
  *
- * The hash is computed once (in the SET_USER handler) and stored as currentUserHash.
- * The request-time path reads the already-stored string — no async work on the hot path.
+ * The hash is computed once per authenticated client identity and then memoized
+ * on the client. The request-time path reads the already-derived string from
+ * the request header — no async work on the hot path inside the Service Worker.
  *
  * `crypto.subtle` is available in:
  *   - Service Worker runtime (all modern browsers)
@@ -64,6 +65,18 @@ export function hashUserId(userId: string): string {
  */
 export function userCacheName(userIdHash: string): string {
   return `rd-user-${userIdHash}`;
+}
+
+/** Header name used by cacheable recipe GETs to scope SW cache routing. */
+export const RECIPE_USER_HASH_HEADER = 'X-RD-User-Hash';
+
+/**
+ * Reads the user hash that the client attached to a cacheable recipe request.
+ * Empty / whitespace-only values fail closed to null.
+ */
+export function getRecipeRequestUserHash(headers: Headers): string | null {
+  const value = headers.get(RECIPE_USER_HASH_HEADER)?.trim();
+  return value ? value : null;
 }
 
 /**
@@ -117,13 +130,9 @@ export async function clearUserCaches(storage: {
 // ---------------------------------------------------------------------------
 // Persisted user-hash (RC2)
 //
-// `currentUserHash` lives only in the SW's memory and resets to null whenever
-// the browser terminates an idle SW. On a cold start, recipe requests that
-// arrive before the page's SET_USER message is processed would otherwise go
-// network-only and fail offline (this hits recipe DETAIL deep-links, which read
-// solely from the SW cache). We persist the hash in a tiny cache so a restarted
-// SW can resolve the correct per-user bucket immediately, without waiting for
-// SET_USER.
+// This cache is kept for rollout compatibility only. Recipe-cache routing no
+// longer reads from it. A follow-up can remove it after the request-scoped
+// header contract has proven stable in production.
 //
 // Privacy: the hash is a non-reversible SHA-256, the cache is same-origin only,
 // and it is named `rd-user-meta` so logout's CLEAR_USER (clearUserCaches deletes

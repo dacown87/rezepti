@@ -2,8 +2,14 @@
  * Shared API fetch helpers used by React Query hooks.
  * All functions resolve the server URL and return typed data.
  */
+import type { Session } from '@supabase/supabase-js';
 import { getServerUrl } from './server-url';
-import { getAuthHeaders, refreshAuthSession } from './auth';
+import { getAuthSession, refreshAuthSession } from './auth';
+import {
+  RECIPE_USER_HASH_HEADER,
+  isCacheableRecipeRequest,
+  strongHash,
+} from '../sw/cache-names';
 
 export interface ApiRecipe {
   id: number;
@@ -50,16 +56,56 @@ export class ApiRequestError extends Error {
   }
 }
 
+let cachedRecipeRequestUserHash: { userId: string; hash: string } | null = null;
+
+function isRecipeReadRequest(path: string, init?: RequestInit): boolean {
+  const method = init?.method?.toUpperCase() ?? 'GET';
+  return isCacheableRecipeRequest(new URL(path, 'https://rd.local'), method);
+}
+
+async function getCachedRecipeRequestUserHash(session: Session | null): Promise<string | null> {
+  const userId = session?.user?.id?.trim();
+  if (!userId) {
+    cachedRecipeRequestUserHash = null;
+    return null;
+  }
+
+  if (cachedRecipeRequestUserHash?.userId === userId) {
+    return cachedRecipeRequestUserHash.hash;
+  }
+
+  const hash = await strongHash(userId);
+  cachedRecipeRequestUserHash = { userId, hash };
+  return hash;
+}
+
+async function buildRequestInit(path: string, init?: RequestInit): Promise<RequestInit | undefined> {
+  const session = await getAuthSession();
+  const headers = new Headers(init?.headers);
+  let hasHeaders = Array.from(headers.keys()).length > 0;
+
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`);
+    hasHeaders = true;
+  }
+
+  if (isRecipeReadRequest(path, init)) {
+    const userHash = await getCachedRecipeRequestUserHash(session);
+    if (userHash) {
+      headers.set(RECIPE_USER_HASH_HEADER, userHash);
+      hasHeaders = true;
+    } else {
+      headers.delete(RECIPE_USER_HASH_HEADER);
+    }
+  }
+
+  return hasHeaders ? { ...init, headers } : init;
+}
+
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const serverUrl = await getServerUrl();
   const url = `${serverUrl}${path}`;
-
-  const buildInit = async (): Promise<RequestInit | undefined> => {
-    const headers = await getAuthHeaders(init?.headers);
-    return headers === undefined ? init : { ...init, headers };
-  };
-
-  const res = await fetch(url, await buildInit());
+  const res = await fetch(url, await buildRequestInit(path, init));
   if (res.status !== 401) return res;
 
   // 401 → the access token has likely expired (e.g. the installed PWA was
@@ -71,7 +117,7 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   // caller can show the re-login prompt.
   const refreshed = await refreshAuthSession();
   if (!refreshed) return res;
-  return fetch(url, await buildInit());
+  return fetch(url, await buildRequestInit(path, init));
 }
 
 export async function readApiError(response: Response, fallbackMessage: string): Promise<ApiRequestError> {

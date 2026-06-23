@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RECIPE_USER_HASH_HEADER } from '@/sw/cache-names';
 
 // Regression: a long extraction in a backgrounded PWA suspends Supabase's
 // auto-refresh timer, so the access token expires and every API call returns
@@ -6,8 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // token refresh and retry exactly once before surfacing the error.
 
 const state = vi.hoisted(() => ({
-  getAuthHeaders: vi.fn(),
+  getAuthSession: vi.fn(),
   refreshAuthSession: vi.fn(),
+  session: {
+    access_token: 'stale-token',
+    user: { id: 'user-a' },
+  } as { access_token: string; user: { id: string } } | null,
 }));
 
 vi.mock('@/utils/server-url', () => ({
@@ -15,7 +20,7 @@ vi.mock('@/utils/server-url', () => ({
 }));
 
 vi.mock('@/utils/auth', () => ({
-  getAuthHeaders: state.getAuthHeaders,
+  getAuthSession: state.getAuthSession,
   refreshAuthSession: state.refreshAuthSession,
 }));
 
@@ -26,14 +31,24 @@ function res(status: number): Response {
 describe('apiFetch 401 recovery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    state.getAuthHeaders.mockResolvedValue(new Headers({ Authorization: 'Bearer stale' }));
+    state.session = {
+      access_token: 'stale-token',
+      user: { id: 'user-a' },
+    };
+    state.getAuthSession.mockImplementation(async () => state.session);
   });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it('refreshes the session and retries exactly once on 401, returning the retry response', async () => {
-    state.refreshAuthSession.mockResolvedValue({ access_token: 'fresh' });
+    state.refreshAuthSession.mockImplementation(async () => {
+      state.session = {
+        access_token: 'fresh-token',
+        user: { id: 'user-a' },
+      };
+      return state.session;
+    });
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(res(401))
@@ -46,6 +61,13 @@ describe('apiFetch 401 recovery', () => {
     expect(out.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(state.refreshAuthSession).toHaveBeenCalledTimes(1);
+    const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const retryInit = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+    expect(new Headers(firstInit?.headers).get('Authorization')).toBe('Bearer stale-token');
+    expect(new Headers(retryInit?.headers).get('Authorization')).toBe('Bearer fresh-token');
+    expect(new Headers(firstInit?.headers).get(RECIPE_USER_HASH_HEADER)).toBe(
+      new Headers(retryInit?.headers).get(RECIPE_USER_HASH_HEADER),
+    );
   });
 
   it('does not retry when the refresh fails (refresh token also dead)', async () => {

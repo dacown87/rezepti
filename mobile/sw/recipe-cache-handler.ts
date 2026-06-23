@@ -8,7 +8,7 @@
 
 import { StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
-import { userCacheName } from './cache-names.js';
+import { getRecipeRequestUserHash, userCacheName } from './cache-names.js';
 
 /** Minimal interface for a Workbox-style strategy (used for testability). */
 export interface WorkboxStrategyLike {
@@ -16,11 +16,6 @@ export interface WorkboxStrategyLike {
 }
 
 export interface RecipeCacheHandlerDeps {
-  /**
-   * Resolves the active user's hash. May be async so the SW can fall back to a
-   * persisted hash on a cold start (RC2) when the in-memory value is still null.
-   */
-  getUserHash: () => string | null | Promise<string | null>;
   fetchFn: typeof fetch;
   /**
    * Optional factory that overrides the default StaleWhileRevalidate strategy.
@@ -40,13 +35,14 @@ function defaultMakeStrategy(cacheName: string): WorkboxStrategyLike {
 /**
  * Handles a cacheable recipe GET request.
  *
- * - If no user is set (null hash) → network-only pass-through; no cache is touched.
+ * - If the request carries no user hash header → network-only pass-through; no
+ *   user cache is touched.
  * - Otherwise → StaleWhileRevalidate into the per-user cache bucket, forwarding
  *   the REAL ExtendableEvent so Workbox's StrategyHandler can call event.waitUntil()
  *   without throwing.
  *
  * The strategy is constructed per-request so it is always bound to the hash
- * that is current at request time (avoids a stale-hash race window).
+ * from that exact request (avoids stale global-user race windows).
  *
  * IMPORTANT: Must be called with the REAL ExtendableEvent from the route
  * callback. Passing `undefined` causes:
@@ -57,11 +53,10 @@ export async function recipeCacheHandler(
   { request, event }: { request: Request; event: ExtendableEvent },
   deps: RecipeCacheHandlerDeps,
 ): Promise<Response> {
-  const hash = await deps.getUserHash();
+  const hash = getRecipeRequestUserHash(request.headers);
 
-  // CRITICAL SAFETY: if no user is set (SW restarted, signed out, or during
-  // the switch window after CLEAR_USER) go network-only — never read from or
-  // write to any user cache.
+  // CRITICAL SAFETY: if the request does not explicitly identify a user cache
+  // bucket, go network-only — never read from or write to any user cache.
   if (hash === null) {
     return deps.fetchFn(request);
   }

@@ -2,7 +2,7 @@
 
 RecipeDeck's Progressive Web App setup — installable shell with offline-read capability.
 
-**Status:** Phase 6 completed (2026-06-13). Service Worker deployed in production. Offline-read hardening landed 2026-06-14 (PRs #11/#12): build-independent recipe data cache, cold-start React Query restore, and a persisted SW user hash.
+**Status:** Phase 6 completed (2026-06-13). Service Worker deployed in production. Offline-read hardening landed 2026-06-14 (PRs #11/#12): build-independent recipe data cache and cold-start React Query restore. Multi-account SW safety landed 2026-06-23: recipe cache routing is now request-scoped via `X-RD-User-Hash`, not global SW user state.
 
 ## Overview
 
@@ -19,7 +19,7 @@ The PWA implementation consists of:
 
 ### Capabilities
 
-- **Offline read** — Recipe list and detail pages are served without network (after first load). The **list** comes from the per-user React Query persistence (AsyncStorage); recipe **detail** pages come from the SW `rd-user-<hash>` cache. Both survive app updates and SW cold starts (see hardening notes below).
+- **Offline read** — Recipe list and detail pages are served without network (after first load). The **list** comes from the per-user React Query persistence (AsyncStorage); recipe **detail** pages come from the SW `rd-user-<hash>` cache. Both survive app updates; the SW cache bucket is selected per request via `X-RD-User-Hash`.
 - **Homescreen install** — Android: standard beforeinstallprompt UX; iOS: manual "Add to Home Screen" (see Install Hints section).
 - **Update detection** — UI notifies when a new SW is ready; user can opt-in to reload. No banner appears when an update activates silently on relaunch (no waiting worker) — that is expected. No banner appears at all for server-only deploys (identical frontend → identical content-hash → byte-identical `sw.js`).
 - **Per-user caching** — Recipe API responses cached separately per logged-in user (SHA-256-hashed user ID); automatically cleared on logout.
@@ -34,7 +34,7 @@ The bundled SW (`public/sw.js`) implements these cache families:
 | `rd-shell-v<hash>` | NetworkFirst (3s timeout) | Navigation requests, /index.html precache fallback | **Build-scoped** — orphaned on new build |
 | `rd-assets-v<hash>` | CacheFirst | Hash-named JS/CSS chunks from `_expo/static/` | **Build-scoped** — orphaned on new build (not hand-deleted) |
 | `rd-user-<sha256-userId>` | StaleWhileRevalidate | GET /api/v1/recipes/* (read-only) | **Build-INDEPENDENT** — survives app updates; deleted on logout (CLEAR_USER) |
-| `rd-user-meta` | — (plain Cache entry) | Persisted SHA-256 user hash (RC2) | Survives SW restart; deleted on logout (matches `rd-user-*`) |
+| `rd-user-meta` | — (legacy compatibility cache) | Historical persisted SHA-256 user hash | Not used for recipe routing; kept only for rollout compatibility and deleted on logout |
 
 **Why the data cache is build-independent:** Recipe data is not tied to the frontend build. When the data cache was build-scoped (`rd-user-<hash>-v<build>`), the `activate` GC wiped it on **every** deploy, blanking offline-read after each update. The current format (`rd-user-<hash>`, no `-v` suffix) survives deploys.
 
@@ -42,17 +42,17 @@ The bundled SW (`public/sw.js`) implements these cache families:
 
 The `<hash>` suffix (8 hex chars, derived from the precache manifest) rotates on every `npm run build:mobile`, but **only the shell/asset caches carry it**. This orphans old shell/asset caches:
 - On next app start, old shell/asset caches (e.g., `rd-shell-voldHash`) remain but are no longer served.
-- The `activate` event handler runs `clearLegacyUserCaches()`, which deletes only **legacy** build-scoped `rd-user-*-v<build>` orphans (one-time migration from before the data cache became build-independent). Current-format `rd-user-<hash>` data caches and `rd-user-meta` are kept.
+- The `activate` event handler runs `clearLegacyUserCaches()`, which deletes only **legacy** build-scoped `rd-user-*-v<build>` orphans (one-time migration from before the data cache became build-independent). Current-format `rd-user-<hash>` data caches and the deferred compatibility cache `rd-user-meta` are kept.
 - Shell and asset caches from old builds are left untouched (low storage cost, safe fallback if new build fails).
 
 **Per-User Authentication Boundary**
 
-- When the user logs in, the React app posts a `SET_USER` message with the user's UUID.
-- The SW asynchronously computes a SHA-256 hash (64 hex chars), stores it in `currentUserHash`, and **persists it** to `rd-user-meta` (RC2) so a restarted SW can resolve the bucket before the next SET_USER.
-- Subsequent GET requests to `/api/v1/recipes/*` are cached in `rd-user-<sha256-userId>`. `getUserHash` falls back to the persisted hash (`currentUserHash ?? readPersistedUserHash(caches)`) when the in-memory value is still null after an SW restart.
-- On logout or user switch, the React app posts a `CLEAR_USER` message.
-- The SW deletes ALL `rd-user-*` caches synchronously (data + meta) and sets `currentUserHash = null`.
-- Unknown/null user: requests fall through to network (no cache).
+- The React app computes a SHA-256 hash for the current authenticated user and attaches it only to cacheable `GET /api/v1/recipes*` requests as `X-RD-User-Hash`.
+- The SW reads that header per request and routes the response into `rd-user-<sha256-userId>`.
+- Missing/empty header fails closed: the request goes network-only and does not touch a user cache.
+- On logout or user switch, the React app posts `CLEAR_USER`.
+- The SW deletes ALL `rd-user-*` caches (data + deferred legacy compatibility cache).
+- `SET_USER` may still be posted during auth transitions, but recipe routing no longer depends on it.
 
 **Cold-start list restore (React Query):** The recipe **list** is restored offline by `mobile/utils/query-client.ts`, not the SW. On cold start `restoreClient()` resolves the signed-in user from the stored Supabase session and restores the per-user query cache (`recipedeck-query-cache-<userId>`) — not the empty `anon` slot — so the list shows offline even when the SW cache is cold. `watchAuthQueryCache` compares the incoming session against the key actually restored, so the cross-user clear (privacy boundary) still fires on a mismatch.
 
@@ -117,7 +117,7 @@ Sharp is NOT a committed dependency (removed after use). Do not include it in pa
 Every `npm run build:mobile`:
 - The precache manifest changes (new or modified assets).
 - A new build hash is derived (SHA-256 of the manifest, first 8 hex chars).
-- **Only shell/asset** cache names change: `rd-shell-v<newHash>`, `rd-assets-v<newHash>`. The recipe data cache (`rd-user-<userId>`) and `rd-user-meta` are build-independent and unchanged.
+- **Only shell/asset** cache names change: `rd-shell-v<newHash>`, `rd-assets-v<newHash>`. The recipe data cache (`rd-user-<userId>`) and the deferred compatibility cache `rd-user-meta` are build-independent and unchanged.
 - The activate event runs `clearLegacyUserCaches()` — it deletes only legacy `rd-user-*-v<build>` orphans (one-time migration), never current-format data caches.
 
 **Example:**
@@ -134,17 +134,17 @@ navigator.serviceWorker.controller?.postMessage({ type: 'CLEAR_USER' });
 ```
 
 The SW:
-1. Sets `currentUserHash = null`.
-2. Asynchronously deletes ALL `rd-user-*` caches — data caches AND the `rd-user-meta` persisted-hash cache (across all users and all builds).
-3. Subsequent requests fall through to network.
+1. Asynchronously deletes ALL `rd-user-*` caches — data caches AND the deferred `rd-user-meta` compatibility cache (across all users and all builds).
+2. Subsequent headerless requests fall through to network.
 
-### Multi-Tab / Multi-Account Limitation
+### Multi-Tab / Multi-Account Safety
 
-A single SW instance serves all tabs for the same origin. `currentUserHash` holds the hash of the LAST user who posted `SET_USER`. If two different user accounts are open in parallel tabs:
-- The last `SET_USER` wins.
-- Requests from the other tab may be served from or written to the wrong user's cache bucket during the switch window.
+A single SW instance still serves all tabs for the same origin, but recipe routing is no longer keyed off shared SW memory. Each cacheable recipe request carries its own `X-RD-User-Hash`, so parallel tabs with different users can route into different `rd-user-*` buckets without "last `SET_USER` wins" behavior.
 
-This is acceptable for the current single-tenant deployment (one user per device). If multi-account support is added later (e.g., family accounts), this limitation must be revisited.
+Current boundary:
+- Only cacheable `GET /api/v1/recipes*` requests carry the header.
+- Missing header is intentionally conservative: network-only instead of guessing from legacy/persisted state.
+- `rd-user-meta` still exists temporarily for rollout compatibility, but recipe routing ignores it.
 
 ## Verifying the Service Worker
 
@@ -478,7 +478,7 @@ Tracked in `TODO.md`:
 - [ ] **Reduce Precache Cap from 6 MB to 5 MB** — Bundle optimization needed; current export is ~5.26 MB.
 - [x] **Background Sync / Push Notifications** — Delivered 2026-06-13 (Phase 3). See sections above.
 - [x] **Offline Mutations Queue** — Delivered 2026-06-13 (Phase 2). See sections above.
-- [ ] **Multi-Tab SW Limitation** — Document and consider workarounds if family/multi-account support is added.
+- [x] **Multi-Tab SW Limitation** — Request-scoped recipe cache routing landed on 2026-06-23; old global-SW-user routing note removed. Future multi-account product work is no longer blocked by "last `SET_USER` wins" cache selection.
 
 ## References
 

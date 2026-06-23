@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RECIPE_USER_HASH_HEADER } from '@/sw/cache-names';
 
 import {
   ApiRequestError,
@@ -10,27 +11,49 @@ import {
   readApiError,
 } from '@/utils/api';
 
+const state = vi.hoisted(() => ({
+  getAuthSession: vi.fn(),
+  refreshAuthSession: vi.fn(),
+}));
+
 vi.mock('@/utils/server-url', () => ({
   getServerUrl: vi.fn().mockResolvedValue('https://api.test'),
 }));
 
+vi.mock('@/utils/auth', () => ({
+  getAuthSession: state.getAuthSession,
+  refreshAuthSession: state.refreshAuthSession,
+}));
+
+function getHeader(init: RequestInit | undefined, name: string): string | null {
+  return new Headers(init?.headers).get(name);
+}
+
 describe('utils/api', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    state.getAuthSession.mockResolvedValue({
+      access_token: 'token-a',
+      user: { id: 'user-a' },
+    });
   });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it('fetchRecipes returns array payload directly', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue([{ id: 1, name: 'A', ingredients: '[]', steps: '[]' }]),
-    }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     const data = await fetchRecipes();
     expect(data).toHaveLength(1);
     expect(data[0].id).toBe(1);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(getHeader(init, 'Authorization')).toBe('Bearer token-a');
+    expect(getHeader(init, RECIPE_USER_HASH_HEADER)).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('fetchRecipes falls back to data.recipes when response is an object', async () => {
@@ -136,10 +159,14 @@ describe('utils/api', () => {
       'https://api.test/api/v1/recipes/5',
       expect.objectContaining({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: expect.any(Headers),
         body: JSON.stringify({ rating: 4 }),
       })
     );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(getHeader(init, 'Content-Type')).toBe('application/json');
+    expect(getHeader(init, 'Authorization')).toBe('Bearer token-a');
+    expect(getHeader(init, RECIPE_USER_HASH_HEADER)).toBeNull();
   });
 
   it('patchRecipe resolves successfully on ok response', async () => {
@@ -161,7 +188,10 @@ describe('utils/api', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(deleteRecipe(8)).rejects.toThrow('DELETE fehlgeschlagen (409)');
-    expect(fetchMock).toHaveBeenCalledWith('https://api.test/api/v1/recipes/8', { method: 'DELETE' });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(fetchMock).toHaveBeenCalledWith('https://api.test/api/v1/recipes/8', expect.objectContaining({ method: 'DELETE' }));
+    expect(getHeader(init, 'Authorization')).toBe('Bearer token-a');
+    expect(getHeader(init, RECIPE_USER_HASH_HEADER)).toBeNull();
   });
 
   it('deleteRecipe resolves successfully on ok response', async () => {
@@ -169,6 +199,32 @@ describe('utils/api', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(deleteRecipe(8)).resolves.toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledWith('https://api.test/api/v1/recipes/8', { method: 'DELETE' });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(fetchMock).toHaveBeenCalledWith('https://api.test/api/v1/recipes/8', expect.objectContaining({ method: 'DELETE' }));
+    expect(getHeader(init, RECIPE_USER_HASH_HEADER)).toBeNull();
+  });
+
+  it('does not attach the recipe user hash header to non-recipe GETs', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiFetch } = await import('@/utils/api');
+    await apiFetch('/api/v1/shopping');
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(getHeader(init, 'Authorization')).toBe('Bearer token-a');
+    expect(getHeader(init, RECIPE_USER_HASH_HEADER)).toBeNull();
+  });
+
+  it('omits the recipe user hash header when no authenticated user is present', async () => {
+    state.getAuthSession.mockResolvedValue(null);
+    const fetchMock = vi.fn().mockResolvedValue(new Response('[]', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchRecipes();
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(getHeader(init, 'Authorization')).toBeNull();
+    expect(getHeader(init, RECIPE_USER_HASH_HEADER)).toBeNull();
   });
 });
