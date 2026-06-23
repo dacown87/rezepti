@@ -8,20 +8,17 @@
  * Strategy:
  *  - Navigation requests → NetworkFirst (3 s timeout, offline fallback: /index.html)
  *  - Immutable hash assets  → CacheFirst
- *  - Recipe API GET routes  → StaleWhileRevalidate, per-user cache bucket
+ *  - Recipe API GET routes  → StaleWhileRevalidate, request-scoped per-user cache bucket
  *  - Everything else (images, etc.) → NOT handled (falls through to network)
  *
  * skipWaiting is intentionally NOT called unconditionally. The waiting SW stays
  * waiting until the UI sends a SKIP_WAITING message (wired in Phase 3).
  *
- * SINGLE-TAB / MULTI-ACCOUNT NOTE:
- *   A single SW instance is shared across all tabs for the same origin.
- *   `currentUserHash` holds the SHA-256 hash of the LAST user who sent SET_USER.
- *   In a single-tenant app (one user per device) this is the correct behavior.
- *   If two different accounts are ever open in parallel tabs the last SET_USER
- *   wins — requests from the other tab may be served from or written to the
- *   wrong user's cache bucket during the switch window. This is acceptable for
- *   the current single-tenant deployment; revisit if multi-account support is added.
+ * MULTI-ACCOUNT SAFETY:
+ *   A single SW instance is still shared across all tabs for the same origin,
+ *   but recipe-cache routing no longer depends on global SW user state. The
+ *   active cache bucket is selected from each request's X-RD-User-Hash header.
+ *   Requests without that header fail closed to network-only.
  */
 
 import { precacheAndRoute, matchPrecache } from 'workbox-precaching';
@@ -31,11 +28,8 @@ import { NetworkFirst, CacheFirst } from 'workbox-strategies';
 import { isNavigationRequest, isHashAsset } from './routing.js';
 import {
   isCacheableRecipeRequest,
-  strongHash,
-  isUserCacheName,
   clearLegacyUserCaches,
-  persistUserHash,
-  readPersistedUserHash,
+  clearUserCaches,
 } from './cache-names.js';
 import { recipeCacheHandler } from './recipe-cache-handler.js';
 import { buildNotification, resolveClickUrl } from './push-handler.js';
@@ -58,12 +52,10 @@ precacheAndRoute(__WB_MANIFEST);
 //   __CACHE_HASH__ → short hex string derived from the manifest
 // ---------------------------------------------------------------------------
 declare const __CACHE_HASH__: string;
+type SyncEventLike = Event & { tag?: string; waitUntil(p: Promise<unknown>): void };
 
 const SHELL_CACHE = `rd-shell-v${__CACHE_HASH__}`;
 const ASSETS_CACHE = `rd-assets-v${__CACHE_HASH__}`;
-
-/** SHA-256 hash of the currently active user's ID. null = no user / signed-out. */
-let currentUserHash: string | null = null;
 
 // ---------------------------------------------------------------------------
 // Navigation route — NetworkFirst with /index.html offline fallback
@@ -107,10 +99,6 @@ registerRoute(
     recipeCacheHandler(
       { request, event },
       {
-        // RC2: fall back to the persisted hash when the in-memory value is still
-        // null (SW restarted, SET_USER not yet processed) so offline recipe reads
-        // — including detail deep-links — resolve the correct cache on cold start.
-        getUserHash: async () => currentUserHash ?? (await readPersistedUserHash(caches)),
         fetchFn: fetch,
       },
     ),
@@ -138,39 +126,13 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   }
 
   if (event.data?.type === 'SET_USER') {
-    const userId = event.data.userId as string | undefined;
-    if (userId) {
-      // Compute a strong SHA-256 hash asynchronously, store it in memory, and
-      // persist it (RC2) so a restarted SW can resolve the user's cache offline
-      // before the next SET_USER. Requests that arrive before the hash is ready
-      // (currentUserHash still null) are safely served network-only.
-      event.waitUntil(
-        strongHash(userId)
-          .then((hash) => {
-            currentUserHash = hash;
-            return persistUserHash(caches, hash);
-          })
-          .catch(() => {
-            currentUserHash = null;
-          }),
-      );
-    } else {
-      currentUserHash = null;
-    }
+    // No-op for recipe-cache routing. The app still emits SET_USER during auth
+    // transitions, but request-scoped routing derives the cache bucket from the
+    // request header instead of global SW state.
   }
 
   if (event.data?.type === 'CLEAR_USER') {
-    currentUserHash = null;
-    // Delete all user-scoped caches asynchronously (do not block the message handler).
-    event.waitUntil(
-      caches.keys().then((names) =>
-        Promise.all(
-          names
-            .filter(isUserCacheName)
-            .map((name) => caches.delete(name)),
-        ),
-      ),
-    );
+    event.waitUntil(clearUserCaches(caches));
   }
 });
 
@@ -179,14 +141,15 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 // lives in the page's Supabase session), so on a sync it wakes all open clients
 // and asks them to flush the queue. If no client is open the browser retries.
 // ---------------------------------------------------------------------------
-self.addEventListener('sync', (event: Event & { tag?: string; waitUntil(p: Promise<unknown>): void }) => {
-  if (event.tag !== 'flush-mutations') return;
-  event.waitUntil(
+self.addEventListener('sync', ((event: Event) => {
+  const syncEvent = event as SyncEventLike;
+  if (syncEvent.tag !== 'flush-mutations') return;
+  syncEvent.waitUntil(
     self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
       for (const client of clients) client.postMessage({ type: 'FLUSH_QUEUE' });
     }),
   );
-});
+}) as EventListener);
 
 // ---------------------------------------------------------------------------
 // Push — show a notification when the server delivers a push message.

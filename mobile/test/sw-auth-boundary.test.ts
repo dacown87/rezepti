@@ -9,6 +9,8 @@ import {
   hashUserId,
   strongHash,
   userCacheName,
+  RECIPE_USER_HASH_HEADER,
+  getRecipeRequestUserHash,
   isUserCacheName,
   isLegacyBuildScopedUserCacheName,
   isCacheableRecipeRequest,
@@ -117,6 +119,21 @@ describe('userCacheName', () => {
     const sha = await strongHash('alice@example.com');
     const name = userCacheName(sha);
     expect(name).toMatch(/^rd-user-[0-9a-f]{64}$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// request-scoped user hash header
+// ---------------------------------------------------------------------------
+
+describe('getRecipeRequestUserHash', () => {
+  it('reads the request-scoped user hash header', () => {
+    expect(getRecipeRequestUserHash(new Headers({ [RECIPE_USER_HASH_HEADER]: 'hash-a' }))).toBe('hash-a');
+  });
+
+  it('fails closed for empty header values', () => {
+    expect(getRecipeRequestUserHash(new Headers({ [RECIPE_USER_HASH_HEADER]: '   ' }))).toBeNull();
+    expect(getRecipeRequestUserHash(new Headers())).toBeNull();
   });
 });
 
@@ -454,7 +471,7 @@ describe('recipeCacheHandler', () => {
     } as unknown as ExtendableEvent & { waitUntil: ReturnType<typeof vi.fn> };
   }
 
-  it('(a) null user → network-only: fetchFn is called, NO makeStrategy is invoked', async () => {
+  it('(a) missing header → network-only: fetchFn is called, NO makeStrategy is invoked', async () => {
     const fakeResponse = new Response('{"recipes":[]}', { status: 200 });
     const fetchFn = vi.fn().mockResolvedValue(fakeResponse);
     const makeStrategy = vi.fn();
@@ -463,7 +480,7 @@ describe('recipeCacheHandler', () => {
 
     const result = await recipeCacheHandler(
       { request, event: fakeEvent },
-      { getUserHash: () => null, fetchFn, makeStrategy },
+      { fetchFn, makeStrategy },
     );
 
     // network-only: fetchFn called, no strategy created
@@ -472,7 +489,7 @@ describe('recipeCacheHandler', () => {
     expect(result.status).toBe(200);
   });
 
-  it('(b) known user → correct per-user cache name is passed to strategy; event.waitUntil is exercised', async () => {
+  it('(b) header hash-a → correct per-user cache name is passed to strategy; event.waitUntil is exercised', async () => {
     const fakeResponse = new Response('{"recipes":[{"id":"r1"}]}', { status: 200 });
     const handleSpy = vi.fn(async ({ event }: { request: Request; event: ExtendableEvent }) => {
       // Simulate what the real Workbox does: call event.waitUntil
@@ -487,12 +504,14 @@ describe('recipeCacheHandler', () => {
     });
 
     const fakeEvent = makeFakeEvent();
-    const request = new Request('https://localhost/api/v1/recipes');
-    const userHash = await strongHash('alice-user-id');
+    const request = new Request('https://localhost/api/v1/recipes', {
+      headers: { [RECIPE_USER_HASH_HEADER]: 'hash-a' },
+    });
+    const userHash = 'hash-a';
 
     const result = await recipeCacheHandler(
       { request, event: fakeEvent },
-      { getUserHash: () => userHash, fetchFn: vi.fn(), makeStrategy },
+      { fetchFn: vi.fn(), makeStrategy },
     );
 
     expect(result.status).toBe(200);
@@ -510,7 +529,7 @@ describe('recipeCacheHandler', () => {
     expect(fakeEvent.waitUntil).toHaveBeenCalled();
   });
 
-  it('(RC2) resolves an async getUserHash (persisted-hash fallback) and uses the per-user cache', async () => {
+  it('(c) header hash-b routes an independent parallel request into a different user cache', async () => {
     const fakeResponse = new Response('{"recipes":[]}', { status: 200 });
     const handleSpy = vi.fn(async ({ event }: { request: Request; event: ExtendableEvent }) => {
       event.waitUntil(Promise.resolve());
@@ -523,13 +542,14 @@ describe('recipeCacheHandler', () => {
     });
 
     const fakeEvent = makeFakeEvent();
-    const request = new Request('https://localhost/api/v1/recipes/abc-123');
-    const userHash = await strongHash('cold-start-user');
+    const request = new Request('https://localhost/api/v1/recipes/abc-123', {
+      headers: { [RECIPE_USER_HASH_HEADER]: 'hash-b' },
+    });
+    const userHash = 'hash-b';
 
     const result = await recipeCacheHandler(
       { request, event: fakeEvent },
-      // getUserHash is async here — mimics `currentUserHash ?? await readPersistedUserHash()`
-      { getUserHash: async () => userHash, fetchFn: vi.fn(), makeStrategy },
+      { fetchFn: vi.fn(), makeStrategy },
     );
 
     expect(result.status).toBe(200);
@@ -537,14 +557,17 @@ describe('recipeCacheHandler', () => {
     expect(handleSpy).toHaveBeenCalledWith({ request, event: fakeEvent });
   });
 
-  it('(RC2) async getUserHash resolving null stays network-only — no cache touched', async () => {
+  it('(d) missing header stays network-only even if a legacy persisted hash exists elsewhere', async () => {
+    const storage = makeFakeCacheStorage();
+    await persistUserHash(storage, await strongHash('legacy-user'));
+
     const fetchFn = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     const makeStrategy = vi.fn();
     const request = new Request('https://localhost/api/v1/recipes');
 
     const result = await recipeCacheHandler(
       { request, event: makeFakeEvent() },
-      { getUserHash: async () => null, fetchFn, makeStrategy },
+      { fetchFn, makeStrategy },
     );
 
     expect(fetchFn).toHaveBeenCalledWith(request);
@@ -563,20 +586,21 @@ describe('recipeCacheHandler', () => {
       },
     }));
 
-    const request = new Request('https://localhost/api/v1/recipes');
-    const userHash = await strongHash('alice-user-id');
+    const request = new Request('https://localhost/api/v1/recipes', {
+      headers: { [RECIPE_USER_HASH_HEADER]: 'hash-a' },
+    });
     const fakeEvent = undefined as unknown as ExtendableEvent;
 
     await expect(
       recipeCacheHandler(
         { request, event: fakeEvent },
-        { getUserHash: () => userHash, fetchFn: vi.fn(), makeStrategy },
+        { fetchFn: vi.fn(), makeStrategy },
       ),
     ).rejects.toThrow();
     // TypeError: Cannot read properties of undefined (reading 'waitUntil')
   });
 
-  it('after CLEAR_USER (getUserHash = null), handler is network-only — no cache leak during switch window', async () => {
+  it('after CLEAR_USER, a headerless request stays network-only — no cache leak during switch window', async () => {
     const fakeResponse = new Response('{}', { status: 200 });
     const fetchFn = vi.fn().mockResolvedValue(fakeResponse);
     const makeStrategy = vi.fn();
@@ -585,7 +609,7 @@ describe('recipeCacheHandler', () => {
 
     const result = await recipeCacheHandler(
       { request, event: fakeEvent },
-      { getUserHash: () => null, fetchFn, makeStrategy },
+      { fetchFn, makeStrategy },
     );
 
     // network-only: fetchFn called, no strategy created, no waitUntil

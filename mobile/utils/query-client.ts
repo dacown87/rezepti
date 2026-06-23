@@ -138,8 +138,8 @@ let authQueryCacheWatchStop: (() => void) | null = null;
  * - No-op when no SW is controlling the page yet.
  * - Never throws — failure is silently swallowed.
  *
- * Used to keep the SW's currentUserHash in sync with the app's auth state
- * so it can bucket API responses per user and purge caches on logout.
+ * Used to keep the SW's user-cache cleanup lifecycle in sync with the app's
+ * auth state so logout/user-switch still purges all user-scoped caches.
  */
 async function postToServiceWorker(message: { type: string; userId?: string }): Promise<void> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
