@@ -1,10 +1,58 @@
 # CI / Supabase / Northflank Check
 
-Stand: 2026-06-16
+Stand: 2026-06-24
 
 Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und Northflank sowie den naechsten Vorgehensplan. Der detaillierte Arbeitsplan zum aktuellen Stand liegt in [2026-06-15-ci-supabase-northflank-execution-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-ci-supabase-northflank-execution-plan.md).
 
 ## Kurzfazit
+
+- PR #27 `fix(ci): align legacy e2e auth and harden supabase smoke` wurde am 2026-06-24 gemergt.
+- Der operative Nachweis fuer diesen Follow-up-Track ist erbracht: PR-Checks `28103597791`, Push-CI auf `main` `28105455880` und der finale Docker-/Northflank-Deploy `28105475996` waren gruen.
+- `supabase-rls-smoke` ist nach reduziertem Startprofil, Reset-Retry und API-Stack-Neustart im relevanten PR-/Push-Lauf wieder stabil gruen.
+- Der Legacy-E2E-Vertrag ist an den aktuellen Auth-First-Zustand angepasst; unautorisierte Requests auf geschuetzte BYOK-/Recipe-/Extract-Routen liefern im Live-Smoke korrekt `401 auth_missing`.
+- Northflank bleibt nach aktuellem Remote-Stand funktional gruen; der Health-Poll ist nicht nur verdrahtet, sondern im finalen Deploy-Run erneut erfolgreich belegt.
+
+## Update 2026-06-24
+
+### Remote-Nachweis fuer PR #27 abgeschlossen
+
+- PR: [#27](https://github.com/dacown87/rezepti/pull/27) `fix(ci): align legacy e2e auth and harden supabase smoke`
+- Merge-Zeit: `2026-06-24T14:21:52Z`
+- PR-Checks Run: `28103597791`
+  - `test`: gruen
+  - `mobile-release-gate`: gruen
+  - `supabase-rls-smoke`: gruen
+  - `performance-audit`: gruen
+  - `e2e`: gruen
+  - `e2e-legacy-soak`: beim PR erwartbar skipped
+- Push-CI auf `main`: `28105455880` gruen
+- Docker Build/Push + Northflank Deploy auf `main`: `28105455882` gruen
+- Changelog-/Version-Nachlauf auf `main`: `28105455893` gruen
+- Nachgelagerter `workflow_run`-Deploy: `28105475996` gruen
+
+### Was konkret behoben wurde
+
+- Legacy-E2E:
+  - Die alten Tests fuer `POST /api/v1/keys/validate` erwarteten noch Public-Verhalten (`200`/`400`).
+  - Der aktuelle Produktvertrag ist auth-first; ohne Bearer liefert die Route `401 auth_missing`.
+  - Die Legacy-Suite wurde an diesen echten Runtime-Vertrag angepasst.
+- Supabase-RLS-Smoke:
+  - Der CI-Track zeigte zuvor sporadische Reset-/Gateway-Probleme (`502`) rund um den lokalen Supabase-Stack.
+  - Der Job startet den Stack jetzt reduziert, versucht `supabase db reset` mit Neustart bis zu drei Mal und startet den API-Stack danach vor dem eigentlichen Smoke erneut sauber durch.
+
+### Production-Smoke nach Deploy
+
+- Ziel: `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`
+- `GET /api/v1/health` -> `200`
+- `POST /api/v1/keys/validate` ohne Bearer -> `401 auth_missing`
+- `GET /api/v1/recipes` ohne Bearer -> `401 auth_missing`
+- `POST /api/v1/extract/react` ohne Bearer -> `401 auth_missing`
+
+### Konsequenz
+
+- Fuer den aktuellen CI-/Supabase-/Northflank-Track gibt es keinen offenen Produktionsblocker mehr.
+- Northflank bleibt Beobachtungspfad, nicht aktive Fix-Baustelle.
+- Der relevante Rest ist nur noch normale Run-/Deploy-Beobachtung bei neuen roten Signalen.
 
 - PR #19 `v1.0.166 fix(ci): restore root and mobile release gates` wurde am 2026-06-16 gemergt.
 - Der zuvor offene Push-CI-Track ist damit remote verifiziert: PR-Checks `27599696794` und Push-CI auf `main` `27599914223` waren gruen.

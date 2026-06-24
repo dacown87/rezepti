@@ -50,12 +50,12 @@ describe.skipIf(!serverAvailable)('Basic API Tests', () => {
       'POST',
       '/api/v1/keys/validate',
       { apiKey: 'gsk_testvalidkey1234567890abcdef' },
-      'Validate API key format'
+      'Validate API key format requires auth',
+      401
     );
     
     expect(result.success).toBe(true);
-    // The endpoint should return validation result
-    expect(result.data).toHaveProperty('valid');
+    expect(result.data?.error?.code).toBe('auth_missing');
   });
 
   it('should require auth before validating extraction URL', async () => {

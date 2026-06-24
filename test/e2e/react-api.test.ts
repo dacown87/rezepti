@@ -178,10 +178,11 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         'POST',
         '/api/v1/keys/validate',
         { apiKey: 'gsk_validtestkey1234567890abcdef' },
-        'BYOK validation with valid format'
+        'BYOK validation with valid format requires auth',
+        401
       );
       expect(result.success).toBe(true);
-      expect(result.data?.valid).toBe(false);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
     it('should reject invalid API key format', async () => {
@@ -189,10 +190,11 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         'POST',
         '/api/v1/keys/validate',
         { apiKey: 'invalid_key_123' },
-        'BYOK validation with invalid format'
+        'BYOK validation with invalid format requires auth',
+        401
       );
       expect(result.success).toBe(true);
-      expect(result.data?.valid).toBe(false);
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
     it('should reject empty API key', async () => {
@@ -200,11 +202,11 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         'POST',
         '/api/v1/keys/validate',
         { apiKey: '' },
-        'BYOK validation with empty key',
-        400
+        'BYOK validation with empty key requires auth',
+        401
       );
       expect(result.success).toBe(true);
-      expect(result.data?.error).toBeDefined();
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
 
     it('should handle missing API key parameter', async () => {
@@ -212,11 +214,11 @@ describe.skipIf(!serverAvailable)('Rezepti React API E2E Tests', () => {
         'POST',
         '/api/v1/keys/validate',
         {},
-        'BYOK validation without key',
-        400
+        'BYOK validation without key requires auth',
+        401
       );
       expect(result.success).toBe(true);
-      expect(result.data?.error).toBeDefined();
+      expect(result.data?.error?.code).toBe('auth_missing');
     });
   }, TEST_TIMEOUT);
 
