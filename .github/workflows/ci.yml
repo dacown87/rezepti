@@ -166,6 +166,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    env:
+      SUPABASE_SMOKE_EXCLUDES: >-
+        -x studio
+        -x imgproxy
+        -x edge-runtime
+        -x vector
+        -x supavisor
+        -x realtime
+        -x storage-api
+        -x logflare
+        -x mailpit
+        -x postgres-meta
+
     steps:
       - uses: actions/checkout@v5
 
@@ -208,10 +221,37 @@ jobs:
           done
 
       - name: Start local Supabase
-        run: npx supabase start -x studio -x imgproxy -x edge-runtime -x vector -x supavisor
+        run: npx supabase start $SUPABASE_SMOKE_EXCLUDES
 
       - name: Reset local Supabase DB to migrations
-        run: npx supabase db reset --local --yes
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3; do
+            echo "Supabase db reset attempt $attempt/3"
+
+            if npx supabase db reset --local --yes; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Supabase db reset failed after 3 attempts"
+              exit 1
+            fi
+
+            echo "Supabase db reset failed; restarting local stack before retry"
+            npx supabase stop --no-backup || true
+            sleep 5
+            npx supabase start $SUPABASE_SMOKE_EXCLUDES
+            sleep 5
+          done
+
+      - name: Restart local Supabase API stack after reset
+        run: |
+          set -euo pipefail
+          npx supabase stop --no-backup || true
+          sleep 5
+          npx supabase start $SUPABASE_SMOKE_EXCLUDES
 
       - name: Run Supabase RLS smoke
         run: npm run supabase:rls-smoke
