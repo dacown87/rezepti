@@ -31,6 +31,23 @@ export interface ApiRecipe {
   equipment?: string | null;
   nutrition_info?: string | null;
   created_at?: string | null;
+  // Sharing / favorites read-model (Phase 3 — optional so older cached payloads don't break)
+  scope?: 'private' | 'household';
+  isFavorite?: boolean;
+  canShareToHousehold?: boolean;
+  canCopyToPrivate?: boolean;
+}
+
+/**
+ * A recipe collection (system favorites or user-created custom collection).
+ */
+export interface Collection {
+  id: string;
+  kind: 'favorites' | 'custom';
+  name: string;
+  owner_type: 'user' | 'household';
+  item_count: number;
+  is_system: boolean;
 }
 
 export interface ApiErrorEnvelope {
@@ -170,4 +187,121 @@ export async function patchRecipe(id: number, fields: Record<string, unknown>): 
 export async function deleteRecipe(id: number): Promise<void> {
   const res = await apiFetch(`/api/v1/recipes/${id}`, { method: 'DELETE' });
   await assertApiOk(res, `DELETE fehlgeschlagen (${res.status})`);
+}
+
+// ── Sharing ──────────────────────────────────────────────────────────────────
+
+/**
+ * Share (copy) a recipe to the caller's household or private space.
+ * Returns the newly created recipe copy.
+ */
+export async function shareRecipe(
+  id: number,
+  target: 'household' | 'user',
+): Promise<ApiRecipe> {
+  const res = await apiFetch(`/api/v1/recipes/${id}/share`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target: { type: target } }),
+  });
+  await assertApiOk(res, `Teilen fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { recipe: ApiRecipe };
+  return data.recipe;
+}
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+
+/**
+ * Toggle a recipe's favorite state on or off.
+ * Returns the resulting isFavorite boolean.
+ */
+export async function setRecipeFavorite(id: number, on: boolean): Promise<boolean> {
+  const res = await apiFetch(`/api/v1/recipes/${id}/favorite`, {
+    method: on ? 'POST' : 'DELETE',
+  });
+  await assertApiOk(res, `Favorit ${on ? 'setzen' : 'entfernen'} fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { success: boolean; isFavorite: boolean };
+  return data.isFavorite;
+}
+
+// ── Collections ───────────────────────────────────────────────────────────────
+
+/**
+ * Fetch all collections visible to the authenticated user.
+ */
+export async function fetchCollections(): Promise<Collection[]> {
+  const res = await apiFetch('/api/v1/recipe-collections');
+  await assertApiOk(res, `Sammlungen laden fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { collections: Collection[] };
+  return data.collections;
+}
+
+/**
+ * Create a new custom collection.
+ */
+export async function createCollection(input: {
+  name: string;
+  ownerType?: 'user' | 'household';
+  householdId?: string;
+}): Promise<Collection> {
+  const res = await apiFetch('/api/v1/recipe-collections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  await assertApiOk(res, `Sammlung erstellen fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { collection: Collection };
+  return data.collection;
+}
+
+/**
+ * Rename a custom collection (favorites cannot be renamed — server returns 400).
+ */
+export async function renameCollection(id: string, name: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/recipe-collections/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  await assertApiOk(res, `Sammlung umbenennen fehlgeschlagen (${res.status})`);
+}
+
+/**
+ * Delete a custom collection (favorites cannot be deleted — server returns 400).
+ */
+export async function deleteCollection(id: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/recipe-collections/${id}`, { method: 'DELETE' });
+  await assertApiOk(res, `Sammlung löschen fehlgeschlagen (${res.status})`);
+}
+
+/**
+ * Add a recipe to a collection. Returns { added: true } when newly inserted,
+ * { added: false } when already present (idempotent).
+ */
+export async function addRecipeToCollection(
+  collectionId: string,
+  recipeId: number,
+): Promise<{ added: boolean }> {
+  const res = await apiFetch(`/api/v1/recipe-collections/${collectionId}/items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipeId }),
+  });
+  await assertApiOk(res, `Rezept zur Sammlung hinzufügen fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { success: boolean; added: boolean };
+  return { added: data.added };
+}
+
+/**
+ * Remove a recipe from a collection.
+ */
+export async function removeRecipeFromCollection(
+  collectionId: string,
+  recipeId: number,
+): Promise<void> {
+  const res = await apiFetch(
+    `/api/v1/recipe-collections/${collectionId}/items/${recipeId}`,
+    { method: 'DELETE' },
+  );
+  await assertApiOk(res, `Rezept aus Sammlung entfernen fehlgeschlagen (${res.status})`);
 }
