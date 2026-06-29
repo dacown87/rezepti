@@ -7,6 +7,7 @@ import { Hono } from "hono";
 import { ensureReactSchema } from "./db-react.js";
 import authRouter from "./routes/auth.js";
 import recipesRouter from "./routes/recipes.js";
+import recipeCollectionsRouter from "./routes/recipe-collections.js";
 import extractionRouter from "./routes/extraction.js";
 import keysRouter from "./routes/keys.js";
 import plannerRouter from "./routes/planner.js";
@@ -22,6 +23,7 @@ const app = new Hono();
 
 app.route("/", authRouter);
 app.route("/", recipesRouter);
+app.route("/", recipeCollectionsRouter);
 app.route("/", extractionRouter);
 app.route("/", keysRouter);
 app.route("/", plannerRouter);

@@ -258,4 +258,66 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     const toggled = await db.toggleFavorite(AUTH, recipeId, 'user')
     expect(toggled.isFavorite).toBe(false)
   })
+
+  // Pflichttest 7 — favorite toggle is idempotent (ON twice = one membership; OFF twice = none).
+  it('favorite toggle is idempotent: ON twice = one membership, OFF twice = none', async () => {
+    const recipeId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ idem fav'), 'https://example.com/idem-fav', undefined, PRIVATE_OWNER,
+    )
+    createdRecipeIds.push(recipeId)
+
+    await db.setFavorite(AUTH, recipeId, true, 'user')
+    await db.setFavorite(AUTH, recipeId, true, 'user') // ON again — must not duplicate
+    let ids: Set<number> = await db.getFavoriteRecipeIdsForAuth(AUTH)
+    expect(ids.has(recipeId)).toBe(true)
+    expect(await db.isRecipeFavoritedByAuth(AUTH, recipeId)).toBe(true)
+
+    await db.setFavorite(AUTH, recipeId, false, 'user')
+    await db.setFavorite(AUTH, recipeId, false, 'user') // OFF again — must remain off
+    ids = await db.getFavoriteRecipeIdsForAuth(AUTH)
+    expect(ids.has(recipeId)).toBe(false)
+    expect(await db.isRecipeFavoritedByAuth(AUTH, recipeId)).toBe(false)
+  })
+
+  // Pflichttest 8 — recipe list returns correct scope for private vs household recipes.
+  it('recipe list read-model returns correct scope for private vs household recipes', async () => {
+    const privateId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ rm private'), 'https://example.com/rm-private', undefined, PRIVATE_OWNER,
+    )
+    createdRecipeIds.push(privateId)
+    const householdId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ rm household'), 'https://example.com/rm-household', undefined, HOUSEHOLD_OWNER,
+    )
+    createdRecipeIds.push(householdId)
+
+    const list = await db.getRecipeListFromReactDb(AUTH)
+    const priv = list.find((r: { id: number }) => r.id === privateId)
+    const hh = list.find((r: { id: number }) => r.id === householdId)
+
+    expect(priv?.scope).toBe('private')
+    expect(priv?.canShareToHousehold).toBe(true)   // private + active household
+    expect(priv?.canCopyToPrivate).toBe(false)
+    expect(hh?.scope).toBe('household')
+    expect(hh?.canCopyToPrivate).toBe(true)
+    expect(hh?.canShareToHousehold).toBe(false)
+  })
+
+  // Pflichttest 9 — recipe detail returns isFavorite consistent with the favorites collection.
+  it('recipe detail read-model reports isFavorite consistent with the favorites collection', async () => {
+    const recipeId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ detail fav'), 'https://example.com/detail-fav', undefined, PRIVATE_OWNER,
+    )
+    createdRecipeIds.push(recipeId)
+
+    let detail = await db.getRecipeByIdFromReactDb(recipeId, AUTH)
+    expect(detail.isFavorite).toBe(false)
+
+    await db.setFavorite(AUTH, recipeId, true, 'user')
+    detail = await db.getRecipeByIdFromReactDb(recipeId, AUTH)
+    expect(detail.isFavorite).toBe(true)
+
+    await db.setFavorite(AUTH, recipeId, false, 'user')
+    detail = await db.getRecipeByIdFromReactDb(recipeId, AUTH)
+    expect(detail.isFavorite).toBe(false)
+  })
 })
