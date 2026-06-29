@@ -62,6 +62,10 @@ vi.mock('lucide-react-native', () => {
     FileText: icon,
     Refrigerator: icon,
     QrCode: icon,
+    Heart: icon,
+    FolderOpen: icon,
+    Home: icon,
+    Lock: icon,
   };
 });
 

@@ -9,6 +9,7 @@ import { useFocusEffect } from 'expo-router';
 import {
   Search, X, ChefHat, Clock, Star, Plus,
   LayoutGrid, List, Tag, FileText, Refrigerator, QrCode,
+  Heart, FolderOpen, Home, Lock,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -54,6 +55,21 @@ function getCategoryIcon(category: string): string {
   return CATEGORY_ICONS[category] ?? '🍽️';
 }
 
+// ─── Scope Badge ──────────────────────────────────────────────────────────────
+
+function ScopeBadge({ scope }: { scope: 'private' | 'household' }) {
+  return (
+    <View className="flex-row items-center gap-0.5" testID={`scope-badge-${scope}`}>
+      {scope === 'household'
+        ? <Home size={10} color="#9E8878" />
+        : <Lock size={10} color="#9E8878" />}
+      <Text className="text-xs text-warm-500 dark:text-warm-400">
+        {scope === 'household' ? 'Haushalt' : 'Privat'}
+      </Text>
+    </View>
+  );
+}
+
 // ─── List Card ────────────────────────────────────────────────────────────────
 
 function ListCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
@@ -74,9 +90,12 @@ function ListCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
         </View>
       )}
       <View className="flex-1 px-3 py-2">
-        <Text className="text-base font-semibold text-warm-900 dark:text-warm-50" numberOfLines={1}>
-          {recipe.name}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text className="text-base font-semibold text-warm-900 dark:text-warm-50 flex-1" numberOfLines={1}>
+            {recipe.name}
+          </Text>
+          {recipe.isFavorite ? <Heart size={13} color="#C84B31" fill="#C84B31" /> : null}
+        </View>
         <View className="flex-row items-center gap-3 mt-0.5">
           {recipe.duration ? (
             <View className="flex-row items-center gap-1">
@@ -90,6 +109,7 @@ function ListCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
               <Text className="text-xs text-gold-500">{recipe.rating}/5</Text>
             </View>
           ) : null}
+          {recipe.scope ? <ScopeBadge scope={recipe.scope} /> : null}
         </View>
         {tags.length > 0 ? (
           <View className="flex-row flex-wrap gap-1 mt-1.5">
@@ -125,9 +145,12 @@ function GridCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
         </View>
       )}
       <View className="p-2.5">
-        <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50" numberOfLines={2}>
-          {recipe.name}
-        </Text>
+        <View className="flex-row items-start gap-1">
+          <Text className="text-sm font-semibold text-warm-900 dark:text-warm-50 flex-1" numberOfLines={2}>
+            {recipe.name}
+          </Text>
+          {recipe.isFavorite ? <Heart size={12} color="#C84B31" fill="#C84B31" /> : null}
+        </View>
         <View className="flex-row items-center gap-2 mt-1">
           {recipe.duration ? (
             <View className="flex-row items-center gap-0.5">
@@ -141,6 +164,7 @@ function GridCard({ recipe, tags }: { recipe: Recipe; tags: string[] }) {
               <Text className="text-xs text-gold-500">{recipe.rating}</Text>
             </View>
           ) : null}
+          {recipe.scope ? <ScopeBadge scope={recipe.scope} /> : null}
         </View>
         {tags.length > 0 ? (
           <View className="flex-row flex-wrap gap-1 mt-1.5">
@@ -189,6 +213,7 @@ export default function RecipeListScreen() {
   const [ingredientResultMatchedCounts, setIngredientResultMatchedCounts] = useState<number[]>([]);
   const [ingredientSearchError, setIngredientSearchError] = useState<unknown>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const deferredSearch = useDeferredValue(search);
   const deferredIngredientInput = useDeferredValue(ingredientInput);
 
@@ -304,6 +329,11 @@ export default function RecipeListScreen() {
     () => filterRecipeListItemsByCategory(filteredEntries, selectedCategory),
     [filteredEntries, selectedCategory],
   );
+  const visibleEntries = useMemo(
+    () => (favoritesOnly ? categoryFilteredEntries.filter((e) => e.recipe.isFavorite) : categoryFilteredEntries),
+    [categoryFilteredEntries, favoritesOnly],
+  );
+  const hasAnyFavorite = useMemo(() => recipes.some((r) => r.isFavorite), [recipes]);
   const ingredientResultTerms = useMemo(
     () => parseIngredientTerms(deferredIngredientInput),
     [deferredIngredientInput],
@@ -386,6 +416,15 @@ export default function RecipeListScreen() {
               </>
             )}
             <Pressable
+              onPress={() => router.push('/collections')}
+              accessibilityRole="button"
+              accessibilityLabel="Collections öffnen"
+              testID="open-collections"
+              className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
+            >
+              <FolderOpen size={17} color="#9E8878" />
+            </Pressable>
+            <Pressable
               onPress={() => router.push('/(tabs)/scanner?autoOpen=true')}
               className="bg-white dark:bg-espresso-800 rounded-full w-9 h-9 items-center justify-center border border-warm-200 dark:border-warm-700"
             >
@@ -426,6 +465,37 @@ export default function RecipeListScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {/* Favoriten-Filter */}
+        {hasAnyFavorite ? (
+          <View className="flex-row mt-2">
+            <Pressable
+              onPress={() => {
+                setFavoritesOnly((v) => {
+                  const next = !v;
+                  // Favorites filter only applies to list/grid; leave the categories
+                  // overview when enabling so the filtered result is actually visible.
+                  if (next && viewMode === 'categories') setViewMode('list');
+                  return next;
+                });
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Nur Favoriten anzeigen"
+              accessibilityState={{ selected: favoritesOnly }}
+              testID="favorites-filter"
+              className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border ${
+                favoritesOnly
+                  ? 'bg-primary-500 border-primary-500'
+                  : 'bg-white dark:bg-espresso-800 border-warm-200 dark:border-warm-700'
+              }`}
+            >
+              <Heart size={13} color={favoritesOnly ? '#fff' : '#C84B31'} fill={favoritesOnly ? '#fff' : 'transparent'} />
+              <Text className={`text-xs font-medium ${favoritesOnly ? 'text-white' : 'text-primary-500'}`}>
+                Favoriten
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
 
       {selectedCategory && !search && viewMode !== 'categories' && (
@@ -483,7 +553,7 @@ export default function RecipeListScreen() {
         />
       ) : viewMode === 'grid' ? (
         <FlatList
-          data={categoryFilteredEntries}
+          data={visibleEntries}
           keyExtractor={(item) => String(item.recipe.id)}
           numColumns={2}
           key="list-grid"
@@ -499,7 +569,7 @@ export default function RecipeListScreen() {
         />
       ) : (
         <FlatList
-          data={categoryFilteredEntries}
+          data={visibleEntries}
           keyExtractor={(item) => String(item.recipe.id)}
           key="list-list"
           renderItem={renderListItem}

@@ -9,6 +9,7 @@ import {
   ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
   Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode, WifiOff,
+  Heart, FolderPlus, Home, Copy, Lock,
 } from 'lucide-react-native';
 import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
@@ -25,6 +26,8 @@ import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
 import { buildRecipeEditPatchPayload, type RecipeEditDraft } from '@/utils/recipe-mapper';
 import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 import { mapProtectedApiError } from '@/utils/protected-access';
+import { useToggleFavorite, useShareRecipe } from '@/hooks/useCollections';
+import { AddToCollectionModal } from '@/components/AddToCollectionModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +82,19 @@ function normalizeRecipe(r: Record<string, unknown>): Recipe {
       : (typeof r.created_at === 'string' && r.created_at
           ? Math.floor(new Date(r.created_at).getTime() / 1000)
           : null),
+    scope: r.scope === 'household' ? 'household' : r.scope === 'private' ? 'private' : undefined,
+    isFavorite: r.isFavorite === true,
+  };
+}
+
+// Sharing capability flags — read from the raw API payload, kept outside the
+// Recipe type (which models only the DB-shaped fields).
+type ShareCapabilities = { canShareToHousehold: boolean; canCopyToPrivate: boolean };
+
+function readShareCapabilities(r: Record<string, unknown>): ShareCapabilities {
+  return {
+    canShareToHousehold: r.canShareToHousehold === true,
+    canCopyToPrivate: r.canCopyToPrivate === true,
   };
 }
 
@@ -266,6 +282,13 @@ export default function RecipeDetailScreen() {
   const [editDraft, setEditDraft] = useState<RecipeEditDraft | null>(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [shareCaps, setShareCaps] = useState<ShareCapabilities>({ canShareToHousehold: false, canCopyToPrivate: false });
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<{ recipeId: number; message: string } | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  const toggleFavorite = useToggleFavorite();
+  const shareRecipeMutation = useShareRecipe();
 
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recipeId = Number(id);
@@ -304,8 +327,10 @@ export default function RecipeDetailScreen() {
     try {
       const res = await apiFetch(`/api/v1/recipes/${id}`);
       await assertApiOk(res, `Rezept konnte nicht geladen werden (${res.status})`);
-      const row = normalizeRecipe(await res.json());
+      const raw = await res.json();
+      const row = normalizeRecipe(raw);
       setRecipe(row);
+      setShareCaps(readShareCapabilities(raw));
       setRating(row.rating != null ? Number(row.rating) : null);
       setNotes(row.notes ?? '');
       setImageError(false);
@@ -442,6 +467,39 @@ export default function RecipeDetailScreen() {
     } catch { /* ignore */ }
   };
 
+  // ── Favorit toggle ───────────────────────────────────────────────────────
+  // Gotcha #1: the detail screen holds local state (not React Query), so the
+  // hook's recipeQueryKey invalidation does NOT refresh this view. We update the
+  // local recipe state from the mutation result ourselves.
+  const handleToggleFavorite = async () => {
+    if (!recipe || toggleFavorite.isPending) return;
+    const next = !recipe.isFavorite;
+    try {
+      const isFavorite = await toggleFavorite.mutateAsync({ id: recipeId, on: next });
+      setRecipe(r => (r ? { ...r, isFavorite } : r));
+    } catch {
+      // Leave local state untouched on failure; the heart stays in its prior state.
+    }
+  };
+
+  // ── Share / copy ───────────────────────────────────────────────────────────
+  const handleShareTo = async (target: 'household' | 'user') => {
+    if (shareRecipeMutation.isPending) return;
+    setShareError(null);
+    setShareFeedback(null);
+    try {
+      const copy = await shareRecipeMutation.mutateAsync({ id: recipeId, target });
+      setShareFeedback({
+        recipeId: copy.id,
+        message: target === 'household' ? 'Kopie im Haushalt erstellt.' : 'Private Kopie erstellt.',
+      });
+    } catch (error) {
+      setShareError(
+        error instanceof ApiRequestError ? error.message : 'Kopieren fehlgeschlagen. Bitte erneut versuchen.',
+      );
+    }
+  };
+
   // ──────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -572,6 +630,12 @@ export default function RecipeDetailScreen() {
         <DeleteModal onConfirm={confirmDelete} onCancel={() => setShowDeleteModal(false)} />
       )}
 
+      <AddToCollectionModal
+        visible={showCollectionModal}
+        recipeId={recipeId}
+        onClose={() => setShowCollectionModal(false)}
+      />
+
       <Modal visible={showImagePicker} animationType="slide" onRequestClose={() => setShowImagePicker(false)}>
         <ImagePickerModal
           images={[]}
@@ -620,6 +684,23 @@ export default function RecipeDetailScreen() {
           <Text className="text-base font-semibold text-warm-900 dark:text-warm-50 flex-1" numberOfLines={1}>
             {recipe.name}
           </Text>
+          {!isEditing && (
+            <Pressable
+              onPress={handleToggleFavorite}
+              disabled={toggleFavorite.isPending}
+              accessibilityRole="button"
+              accessibilityLabel={recipe.isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
+              accessibilityState={{ selected: !!recipe.isFavorite }}
+              testID="favorite-toggle"
+              className="p-1 ml-2"
+            >
+              <Heart
+                size={20}
+                color="#C84B31"
+                fill={recipe.isFavorite ? '#C84B31' : 'transparent'}
+              />
+            </Pressable>
+          )}
           {!isEditing && (
             <Pressable onPress={startEdit} className="p-1 ml-2">
               <Edit size={20} color="#C84B31" />
@@ -688,6 +769,21 @@ export default function RecipeDetailScreen() {
                   <Text className="text-6xl mb-3">{recipe.emoji ?? '🍽️'}</Text>
                 )}
                 <Text className="text-2xl font-bold text-warm-900 dark:text-warm-50 text-center">{recipe.name}</Text>
+
+                {/* Scope-Hinweis (Privat / Haushalt) */}
+                {recipe.scope && (
+                  <View
+                    testID="scope-badge"
+                    className="flex-row items-center gap-1 mt-2 px-2.5 py-1 rounded-full bg-warm-100 dark:bg-espresso-700"
+                  >
+                    {recipe.scope === 'household'
+                      ? <Home size={12} color="#9E8878" />
+                      : <Lock size={12} color="#9E8878" />}
+                    <Text className="text-xs text-warm-600 dark:text-warm-300">
+                      {recipe.scope === 'household' ? 'Haushalt' : 'Privat'}
+                    </Text>
+                  </View>
+                )}
 
                 {/* Rating Display */}
                 {rating != null && (
@@ -829,6 +925,66 @@ export default function RecipeDetailScreen() {
                 <Trash2 size={18} color="#ef4444" />
                 <Text className="text-red-500 text-xs font-medium mt-1">Löschen</Text>
               </Pressable>
+            </View>
+          )}
+
+          {/* ── Collections & Teilen ── */}
+          {!isEditing && (
+            <View className="px-4 mb-4 gap-2">
+              <Pressable
+                onPress={() => setShowCollectionModal(true)}
+                testID="add-to-collection-cta"
+                className="flex-row items-center justify-center gap-2 py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700"
+              >
+                <FolderPlus size={18} color="#C84B31" />
+                <Text className="text-primary-500 text-sm font-medium">Zu Collection hinzufügen</Text>
+              </Pressable>
+
+              {shareCaps.canShareToHousehold && (
+                <Pressable
+                  onPress={() => handleShareTo('household')}
+                  disabled={shareRecipeMutation.isPending}
+                  testID="copy-to-household-cta"
+                  className="flex-row items-center justify-center gap-2 py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700"
+                >
+                  {shareRecipeMutation.isPending
+                    ? <ActivityIndicator size="small" color="#C84B31" />
+                    : <Home size={18} color="#C84B31" />}
+                  <Text className="text-primary-500 text-sm font-medium">In Haushalt kopieren</Text>
+                </Pressable>
+              )}
+
+              {shareCaps.canCopyToPrivate && (
+                <Pressable
+                  onPress={() => handleShareTo('user')}
+                  disabled={shareRecipeMutation.isPending}
+                  testID="copy-to-private-cta"
+                  className="flex-row items-center justify-center gap-2 py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700"
+                >
+                  {shareRecipeMutation.isPending
+                    ? <ActivityIndicator size="small" color="#C84B31" />
+                    : <Copy size={18} color="#C84B31" />}
+                  <Text className="text-primary-500 text-sm font-medium">Private Kopie erstellen</Text>
+                </Pressable>
+              )}
+
+              {shareError && (
+                <View className="rounded-xl bg-red-50 px-3 py-2">
+                  <Text className="text-red-600 text-sm" testID="share-error">{shareError}</Text>
+                </View>
+              )}
+
+              {shareFeedback && (
+                <View className="rounded-xl bg-green-50 px-3 py-2.5 flex-row items-center justify-between" testID="share-feedback">
+                  <Text className="text-green-700 text-sm flex-1">{shareFeedback.message}</Text>
+                  <Pressable
+                    onPress={() => { const target = shareFeedback.recipeId; setShareFeedback(null); router.push(`/recipe/${target}`); }}
+                    className="ml-2 px-3 py-1.5 rounded-lg bg-green-600"
+                  >
+                    <Text className="text-white text-xs font-semibold">Öffnen</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
 

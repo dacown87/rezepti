@@ -67,6 +67,15 @@ vi.mock('@/utils/recipe-qr', () => ({
   encodeRecipeToCompactJSON: vi.fn(() => 'encoded'),
 }));
 
+vi.mock('@/hooks/useCollections', () => ({
+  useToggleFavorite: () => ({ mutateAsync: vi.fn(async () => true), isPending: false }),
+  useShareRecipe: () => ({ mutateAsync: vi.fn(async () => ({ id: 1 })), isPending: false }),
+}));
+
+vi.mock('@/components/AddToCollectionModal', () => ({
+  AddToCollectionModal: () => null,
+}));
+
 vi.mock('lucide-react-native', () => {
   const icon = () => React.createElement('Icon');
   return {
@@ -93,6 +102,11 @@ vi.mock('lucide-react-native', () => {
     ShoppingCart: icon,
     QrCode: icon,
     WifiOff: icon,
+    Heart: icon,
+    FolderPlus: icon,
+    Home: icon,
+    Copy: icon,
+    Lock: icon,
   };
 });
 

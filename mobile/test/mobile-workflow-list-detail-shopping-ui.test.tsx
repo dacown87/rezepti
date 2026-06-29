@@ -112,8 +112,24 @@ vi.mock('lucide-react-native', () => {
     CheckSquare: icon,
     Square: icon,
     ShoppingCart: icon,
+    WifiOff: icon,
+    Heart: icon,
+    FolderPlus: icon,
+    FolderOpen: icon,
+    Home: icon,
+    Copy: icon,
+    Lock: icon,
   };
 });
+
+vi.mock('@/hooks/useCollections', () => ({
+  useToggleFavorite: () => ({ mutateAsync: vi.fn(async () => true), isPending: false }),
+  useShareRecipe: () => ({ mutateAsync: vi.fn(async () => ({ id: 1 })), isPending: false }),
+}));
+
+vi.mock('@/components/AddToCollectionModal', () => ({
+  AddToCollectionModal: () => null,
+}));
 
 vi.mock('react-native', () => {
   const wrap = (type: string) => ({ children, ...props }: Record<string, unknown>) =>

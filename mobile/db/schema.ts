@@ -73,6 +73,11 @@ export interface Recipe {
   notes: string | null;
   pdf_created: number;         // 0 | 1
   created_at: number | null;   // Unix timestamp
+  // Sharing / favorites read-model (Phase 3 — optional, not a DB column on mobile).
+  // Flows through from the API via apiToRecipe so list/detail can show scope hints
+  // and the favorites filter. Absent on locally-created/offline rows.
+  scope?: 'private' | 'household';
+  isFavorite?: boolean;
 }
 
 export interface ShoppingListItem {
