@@ -1,9 +1,11 @@
 import postgres from "postgres";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc, and, inArray, isNull, or, sql, lt } from "drizzle-orm";
+import { eq, desc, and, inArray, isNull, or, sql, lt, count } from "drizzle-orm";
 import {
   recipes,
+  recipeCollections,
+  recipeCollectionItems,
   ingredientDictionary,
   shoppingList,
   mealPlan,
@@ -129,6 +131,8 @@ function getDb() {
     _db = drizzle(_client, {
       schema: {
         recipes,
+        recipeCollections,
+        recipeCollectionItems,
         ingredientDictionary,
         shoppingList,
         mealPlan,
@@ -398,6 +402,503 @@ export async function getRecipeCount(): Promise<number> {
   const db = getDb();
   const rows = await db.select({ id: recipes.id }).from(recipes);
   return rows.length;
+}
+
+// ── Collections / Favorites / Sharing ──────────────────────────────────────────
+
+export type CollectionOwnerType = "user" | "household";
+export type CollectionKind = "favorites" | "custom";
+export type FavoritesScope = "user" | { householdId: string };
+
+export interface CollectionSummary {
+  id: string;
+  kind: CollectionKind;
+  name: string;
+  owner_type: CollectionOwnerType;
+  item_count: number;
+  is_system: boolean;
+}
+
+export interface RecipeShareReadModel {
+  scope: "private" | "household";
+  isFavorite: boolean;
+  canShareToHousehold: boolean;
+  canCopyToPrivate: boolean;
+}
+
+const FAVORITES_COLLECTION_NAME = "Favoriten";
+
+/**
+ * Minimal owner shape of a recipe, used by the shared legal-reference predicate.
+ * Kept narrow so the same rule drives list/detail/share/collection checks.
+ */
+export interface RecipeOwnerRow {
+  id: number;
+  ownerType: string;
+  ownerUserId: string | null;
+  householdId: string | null;
+}
+
+/**
+ * SINGLE source of truth: is the recipe owned by / visible to this auth context?
+ * Mirrors the SQL predicate `recipeVisibilityForAuth` but operates on an already
+ * loaded owner row so it can be reused for collection/share/read-model decisions.
+ */
+export function isRecipeVisibleToAuth(auth: RecipeAuthContext, owner: RecipeOwnerRow): boolean {
+  if (owner.ownerType === "user") {
+    return owner.ownerUserId === auth.userId;
+  }
+  if (owner.ownerType === "household") {
+    return householdIdsForAuth(auth).includes(owner.householdId ?? "");
+  }
+  return false;
+}
+
+/**
+ * SINGLE source of truth for whether `owner` is a legal reference target for a
+ * collection of `collectionOwnerType` (binding rules from the brief):
+ *  - private collection (user): caller's own private recipes AND household recipes
+ *    visible to the caller.
+ *  - household collection: ONLY recipes owned by that same household.
+ */
+export function isRecipeLegalForCollection(
+  auth: RecipeAuthContext,
+  owner: RecipeOwnerRow,
+  collection: { ownerType: CollectionOwnerType; householdId: string | null },
+): boolean {
+  if (collection.ownerType === "user") {
+    return isRecipeVisibleToAuth(auth, owner);
+  }
+  // household collection — only recipes owned by that same household
+  return owner.ownerType === "household" && owner.householdId === collection.householdId;
+}
+
+async function loadRecipeOwnerRow(recipeId: number): Promise<RecipeOwnerRow | null> {
+  const db = getDb();
+  const [row] = await db
+    .select({
+      id: recipes.id,
+      ownerType: recipes.ownerType,
+      ownerUserId: recipes.ownerUserId,
+      householdId: recipes.householdId,
+    })
+    .from(recipes)
+    .where(eq(recipes.id, recipeId))
+    .limit(1);
+  return row ?? null;
+}
+
+function collectionVisibilityForAuth(auth: RecipeAuthContext) {
+  const householdIds = householdIdsForAuth(auth);
+  const privateOwner = and(
+    eq(recipeCollections.ownerType, "user"),
+    eq(recipeCollections.ownerUserId, auth.userId),
+  );
+  if (householdIds.length === 0) return privateOwner;
+  return or(
+    privateOwner,
+    and(eq(recipeCollections.ownerType, "household"), inArray(recipeCollections.householdId, householdIds)),
+  );
+}
+
+/** True if the caller may mutate (rename/delete/add to) the given collection row. */
+function canMutateCollection(
+  auth: RecipeAuthContext,
+  collection: { ownerType: string; ownerUserId: string | null; householdId: string | null },
+): boolean {
+  if (collection.ownerType === "user") {
+    return collection.ownerUserId === auth.userId;
+  }
+  if (collection.ownerType === "household") {
+    return householdIdsForAuth(auth).includes(collection.householdId ?? "");
+  }
+  return false;
+}
+
+export async function getCollectionsForAuth(auth: RecipeAuthContext): Promise<CollectionSummary[]> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: recipeCollections.id,
+      kind: recipeCollections.kind,
+      name: recipeCollections.name,
+      ownerType: recipeCollections.ownerType,
+      itemCount: count(recipeCollectionItems.id),
+    })
+    .from(recipeCollections)
+    .leftJoin(recipeCollectionItems, eq(recipeCollectionItems.collectionId, recipeCollections.id))
+    .where(collectionVisibilityForAuth(auth))
+    .groupBy(
+      recipeCollections.id,
+      recipeCollections.kind,
+      recipeCollections.name,
+      recipeCollections.ownerType,
+      recipeCollections.createdAt,
+    )
+    .orderBy(desc(recipeCollections.createdAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    kind: row.kind as CollectionKind,
+    name: row.name,
+    owner_type: row.ownerType as CollectionOwnerType,
+    item_count: Number(row.itemCount ?? 0),
+    is_system: row.kind === "favorites",
+  }));
+}
+
+export async function createCollection(
+  auth: RecipeAuthContext,
+  input: { name: string; ownerType: CollectionOwnerType; householdId?: string },
+): Promise<CollectionSummary> {
+  const name = input.name.trim();
+  if (!name) throw new Error("Collection name is required");
+
+  let ownerValues: { ownerType: CollectionOwnerType; ownerUserId: string | null; householdId: string | null };
+  if (input.ownerType === "user") {
+    ownerValues = { ownerType: "user", ownerUserId: auth.userId, householdId: null };
+  } else {
+    const householdId = input.householdId;
+    if (!householdId || !householdIdsForAuth(auth).includes(householdId)) {
+      throw new Error("Not a member of the target household");
+    }
+    ownerValues = { ownerType: "household", ownerUserId: null, householdId };
+  }
+
+  const db = getDb();
+  const [row] = await db
+    .insert(recipeCollections)
+    .values({
+      ...ownerValues,
+      kind: "custom",
+      name,
+      createdBy: auth.userId,
+    })
+    .returning({
+      id: recipeCollections.id,
+      kind: recipeCollections.kind,
+      name: recipeCollections.name,
+      ownerType: recipeCollections.ownerType,
+    });
+
+  return {
+    id: row.id,
+    kind: row.kind as CollectionKind,
+    name: row.name,
+    owner_type: row.ownerType as CollectionOwnerType,
+    item_count: 0,
+    is_system: false,
+  };
+}
+
+export async function renameCollection(auth: RecipeAuthContext, id: string, name: string): Promise<boolean> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Collection name is required");
+
+  const db = getDb();
+  const [collection] = await db
+    .select({
+      ownerType: recipeCollections.ownerType,
+      ownerUserId: recipeCollections.ownerUserId,
+      householdId: recipeCollections.householdId,
+      kind: recipeCollections.kind,
+    })
+    .from(recipeCollections)
+    .where(eq(recipeCollections.id, id))
+    .limit(1);
+
+  if (!collection || collection.kind !== "custom" || !canMutateCollection(auth, collection)) {
+    return false;
+  }
+
+  const rows = await db
+    .update(recipeCollections)
+    .set({ name: trimmed, updatedAt: new Date() })
+    .where(eq(recipeCollections.id, id))
+    .returning({ id: recipeCollections.id });
+  return rows.length > 0;
+}
+
+export async function deleteCollection(auth: RecipeAuthContext, id: string): Promise<boolean> {
+  const db = getDb();
+  const [collection] = await db
+    .select({
+      ownerType: recipeCollections.ownerType,
+      ownerUserId: recipeCollections.ownerUserId,
+      householdId: recipeCollections.householdId,
+      kind: recipeCollections.kind,
+    })
+    .from(recipeCollections)
+    .where(eq(recipeCollections.id, id))
+    .limit(1);
+
+  if (!collection || collection.kind !== "custom" || !canMutateCollection(auth, collection)) {
+    return false;
+  }
+
+  const rows = await db
+    .delete(recipeCollections)
+    .where(eq(recipeCollections.id, id))
+    .returning({ id: recipeCollections.id });
+  return rows.length > 0;
+}
+
+async function loadCollectionForMutation(auth: RecipeAuthContext, collectionId: string) {
+  const db = getDb();
+  const [collection] = await db
+    .select({
+      id: recipeCollections.id,
+      ownerType: recipeCollections.ownerType,
+      ownerUserId: recipeCollections.ownerUserId,
+      householdId: recipeCollections.householdId,
+    })
+    .from(recipeCollections)
+    .where(eq(recipeCollections.id, collectionId))
+    .limit(1);
+
+  if (!collection || !canMutateCollection(auth, collection)) return null;
+  return collection;
+}
+
+/**
+ * Adds a recipe to a collection. Rejects (throws) if the recipe is not a legal
+ * reference for the collection's owner type. Idempotent at the DB level via the
+ * unique (collection_id, recipe_id) index.
+ */
+export async function addRecipeToCollection(
+  auth: RecipeAuthContext,
+  collectionId: string,
+  recipeId: number,
+): Promise<{ added: boolean }> {
+  const collection = await loadCollectionForMutation(auth, collectionId);
+  if (!collection) throw new Error("Collection not found or not writable");
+
+  const owner = await loadRecipeOwnerRow(recipeId);
+  if (!owner) throw new Error("Recipe not found");
+
+  if (!isRecipeLegalForCollection(auth, owner, {
+    ownerType: collection.ownerType as CollectionOwnerType,
+    householdId: collection.householdId,
+  })) {
+    throw new Error("Recipe is not a legal reference for this collection");
+  }
+
+  const db = getDb();
+  const rows = await db
+    .insert(recipeCollectionItems)
+    .values({ collectionId, recipeId, createdBy: auth.userId })
+    .onConflictDoNothing({ target: [recipeCollectionItems.collectionId, recipeCollectionItems.recipeId] })
+    .returning({ id: recipeCollectionItems.id });
+
+  return { added: rows.length > 0 };
+}
+
+export async function removeRecipeFromCollection(
+  auth: RecipeAuthContext,
+  collectionId: string,
+  recipeId: number,
+): Promise<boolean> {
+  const collection = await loadCollectionForMutation(auth, collectionId);
+  if (!collection) return false;
+
+  const db = getDb();
+  const rows = await db
+    .delete(recipeCollectionItems)
+    .where(and(
+      eq(recipeCollectionItems.collectionId, collectionId),
+      eq(recipeCollectionItems.recipeId, recipeId),
+    ))
+    .returning({ id: recipeCollectionItems.id });
+  return rows.length > 0;
+}
+
+/**
+ * Returns the favorites collection id for the given scope, creating it on demand.
+ * Idempotent: relies on the unique partial indexes; concurrent creates resolve to
+ * the same row via onConflictDoNothing + re-select.
+ */
+export async function resolveFavoritesCollection(
+  auth: RecipeAuthContext,
+  scope: FavoritesScope,
+): Promise<string> {
+  const db = getDb();
+
+  let where;
+  let insertValues;
+  if (scope === "user") {
+    where = and(
+      eq(recipeCollections.kind, "favorites"),
+      eq(recipeCollections.ownerType, "user"),
+      eq(recipeCollections.ownerUserId, auth.userId),
+    );
+    insertValues = {
+      ownerType: "user" as const,
+      ownerUserId: auth.userId,
+      householdId: null,
+      kind: "favorites" as const,
+      name: FAVORITES_COLLECTION_NAME,
+      createdBy: auth.userId,
+    };
+  } else {
+    const householdId = scope.householdId;
+    if (!householdIdsForAuth(auth).includes(householdId)) {
+      throw new Error("Not a member of the target household");
+    }
+    where = and(
+      eq(recipeCollections.kind, "favorites"),
+      eq(recipeCollections.ownerType, "household"),
+      eq(recipeCollections.householdId, householdId),
+    );
+    insertValues = {
+      ownerType: "household" as const,
+      ownerUserId: null,
+      householdId,
+      kind: "favorites" as const,
+      name: FAVORITES_COLLECTION_NAME,
+      createdBy: auth.userId,
+    };
+  }
+
+  const [existing] = await db
+    .select({ id: recipeCollections.id })
+    .from(recipeCollections)
+    .where(where)
+    .limit(1);
+  if (existing) return existing.id;
+
+  const inserted = await db
+    .insert(recipeCollections)
+    .values(insertValues)
+    .onConflictDoNothing()
+    .returning({ id: recipeCollections.id });
+  if (inserted[0]) return inserted[0].id;
+
+  // Lost the create race — re-select the row the winner created.
+  const [row] = await db
+    .select({ id: recipeCollections.id })
+    .from(recipeCollections)
+    .where(where)
+    .limit(1);
+  if (!row) throw new Error("Favorites collection could not be resolved");
+  return row.id;
+}
+
+export async function setFavorite(
+  auth: RecipeAuthContext,
+  recipeId: number,
+  on: boolean,
+  scope: FavoritesScope = "user",
+): Promise<{ isFavorite: boolean }> {
+  const collectionId = await resolveFavoritesCollection(auth, scope);
+  if (on) {
+    await addRecipeToCollection(auth, collectionId, recipeId);
+  } else {
+    await removeRecipeFromCollection(auth, collectionId, recipeId);
+  }
+  return { isFavorite: on };
+}
+
+export async function toggleFavorite(
+  auth: RecipeAuthContext,
+  recipeId: number,
+  scope: FavoritesScope = "user",
+): Promise<{ isFavorite: boolean }> {
+  const db = getDb();
+  const collectionId = await resolveFavoritesCollection(auth, scope);
+  const [existing] = await db
+    .select({ id: recipeCollectionItems.id })
+    .from(recipeCollectionItems)
+    .where(and(
+      eq(recipeCollectionItems.collectionId, collectionId),
+      eq(recipeCollectionItems.recipeId, recipeId),
+    ))
+    .limit(1);
+
+  return setFavorite(auth, recipeId, !existing, scope);
+}
+
+/**
+ * Sharing = copy. Creates a NEW recipe row (new id) copying content + media refs
+ * with the new owner and `source_recipe_id` set to the original. NEVER mutates the
+ * original.
+ *  - target.type === 'household': copy to the caller's active household (membership
+ *    required); only allowed if the source recipe is visible to the caller.
+ *  - target.type === 'user': copy to the calling user; only allowed if the source
+ *    recipe is visible to the caller.
+ */
+export async function shareCopyRecipe(
+  auth: RecipeAuthContext,
+  recipeId: number,
+  target: { type: "household"; householdId?: string } | { type: "user" },
+) {
+  const db = getDb();
+  const [original] = await db.select().from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+  if (!original) throw new Error("Recipe not found");
+
+  if (!isRecipeVisibleToAuth(auth, {
+    id: original.id,
+    ownerType: original.ownerType,
+    ownerUserId: original.ownerUserId,
+    householdId: original.householdId,
+  })) {
+    throw new Error("Recipe is not visible to the caller");
+  }
+
+  let ownerValues: ReturnType<typeof recipeOwnerValues>;
+  if (target.type === "household") {
+    const householdIds = householdIdsForAuth(auth);
+    const householdId = target.householdId ?? householdIds[0];
+    if (!householdId || !householdIds.includes(householdId)) {
+      throw new Error("Not a member of the target household");
+    }
+    ownerValues = recipeOwnerValues({ type: "household", householdId }, auth.userId);
+  } else {
+    ownerValues = recipeOwnerValues({ type: "user", userId: auth.userId }, auth.userId);
+  }
+
+  const [copy] = await db
+    .insert(recipes)
+    .values({
+      name:        original.name,
+      emoji:       original.emoji,
+      source_url:  original.source_url,
+      image_url:   original.image_url,
+      servings:    original.servings,
+      duration:    original.duration,
+      calories:    original.calories,
+      tags:        original.tags,
+      category:    original.category,
+      ingredients: original.ingredients,
+      steps:       original.steps,
+      transcript:  original.transcript,
+      equipment:          original.equipment,
+      nutrition_info:     original.nutrition_info,
+      ingredient_groups:  original.ingredient_groups,
+      source_recipe_id:   original.id,
+      ...ownerValues,
+    })
+    .returning();
+
+  return deserialize(copy);
+}
+
+/**
+ * Pure read-model mapper: given a recipe owner row + auth + flags, derives the
+ * share/scope read model. `isFavorite` and `hasActiveHousehold` are resolved by
+ * the caller (Phase 2) and passed in so this stays pure and unit-testable.
+ */
+export function deriveRecipeShareReadModel(
+  auth: RecipeAuthContext,
+  owner: RecipeOwnerRow,
+  opts: { isFavorite: boolean; hasActiveHousehold: boolean },
+): RecipeShareReadModel {
+  const scope: "private" | "household" = owner.ownerType === "household" ? "household" : "private";
+  return {
+    scope,
+    isFavorite: opts.isFavorite,
+    canShareToHousehold: scope === "private" && opts.hasActiveHousehold,
+    canCopyToPrivate: scope === "household",
+  };
 }
 
 // ── Deserialize ───────────────────────────────────────────────────────────────
