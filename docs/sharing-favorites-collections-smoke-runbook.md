@@ -1,0 +1,172 @@
+# Sharing / Favorites / Collections — Smoke Runbook
+
+Stand: 2026-06-30
+
+## Ziel
+
+Dieses Runbook beschreibt die minimalen manuellen Web-/PWA-Smoke-Pfade fuer den
+Sharing/Favorites/Collections-Slice, die ein Mensch mit laufendem Server und DB
+ausfuehren muss, bevor der Branch als vollstaendig QA-abgenommen gilt.
+
+Die automatisierten Unit-/Typecheck-Gates (tsc, Vitest root, mobile:typecheck,
+test:mobile, rntl-guard) sind bereits auf dem Branch gruen. Die DB-gestuetzten
+Integrationstests (`Collections / Favorites / Sharing (DB)` in
+`test/unit/collections-sharing.test.ts`) sind lokal ohne `TEST_DATABASE_URL`
+geskipped — sie laufen in CI. Der CI-Lauf muss gruen sein, bevor der Branch
+gemergt wird.
+
+Die Repo-Doku speichert keine Zugangsdaten. Wiederverwendbare QA-Accounts duerfen
+in Supabase bestehen bleiben; Passwort/Secrets gehoeren nicht in Git.
+
+## Voraussetzungen
+
+- Production-Web-App (nach Merge/Deploy):
+  `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`
+  oder lokaler Server (`npm run dev`) fuer Pre-Merge-Smoke
+- Repo-`.env` enthaelt funktionierende Werte fuer `SUPABASE_URL`,
+  `SUPABASE_ANON_KEY`, `DATABASE_URL`
+- Zwei Supabase-Auth-Accounts: ein User ohne Household-Mitgliedschaft fuer den
+  privaten Scope, und ein User der Mitglied eines gemeinsamen Haushalts ist
+  (oder ein einzelner User mit aktivem Household — reicht fuer Basispfade)
+
+## API-Sanity (optional vor Browser-Smoke)
+
+Access-Token ueber Supabase Password Grant holen:
+
+```bash
+TOKEN=$(/usr/bin/curl -sS "$SUPABASE_URL/auth/v1/token?grant_type=password" \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$QA_EMAIL\",\"password\":\"$QA_PASSWORD\"}" \
+  | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s); process.stdout.write(j.access_token||'')})")
+```
+
+Favoriten-Toggle-Check:
+
+```bash
+# Favorit setzen
+/usr/bin/curl -sS -X POST "$BASE_URL/api/v1/recipes/$RECIPE_ID/favorite" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+
+# Favorit entfernen
+/usr/bin/curl -sS -X DELETE "$BASE_URL/api/v1/recipes/$RECIPE_ID/favorite" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Collections-Check:
+
+```bash
+# Alle Collections abrufen
+/usr/bin/curl -sS "$BASE_URL/api/v1/recipe-collections" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Neue private Collection anlegen
+/usr/bin/curl -sS -X POST "$BASE_URL/api/v1/recipe-collections" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Testsammlung","scope":"private"}'
+```
+
+Share-Check (privates Rezept in Haushalt kopieren):
+
+```bash
+/usr/bin/curl -sS -X POST "$BASE_URL/api/v1/recipes/$RECIPE_ID/share" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"targetScope":"household"}'
+```
+
+## Manuelle Browser-Smoke-Pfade
+
+Die folgenden sechs Pfade muessen manuell in der Web-App oder PWA abgenommen werden.
+
+### Pfad 1 — Favorit an/aus (Liste und Detail spiegeln ohne Reload)
+
+1. Login als QA-User.
+2. Ein privates Rezept in der Rezeptliste aufrufen.
+3. Im Detail-Screen auf den Favorit-Toggle tippen → Herz-Icon faerbt sich.
+4. Zur Rezeptliste zuruecknavigieren → das Rezept zeigt das Favorit-Badge ohne
+   App-Neustart.
+5. Erneut in das Detail navigieren → Favorit-Toggle zeigt weiterhin den aktiven
+   Zustand.
+6. Favorit deaktivieren → Badge in Liste verschwindet ohne Reload.
+
+Erwartetes Ergebnis: Toggle reagiert sofort; Liste und Detail sind konsistent ohne
+expliziten Reload.
+
+### Pfad 2 — Neues privates Collection anlegen und Rezept hinzufuegen
+
+1. Zum Collections-Screen navigieren (Tab oder Navigation).
+2. Neue private Collection mit einem Testnamen anlegen.
+3. Ein privates Rezept aufrufen und ueber den `Zur Collection hinzufuegen`-CTA
+   in die neue Collection eintragen.
+4. Im Collections-Screen die Collection oeffnen → das Rezept ist aufgelistet.
+
+Erwartetes Ergebnis: Collection wird angelegt und das Rezept erscheint darin.
+
+### Pfad 3 — Privates Rezept in Haushalt kopieren
+
+Voraussetzung: QA-User hat ein aktives Household.
+
+1. Ein privates Rezept aufrufen (Scope-Badge zeigt `Privat`).
+2. Den `In Haushalt kopieren`-CTA ausloesen.
+3. Im Haushaltskontext (gleicher oder anderer Haushaltsmember) das Rezept in der
+   Rezeptliste suchen → es ist sichtbar mit Scope-Badge `Haushalt`.
+4. Die Kopie hat eine eigene ID; das Original bleibt privat erhalten.
+
+Erwartetes Ergebnis: Haushaltsrezept ist neu angelegt mit `source_recipe_id` auf
+das Original; das Original ist unveraendert.
+
+### Pfad 4 — Haushaltsrezept als private Kopie sichern
+
+Voraussetzung: QA-User ist Mitglied eines Haushalts mit mindestens einem
+Haushaltsrezept.
+
+1. Ein Haushaltsrezept aufrufen (Scope-Badge zeigt `Haushalt`).
+2. Den `Private Kopie erstellen`-CTA ausloesen.
+3. Zur Rezeptliste des Callers zurueck → das neue private Rezept ist sichtbar mit
+   Scope-Badge `Privat`.
+
+Erwartetes Ergebnis: Private Kopie ist angelegt; das Haushaltsrezept bleibt
+unveraendert.
+
+### Pfad 5 — Favoritenfilter spiegelt den Toggle ohne App-Neustart
+
+1. Favorit-Toggle an Rezept A aktivieren (Pfad 1).
+2. In der Rezeptliste den Favoritenfilter aktivieren.
+3. Nur Rezept A (und ggf. weitere fruehier als Favorit markierte Rezepte) ist
+   sichtbar.
+4. Favoritenfilter wieder deaktivieren → volle Liste ist sichtbar.
+5. Favorit an Rezept A deaktivieren → Favoritenfilter zeigt Rezept A nicht mehr.
+
+Erwartetes Ergebnis: Filter und Liste reflektieren den Toggle-Status ohne
+App-Neustart.
+
+### Pfad 6 — PWA Cache-Verhalten nach Share/Favorite (kurze Pruefung)
+
+1. App als PWA installiert oder Browser-Tab geoeffnet.
+2. Favorit-Toggle und/oder Share ausfuehren (Pfad 1 oder 3).
+3. Browserfenster oder PWA kurz schliessen und wieder oeffnen.
+4. Den betroffenen Rezept-Detail-Screen aufrufen → Scope-Badge und Favorit-Status
+   sind korrekt (Cache-Invalidierung hat funktioniert).
+5. In der Rezeptliste den Favoritenfilter aktivieren → korrekte Resultate.
+
+Erwartetes Ergebnis: Nach Share/Favorite-Operationen zeigt auch der naechste
+PWA-Start die aktuellen Daten; kein staler Cache der alten Zustands.
+
+## CI-Gate vor Merge
+
+- Der CI-Lauf auf dem Branch muss den `supabase-rls-smoke`-Job und alle
+  `Collections / Favorites / Sharing (DB)`-Tests in `test:unit` gruen
+  abgeschlossen haben.
+- Erst danach gilt der Branch als merge-bereit.
+
+## Befunde und Nachweise
+
+Nach Durchfuehren der obigen Pfade hier eintragen (Datum, Umgebung, Ergebnis,
+Abweichungen):
+
+| Datum | Pfad | Umgebung | Ergebnis | Anmerkungen |
+|-------|------|----------|----------|-------------|
+| TBD | 1–6 | Production nach Merge | Offen | Manuell abzunehmen |
