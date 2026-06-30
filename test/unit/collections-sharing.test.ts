@@ -3,6 +3,8 @@ import {
   isRecipeVisibleToAuth,
   isRecipeLegalForCollection,
   deriveRecipeShareReadModel,
+  isValidCollectionId,
+  loadCollectionRowById,
   type RecipeAuthContext,
   type RecipeOwnerRow,
 } from '../../src/db-react.js'
@@ -79,6 +81,25 @@ describe('deriveRecipeShareReadModel', () => {
       canShareToHousehold: false,
       canCopyToPrivate: true,
     })
+  })
+})
+
+describe('isValidCollectionId (uuid-shape guard)', () => {
+  it('accepts a well-formed uuid', () => {
+    expect(isValidCollectionId('10000000-0000-0000-0000-000000000001')).toBe(true)
+  })
+  it('rejects malformed ids (so callers can map → 404, not 500)', () => {
+    expect(isValidCollectionId('not-a-uuid')).toBe(false)
+    expect(isValidCollectionId('')).toBe(false)
+    expect(isValidCollectionId('123')).toBe(false)
+    expect(isValidCollectionId("1'; DROP TABLE recipe_collections;--")).toBe(false)
+  })
+})
+
+describe('loadCollectionRowById malformed id', () => {
+  it('returns null for a non-uuid id WITHOUT touching the DB (no 500 leak)', async () => {
+    // No DATABASE_URL / getDb() must NOT be reached because the guard short-circuits.
+    await expect(loadCollectionRowById('not-a-uuid')).resolves.toBeNull()
   })
 })
 
@@ -319,5 +340,47 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     await db.setFavorite(AUTH, recipeId, false, 'user')
     detail = await db.getRecipeByIdFromReactDb(recipeId, AUTH)
     expect(detail.isFavorite).toBe(false)
+  })
+
+  // getCollectionItemsForAuth — read-back loop returns the collection recipes with
+  // the SAME read-model the list derives, and never leaks a recipe the caller
+  // cannot see.
+  it('getCollectionItemsForAuth returns the collection recipes with read-model fields', async () => {
+    const recipeId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ items rm'), 'https://example.com/items-rm', undefined, PRIVATE_OWNER,
+    )
+    createdRecipeIds.push(recipeId)
+    const collection = await db.createCollection(AUTH, { name: '__test__ items coll', ownerType: 'user' })
+    createdCollectionIds.push(collection.id)
+    await db.addRecipeToCollection(AUTH, collection.id, recipeId)
+
+    const items = await db.getCollectionItemsForAuth(AUTH, collection.id)
+    const item = items.find((r: { id: number }) => r.id === recipeId)
+    expect(item).toBeTruthy()
+    expect(item.scope).toBe('private')
+    expect(item).toHaveProperty('isFavorite')
+    expect(item).toHaveProperty('canShareToHousehold')
+    expect(item).toHaveProperty('canCopyToPrivate')
+  })
+
+  it('getCollectionItemsForAuth never leaks a recipe the caller cannot see', async () => {
+    // A household collection item pointing at a household recipe is visible to a
+    // member but NOT to a foreign user (re-applies recipe-level visibility).
+    const householdRecipeId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ items hh'), 'https://example.com/items-hh', undefined, HOUSEHOLD_OWNER,
+    )
+    createdRecipeIds.push(householdRecipeId)
+    const householdColl = await db.createCollection(AUTH, {
+      name: '__test__ items hh coll', ownerType: 'household', householdId: TEST_HOUSEHOLD_ID,
+    })
+    createdCollectionIds.push(householdColl.id)
+    await db.addRecipeToCollection(AUTH, householdColl.id, householdRecipeId)
+
+    const memberItems = await db.getCollectionItemsForAuth(AUTH, householdColl.id)
+    expect(memberItems.some((r: { id: number }) => r.id === householdRecipeId)).toBe(true)
+
+    // A foreign (non-member) user gets nothing back, even though the row exists.
+    const foreignItems = await db.getCollectionItemsForAuth(FOREIGN_AUTH, householdColl.id)
+    expect(foreignItems.some((r: { id: number }) => r.id === householdRecipeId)).toBe(false)
   })
 })

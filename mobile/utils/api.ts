@@ -275,6 +275,17 @@ export async function deleteCollection(id: string): Promise<void> {
 }
 
 /**
+ * Fetch the recipes contained in a collection. Each recipe carries the same
+ * read-model fields (scope / isFavorite / share flags) as the recipe list.
+ */
+export async function fetchCollectionItems(collectionId: string): Promise<ApiRecipe[]> {
+  const res = await apiFetch(`/api/v1/recipe-collections/${collectionId}/items`);
+  await assertApiOk(res, `Rezepte der Sammlung laden fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { recipes: ApiRecipe[] };
+  return data.recipes ?? [];
+}
+
+/**
  * Add a recipe to a collection. Returns { added: true } when newly inserted,
  * { added: false } when already present (idempotent).
  */

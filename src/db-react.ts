@@ -227,8 +227,27 @@ export async function getRecipeListFromReactDb(auth: RecipeAuthContext) {
 
   // N+1-safe read-model: resolve the caller's favorited recipe ids ONCE, then map.
   const favoriteIds = await getFavoriteRecipeIdsForAuth(auth);
-  const hasActiveHousehold = householdIdsForAuth(auth).length > 0;
+  return enrichListRowsWithReadModel(auth, rows, favoriteIds);
+}
 
+/** Row shape consumed by `deserializeListItem` + the read-model derivation. */
+type ListRowWithOwner = Parameters<typeof deserializeListItem>[0] & {
+  ownerType: string;
+  ownerUserId: string | null;
+  householdId: string | null;
+};
+
+/**
+ * Shared N+1-safe enrichment used by BOTH the recipe list and the collection-items
+ * read-back so they derive an IDENTICAL read-model. The caller resolves the
+ * favorite id set once and passes it in (no per-row lookups).
+ */
+function enrichListRowsWithReadModel(
+  auth: RecipeAuthContext,
+  rows: ListRowWithOwner[],
+  favoriteIds: Set<number>,
+) {
+  const hasActiveHousehold = householdIdsForAuth(auth).length > 0;
   return rows.map((row) => {
     const item = deserializeListItem(row);
     const readModel = deriveRecipeShareReadModel(
@@ -266,7 +285,7 @@ function deserializeListItem(row: {
 export type MatchMode = "and" | "or";
 
 export interface RecipeSearchResult {
-  recipe: Awaited<ReturnType<typeof getAllRecipesFromReactDb>>[number];
+  recipe: Awaited<ReturnType<typeof getAllRecipesFromReactDb>>[number] & RecipeShareReadModel;
   matchScore: number;
   matchedIngredients: string[];
   missingIngredients: string[];
@@ -284,7 +303,22 @@ export async function searchRecipesByIngredientsAdvanced(
 ): Promise<RecipeSearchResult[]> {
   const db = getDb();
   const allRows = await db.select().from(recipes).where(recipeVisibilityForAuth(auth));
-  const allRecipes = allRows.map(deserialize);
+
+  // N+1-safe: resolve the caller's favorites ONCE, then enrich every result recipe
+  // with the SAME read-model the list endpoint derives (scope/isFavorite/share flags),
+  // so search results render scope badges + hearts consistently.
+  const favoriteIds = await getFavoriteRecipeIdsForAuth(auth);
+  const hasActiveHousehold = householdIdsForAuth(auth).length > 0;
+  const enrich = (row: typeof allRows[number]) => {
+    const recipe = deserialize(row);
+    const readModel = deriveRecipeShareReadModel(
+      auth,
+      { id: recipe.id, ownerType: recipe.ownerType, ownerUserId: recipe.ownerUserId, householdId: recipe.householdId },
+      { isFavorite: favoriteIds.has(recipe.id), hasActiveHousehold },
+    );
+    return { ...recipe, ...readModel };
+  };
+  const allRecipes = allRows.map(enrich);
 
   const { ingredients, match = "or", threshold = 0 } = options;
 
@@ -908,7 +942,19 @@ export interface CollectionOwnerRow {
  * outcomes: not found / not visible → 404; favorites kind on rename/delete → 4xx.
  * Use `isCollectionVisibleToAuth` / `canMutateCollectionForAuth` on the result.
  */
+/**
+ * Strict-enough UUID v1–v5 shape check. Guards collection-id route params so a
+ * malformed `:id` returns 404 (no existence leak) instead of reaching Postgres
+ * and throwing "invalid input syntax for type uuid" → 500.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isValidCollectionId(id: string): boolean {
+  return UUID_RE.test(id);
+}
+
 export async function loadCollectionRowById(id: string): Promise<CollectionOwnerRow | null> {
+  // Reject non-uuid ids up front so callers map malformed → 404 (no leak), not 500.
+  if (!isValidCollectionId(id)) return null;
   const db = getDb();
   const [row] = await db
     .select({
@@ -939,6 +985,49 @@ export function isCollectionVisibleToAuth(auth: RecipeAuthContext, collection: C
 /** True if the caller can mutate the given collection (same as visibility in this slice). */
 export function canMutateCollectionForAuth(auth: RecipeAuthContext, collection: CollectionOwnerRow): boolean {
   return canMutateCollection(auth, collection);
+}
+
+/**
+ * Returns the recipes belonging to a collection that are ALSO visible to the
+ * caller, each carrying the SAME read-model the list endpoint derives
+ * (scope / isFavorite / canShareToHousehold / canCopyToPrivate).
+ *
+ * Visibility of the collection itself is the ROUTE's job (loadCollectionRowById +
+ * isCollectionVisibleToAuth → 404). This helper assumes the caller may read the
+ * collection and additionally re-applies recipe-level visibility so a stray item
+ * pointing at a recipe the caller cannot see is never leaked.
+ *
+ * N+1-safe: resolves the caller's favorite id set once (like the list path) and
+ * fetches the items in a single join, then reuses `enrichListRowsWithReadModel`.
+ */
+export async function getCollectionItemsForAuth(auth: RecipeAuthContext, collectionId: string) {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id:          recipes.id,
+      name:        recipes.name,
+      emoji:       recipes.emoji,
+      image_url:   recipes.image_url,
+      tags:        recipes.tags,
+      duration:    recipes.duration,
+      calories:    recipes.calories,
+      rating:      recipes.rating,
+      tried:       recipes.tried,
+      created_at:  recipes.created_at,
+      ownerType:   recipes.ownerType,
+      ownerUserId: recipes.ownerUserId,
+      householdId: recipes.householdId,
+    })
+    .from(recipeCollectionItems)
+    .innerJoin(recipes, eq(recipeCollectionItems.recipeId, recipes.id))
+    .where(and(
+      eq(recipeCollectionItems.collectionId, collectionId),
+      recipeVisibilityForAuth(auth),
+    ))
+    .orderBy(desc(recipeCollectionItems.createdAt));
+
+  const favoriteIds = await getFavoriteRecipeIdsForAuth(auth);
+  return enrichListRowsWithReadModel(auth, rows, favoriteIds);
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   shareRecipe,
   setRecipeFavorite,
   fetchCollections,
+  fetchCollectionItems,
   createCollection,
   renameCollection,
   deleteCollection,
@@ -175,6 +176,34 @@ describe('collections / sharing / favorites API service', () => {
       vi.stubGlobal('fetch', errorResponse(500));
       await expect(fetchCollections()).rejects.toBeInstanceOf(ApiRequestError);
       await expect(fetchCollections()).rejects.toMatchObject({ status: 500 });
+    });
+  });
+
+  // ── fetchCollectionItems ─────────────────────────────────────────────────────
+
+  describe('fetchCollectionItems', () => {
+    it('sends GET to /api/v1/recipe-collections/:id/items and returns recipes array', async () => {
+      const fetchMock = okJson({ recipes: [RECIPE_FIXTURE] });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await fetchCollectionItems('coll-1');
+
+      expect(result).toEqual([RECIPE_FIXTURE]);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/recipe-collections/coll-1/items');
+      expect((init?.method ?? 'GET').toUpperCase()).toBe('GET');
+    });
+
+    it('returns [] when the payload has no recipes field', async () => {
+      const fetchMock = okJson({});
+      vi.stubGlobal('fetch', fetchMock);
+      await expect(fetchCollectionItems('coll-1')).resolves.toEqual([]);
+    });
+
+    it('throws ApiRequestError on 404 (invisible/foreign collection)', async () => {
+      vi.stubGlobal('fetch', errorResponse(404));
+      await expect(fetchCollectionItems('coll-x')).rejects.toBeInstanceOf(ApiRequestError);
+      await expect(fetchCollectionItems('coll-x')).rejects.toMatchObject({ status: 404 });
     });
   });
 

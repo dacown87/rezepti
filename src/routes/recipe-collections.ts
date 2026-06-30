@@ -6,6 +6,7 @@ import {
   deleteCollection,
   addRecipeToCollection,
   removeRecipeFromCollection,
+  getCollectionItemsForAuth,
   shareCopyRecipe,
   setFavorite,
   loadRecipeOwnerRow,
@@ -214,6 +215,27 @@ app.delete("/api/v1/recipe-collections/:id", requireUserAuth(), async (c) => {
   } catch (error) {
     console.error("Error deleting collection:", error);
     return c.json({ error: "Failed to delete collection" }, 500);
+  }
+});
+
+// GET /api/v1/recipe-collections/:id/items — recipes in the collection, each with
+// the same read-model the list endpoint carries. Invisible/foreign/malformed
+// collection → 404 (no existence leak), identical boundary to the other routes.
+app.get("/api/v1/recipe-collections/:id/items", requireUserAuth(), async (c) => {
+  try {
+    const auth = getUserAuth(c);
+    const id = c.req.param("id");
+
+    const collection = await loadCollectionRowById(id);
+    if (!collection || !isCollectionVisibleToAuth(auth, collection)) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    const recipes = await getCollectionItemsForAuth(auth, id);
+    return c.json({ recipes });
+  } catch (error) {
+    console.error("Error fetching collection items:", error);
+    return c.json({ error: "Failed to fetch collection items" }, 500);
   }
 });
 

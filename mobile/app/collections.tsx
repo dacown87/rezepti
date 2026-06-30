@@ -197,18 +197,26 @@ export default function CollectionsScreen() {
       testID={`collection-item-${item.id}`}
       className="flex-row items-center bg-white dark:bg-espresso-800 rounded-2xl mb-3 border border-warm-200 dark:border-warm-700 px-4 py-3"
     >
-      {item.is_system ? (
-        <Star size={20} color="#D4A853" fill="#D4A853" />
-      ) : (
-        <FolderOpen size={20} color="#9E8878" />
-      )}
-      <View className="flex-1 ml-3">
-        <Text className="text-base font-semibold text-warm-900 dark:text-warm-50">{item.name}</Text>
-        <Text className="text-xs text-warm-500 dark:text-warm-400">
-          {item.item_count} {item.item_count === 1 ? 'Rezept' : 'Rezepte'}
-          {item.is_system ? ' · System' : ''}
-        </Text>
-      </View>
+      <Pressable
+        onPress={() => router.push({ pathname: '/collection/[id]', params: { id: item.id, name: item.name } })}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name} öffnen`}
+        testID={`open-collection-${item.id}`}
+        className="flex-1 flex-row items-center"
+      >
+        {item.is_system ? (
+          <Star size={20} color="#D4A853" fill="#D4A853" />
+        ) : (
+          <FolderOpen size={20} color="#9E8878" />
+        )}
+        <View className="flex-1 ml-3">
+          <Text className="text-base font-semibold text-warm-900 dark:text-warm-50">{item.name}</Text>
+          <Text className="text-xs text-warm-500 dark:text-warm-400">
+            {item.item_count} {item.item_count === 1 ? 'Rezept' : 'Rezepte'}
+            {item.is_system ? ' · System' : ''}
+          </Text>
+        </View>
+      </Pressable>
       {/* Favorites (is_system) cannot be renamed or deleted — hide controls. */}
       {!item.is_system && (
         <View className="flex-row items-center gap-1">

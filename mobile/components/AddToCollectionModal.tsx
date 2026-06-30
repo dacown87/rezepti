@@ -42,7 +42,11 @@ export function AddToCollectionModal({
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
 
-  const collections = collectionsQuery.data ?? [];
+  // Exclude the system Favoriten collection: favorites are managed by the
+  // dedicated heart toggle (which invalidates the recipe/list keys so the heart
+  // lights up). Adding here would only invalidate the collections key and leave
+  // the list/detail heart stale, so we hide it from the add-list entirely.
+  const collections = (collectionsQuery.data ?? []).filter((c) => !c.is_system);
 
   const reset = () => {
     setState({ kind: 'idle' });

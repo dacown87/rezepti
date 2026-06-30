@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCollections,
+  fetchCollectionItems,
   createCollection,
   renameCollection,
   deleteCollection,
@@ -15,6 +16,10 @@ import { recipeQueryKey } from './useRecipe';
 
 export const COLLECTIONS_QUERY_KEY = ['recipe-collections'] as const;
 
+/** Query key for a single collection's contents (recipes inside the collection). */
+export const collectionItemsQueryKey = (collectionId: string) =>
+  ['recipe-collections', collectionId, 'items'] as const;
+
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 /**
@@ -24,6 +29,18 @@ export function useCollections() {
   return useQuery({
     queryKey: COLLECTIONS_QUERY_KEY,
     queryFn: fetchCollections,
+  });
+}
+
+/**
+ * Fetch the recipes contained in a single collection. Disabled until an id is
+ * available (router params can be momentarily undefined on first render).
+ */
+export function useCollectionItems(collectionId: string | undefined) {
+  return useQuery({
+    queryKey: collectionItemsQueryKey(collectionId ?? ''),
+    queryFn: () => fetchCollectionItems(collectionId as string),
+    enabled: !!collectionId,
   });
 }
 
@@ -126,9 +143,11 @@ export function useDeleteCollection() {
 /**
  * Add a recipe to a collection.
  *
- * Invalidation: COLLECTIONS_QUERY_KEY
- *   item_count on the collection changes. Recipe keys are NOT invalidated
- *   because adding a recipe to a collection does not change the recipe itself.
+ * Invalidation: COLLECTIONS_QUERY_KEY + collectionItemsQueryKey(collectionId)
+ *   item_count on the collection summary changes, and the target collection's
+ *   contents list must include the newly added recipe. Recipe keys are NOT
+ *   invalidated because adding a recipe to a collection does not change the
+ *   recipe itself.
  */
 export function useAddRecipeToCollection() {
   const qc = useQueryClient();
@@ -140,8 +159,9 @@ export function useAddRecipeToCollection() {
       collectionId: string;
       recipeId: number;
     }) => addRecipeToCollection(collectionId, recipeId),
-    onSuccess: () => {
+    onSuccess: (_data, { collectionId }) => {
       qc.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: collectionItemsQueryKey(collectionId) });
     },
   });
 }
@@ -149,9 +169,12 @@ export function useAddRecipeToCollection() {
 /**
  * Remove a recipe from a collection.
  *
- * Invalidation: COLLECTIONS_QUERY_KEY
- *   item_count on the collection changes. Recipe keys are NOT invalidated
- *   because removing a recipe from a collection does not change the recipe.
+ * Invalidation: COLLECTIONS_QUERY_KEY + collectionItemsQueryKey(collectionId)
+ *   - COLLECTIONS_QUERY_KEY: item_count on the collection summary changes.
+ *   - collectionItemsQueryKey: the contents list of THAT collection must drop
+ *     the removed recipe.
+ *   Recipe keys are NOT invalidated because removing a recipe from a collection
+ *   does not change the recipe itself.
  */
 export function useRemoveRecipeFromCollection() {
   const qc = useQueryClient();
@@ -163,8 +186,9 @@ export function useRemoveRecipeFromCollection() {
       collectionId: string;
       recipeId: number;
     }) => removeRecipeFromCollection(collectionId, recipeId),
-    onSuccess: () => {
+    onSuccess: (_data, { collectionId }) => {
       qc.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: collectionItemsQueryKey(collectionId) });
     },
   });
 }

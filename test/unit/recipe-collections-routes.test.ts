@@ -12,6 +12,7 @@ const dbMocks = vi.hoisted(() => ({
   deleteCollection: vi.fn(),
   addRecipeToCollection: vi.fn(),
   removeRecipeFromCollection: vi.fn(),
+  getCollectionItemsForAuth: vi.fn(),
   shareCopyRecipe: vi.fn(),
   setFavorite: vi.fn(),
   loadRecipeOwnerRow: vi.fn(),
@@ -224,6 +225,52 @@ describe('PATCH/DELETE /api/v1/recipe-collections/:id', () => {
     })
     expect(res.status).toBe(200)
     expect(dbMocks.deleteCollection).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_A }), 'c1')
+  })
+})
+
+// ── GET collection items (read-back loop) ───────────────────────────────────────
+describe('GET /api/v1/recipe-collections/:id/items', () => {
+  it('returns the collection recipes (with read-model) for a visible collection', async () => {
+    dbMocks.loadCollectionRowById.mockResolvedValue({
+      id: 'c1', ownerType: 'user', ownerUserId: USER_A, householdId: null, kind: 'custom',
+    })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(true)
+    dbMocks.getCollectionItemsForAuth.mockResolvedValue([
+      { id: 3, name: 'Pasta', scope: 'private', isFavorite: false, canShareToHousehold: true, canCopyToPrivate: false },
+    ])
+    const res = await router.request('/api/v1/recipe-collections/c1/items', { headers: authHeaders })
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      recipes: [
+        { id: 3, name: 'Pasta', scope: 'private', isFavorite: false, canShareToHousehold: true, canCopyToPrivate: false },
+      ],
+    })
+    expect(dbMocks.getCollectionItemsForAuth).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_A }), 'c1')
+  })
+
+  it('an invisible/foreign collection → 404 (no existence leak), never reads items', async () => {
+    dbMocks.loadCollectionRowById.mockResolvedValue({
+      id: 'cB', ownerType: 'user', ownerUserId: USER_B, householdId: null, kind: 'custom',
+    })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(false)
+    const res = await router.request('/api/v1/recipe-collections/cB/items', { headers: authHeaders })
+    expect(res.status).toBe(404)
+    expect(dbMocks.getCollectionItemsForAuth).not.toHaveBeenCalled()
+  })
+
+  it('a malformed collection id (loadCollectionRowById → null) → 404, never reads items', async () => {
+    // loadCollectionRowById returns null for a non-uuid id (uuid-shape guard).
+    dbMocks.loadCollectionRowById.mockResolvedValue(null)
+    const res = await router.request('/api/v1/recipe-collections/not-a-uuid/items', { headers: authHeaders })
+    expect(res.status).toBe(404)
+    expect(dbMocks.getCollectionItemsForAuth).not.toHaveBeenCalled()
+  })
+
+  it('requires auth', async () => {
+    resetAuthAdaptersForTests()
+    const res = await router.request('/api/v1/recipe-collections/c1/items')
+    expect(res.status).toBe(401)
+    expect(dbMocks.getCollectionItemsForAuth).not.toHaveBeenCalled()
   })
 })
 

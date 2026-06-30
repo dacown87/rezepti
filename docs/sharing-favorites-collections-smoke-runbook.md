@@ -66,6 +66,15 @@ Collections-Check:
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"Testsammlung","scope":"private"}'
+
+# Rezepte einer Collection abrufen (Read-back-Loop)
+/usr/bin/curl -sS "$BASE_URL/api/v1/recipe-collections/$COLLECTION_ID/items" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Rezept aus einer Collection entfernen
+/usr/bin/curl -sS -X DELETE \
+  "$BASE_URL/api/v1/recipe-collections/$COLLECTION_ID/items/$RECIPE_ID" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Share-Check (privates Rezept in Haushalt kopieren):
@@ -95,15 +104,23 @@ Die folgenden sechs Pfade muessen manuell in der Web-App oder PWA abgenommen wer
 Erwartetes Ergebnis: Toggle reagiert sofort; Liste und Detail sind konsistent ohne
 expliziten Reload.
 
-### Pfad 2 — Neues privates Collection anlegen und Rezept hinzufuegen
+### Pfad 2 — Collection anlegen, Rezept hinzufuegen, oeffnen und entfernen
 
 1. Zum Collections-Screen navigieren (Tab oder Navigation).
 2. Neue private Collection mit einem Testnamen anlegen.
 3. Ein privates Rezept aufrufen und ueber den `Zur Collection hinzufuegen`-CTA
-   in die neue Collection eintragen.
-4. Im Collections-Screen die Collection oeffnen → das Rezept ist aufgelistet.
+   in die neue Collection eintragen. (Hinweis: die System-Collection `Favoriten`
+   erscheint NICHT in der Auswahl — Favoriten werden ueber das Herz verwaltet.)
+4. Im Collections-Screen die Collection-Zeile **antippen** → die
+   Collection-Inhaltsansicht oeffnet sich und das Rezept ist aufgelistet.
+5. Im aufgelisteten Rezept auf die Zeile tippen → das Rezept-Detail oeffnet sich.
+6. Zurueck zur Collection-Inhaltsansicht, beim Rezept auf `Entfernen` tippen und
+   im Bestaetigungsdialog bestaetigen → das Rezept verschwindet sofort aus der
+   Liste (ohne Reload), und der `item_count` im Collections-Screen sinkt.
 
-Erwartetes Ergebnis: Collection wird angelegt und das Rezept erscheint darin.
+Erwartetes Ergebnis: Collection wird angelegt, das Rezept erscheint nach dem
+Hinzufuegen in der Inhaltsansicht, ist von dort aus aufrufbar und kann direkt aus
+der App wieder entfernt werden.
 
 ### Pfad 3 — Privates Rezept in Haushalt kopieren
 

@@ -256,9 +256,9 @@ describe('useCollections hooks — query keys and invalidation', () => {
 
   // ── useAddRecipeToCollection mutation ────────────────────────────────────────
 
-  it('useAddRecipeToCollection invalidates COLLECTIONS_QUERY_KEY but NOT recipe keys', async () => {
+  it('useAddRecipeToCollection invalidates COLLECTIONS_QUERY_KEY + collection-items but NOT recipe keys', async () => {
     let mutationFn: ((vars: { collectionId: string; recipeId: number }) => Promise<unknown>) | undefined;
-    let onSuccess: (() => void) | undefined;
+    let onSuccess: ((data: unknown, vars: { collectionId: string; recipeId: number }) => void) | undefined;
     rqMocks.useMutationMock.mockImplementation((config: {
       mutationFn: typeof mutationFn;
       onSuccess?: typeof onSuccess;
@@ -271,21 +271,23 @@ describe('useCollections hooks — query keys and invalidation', () => {
 
     useAddRecipeToCollection();
     await mutationFn?.({ collectionId: 'c1', recipeId: 7 });
-    onSuccess?.();
+    onSuccess?.({ added: true }, { collectionId: 'c1', recipeId: 7 });
 
     expect(addRecipeToCollectionMock).toHaveBeenCalledWith('c1', 7);
     expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: COLLECTIONS_QUERY_KEY });
+    // The target collection's contents list must refresh to include the added recipe.
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['recipe-collections', 'c1', 'items'] });
     // Recipe keys must NOT be invalidated — adding to a collection does not change the recipe
     expect(rqMocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: RECIPES_QUERY_KEY });
     expect(rqMocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: recipeQueryKey(7) });
-    expect(rqMocks.invalidateQueries).toHaveBeenCalledTimes(1);
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledTimes(2);
   });
 
   // ── useRemoveRecipeFromCollection mutation ────────────────────────────────────
 
-  it('useRemoveRecipeFromCollection invalidates COLLECTIONS_QUERY_KEY but NOT recipe keys', async () => {
+  it('useRemoveRecipeFromCollection invalidates COLLECTIONS_QUERY_KEY + collection-items but NOT recipe keys', async () => {
     let mutationFn: ((vars: { collectionId: string; recipeId: number }) => Promise<unknown>) | undefined;
-    let onSuccess: (() => void) | undefined;
+    let onSuccess: ((data: unknown, vars: { collectionId: string; recipeId: number }) => void) | undefined;
     rqMocks.useMutationMock.mockImplementation((config: {
       mutationFn: typeof mutationFn;
       onSuccess?: typeof onSuccess;
@@ -298,12 +300,35 @@ describe('useCollections hooks — query keys and invalidation', () => {
 
     useRemoveRecipeFromCollection();
     await mutationFn?.({ collectionId: 'c1', recipeId: 7 });
-    onSuccess?.();
+    onSuccess?.(undefined, { collectionId: 'c1', recipeId: 7 });
 
     expect(removeRecipeFromCollectionMock).toHaveBeenCalledWith('c1', 7);
     expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: COLLECTIONS_QUERY_KEY });
+    // The collection's contents list must drop the removed recipe.
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['recipe-collections', 'c1', 'items'] });
     expect(rqMocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: RECIPES_QUERY_KEY });
-    expect(rqMocks.invalidateQueries).toHaveBeenCalledTimes(1);
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledTimes(2);
+  });
+
+  // ── useCollectionItems query ─────────────────────────────────────────────────
+
+  it('useCollectionItems uses the per-collection items key and is enabled only with an id', async () => {
+    const { useCollectionItems, collectionItemsQueryKey } = await import('@/hooks/useCollections');
+    let capturedKey: unknown;
+    let capturedEnabled: unknown;
+    rqMocks.useQueryMock.mockImplementation((config: { queryKey: unknown; enabled?: unknown }) => {
+      capturedKey = config.queryKey;
+      capturedEnabled = config.enabled;
+      return { data: [] };
+    });
+
+    useCollectionItems('c1');
+    expect(capturedKey).toEqual(collectionItemsQueryKey('c1'));
+    expect(capturedKey).toEqual(['recipe-collections', 'c1', 'items']);
+    expect(capturedEnabled).toBe(true);
+
+    useCollectionItems(undefined);
+    expect(capturedEnabled).toBe(false);
   });
 
   // ── No-invalidation on error paths ───────────────────────────────────────────

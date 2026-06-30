@@ -59,9 +59,11 @@ describe('AddToCollectionModal', () => {
     hookState.collectionsResult = { data: [FAVORITES, CUSTOM], isLoading: false, isError: false, refetch: vi.fn() };
   });
 
-  it('renders the picker with the user collections', async () => {
+  it('renders the picker with the custom collections only (excludes system favorites)', async () => {
     await renderModal();
-    expect(screen.getByText('Favoriten')).toBeTruthy();
+    // Favorites are managed by the dedicated heart toggle — excluded from the add-list.
+    expect(screen.queryByText('Favoriten')).toBeNull();
+    expect(screen.queryByTestId('collection-row-fav')).toBeNull();
     expect(screen.getByText('Wochenende')).toBeTruthy();
   });
 
