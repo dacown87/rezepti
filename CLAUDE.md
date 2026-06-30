@@ -99,7 +99,7 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/recipes/:id/favorite` | POST/DELETE | Add/remove recipe from the caller's favorites collection, `requireUserAuth` |
 | `/api/v1/recipe-collections` | GET/POST | List / create recipe collections (private or household-scoped), `requireUserAuth` |
 | `/api/v1/recipe-collections/:id` | PATCH/DELETE | Rename / delete a collection (owner only), `requireUserAuth` |
-| `/api/v1/recipe-collections/:id/items` | POST | Add a recipe to a collection, `requireUserAuth` |
+| `/api/v1/recipe-collections/:id/items` | GET/POST | List recipes in a collection / add a recipe (recipe-level visibility re-applied), `requireUserAuth` |
 | `/api/v1/recipe-collections/:id/items/:recipeId` | DELETE | Remove a recipe from a collection, `requireUserAuth` |
 | `/api/v1/extract/react` | POST | Start URL extraction job (polling), `requireUserAuth` |
 | `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel a job, only visible to the owning user (inline user check, no middleware) |
@@ -321,9 +321,9 @@ Planned features and current implementation status (as of March 2026):
 - Personal notes: 100% ✅ — Phase 3a delivered
 - Comment function: 0%
 - Share recipe via QR code: 100% ✅ — Phase 4/5 delivered (offline JSON in QR)
-- Favorites (toggle, filter in list): ~80% — first slice implemented on branch `feature/recipes-sharing-favorites-collections`, pending review/CI/merge + manual smoke
-- Recipe sharing (copy private→household, copy household→private): ~80% — first slice implemented on branch `feature/recipes-sharing-favorites-collections`, pending review/CI/merge + manual smoke
-- Private and household-scoped collections: ~80% — first slice implemented on branch `feature/recipes-sharing-favorites-collections`, pending review/CI/merge + manual smoke; deferred: bulk ops, Collection-Sortierung, Rollenfeinheit
+- Favorites (toggle, filter in list): ~90% — first slice in PR #28 (branch `feature/recipes-sharing-favorites-collections`), CI green; pending merge + manual Web/PWA smoke
+- Recipe sharing (copy private→household, copy household→private): ~90% — first slice in PR #28, CI green; pending merge + manual Web/PWA smoke
+- Private and household-scoped collections (incl. collection-contents view + add/remove): ~90% — first slice in PR #28, CI green; pending merge + manual Web/PWA smoke; deferred: bulk ops, Collection-Sortierung, Rollenfeinheit, Offline-Schreibpfad
 
 ### Export & Print
 - Recipe card as PDF: 100% ✅ — Phase 4 delivered with QR code
