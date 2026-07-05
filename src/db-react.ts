@@ -485,6 +485,8 @@ export interface RecipeShareReadModel {
   canCopyToPrivate: boolean;
 }
 
+export type ShareTargetType = "household" | "user";
+
 const FAVORITES_COLLECTION_NAME = "Favoriten";
 
 /**
@@ -511,6 +513,14 @@ export function isRecipeVisibleToAuth(auth: RecipeAuthContext, owner: RecipeOwne
     return householdIdsForAuth(auth).includes(owner.householdId ?? "");
   }
   return false;
+}
+
+/** The first sharing slice only permits private -> household and household -> user. */
+export function isShareCopyAllowed(owner: RecipeOwnerRow, targetType: ShareTargetType): boolean {
+  return (
+    (owner.ownerType === "user" && targetType === "household")
+    || (owner.ownerType === "household" && targetType === "user")
+  );
 }
 
 /**
@@ -582,10 +592,17 @@ export async function getCollectionsForAuth(auth: RecipeAuthContext): Promise<Co
       kind: recipeCollections.kind,
       name: recipeCollections.name,
       ownerType: recipeCollections.ownerType,
-      itemCount: count(recipeCollectionItems.id),
+      itemCount: count(recipes.id),
     })
     .from(recipeCollections)
     .leftJoin(recipeCollectionItems, eq(recipeCollectionItems.collectionId, recipeCollections.id))
+    .leftJoin(
+      recipes,
+      and(
+        eq(recipes.id, recipeCollectionItems.recipeId),
+        recipeVisibilityForAuth(auth),
+      ),
+    )
     .where(collectionVisibilityForAuth(auth))
     .groupBy(
       recipeCollections.id,
@@ -1056,6 +1073,9 @@ export async function shareCopyRecipe(
   })) {
     throw new Error("Recipe is not visible to the caller");
   }
+  if (!isShareCopyAllowed(original, target.type)) {
+    throw new Error("Recipe cannot be copied to the same scope");
+  }
 
   let ownerValues: ReturnType<typeof recipeOwnerValues>;
   if (target.type === "household") {
@@ -1092,7 +1112,22 @@ export async function shareCopyRecipe(
     })
     .returning();
 
-  return deserialize(copy);
+  return {
+    ...deserialize(copy),
+    ...deriveRecipeShareReadModel(
+      auth,
+      {
+        id: copy.id,
+        ownerType: copy.ownerType,
+        ownerUserId: copy.ownerUserId,
+        householdId: copy.householdId,
+      },
+      {
+        isFavorite: false,
+        hasActiveHousehold: householdIdsForAuth(auth).length > 0,
+      },
+    ),
+  };
 }
 
 /**

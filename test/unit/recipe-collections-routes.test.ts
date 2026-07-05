@@ -22,6 +22,7 @@ const dbMocks = vi.hoisted(() => ({
   isCollectionVisibleToAuth: vi.fn(),
   canMutateCollectionForAuth: vi.fn(),
   isRecipeVisibleToAuth: vi.fn(),
+  isShareCopyAllowed: vi.fn(),
   isRecipeLegalForCollection: vi.fn(),
   // mocked because db-react re-exports them but the router imports only the above
   loadUserAuthorization: vi.fn(),
@@ -53,6 +54,11 @@ function authAsUserA(opts: { activeHousehold?: string | null; memberships?: stri
 
 beforeEach(() => {
   vi.clearAllMocks()
+  dbMocks.isShareCopyAllowed.mockImplementation(
+    (owner: { ownerType: string }, target: string) =>
+      (owner.ownerType === 'user' && target === 'household')
+      || (owner.ownerType === 'household' && target === 'user'),
+  )
   authAsUserA()
 })
 
@@ -391,7 +397,15 @@ describe('POST /api/v1/recipes/:id/share', () => {
     dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 1, ownerType: 'user', ownerUserId: USER_A, householdId: null })
     dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
     dbMocks.shareCopyRecipe.mockResolvedValue({
-      id: 999, ownerType: 'household', householdId: HOUSEHOLD_1, source_recipe_id: 1, name: 'Copy',
+      id: 999,
+      ownerType: 'household',
+      householdId: HOUSEHOLD_1,
+      source_recipe_id: 1,
+      name: 'Copy',
+      scope: 'household',
+      isFavorite: false,
+      canShareToHousehold: false,
+      canCopyToPrivate: true,
     })
     const res = await router.request('/api/v1/recipes/1/share', {
       method: 'POST', headers: authHeaders, body: JSON.stringify({ target: { type: 'household' } }),
@@ -401,6 +415,12 @@ describe('POST /api/v1/recipes/:id/share', () => {
     expect(body.recipe.id).toBe(999)
     expect(body.recipe.id).not.toBe(1)
     expect(body.recipe.source_recipe_id).toBe(1)
+    expect(body.recipe).toMatchObject({
+      scope: 'household',
+      isFavorite: false,
+      canShareToHousehold: false,
+      canCopyToPrivate: true,
+    })
     expect(dbMocks.shareCopyRecipe).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_A }), 1, { type: 'household', householdId: HOUSEHOLD_1 },
     )
@@ -410,7 +430,15 @@ describe('POST /api/v1/recipes/:id/share', () => {
     dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 7, ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_1 })
     dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
     dbMocks.shareCopyRecipe.mockResolvedValue({
-      id: 888, ownerType: 'user', ownerUserId: USER_A, source_recipe_id: 7, name: 'Copy',
+      id: 888,
+      ownerType: 'user',
+      ownerUserId: USER_A,
+      source_recipe_id: 7,
+      name: 'Copy',
+      scope: 'private',
+      isFavorite: false,
+      canShareToHousehold: true,
+      canCopyToPrivate: false,
     })
     const res = await router.request('/api/v1/recipes/7/share', {
       method: 'POST', headers: authHeaders, body: JSON.stringify({ target: { type: 'user' } }),
@@ -419,6 +447,12 @@ describe('POST /api/v1/recipes/:id/share', () => {
     const body = await res.json()
     expect(body.recipe.id).toBe(888)
     expect(body.recipe.id).not.toBe(7)
+    expect(body.recipe).toMatchObject({
+      scope: 'private',
+      isFavorite: false,
+      canShareToHousehold: true,
+      canCopyToPrivate: false,
+    })
     expect(dbMocks.shareCopyRecipe).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_A }), 7, { type: 'user' },
     )
@@ -431,6 +465,34 @@ describe('POST /api/v1/recipes/:id/share', () => {
       method: 'POST', headers: authHeaders, body: JSON.stringify({ target: { type: 'user' } }),
     })
     expect(res.status).toBe(404)
+    expect(dbMocks.shareCopyRecipe).not.toHaveBeenCalled()
+  })
+
+  it('rejects a private-to-private copy as a same-scope request', async () => {
+    dbMocks.loadRecipeOwnerRow.mockResolvedValue({
+      id: 7, ownerType: 'user', ownerUserId: USER_A, householdId: null,
+    })
+    dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
+
+    const res = await router.request('/api/v1/recipes/7/share', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ target: { type: 'user' } }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(dbMocks.shareCopyRecipe).not.toHaveBeenCalled()
+  })
+
+  it('rejects a household-to-household copy as a same-scope request', async () => {
+    dbMocks.loadRecipeOwnerRow.mockResolvedValue({
+      id: 7, ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_1,
+    })
+    dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
+
+    const res = await router.request('/api/v1/recipes/7/share', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ target: { type: 'household' } }),
+    })
+
+    expect(res.status).toBe(400)
     expect(dbMocks.shareCopyRecipe).not.toHaveBeenCalled()
   })
 

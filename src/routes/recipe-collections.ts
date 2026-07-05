@@ -14,6 +14,7 @@ import {
   isCollectionVisibleToAuth,
   canMutateCollectionForAuth,
   isRecipeVisibleToAuth,
+  isShareCopyAllowed,
   isRecipeLegalForCollection,
   type CollectionOwnerType,
 } from "../db-react.js";
@@ -47,6 +48,9 @@ app.post("/api/v1/recipes/:id/share", requireUserAuth(), async (c) => {
     const owner = await loadRecipeOwnerRow(id);
     if (!owner || !isRecipeVisibleToAuth(auth, owner)) {
       return c.json({ error: "Not found" }, 404);
+    }
+    if (!isShareCopyAllowed(owner, type)) {
+      return c.json({ error: "Recipe cannot be copied to the same scope" }, 400);
     }
 
     if (type === "household") {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import {
   isRecipeVisibleToAuth,
+  isShareCopyAllowed,
   isRecipeLegalForCollection,
   deriveRecipeShareReadModel,
   isValidCollectionId,
@@ -81,6 +82,15 @@ describe('deriveRecipeShareReadModel', () => {
       canShareToHousehold: false,
       canCopyToPrivate: true,
     })
+  })
+})
+
+describe('isShareCopyAllowed', () => {
+  it('allows only private-to-household and household-to-user copies', () => {
+    expect(isShareCopyAllowed(privateRecipeA, 'household')).toBe(true)
+    expect(isShareCopyAllowed(householdRecipe1, 'user')).toBe(true)
+    expect(isShareCopyAllowed(privateRecipeA, 'user')).toBe(false)
+    expect(isShareCopyAllowed(householdRecipe1, 'household')).toBe(false)
   })
 })
 
@@ -230,6 +240,12 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     expect(copy.ownerType).toBe('household')
     expect(copy.householdId).toBe(TEST_HOUSEHOLD_ID)
     expect(copy.source_recipe_id).toBe(originalId)
+    expect(copy).toMatchObject({
+      scope: 'household',
+      isFavorite: false,
+      canShareToHousehold: false,
+      canCopyToPrivate: true,
+    })
 
     // original untouched
     const original = await db.getRecipeByIdFromReactDb(originalId, AUTH)
@@ -250,6 +266,12 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     expect(copy.ownerType).toBe('user')
     expect(copy.ownerUserId).toBe(TEST_USER_ID)
     expect(copy.source_recipe_id).toBe(originalId)
+    expect(copy).toMatchObject({
+      scope: 'private',
+      isFavorite: false,
+      canShareToHousehold: true,
+      canCopyToPrivate: false,
+    })
   })
 
   it('shareCopyRecipe rejects a recipe not visible to the caller', async () => {
@@ -261,6 +283,23 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     await expect(db.shareCopyRecipe(FOREIGN_AUTH, foreignId, { type: 'household', householdId: TEST_HOUSEHOLD_ID }))
       .rejects.toThrow()
     await expect(db.shareCopyRecipe(AUTH, foreignId, { type: 'user' })).rejects.toThrow()
+  })
+
+  it('shareCopyRecipe rejects same-scope copies', async () => {
+    const privateId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ same private'), 'https://example.com/same-private', undefined, PRIVATE_OWNER,
+    )
+    const householdId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ same household'), 'https://example.com/same-household', undefined, HOUSEHOLD_OWNER,
+    )
+    createdRecipeIds.push(privateId, householdId)
+
+    await expect(db.shareCopyRecipe(AUTH, privateId, { type: 'user' })).rejects.toThrow(/same scope/)
+    await expect(db.shareCopyRecipe(
+      AUTH,
+      householdId,
+      { type: 'household', householdId: TEST_HOUSEHOLD_ID },
+    )).rejects.toThrow(/same scope/)
   })
 
   it('setFavorite + toggleFavorite round-trip via the favorites collection', async () => {
@@ -361,6 +400,26 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     expect(item).toHaveProperty('isFavorite')
     expect(item).toHaveProperty('canShareToHousehold')
     expect(item).toHaveProperty('canCopyToPrivate')
+  })
+
+  it('collection item_count excludes recipes that are no longer visible', async () => {
+    const householdRecipeId = await db.saveRecipeToReactDb(
+      sampleRecipe('__test__ hidden count'), 'https://example.com/hidden-count', undefined, HOUSEHOLD_OWNER,
+    )
+    createdRecipeIds.push(householdRecipeId)
+    const collection = await db.createCollection(AUTH, { name: '__test__ hidden count coll', ownerType: 'user' })
+    createdCollectionIds.push(collection.id)
+    await db.addRecipeToCollection(AUTH, collection.id, householdRecipeId)
+
+    const authAfterLeavingHousehold: RecipeAuthContext = {
+      userId: TEST_USER_ID,
+      memberships: [],
+    }
+    const collections = await db.getCollectionsForAuth(authAfterLeavingHousehold)
+    const summary = collections.find((c: { id: string }) => c.id === collection.id)
+
+    expect(summary?.item_count).toBe(0)
+    await expect(db.getCollectionItemsForAuth(authAfterLeavingHousehold, collection.id)).resolves.toEqual([])
   })
 
   it('getCollectionItemsForAuth never leaks a recipe the caller cannot see', async () => {
