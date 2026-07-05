@@ -2,7 +2,9 @@
 
 ## [1.0.189] – 2026-07-05
 
-
+- Recipes Sharing/Favorites/Collections erster Slice: Share-als-Kopie zwischen privatem und aktivem Household-Scope, systemdefinierte Favorites, private und haushaltsbezogene Collections sowie Mobile-/Web-/PWA-Oberflaechen fuer Favoritenfilter, Scope-Aktionen und Collection-Inhalte.
+- Whole-Branch-Review und QA abgeschlossen: PWA-Cache-Invalidierung, Scope-Kopierregeln, Share-Read-Model und sichtbarkeitskorrekte Collection-Zaehler gehaertet; finaler PR-CI-Lauf und lokaler 6/6-Web-/PWA-Smoke gruen.
+- Expo-SDK-56-Patchstaende an die aktuelle `expo-doctor`-Kompatibilitaetsmatrix angepasst.
 
 ## [1.0.188] – 2026-06-24
 

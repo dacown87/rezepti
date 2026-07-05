@@ -5,15 +5,16 @@ Stand: 2026-07-05
 ## Ziel
 
 Dieses Runbook beschreibt die minimalen manuellen Web-/PWA-Smoke-Pfade fuer den
-Sharing/Favorites/Collections-Slice, die ein Mensch mit laufendem Server und DB
-ausfuehren muss, bevor der Branch als vollstaendig QA-abgenommen gilt.
+Sharing/Favorites/Collections-Slice. Die dokumentierte Abnahme wurde vor dem
+Merge von PR #28 mit laufendem Server und lokaler DB ausgefuehrt.
 
 Die automatisierten Unit-/Typecheck-Gates (tsc, Vitest root, mobile:typecheck,
 test:mobile, rntl-guard) sind auf dem Branch gruen. Die DB-gestuetzten
 Integrationstests (`Collections / Favorites / Sharing (DB)` in
 `test/unit/collections-sharing.test.ts`) liefen am 2026-07-05 gegen den lokalen
-Supabase-Stack vollstaendig gruen (`31/31`). Der CI-Lauf fuer den finalen
-gepushten Head muss ebenfalls gruen sein, bevor der Branch gemergt wird.
+Supabase-Stack vollstaendig gruen (`31/31`). Der finale PR-CI-Lauf
+`28754213487` auf Head `09fddb2` war ebenfalls mit allen verpflichtenden Jobs
+gruen; PR #28 wurde danach als Merge-Commit `3287de3` nach `main` gemergt.
 
 Die Repo-Doku speichert keine Zugangsdaten. Wiederverwendbare QA-Accounts duerfen
 in Supabase bestehen bleiben; Passwort/Secrets gehoeren nicht in Git.
@@ -170,14 +171,15 @@ App-Neustart.
 5. In der Rezeptliste den Favoritenfilter aktivieren → korrekte Resultate.
 
 Erwartetes Ergebnis: Nach Share/Favorite-Operationen zeigt auch der naechste
-PWA-Start die aktuellen Daten; kein staler Cache der alten Zustands.
+PWA-Start die aktuellen Daten; kein veralteter Cache-Zustand bleibt sichtbar.
 
-## CI-Gate vor Merge
+## CI-/Merge-Nachweis
 
-- Der CI-Lauf auf dem Branch muss den `supabase-rls-smoke`-Job und alle
-  `Collections / Favorites / Sharing (DB)`-Tests in `test:unit` gruen
-  abgeschlossen haben.
-- Erst danach gilt der Branch als merge-bereit.
+- Der finale Branch-Lauf `28754213487` schloss `test`, `e2e`,
+  `supabase-rls-smoke`, `mobile-release-gate` und `performance-audit` gruen ab.
+- PR #28 wurde am 2026-07-05 nach `main` gemergt (`3287de3`).
+- Der nachgelagerte Production-Migrationsworkflow bleibt separat zu wiederholen,
+  weil das Supabase-Projekt beim ersten Post-Merge-Lauf pausiert war.
 
 ## Befunde und Nachweise
 

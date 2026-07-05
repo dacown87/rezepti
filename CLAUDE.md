@@ -321,9 +321,9 @@ Planned features and current implementation status (as of March 2026):
 - Personal notes: 100% ✅ — Phase 3a delivered
 - Comment function: 0%
 - Share recipe via QR code: 100% ✅ — Phase 4/5 delivered (offline JSON in QR)
-- Favorites (toggle, filter in list): ~95% — first slice in PR #28; Whole-Branch-Review fixes + local Web/PWA smoke complete, pending final remote CI + merge
-- Recipe sharing (copy private→household, copy household→private): ~95% — first slice in PR #28; local DB/browser smoke complete, pending final remote CI + merge
-- Private and household-scoped collections (incl. collection-contents view + add/remove): ~95% — first slice in PR #28; local DB/browser smoke complete, pending final remote CI + merge; deferred: bulk ops, Collection-Sortierung, Rollenfeinheit, Offline-Schreibpfad
+- Favorites (toggle, filter in list): 100% ✅ — first slice merged via PR #28; Whole-Branch-Review, DB/browser smoke and final remote CI complete
+- Recipe sharing (copy private→household, copy household→private): 100% ✅ — first slice merged via PR #28; user-to-user invites and multi-household target selection remain separate follow-ups
+- Private and household-scoped collections (incl. collection-contents view + add/remove): 100% ✅ — first slice merged via PR #28; deferred enhancements: bulk ops, Collection-Sortierung, Rollenfeinheit, Offline-Schreibpfad
 
 ### Export & Print
 - Recipe card as PDF: 100% ✅ — Phase 4 delivered with QR code
