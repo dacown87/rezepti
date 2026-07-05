@@ -1,6 +1,6 @@
 # Sharing / Favorites / Collections — Smoke Runbook
 
-Stand: 2026-06-30
+Stand: 2026-07-05
 
 ## Ziel
 
@@ -9,11 +9,11 @@ Sharing/Favorites/Collections-Slice, die ein Mensch mit laufendem Server und DB
 ausfuehren muss, bevor der Branch als vollstaendig QA-abgenommen gilt.
 
 Die automatisierten Unit-/Typecheck-Gates (tsc, Vitest root, mobile:typecheck,
-test:mobile, rntl-guard) sind bereits auf dem Branch gruen. Die DB-gestuetzten
+test:mobile, rntl-guard) sind auf dem Branch gruen. Die DB-gestuetzten
 Integrationstests (`Collections / Favorites / Sharing (DB)` in
-`test/unit/collections-sharing.test.ts`) sind lokal ohne `TEST_DATABASE_URL`
-geskipped — sie laufen in CI. Der CI-Lauf muss gruen sein, bevor der Branch
-gemergt wird.
+`test/unit/collections-sharing.test.ts`) liefen am 2026-07-05 gegen den lokalen
+Supabase-Stack vollstaendig gruen (`31/31`). Der CI-Lauf fuer den finalen
+gepushten Head muss ebenfalls gruen sein, bevor der Branch gemergt wird.
 
 Die Repo-Doku speichert keine Zugangsdaten. Wiederverwendbare QA-Accounts duerfen
 in Supabase bestehen bleiben; Passwort/Secrets gehoeren nicht in Git.
@@ -186,4 +186,12 @@ Abweichungen):
 
 | Datum | Pfad | Umgebung | Ergebnis | Anmerkungen |
 |-------|------|----------|----------|-------------|
-| TBD | 1–6 | Production nach Merge | Offen | Manuell abzunehmen |
+| 2026-07-05 | 1 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Toggle im Detail, Liste und erneuter Detailaufruf konsistent; Entfernen ohne Reload verifiziert. |
+| 2026-07-05 | 2 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Private Collection erstellt, Rezept hinzugefuegt, Inhalt geoeffnet und nach Bestaetigung entfernt; DB-Read-back `0` Items. |
+| 2026-07-05 | 3 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Private Quelle `37` als Haushaltskopie `39` angelegt; Original blieb privat. |
+| 2026-07-05 | 4 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Haushaltskopie `39` als neue private Kopie angelegt; Liste stieg auf vier sichtbare Rezepte. |
+| 2026-07-05 | 5 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Filter zeigte nur den Favoriten; nach Entfernen blieb der aktive Filter bedienbar und zeigte keinen stale Eintrag. |
+| 2026-07-05 | 6 | Lokal, kontrollierter Service Worker, lokaler Supabase-Stack | Bestanden | `sw.js` kontrollierte den Client, `rd-user-<sha256>` wurde genutzt; Status blieb nach Mutation, Cache-Aktualisierung und Reload korrekt. |
+
+Hinweis: Der Pre-Merge-Smoke war bewusst vollstaendig lokal isoliert. Der
+dokumentierte Production-QA-Account und Production-Daten wurden nicht veraendert.
