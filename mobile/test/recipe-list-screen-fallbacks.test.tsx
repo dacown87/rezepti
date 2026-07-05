@@ -170,4 +170,44 @@ describe('RecipeListScreen UI fallbacks', () => {
     expect(screen.queryByText('Erneut versuchen')).toBeNull();
     expect(screen.getByTestId('offline-banner')).toBeTruthy();
   });
+
+  it('keeps an active favorites filter visible after the final favorite is removed', async () => {
+    state.useRecipesMock.mockReturnValue({
+      data: [{
+        id: 7,
+        name: 'Pasta',
+        ingredients: '["Nudeln"]',
+        steps: '["Kochen"]',
+        isFavorite: true,
+      }],
+      isLoading: false,
+      isError: false,
+      refetch: state.refetchMock,
+    });
+
+    const { default: RecipeListScreen } = await import('@/app/(tabs)/index');
+    const view = render(React.createElement(RecipeListScreen));
+    await press(screen.getByTestId('favorites-filter'));
+
+    state.useRecipesMock.mockReturnValue({
+      data: [{
+        id: 7,
+        name: 'Pasta',
+        ingredients: '["Nudeln"]',
+        steps: '["Kochen"]',
+        isFavorite: false,
+      }],
+      isLoading: false,
+      isError: false,
+      refetch: state.refetchMock,
+    });
+    await act(async () => {
+      view.rerender(React.createElement(RecipeListScreen));
+    });
+
+    expect(screen.getByTestId('favorites-filter')).toBeTruthy();
+    expect(screen.queryByTestId('recipe-card-7')).toBeNull();
+    await press(screen.getByTestId('favorites-filter'));
+    expect(screen.getByTestId('recipe-card-7')).toBeTruthy();
+  });
 });

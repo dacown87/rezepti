@@ -9,6 +9,7 @@ import {
   RECIPE_USER_HASH_HEADER,
   isCacheableRecipeRequest,
   strongHash,
+  userCacheName,
 } from '../sw/cache-names';
 
 export interface ApiRecipe {
@@ -94,6 +95,32 @@ async function getCachedRecipeRequestUserHash(session: Session | null): Promise<
   const hash = await strongHash(userId);
   cachedRecipeRequestUserHash = { userId, hash };
   return hash;
+}
+
+/**
+ * Removes stale PWA recipe reads before React Query refetches after a mutation.
+ * Workbox uses stale-while-revalidate, so query invalidation alone can otherwise
+ * consume the old cached response and remain stale until another refetch.
+ */
+export async function invalidateCachedRecipeReads(recipeId?: number): Promise<void> {
+  if (typeof caches === 'undefined') return;
+
+  try {
+    const userHash = await getCachedRecipeRequestUserHash(await getAuthSession());
+    if (!userHash) return;
+
+    const cache = await caches.open(userCacheName(userHash));
+    const requests = await cache.keys();
+    const detailPath = recipeId === undefined ? null : `/api/v1/recipes/${recipeId}`;
+    const staleRequests = requests.filter((request) => {
+      const pathname = new URL(request.url).pathname;
+      return pathname === '/api/v1/recipes' || pathname === detailPath;
+    });
+
+    await Promise.all(staleRequests.map((request) => cache.delete(request)));
+  } catch {
+    // Cache cleanup is best-effort; the network mutation already succeeded.
+  }
 }
 
 async function buildRequestInit(path: string, init?: RequestInit): Promise<RequestInit | undefined> {
@@ -206,6 +233,7 @@ export async function shareRecipe(
   });
   await assertApiOk(res, `Teilen fehlgeschlagen (${res.status})`);
   const data = await res.json() as { recipe: ApiRecipe };
+  await invalidateCachedRecipeReads();
   return data.recipe;
 }
 
@@ -221,6 +249,7 @@ export async function setRecipeFavorite(id: number, on: boolean): Promise<boolea
   });
   await assertApiOk(res, `Favorit ${on ? 'setzen' : 'entfernen'} fehlgeschlagen (${res.status})`);
   const data = await res.json() as { success: boolean; isFavorite: boolean };
+  await invalidateCachedRecipeReads(id);
   return data.isFavorite;
 }
 

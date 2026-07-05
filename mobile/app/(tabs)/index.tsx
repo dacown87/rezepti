@@ -467,7 +467,7 @@ export default function RecipeListScreen() {
         </View>
 
         {/* Favoriten-Filter */}
-        {hasAnyFavorite ? (
+        {hasAnyFavorite || favoritesOnly ? (
           <View className="flex-row mt-2">
             <Pressable
               onPress={() => {

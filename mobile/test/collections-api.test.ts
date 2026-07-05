@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ApiRequestError,
+  invalidateCachedRecipeReads,
   shareRecipe,
   setRecipeFavorite,
   fetchCollections,
@@ -120,6 +121,53 @@ describe('collections / sharing / favorites API service', () => {
       vi.stubGlobal('fetch', errorResponse(400, { error: { code: 'no_household', message: 'No active household' } }));
       await expect(shareRecipe(1, 'household')).rejects.toBeInstanceOf(ApiRequestError);
       await expect(shareRecipe(1, 'household')).rejects.toMatchObject({ status: 400, code: 'no_household' });
+    });
+  });
+
+  describe('invalidateCachedRecipeReads', () => {
+    it('removes list/search variants while preserving unrelated recipe details', async () => {
+      const requests = [
+        new Request('https://api.test/api/v1/recipes'),
+        new Request('https://api.test/api/v1/recipes?ingredients=tomato'),
+        new Request('https://api.test/api/v1/recipes/42'),
+      ];
+      const deleteMock = vi.fn().mockResolvedValue(true);
+      const openMock = vi.fn().mockResolvedValue({
+        keys: vi.fn().mockResolvedValue(requests),
+        delete: deleteMock,
+      });
+      vi.stubGlobal('caches', { open: openMock });
+
+      await invalidateCachedRecipeReads();
+
+      expect(openMock).toHaveBeenCalledWith(expect.stringMatching(/^rd-user-[0-9a-f]{64}$/));
+      expect(deleteMock).toHaveBeenCalledTimes(2);
+      expect(deleteMock).toHaveBeenCalledWith(requests[0]);
+      expect(deleteMock).toHaveBeenCalledWith(requests[1]);
+    });
+
+    it('also removes the mutated detail but preserves its cached image', async () => {
+      const requests = [
+        new Request('https://api.test/api/v1/recipes'),
+        new Request('https://api.test/api/v1/recipes/42'),
+        new Request('https://api.test/api/v1/recipes/42/image'),
+        new Request('https://api.test/api/v1/recipes/43'),
+      ];
+      const deleteMock = vi.fn().mockResolvedValue(true);
+      vi.stubGlobal('caches', {
+        open: vi.fn().mockResolvedValue({
+          keys: vi.fn().mockResolvedValue(requests),
+          delete: deleteMock,
+        }),
+      });
+
+      await invalidateCachedRecipeReads(42);
+
+      const deletedUrls = deleteMock.mock.calls.map(([request]) => (request as Request).url);
+      expect(deletedUrls).toEqual([
+        'https://api.test/api/v1/recipes',
+        'https://api.test/api/v1/recipes/42',
+      ]);
     });
   });
 
