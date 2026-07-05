@@ -28,6 +28,7 @@ export const recipes = pgTable("recipes", {
   ownerUserId: uuid("owner_user_id"),
   householdId: uuid("household_id"),
   createdBy:   uuid("created_by"),
+  source_recipe_id: integer("source_recipe_id"), // provenance of a share copy (nullable)
 }, (t) => [
   check("recipes_owner_type_check", sql`${t.ownerType} IN ('user', 'household')`),
   check(
@@ -42,6 +43,54 @@ export const recipes = pgTable("recipes", {
   index("recipes_household_idx").on(t.householdId, t.created_at, t.id),
   index("recipes_created_by_idx").on(t.createdBy),
 ]);
+
+export const recipeCollections = pgTable("recipe_collections", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  ownerType:   text("owner_type").notNull(),
+  ownerUserId: uuid("owner_user_id"),
+  householdId: uuid("household_id"),
+  kind:        text("kind").notNull(), // 'favorites' | 'custom'
+  name:        text("name").notNull(),
+  slug:        text("slug"),
+  createdBy:   uuid("created_by").notNull(),
+  createdAt:   timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:   timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check("recipe_collections_owner_type_check", sql`${t.ownerType} IN ('user', 'household')`),
+  check("recipe_collections_kind_check", sql`${t.kind} IN ('favorites', 'custom')`),
+  check(
+    "recipe_collections_owner_shape_check",
+    sql`(
+      (${t.ownerType} = 'user' AND ${t.ownerUserId} IS NOT NULL AND ${t.householdId} IS NULL)
+      OR
+      (${t.ownerType} = 'household' AND ${t.ownerUserId} IS NULL AND ${t.householdId} IS NOT NULL)
+    )`,
+  ),
+  uniqueIndex("recipe_collections_user_favorites_uidx")
+    .on(t.ownerUserId)
+    .where(sql`${t.kind} = 'favorites' AND ${t.ownerType} = 'user'`),
+  uniqueIndex("recipe_collections_household_favorites_uidx")
+    .on(t.householdId)
+    .where(sql`${t.kind} = 'favorites' AND ${t.ownerType} = 'household'`),
+  index("recipe_collections_owner_user_created_at_idx").on(t.ownerUserId, t.createdAt),
+  index("recipe_collections_household_created_at_idx").on(t.householdId, t.createdAt),
+]);
+
+export const recipeCollectionItems = pgTable("recipe_collection_items", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  collectionId: uuid("collection_id").notNull().references(() => recipeCollections.id, { onDelete: "cascade" }),
+  recipeId:     integer("recipe_id").notNull().references(() => recipes.id, { onDelete: "cascade" }),
+  createdBy:    uuid("created_by").notNull(),
+  createdAt:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("recipe_collection_items_collection_recipe_uidx").on(t.collectionId, t.recipeId),
+  index("recipe_collection_items_recipe_idx").on(t.recipeId),
+]);
+
+export type RecipeCollectionRow = typeof recipeCollections.$inferSelect;
+export type NewRecipeCollectionRow = typeof recipeCollections.$inferInsert;
+export type RecipeCollectionItemRow = typeof recipeCollectionItems.$inferSelect;
+export type NewRecipeCollectionItemRow = typeof recipeCollectionItems.$inferInsert;
 
 export const ingredientDictionary = pgTable("ingredient_dictionary", {
   id: serial("id").primaryKey(),

@@ -289,6 +289,8 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="collections" options={{ headerShown: false }} />
+          <Stack.Screen name="collection/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         )}

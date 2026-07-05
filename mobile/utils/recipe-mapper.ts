@@ -105,5 +105,9 @@ export function apiToRecipe(r: ApiRecipe): Recipe {
     tried: 0,
     pdf_created: 0,
     created_at: null,
+    // Sharing / favorites read-model (Phase 3) — carried through additively so the
+    // list scope hint + favorites filter work. Older cached payloads omit these.
+    scope: r.scope,
+    isFavorite: r.isFavorite ?? false,
   };
 }

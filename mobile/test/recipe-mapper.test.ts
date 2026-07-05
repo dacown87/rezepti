@@ -85,4 +85,44 @@ describe('apiToRecipe', () => {
 
     expect(mapped.tags).toBeNull();
   });
+
+  it('carries scope and isFavorite through additively (gotcha #2)', () => {
+    const mapped = apiToRecipe({
+      id: 21,
+      name: 'Geteiltes Rezept',
+      ingredients: '[]',
+      steps: '[]',
+      scope: 'household',
+      isFavorite: true,
+    });
+
+    expect(mapped.scope).toBe('household');
+    expect(mapped.isFavorite).toBe(true);
+  });
+
+  it('defaults isFavorite to false and leaves scope undefined when omitted (older cached payloads)', () => {
+    const mapped = apiToRecipe({
+      id: 22,
+      name: 'Altes Rezept',
+      ingredients: '[]',
+      steps: '[]',
+    });
+
+    expect(mapped.scope).toBeUndefined();
+    expect(mapped.isFavorite).toBe(false);
+  });
+
+  it('maps private scope through', () => {
+    const mapped = apiToRecipe({
+      id: 23,
+      name: 'Privates Rezept',
+      ingredients: '[]',
+      steps: '[]',
+      scope: 'private',
+      isFavorite: false,
+    });
+
+    expect(mapped.scope).toBe('private');
+    expect(mapped.isFavorite).toBe(false);
+  });
 });
