@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.190] – 2026-07-05
+
+
+
 ## [1.0.189] – 2026-07-05
 
 - Recipes Sharing/Favorites/Collections erster Slice: Share-als-Kopie zwischen privatem und aktivem Household-Scope, systemdefinierte Favorites, private und haushaltsbezogene Collections sowie Mobile-/Web-/PWA-Oberflaechen fuer Favoritenfilter, Scope-Aktionen und Collection-Inhalte.
