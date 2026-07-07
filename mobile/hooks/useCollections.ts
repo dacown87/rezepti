@@ -8,6 +8,9 @@ import {
   addRecipeToCollection,
   removeRecipeFromCollection,
   shareRecipe,
+  createRecipeShareInvite,
+  fetchRecipeShareInvite,
+  acceptRecipeShareInvite,
   setRecipeFavorite,
   type Collection,
 } from '@/utils/api';
@@ -15,6 +18,8 @@ import { RECIPES_QUERY_KEY } from './useRecipes';
 import { recipeQueryKey } from './useRecipe';
 
 export const COLLECTIONS_QUERY_KEY = ['recipe-collections'] as const;
+export const recipeShareInviteQueryKey = (token: string) =>
+  ['recipe-share-invite', token] as const;
 
 /** Query key for a single collection's contents (recipes inside the collection). */
 export const collectionItemsQueryKey = (collectionId: string) =>
@@ -60,6 +65,32 @@ export function useShareRecipe() {
       shareRecipe(id, target),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: RECIPES_QUERY_KEY });
+    },
+  });
+}
+
+export function useRecipeShareInvite(token: string | undefined) {
+  return useQuery({
+    queryKey: recipeShareInviteQueryKey(token ?? ''),
+    queryFn: () => fetchRecipeShareInvite(token as string),
+    enabled: !!token,
+  });
+}
+
+export function useCreateRecipeShareInvite() {
+  return useMutation({
+    mutationFn: ({ id, email }: { id: number; email: string }) =>
+      createRecipeShareInvite(id, email),
+  });
+}
+
+export function useAcceptRecipeShareInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => acceptRecipeShareInvite(token),
+    onSuccess: (_data, token) => {
+      qc.invalidateQueries({ queryKey: RECIPES_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: recipeShareInviteQueryKey(token) });
     },
   });
 }
@@ -159,9 +190,13 @@ export function useAddRecipeToCollection() {
       collectionId: string;
       recipeId: number;
     }) => addRecipeToCollection(collectionId, recipeId),
-    onSuccess: (_data, { collectionId }) => {
+    onSuccess: (data, { collectionId }) => {
       qc.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
       qc.invalidateQueries({ queryKey: collectionItemsQueryKey(collectionId) });
+      if (data.copied) {
+        qc.invalidateQueries({ queryKey: RECIPES_QUERY_KEY });
+        qc.invalidateQueries({ queryKey: recipeQueryKey(data.recipeId) });
+      }
     },
   });
 }

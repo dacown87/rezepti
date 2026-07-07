@@ -92,6 +92,39 @@ export type NewRecipeCollectionRow = typeof recipeCollections.$inferInsert;
 export type RecipeCollectionItemRow = typeof recipeCollectionItems.$inferSelect;
 export type NewRecipeCollectionItemRow = typeof recipeCollectionItems.$inferInsert;
 
+export const recipeShareInvites = pgTable("recipe_share_invites", {
+  id:               uuid("id").primaryKey().defaultRandom(),
+  sourceRecipeId:   integer("source_recipe_id").notNull().references(() => recipes.id, { onDelete: "cascade" }),
+  senderUserId:     uuid("sender_user_id").notNull(),
+  recipientEmail:   text("recipient_email").notNull(),
+  tokenHash:        text("token_hash").notNull(),
+  status:           text("status").notNull().default("pending"),
+  acceptedByUserId: uuid("accepted_by_user_id"),
+  acceptedRecipeId: integer("accepted_recipe_id").references(() => recipes.id, { onDelete: "set null" }),
+  expiresAt:        timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:        timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  acceptedAt:       timestamp("accepted_at", { withTimezone: true }),
+}, (t) => [
+  check("recipe_share_invites_status_check", sql`${t.status} IN ('pending', 'accepted', 'revoked', 'expired')`),
+  check(
+    "recipe_share_invites_accepted_shape_check",
+    sql`(
+      (${t.status} = 'accepted' AND ${t.acceptedByUserId} IS NOT NULL AND ${t.acceptedAt} IS NOT NULL)
+      OR
+      (${t.status} <> 'accepted' AND ${t.acceptedByUserId} IS NULL AND ${t.acceptedRecipeId} IS NULL AND ${t.acceptedAt} IS NULL)
+    )`,
+  ),
+  uniqueIndex("recipe_share_invites_token_hash_uidx").on(t.tokenHash),
+  index("recipe_share_invites_sender_idx").on(t.senderUserId),
+  index("recipe_share_invites_recipient_email_idx").on(t.recipientEmail),
+  index("recipe_share_invites_source_recipe_idx").on(t.sourceRecipeId),
+  index("recipe_share_invites_expires_at_idx").on(t.expiresAt),
+]);
+
+export type RecipeShareInviteRow = typeof recipeShareInvites.$inferSelect;
+export type NewRecipeShareInviteRow = typeof recipeShareInvites.$inferInsert;
+
 export const ingredientDictionary = pgTable("ingredient_dictionary", {
   id: serial("id").primaryKey(),
   canonicalName: text("canonical_name").notNull().unique(),

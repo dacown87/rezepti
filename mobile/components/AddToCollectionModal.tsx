@@ -28,10 +28,12 @@ type AddState =
 export function AddToCollectionModal({
   visible,
   recipeId,
+  recipeScope,
   onClose,
 }: {
   visible: boolean;
   recipeId: number;
+  recipeScope?: 'private' | 'household';
   onClose: () => void;
 }) {
   const collectionsQuery = useCollections();
@@ -99,6 +101,9 @@ export function AddToCollectionModal({
     return null;
   };
 
+  const createsHouseholdCopy = (c: Collection) =>
+    recipeScope === 'private' && c.owner_type === 'household';
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View className="flex-1 bg-black/50 items-center justify-center px-6">
@@ -140,6 +145,7 @@ export function AddToCollectionModal({
                 collections.map((c) => {
                   const status = rowStatus(c);
                   const pending = state.kind === 'pending' && state.collectionId === c.id;
+                  const copyToHousehold = createsHouseholdCopy(c);
                   return (
                     <Pressable
                       key={c.id}
@@ -158,7 +164,9 @@ export function AddToCollectionModal({
                       <View className="flex-1 ml-3">
                         <Text className="text-sm font-medium text-warm-900 dark:text-warm-50">{c.name}</Text>
                         <Text className="text-xs text-warm-500 dark:text-warm-400">
-                          {c.item_count} {c.item_count === 1 ? 'Rezept' : 'Rezepte'}
+                          {copyToHousehold
+                            ? 'Als Haushaltskopie hinzufügen'
+                            : `${c.item_count} ${c.item_count === 1 ? 'Rezept' : 'Rezepte'}`}
                         </Text>
                       </View>
                       {pending ? (

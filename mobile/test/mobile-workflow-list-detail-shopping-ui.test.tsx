@@ -119,12 +119,15 @@ vi.mock('lucide-react-native', () => {
     Home: icon,
     Copy: icon,
     Lock: icon,
+    Mail: icon,
+    Send: icon,
   };
 });
 
 vi.mock('@/hooks/useCollections', () => ({
   useToggleFavorite: () => ({ mutateAsync: vi.fn(async () => true), isPending: false }),
   useShareRecipe: () => ({ mutateAsync: vi.fn(async () => ({ id: 1 })), isPending: false }),
+  useCreateRecipeShareInvite: () => ({ mutateAsync: vi.fn(async () => ({ token: 'token-1' })), isPending: false }),
 }));
 
 vi.mock('@/components/AddToCollectionModal', () => ({

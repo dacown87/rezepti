@@ -302,7 +302,7 @@ describe('POST /api/v1/recipe-collections/:id/items', () => {
     expect(dbMocks.addRecipeToCollection).not.toHaveBeenCalled()
   })
 
-  it('household collection rejects a private recipe → 400 (visible-but-illegal)', async () => {
+  it('household collection accepts a private recipe via household copy', async () => {
     dbMocks.loadCollectionRowById.mockResolvedValue({
       id: 'hh', ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_1, kind: 'custom',
     })
@@ -310,11 +310,22 @@ describe('POST /api/v1/recipe-collections/:id/items', () => {
     dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 5, ownerType: 'user', ownerUserId: USER_A, householdId: null })
     dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
     dbMocks.isRecipeLegalForCollection.mockReturnValue(false)
+    dbMocks.addRecipeToCollection.mockResolvedValue({ added: true, recipeId: 55, copied: true })
     const res = await router.request('/api/v1/recipe-collections/hh/items', {
       method: 'POST', headers: authHeaders, body: JSON.stringify({ recipeId: 5 }),
     })
-    expect(res.status).toBe(400)
-    expect(dbMocks.addRecipeToCollection).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      success: true,
+      added: true,
+      recipeId: 55,
+      copied: true,
+    })
+    expect(dbMocks.addRecipeToCollection).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_A }),
+      'hh',
+      5,
+    )
   })
 
   it('adding an invisible recipe → 404 (no existence leak)', async () => {

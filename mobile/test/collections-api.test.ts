@@ -15,6 +15,9 @@ import {
   deleteCollection,
   addRecipeToCollection,
   removeRecipeFromCollection,
+  createRecipeShareInvite,
+  fetchRecipeShareInvite,
+  acceptRecipeShareInvite,
   type Collection,
   type ApiRecipe,
 } from '@/utils/api';
@@ -347,23 +350,29 @@ describe('collections / sharing / favorites API service', () => {
   // ── addRecipeToCollection ─────────────────────────────────────────────────────
 
   describe('addRecipeToCollection', () => {
-    it('sends POST to /items with recipeId and returns { added }', async () => {
+    it('sends POST to /items with recipeId and returns add result', async () => {
       const fetchMock = okJson({ success: true, added: true });
       vi.stubGlobal('fetch', fetchMock);
 
       const result = await addRecipeToCollection('coll-1', 7);
 
-      expect(result).toEqual({ added: true });
+      expect(result).toEqual({ added: true, recipeId: 7, copied: false });
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toBe('https://api.test/api/v1/recipe-collections/coll-1/items');
       expect(init.method).toBe('POST');
       expect(JSON.parse(init.body as string)).toEqual({ recipeId: 7 });
     });
 
-    it('returns { added: false } when recipe was already in the collection', async () => {
+    it('returns added:false when recipe was already in the collection', async () => {
       vi.stubGlobal('fetch', okJson({ success: true, added: false }));
       const result = await addRecipeToCollection('coll-1', 7);
-      expect(result).toEqual({ added: false });
+      expect(result).toEqual({ added: false, recipeId: 7, copied: false });
+    });
+
+    it('returns copied:true and inserted recipe id for household copy path', async () => {
+      vi.stubGlobal('fetch', okJson({ success: true, added: true, recipeId: 77, copied: true }));
+      const result = await addRecipeToCollection('coll-1', 7);
+      expect(result).toEqual({ added: true, recipeId: 77, copied: true });
     });
 
     it('throws ApiRequestError on 404 (invisible collection or recipe)', async () => {
@@ -374,6 +383,71 @@ describe('collections / sharing / favorites API service', () => {
     it('throws ApiRequestError on 400 (illegal recipe reference)', async () => {
       vi.stubGlobal('fetch', errorResponse(400, { error: { message: 'Recipe is not a legal reference for this collection' } }));
       await expect(addRecipeToCollection('coll-1', 99)).rejects.toMatchObject({ status: 400 });
+    });
+  });
+
+  // ── recipe share invites ─────────────────────────────────────────────────────
+
+  describe('recipe share invites', () => {
+    it('creates a recipe share invite', async () => {
+      const fetchMock = okJson({
+        invite: {
+          token: 'token-1',
+          expiresAt: '2026-07-21T00:00:00.000Z',
+          preview: {
+            status: 'pending',
+            recipeName: 'Pasta',
+            senderEmail: 'user@example.com',
+            recipientEmail: 'friend@example.com',
+            expiresAt: '2026-07-21T00:00:00.000Z',
+            acceptedRecipeId: null,
+          },
+        },
+      }, 201);
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await createRecipeShareInvite(42, 'friend@example.com');
+
+      expect(result.token).toBe('token-1');
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/recipes/42/share-invites');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual({ email: 'friend@example.com' });
+    });
+
+    it('fetches a recipe share invite preview', async () => {
+      vi.stubGlobal('fetch', okJson({
+        invite: {
+          status: 'pending',
+          recipeName: 'Pasta',
+          senderEmail: 'user@example.com',
+          recipientEmail: 'friend@example.com',
+          expiresAt: '2026-07-21T00:00:00.000Z',
+          acceptedRecipeId: null,
+        },
+      }));
+
+      const result = await fetchRecipeShareInvite('token 1');
+
+      expect(result.recipeName).toBe('Pasta');
+      const [url] = (global.fetch as any).mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/share-invites/token%201');
+    });
+
+    it('accepts a recipe share invite', async () => {
+      const fetchMock = okJson({
+        status: 'accepted',
+        recipe: RECIPE_FIXTURE,
+        alreadyAccepted: false,
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await acceptRecipeShareInvite('token-1');
+
+      expect(result.recipe.id).toBe(RECIPE_FIXTURE.id);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/share-invites/token-1/accept');
+      expect(init.method).toBe('POST');
     });
   });
 

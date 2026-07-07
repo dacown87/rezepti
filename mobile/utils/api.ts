@@ -51,6 +51,27 @@ export interface Collection {
   is_system: boolean;
 }
 
+export interface RecipeShareInvitePreview {
+  status: 'pending' | 'accepted' | 'revoked' | 'expired';
+  recipeName: string;
+  senderEmail: string | null;
+  recipientEmail: string;
+  expiresAt: string;
+  acceptedRecipeId: number | null;
+}
+
+export interface CreatedRecipeShareInvite {
+  token: string;
+  expiresAt: string;
+  preview: RecipeShareInvitePreview;
+}
+
+export interface AddRecipeToCollectionResult {
+  added: boolean;
+  recipeId: number;
+  copied: boolean;
+}
+
 export interface ApiErrorEnvelope {
   error?: {
     code?: string;
@@ -237,6 +258,45 @@ export async function shareRecipe(
   return data.recipe;
 }
 
+export async function createRecipeShareInvite(
+  id: number,
+  email: string,
+): Promise<CreatedRecipeShareInvite> {
+  const res = await apiFetch(`/api/v1/recipes/${id}/share-invites`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  await assertApiOk(res, `Einladung erstellen fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { invite: CreatedRecipeShareInvite };
+  return data.invite;
+}
+
+export async function fetchRecipeShareInvite(token: string): Promise<RecipeShareInvitePreview> {
+  const res = await apiFetch(`/api/v1/share-invites/${encodeURIComponent(token)}`);
+  await assertApiOk(res, `Einladung laden fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { invite: RecipeShareInvitePreview };
+  return data.invite;
+}
+
+export async function acceptRecipeShareInvite(token: string): Promise<{
+  status: 'accepted';
+  recipe: ApiRecipe;
+  alreadyAccepted: boolean;
+}> {
+  const res = await apiFetch(`/api/v1/share-invites/${encodeURIComponent(token)}/accept`, {
+    method: 'POST',
+  });
+  await assertApiOk(res, `Einladung annehmen fehlgeschlagen (${res.status})`);
+  const data = await res.json() as {
+    status: 'accepted';
+    recipe: ApiRecipe;
+    alreadyAccepted: boolean;
+  };
+  await invalidateCachedRecipeReads();
+  return data;
+}
+
 // ── Favorites ─────────────────────────────────────────────────────────────────
 
 /**
@@ -321,15 +381,21 @@ export async function fetchCollectionItems(collectionId: string): Promise<ApiRec
 export async function addRecipeToCollection(
   collectionId: string,
   recipeId: number,
-): Promise<{ added: boolean }> {
+): Promise<AddRecipeToCollectionResult> {
   const res = await apiFetch(`/api/v1/recipe-collections/${collectionId}/items`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipeId }),
   });
   await assertApiOk(res, `Rezept zur Sammlung hinzufügen fehlgeschlagen (${res.status})`);
-  const data = await res.json() as { success: boolean; added: boolean };
-  return { added: data.added };
+  const data = await res.json() as {
+    success: boolean;
+    added: boolean;
+    recipeId?: number;
+    copied?: boolean;
+  };
+  if (data.copied) await invalidateCachedRecipeReads();
+  return { added: data.added, recipeId: data.recipeId ?? recipeId, copied: data.copied === true };
 }
 
 /**

@@ -57,10 +57,12 @@ vi.mock('@/utils/protected-access', () => ({ mapProtectedApiError: () => null })
 const hookState = vi.hoisted(() => ({
   toggleMutateAsync: vi.fn(),
   shareMutateAsync: vi.fn(),
+  createInviteMutateAsync: vi.fn(),
 }));
 vi.mock('@/hooks/useCollections', () => ({
   useToggleFavorite: () => ({ mutateAsync: hookState.toggleMutateAsync, isPending: false }),
   useShareRecipe: () => ({ mutateAsync: hookState.shareMutateAsync, isPending: false }),
+  useCreateRecipeShareInvite: () => ({ mutateAsync: hookState.createInviteMutateAsync, isPending: false }),
 }));
 
 vi.mock('lucide-react-native', () => {
@@ -70,6 +72,7 @@ vi.mock('lucide-react-native', () => {
     Edit: icon, Save: icon, X: icon, Trash2: icon, UtensilsCrossed: icon, ChevronLeft: icon,
     ChevronRight: icon, Download: icon, Plus: icon, Minus: icon, Pencil: icon, RotateCcw: icon,
     CheckSquare: icon, Square: icon, ShoppingCart: icon, QrCode: icon, WifiOff: icon,
+    Mail: icon, Send: icon,
     Heart: icon, FolderPlus: icon, Home: icon, Copy: icon, Lock: icon,
   };
 });

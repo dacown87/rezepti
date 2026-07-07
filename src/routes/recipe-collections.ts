@@ -264,9 +264,12 @@ app.post("/api/v1/recipe-collections/:id/items", requireUserAuth(), async (c) =>
     if (!owner || !isRecipeVisibleToAuth(auth, owner)) {
       return c.json({ error: "Not found" }, 404);
     }
-    // Visible but illegal for this collection (e.g. private recipe into a household
-    // collection) → 400.
-    if (!isRecipeLegalForCollection(auth, owner, {
+    const shouldCopyPrivateRecipeIntoHouseholdCollection =
+      collection.ownerType === "household" && owner.ownerType === "user";
+    // Visible but illegal for this collection → 400. Private recipe into a
+    // household collection is the explicit product exception: the DB helper
+    // creates a household copy and inserts that copy.
+    if (!shouldCopyPrivateRecipeIntoHouseholdCollection && !isRecipeLegalForCollection(auth, owner, {
       ownerType: collection.ownerType,
       householdId: collection.householdId,
     })) {
@@ -274,7 +277,12 @@ app.post("/api/v1/recipe-collections/:id/items", requireUserAuth(), async (c) =>
     }
 
     const result = await addRecipeToCollection(auth, id, recipeId as number);
-    return c.json({ success: true, added: result.added });
+    return c.json({
+      success: true,
+      added: result.added,
+      recipeId: result.recipeId,
+      copied: result.copied,
+    });
   } catch (error) {
     console.error("Error adding recipe to collection:", error);
     return c.json({ error: "Failed to add recipe to collection" }, 500);

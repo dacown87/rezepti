@@ -47,10 +47,11 @@ async function press(target: Parameters<typeof fireEvent.press>[0]) {
 
 const FAVORITES = { id: 'fav', kind: 'favorites', name: 'Favoriten', owner_type: 'user', item_count: 1, is_system: true };
 const CUSTOM = { id: 'c1', kind: 'custom', name: 'Wochenende', owner_type: 'user', item_count: 2, is_system: false };
+const HOUSEHOLD = { id: 'h1', kind: 'custom', name: 'Familie', owner_type: 'household', item_count: 4, is_system: false };
 
-async function renderModal() {
+async function renderModal(props: { recipeScope?: 'private' | 'household' } = {}) {
   const { AddToCollectionModal } = await import('@/components/AddToCollectionModal');
-  render(React.createElement(AddToCollectionModal, { visible: true, recipeId: 42, onClose: vi.fn() }));
+  render(React.createElement(AddToCollectionModal, { visible: true, recipeId: 42, onClose: vi.fn(), ...props }));
 }
 
 describe('AddToCollectionModal', () => {
@@ -78,6 +79,14 @@ describe('AddToCollectionModal', () => {
     });
     // success feedback
     await waitFor(() => expect(screen.getByText('Hinzugefügt')).toBeTruthy());
+  });
+
+  it('labels private recipe into household collection as household copy', async () => {
+    hookState.collectionsResult = { data: [HOUSEHOLD], isLoading: false, isError: false, refetch: vi.fn() };
+    await renderModal({ recipeScope: 'private' });
+
+    expect(screen.getByText('Familie')).toBeTruthy();
+    expect(screen.getByText('Als Haushaltskopie hinzufügen')).toBeTruthy();
   });
 
   it('surfaces "already in collection" (added:false) as a friendly note, not an error', async () => {

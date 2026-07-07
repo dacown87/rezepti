@@ -18,6 +18,8 @@ let useRenameCollection: () => unknown;
 let useDeleteCollection: () => unknown;
 let useAddRecipeToCollection: () => unknown;
 let useRemoveRecipeFromCollection: () => unknown;
+let useCreateRecipeShareInvite: () => unknown;
+let useAcceptRecipeShareInvite: () => unknown;
 
 // API mocks
 let shareRecipeMock: ReturnType<typeof vi.fn>;
@@ -28,6 +30,9 @@ let renameCollectionMock: ReturnType<typeof vi.fn>;
 let deleteCollectionMock: ReturnType<typeof vi.fn>;
 let addRecipeToCollectionMock: ReturnType<typeof vi.fn>;
 let removeRecipeFromCollectionMock: ReturnType<typeof vi.fn>;
+let createRecipeShareInviteMock: ReturnType<typeof vi.fn>;
+let fetchRecipeShareInviteMock: ReturnType<typeof vi.fn>;
+let acceptRecipeShareInviteMock: ReturnType<typeof vi.fn>;
 
 const rqMocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
@@ -54,6 +59,9 @@ vi.mock('@/utils/api', () => {
   deleteCollectionMock = vi.fn();
   addRecipeToCollectionMock = vi.fn();
   removeRecipeFromCollectionMock = vi.fn();
+  createRecipeShareInviteMock = vi.fn();
+  fetchRecipeShareInviteMock = vi.fn();
+  acceptRecipeShareInviteMock = vi.fn();
 
   return {
     shareRecipe: shareRecipeMock,
@@ -64,6 +72,9 @@ vi.mock('@/utils/api', () => {
     deleteCollection: deleteCollectionMock,
     addRecipeToCollection: addRecipeToCollectionMock,
     removeRecipeFromCollection: removeRecipeFromCollectionMock,
+    createRecipeShareInvite: createRecipeShareInviteMock,
+    fetchRecipeShareInvite: fetchRecipeShareInviteMock,
+    acceptRecipeShareInvite: acceptRecipeShareInviteMock,
     // Existing functions that other hooks import
     fetchRecipes: vi.fn(),
     fetchRecipeById: vi.fn(),
@@ -84,6 +95,8 @@ describe('useCollections hooks — query keys and invalidation', () => {
       useDeleteCollection,
       useAddRecipeToCollection,
       useRemoveRecipeFromCollection,
+      useCreateRecipeShareInvite,
+      useAcceptRecipeShareInvite,
     } = await import('@/hooks/useCollections'));
     ({ RECIPES_QUERY_KEY } = await import('@/hooks/useRecipes'));
     ({ recipeQueryKey } = await import('@/hooks/useRecipe'));
@@ -271,7 +284,7 @@ describe('useCollections hooks — query keys and invalidation', () => {
 
     useAddRecipeToCollection();
     await mutationFn?.({ collectionId: 'c1', recipeId: 7 });
-    onSuccess?.({ added: true }, { collectionId: 'c1', recipeId: 7 });
+    onSuccess?.({ added: true, recipeId: 7, copied: false }, { collectionId: 'c1', recipeId: 7 });
 
     expect(addRecipeToCollectionMock).toHaveBeenCalledWith('c1', 7);
     expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: COLLECTIONS_QUERY_KEY });
@@ -281,6 +294,67 @@ describe('useCollections hooks — query keys and invalidation', () => {
     expect(rqMocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: RECIPES_QUERY_KEY });
     expect(rqMocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: recipeQueryKey(7) });
     expect(rqMocks.invalidateQueries).toHaveBeenCalledTimes(2);
+  });
+
+  it('useAddRecipeToCollection invalidates recipe keys when the server created a household copy', async () => {
+    let mutationFn: ((vars: { collectionId: string; recipeId: number }) => Promise<unknown>) | undefined;
+    let onSuccess: ((data: { recipeId: number; copied: boolean }, vars: { collectionId: string; recipeId: number }) => void) | undefined;
+    rqMocks.useMutationMock.mockImplementation((config: {
+      mutationFn: typeof mutationFn;
+      onSuccess?: typeof onSuccess;
+    }) => {
+      mutationFn = config.mutationFn;
+      onSuccess = config.onSuccess;
+      return { mutate: vi.fn() };
+    });
+    addRecipeToCollectionMock.mockResolvedValueOnce({ added: true, recipeId: 77, copied: true });
+
+    useAddRecipeToCollection();
+    await mutationFn?.({ collectionId: 'c1', recipeId: 7 });
+    onSuccess?.({ recipeId: 77, copied: true }, { collectionId: 'c1', recipeId: 7 });
+
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: COLLECTIONS_QUERY_KEY });
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['recipe-collections', 'c1', 'items'] });
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: RECIPES_QUERY_KEY });
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: recipeQueryKey(77) });
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledTimes(4);
+  });
+
+  it('useCreateRecipeShareInvite delegates without cache invalidation', async () => {
+    let mutationFn: ((vars: { id: number; email: string }) => Promise<unknown>) | undefined;
+    rqMocks.useMutationMock.mockImplementation((config: { mutationFn: typeof mutationFn }) => {
+      mutationFn = config.mutationFn;
+      return { mutate: vi.fn() };
+    });
+    createRecipeShareInviteMock.mockResolvedValueOnce({ token: 'token-1' });
+
+    useCreateRecipeShareInvite();
+    await mutationFn?.({ id: 7, email: 'friend@example.com' });
+
+    expect(createRecipeShareInviteMock).toHaveBeenCalledWith(7, 'friend@example.com');
+    expect(rqMocks.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it('useAcceptRecipeShareInvite invalidates recipes and invite preview', async () => {
+    let mutationFn: ((token: string) => Promise<unknown>) | undefined;
+    let onSuccess: ((data: unknown, token: string) => void) | undefined;
+    rqMocks.useMutationMock.mockImplementation((config: {
+      mutationFn: typeof mutationFn;
+      onSuccess?: typeof onSuccess;
+    }) => {
+      mutationFn = config.mutationFn;
+      onSuccess = config.onSuccess;
+      return { mutate: vi.fn() };
+    });
+    acceptRecipeShareInviteMock.mockResolvedValueOnce({ recipe: { id: 7 } });
+
+    useAcceptRecipeShareInvite();
+    await mutationFn?.('token-1');
+    onSuccess?.({ recipe: { id: 7 } }, 'token-1');
+
+    expect(acceptRecipeShareInviteMock).toHaveBeenCalledWith('token-1');
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: RECIPES_QUERY_KEY });
+    expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['recipe-share-invite', 'token-1'] });
   });
 
   // ── useRemoveRecipeFromCollection mutation ────────────────────────────────────

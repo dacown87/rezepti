@@ -1,11 +1,12 @@
 import postgres from "postgres";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, desc, and, inArray, isNull, or, sql, lt, count } from "drizzle-orm";
 import {
   recipes,
   recipeCollections,
   recipeCollectionItems,
+  recipeShareInvites,
   ingredientDictionary,
   shoppingList,
   mealPlan,
@@ -486,6 +487,10 @@ export interface RecipeShareReadModel {
 }
 
 export type ShareTargetType = "household" | "user";
+export type RecipeShareInviteStatus = "pending" | "accepted" | "revoked" | "expired";
+
+const RECIPE_SHARE_INVITE_TOKEN_BYTES = 32;
+const RECIPE_SHARE_INVITE_EXPIRES_DAYS = 14;
 
 const FAVORITES_COLLECTION_NAME = "Favoriten";
 
@@ -498,6 +503,31 @@ export interface RecipeOwnerRow {
   ownerType: string;
   ownerUserId: string | null;
   householdId: string | null;
+}
+
+export interface RecipeShareInviteAuthContext extends RecipeAuthContext {
+  email: string | null;
+}
+
+export interface RecipeShareInvitePreview {
+  status: RecipeShareInviteStatus;
+  recipeName: string;
+  senderEmail: string | null;
+  recipientEmail: string;
+  expiresAt: string;
+  acceptedRecipeId: number | null;
+}
+
+export interface CreatedRecipeShareInvite {
+  token: string;
+  expiresAt: string;
+  preview: RecipeShareInvitePreview;
+}
+
+export interface AcceptedRecipeShareInvite {
+  status: "accepted";
+  recipe: ReturnType<typeof deserialize>;
+  alreadyAccepted: boolean;
 }
 
 /**
@@ -745,12 +775,45 @@ export async function addRecipeToCollection(
   auth: RecipeAuthContext,
   collectionId: string,
   recipeId: number,
-): Promise<{ added: boolean }> {
+): Promise<{ added: boolean; recipeId: number; copied: boolean }> {
   const collection = await loadCollectionForMutation(auth, collectionId);
   if (!collection) throw new Error("Collection not found or not writable");
 
   const owner = await loadRecipeOwnerRow(recipeId);
   if (!owner) throw new Error("Recipe not found");
+
+  if (collection.ownerType === "household" && owner.ownerType === "user") {
+    if (!isRecipeVisibleToAuth(auth, owner) || !collection.householdId) {
+      throw new Error("Recipe is not a legal reference for this collection");
+    }
+    const db = getDb();
+    const existing = await db
+      .select({ recipeId: recipes.id })
+      .from(recipeCollectionItems)
+      .innerJoin(recipes, eq(recipeCollectionItems.recipeId, recipes.id))
+      .where(and(
+        eq(recipeCollectionItems.collectionId, collectionId),
+        eq(recipes.ownerType, "household"),
+        eq(recipes.householdId, collection.householdId),
+        eq(recipes.source_recipe_id, owner.id),
+      ))
+      .limit(1);
+    if (existing[0]) {
+      return { added: false, recipeId: existing[0].recipeId, copied: true };
+    }
+
+    const copy = await copyVisibleRecipeToOwner(auth, recipeId, {
+      type: "household",
+      householdId: collection.householdId,
+    });
+    const rows = await db
+      .insert(recipeCollectionItems)
+      .values({ collectionId, recipeId: copy.id, createdBy: auth.userId })
+      .onConflictDoNothing({ target: [recipeCollectionItems.collectionId, recipeCollectionItems.recipeId] })
+      .returning({ id: recipeCollectionItems.id });
+
+    return { added: rows.length > 0, recipeId: copy.id, copied: true };
+  }
 
   if (!isRecipeLegalForCollection(auth, owner, {
     ownerType: collection.ownerType as CollectionOwnerType,
@@ -766,7 +829,7 @@ export async function addRecipeToCollection(
     .onConflictDoNothing({ target: [recipeCollectionItems.collectionId, recipeCollectionItems.recipeId] })
     .returning({ id: recipeCollectionItems.id });
 
-  return { added: rows.length > 0 };
+  return { added: rows.length > 0, recipeId, copied: false };
 }
 
 export async function removeRecipeFromCollection(
@@ -1047,25 +1110,17 @@ export async function getCollectionItemsForAuth(auth: RecipeAuthContext, collect
   return enrichListRowsWithReadModel(auth, rows, favoriteIds);
 }
 
-/**
- * Sharing = copy. Creates a NEW recipe row (new id) copying content + media refs
- * with the new owner and `source_recipe_id` set to the original. NEVER mutates the
- * original.
- *  - target.type === 'household': copy to the caller's active household (membership
- *    required); only allowed if the source recipe is visible to the caller.
- *  - target.type === 'user': copy to the calling user; only allowed if the source
- *    recipe is visible to the caller.
- */
-export async function shareCopyRecipe(
+async function copyVisibleRecipeToOwner(
   auth: RecipeAuthContext,
   recipeId: number,
-  target: { type: "household"; householdId?: string } | { type: "user" },
+  owner: RecipeOwner,
+  dbClient: any = getDb(),
+  opts: { requireSourceVisible?: boolean } = {},
 ) {
-  const db = getDb();
-  const [original] = await db.select().from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+  const [original] = await dbClient.select().from(recipes).where(eq(recipes.id, recipeId)).limit(1);
   if (!original) throw new Error("Recipe not found");
 
-  if (!isRecipeVisibleToAuth(auth, {
+  if (opts.requireSourceVisible !== false && !isRecipeVisibleToAuth(auth, {
     id: original.id,
     ownerType: original.ownerType,
     ownerUserId: original.ownerUserId,
@@ -1073,23 +1128,12 @@ export async function shareCopyRecipe(
   })) {
     throw new Error("Recipe is not visible to the caller");
   }
-  if (!isShareCopyAllowed(original, target.type)) {
-    throw new Error("Recipe cannot be copied to the same scope");
+
+  if (owner.type === "household" && !householdIdsForAuth(auth).includes(owner.householdId)) {
+    throw new Error("Not a member of the target household");
   }
 
-  let ownerValues: ReturnType<typeof recipeOwnerValues>;
-  if (target.type === "household") {
-    const householdIds = householdIdsForAuth(auth);
-    const householdId = target.householdId ?? householdIds[0];
-    if (!householdId || !householdIds.includes(householdId)) {
-      throw new Error("Not a member of the target household");
-    }
-    ownerValues = recipeOwnerValues({ type: "household", householdId }, auth.userId);
-  } else {
-    ownerValues = recipeOwnerValues({ type: "user", userId: auth.userId }, auth.userId);
-  }
-
-  const [copy] = await db
+  const [copy] = await dbClient
     .insert(recipes)
     .values({
       name:        original.name,
@@ -1108,9 +1152,46 @@ export async function shareCopyRecipe(
       nutrition_info:     original.nutrition_info,
       ingredient_groups:  original.ingredient_groups,
       source_recipe_id:   original.id,
-      ...ownerValues,
+      ...recipeOwnerValues(owner, auth.userId),
     })
     .returning();
+
+  return copy;
+}
+
+/**
+ * Sharing = copy. Creates a NEW recipe row (new id) copying content + media refs
+ * with the new owner and `source_recipe_id` set to the original. NEVER mutates the
+ * original.
+ *  - target.type === 'household': copy to the caller's active household (membership
+ *    required); only allowed if the source recipe is visible to the caller.
+ *  - target.type === 'user': copy to the calling user; only allowed if the source
+ *    recipe is visible to the caller.
+ */
+export async function shareCopyRecipe(
+  auth: RecipeAuthContext,
+  recipeId: number,
+  target: { type: "household"; householdId?: string } | { type: "user" },
+) {
+  const original = await loadRecipeOwnerRow(recipeId);
+  if (!original) throw new Error("Recipe not found");
+  if (!isShareCopyAllowed(original, target.type)) {
+    throw new Error("Recipe cannot be copied to the same scope");
+  }
+
+  let owner: RecipeOwner;
+  if (target.type === "household") {
+    const householdIds = householdIdsForAuth(auth);
+    const householdId = target.householdId ?? householdIds[0];
+    if (!householdId || !householdIds.includes(householdId)) {
+      throw new Error("Not a member of the target household");
+    }
+    owner = { type: "household", householdId };
+  } else {
+    owner = { type: "user", userId: auth.userId };
+  }
+
+  const copy = await copyVisibleRecipeToOwner(auth, recipeId, owner);
 
   return {
     ...deserialize(copy),
@@ -1128,6 +1209,172 @@ export async function shareCopyRecipe(
       },
     ),
   };
+}
+
+export function normalizeRecipeShareInviteEmail(email: string): string | null {
+  const normalized = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+  return normalized;
+}
+
+function createRecipeShareInviteToken() {
+  return randomBytes(RECIPE_SHARE_INVITE_TOKEN_BYTES).toString("base64url");
+}
+
+function hashRecipeShareInviteToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function effectiveInviteStatus(row: { status: string; expiresAt: Date }): RecipeShareInviteStatus {
+  if (row.status === "pending" && row.expiresAt.getTime() <= Date.now()) return "expired";
+  if (row.status === "accepted" || row.status === "revoked" || row.status === "expired") return row.status;
+  return "pending";
+}
+
+function serializeRecipeShareInvitePreview(row: {
+  status: string;
+  recipeName: string;
+  senderEmail: string | null;
+  recipientEmail: string;
+  expiresAt: Date;
+  acceptedRecipeId: number | null;
+}): RecipeShareInvitePreview {
+  return {
+    status: effectiveInviteStatus(row),
+    recipeName: row.recipeName,
+    senderEmail: row.senderEmail,
+    recipientEmail: row.recipientEmail,
+    expiresAt: row.expiresAt.toISOString(),
+    acceptedRecipeId: row.acceptedRecipeId,
+  };
+}
+
+async function loadRecipeShareInvitePreviewByHash(tokenHash: string): Promise<RecipeShareInvitePreview | null> {
+  const db = getDb();
+  const [row] = await db
+    .select({
+      status: recipeShareInvites.status,
+      recipeName: recipes.name,
+      senderEmail: userProfiles.email,
+      recipientEmail: recipeShareInvites.recipientEmail,
+      expiresAt: recipeShareInvites.expiresAt,
+      acceptedRecipeId: recipeShareInvites.acceptedRecipeId,
+    })
+    .from(recipeShareInvites)
+    .innerJoin(recipes, eq(recipeShareInvites.sourceRecipeId, recipes.id))
+    .leftJoin(userProfiles, eq(recipeShareInvites.senderUserId, userProfiles.userId))
+    .where(eq(recipeShareInvites.tokenHash, tokenHash))
+    .limit(1);
+
+  return row ? serializeRecipeShareInvitePreview(row) : null;
+}
+
+export async function createRecipeShareInvite(
+  auth: RecipeShareInviteAuthContext,
+  recipeId: number,
+  recipientEmailInput: string,
+): Promise<CreatedRecipeShareInvite> {
+  const recipientEmail = normalizeRecipeShareInviteEmail(recipientEmailInput);
+  if (!recipientEmail) throw new Error("invalid_email");
+
+  const owner = await loadRecipeOwnerRow(recipeId);
+  if (!owner || !isRecipeVisibleToAuth(auth, owner)) throw new Error("not_found");
+
+  const token = createRecipeShareInviteToken();
+  const tokenHash = hashRecipeShareInviteToken(token);
+  const expiresAt = new Date(Date.now() + RECIPE_SHARE_INVITE_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
+  const db = getDb();
+
+  await db.insert(recipeShareInvites).values({
+    sourceRecipeId: recipeId,
+    senderUserId: auth.userId,
+    recipientEmail,
+    tokenHash,
+    expiresAt,
+  });
+
+  const preview = await loadRecipeShareInvitePreviewByHash(tokenHash);
+  if (!preview) throw new Error("invite_create_failed");
+  return { token, expiresAt: expiresAt.toISOString(), preview };
+}
+
+export async function getRecipeShareInvitePreview(token: string): Promise<RecipeShareInvitePreview | null> {
+  return loadRecipeShareInvitePreviewByHash(hashRecipeShareInviteToken(token));
+}
+
+export async function acceptRecipeShareInvite(
+  auth: RecipeShareInviteAuthContext,
+  token: string,
+): Promise<AcceptedRecipeShareInvite | "not_found" | "email_mismatch" | "expired" | "revoked"> {
+  const normalizedAuthEmail = auth.email ? normalizeRecipeShareInviteEmail(auth.email) : null;
+  if (!normalizedAuthEmail) return "email_mismatch";
+
+  const tokenHash = hashRecipeShareInviteToken(token);
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${tokenHash}))`);
+
+    const [invite] = await tx
+      .select()
+      .from(recipeShareInvites)
+      .where(eq(recipeShareInvites.tokenHash, tokenHash))
+      .limit(1);
+
+    if (!invite) return "not_found" as const;
+    if (invite.recipientEmail !== normalizedAuthEmail) return "email_mismatch" as const;
+
+    const status = effectiveInviteStatus(invite);
+    if (status === "revoked") return "revoked" as const;
+    if (status === "expired") {
+      if (invite.status === "pending") {
+        await tx
+          .update(recipeShareInvites)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(eq(recipeShareInvites.id, invite.id));
+      }
+      return "expired" as const;
+    }
+
+    if (status === "accepted" && invite.acceptedRecipeId) {
+      const [acceptedRecipe] = await tx
+        .select()
+        .from(recipes)
+        .where(eq(recipes.id, invite.acceptedRecipeId))
+        .limit(1);
+      if (!acceptedRecipe) return "not_found" as const;
+      return {
+        status: "accepted" as const,
+        recipe: deserialize(acceptedRecipe),
+        alreadyAccepted: true,
+      };
+    }
+
+    const copy = await copyVisibleRecipeToOwner(
+      auth,
+      invite.sourceRecipeId,
+      { type: "user", userId: auth.userId },
+      tx,
+      { requireSourceVisible: false },
+    );
+
+    await tx
+      .update(recipeShareInvites)
+      .set({
+        status: "accepted",
+        acceptedByUserId: auth.userId,
+        acceptedRecipeId: copy.id,
+        acceptedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(recipeShareInvites.id, invite.id));
+
+    return {
+      status: "accepted" as const,
+      recipe: deserialize(copy),
+      alreadyAccepted: false,
+    };
+  });
 }
 
 /**

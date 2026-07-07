@@ -9,7 +9,7 @@ import {
   ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
   Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode, WifiOff,
-  Heart, FolderPlus, Home, Copy, Lock,
+  Heart, FolderPlus, Home, Copy, Lock, Mail, Send,
 } from 'lucide-react-native';
 import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
@@ -26,7 +26,7 @@ import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
 import { buildRecipeEditPatchPayload, type RecipeEditDraft } from '@/utils/recipe-mapper';
 import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 import { mapProtectedApiError } from '@/utils/protected-access';
-import { useToggleFavorite, useShareRecipe } from '@/hooks/useCollections';
+import { useToggleFavorite, useShareRecipe, useCreateRecipeShareInvite } from '@/hooks/useCollections';
 import { AddToCollectionModal } from '@/components/AddToCollectionModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -286,9 +286,13 @@ export default function RecipeDetailScreen() {
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<{ recipeId: number; message: string } | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const toggleFavorite = useToggleFavorite();
   const shareRecipeMutation = useShareRecipe();
+  const createShareInviteMutation = useCreateRecipeShareInvite();
 
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recipeId = Number(id);
@@ -500,6 +504,27 @@ export default function RecipeDetailScreen() {
     }
   };
 
+  const handleCreateShareInvite = async () => {
+    const email = inviteEmail.trim();
+    if (!email || createShareInviteMutation.isPending) return;
+    setInviteError(null);
+    setInviteFeedback(null);
+    try {
+      const invite = await createShareInviteMutation.mutateAsync({ id: recipeId, email });
+      const url = Linking.createURL(`/share-invite/${invite.token}`);
+      await Share.share({
+        title: recipe?.name ?? 'Rezept',
+        message: url,
+      });
+      setInviteEmail('');
+      setInviteFeedback('Einladung erstellt. Beim Annehmen entsteht eine private Kopie.');
+    } catch (error) {
+      setInviteError(
+        error instanceof ApiRequestError ? error.message : 'Einladung konnte nicht erstellt werden.',
+      );
+    }
+  };
+
   // ──────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -633,6 +658,7 @@ export default function RecipeDetailScreen() {
       <AddToCollectionModal
         visible={showCollectionModal}
         recipeId={recipeId}
+        recipeScope={recipe.scope}
         onClose={() => setShowCollectionModal(false)}
       />
 
@@ -939,6 +965,42 @@ export default function RecipeDetailScreen() {
                 <FolderPlus size={18} color="#C84B31" />
                 <Text className="text-primary-500 text-sm font-medium">Zu Collection hinzufügen</Text>
               </Pressable>
+
+              <View className="rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700 px-3 py-3 gap-2">
+                <View className="flex-row items-center gap-2">
+                  <Mail size={18} color="#C84B31" />
+                  <Text className="text-sm font-medium text-warm-900 dark:text-warm-50">An Person schicken</Text>
+                </View>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    value={inviteEmail}
+                    onChangeText={setInviteEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholder="email@example.com"
+                    placeholderTextColor="#9E8878"
+                    testID="recipe-share-invite-email"
+                    className="flex-1 border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-sm text-warm-900 dark:text-warm-50"
+                  />
+                  <Pressable
+                    onPress={handleCreateShareInvite}
+                    disabled={!inviteEmail.trim() || createShareInviteMutation.isPending}
+                    testID="recipe-share-invite-send"
+                    className={`w-12 items-center justify-center rounded-xl ${inviteEmail.trim() ? 'bg-primary-500' : 'bg-warm-200'}`}
+                  >
+                    {createShareInviteMutation.isPending
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Send size={17} color={inviteEmail.trim() ? '#fff' : '#9E8878'} />}
+                  </Pressable>
+                </View>
+                {inviteError && (
+                  <Text className="text-xs text-red-600" testID="recipe-share-invite-error">{inviteError}</Text>
+                )}
+                {inviteFeedback && (
+                  <Text className="text-xs text-green-700" testID="recipe-share-invite-feedback">{inviteFeedback}</Text>
+                )}
+              </View>
 
               {shareCaps.canShareToHousehold && (
                 <Pressable

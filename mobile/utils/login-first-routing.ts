@@ -25,7 +25,9 @@ export function normalizeReturnTo(
 }
 
 export function isPublicLoginFirstPath(pathname: string | null | undefined): boolean {
-  return pathname === '/account' || pathname === '/+not-found';
+  return pathname === '/account'
+    || pathname === '/+not-found'
+    || pathname?.startsWith('/share-invite/') === true;
 }
 
 export function buildLoginFirstAccountHref(
