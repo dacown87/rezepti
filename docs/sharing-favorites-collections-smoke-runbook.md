@@ -194,6 +194,7 @@ Abweichungen):
 | 2026-07-05 | 4 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Haushaltskopie `39` als neue private Kopie angelegt; Liste stieg auf vier sichtbare Rezepte. |
 | 2026-07-05 | 5 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Filter zeigte nur den Favoriten; nach Entfernen blieb der aktive Filter bedienbar und zeigte keinen stale Eintrag. |
 | 2026-07-05 | 6 | Lokal, kontrollierter Service Worker, lokaler Supabase-Stack | Bestanden | `sw.js` kontrollierte den Client, `rd-user-<sha256>` wurde genutzt; Status blieb nach Mutation, Cache-Aktualisierung und Reload korrekt. |
+| 2026-07-07 | API-Sanity | Production Web + Supabase Production | Bestanden | Nach Reaktivierung von Supabase lief `Apply Supabase Migrations` Run `28863540200` gruen; angewendet wurden `20260623100000_recipe_collections.sql`, `20260623100100_recipe_collection_items.sql` und `20260623100200_recipes_source_recipe_id.sql`. API-Smoke mit QA-User: `auth/me`, `auth/bootstrap`, `GET /api/v1/recipes`, Collection Create/Add/Read/Remove/Delete fuer Rezept `5`, plus Favorite Set/Read/Delete/Read fuer Rezept `5` bestanden. |
 
 Hinweis: Der Pre-Merge-Smoke war bewusst vollstaendig lokal isoliert. Der
 dokumentierte Production-QA-Account und Production-Daten wurden nicht veraendert.
