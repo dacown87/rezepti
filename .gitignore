@@ -9,6 +9,7 @@ LoginData
 data/cookidoo-session.json
 screensshots/
 .gstack/
+.superpowers/
 .opencode/
 .playwright-mcp/
 .expo/
