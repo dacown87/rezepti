@@ -87,6 +87,31 @@ Share-Check (privates Rezept in Haushalt kopieren):
   -d '{"targetScope":"household"}'
 ```
 
+Recipe-Invite-/Household-Collection-Staging-Smoke:
+
+```bash
+npx tsx scripts/supabase/staging-recipe-invite-smoke.ts
+```
+
+Voraussetzungen fuer den Staging-Smoke:
+
+- Repo-`.env` enthaelt `STAGING_SUPABASE_URL`,
+  `STAGING_SUPABASE_PUBLISHABLE_KEY`, `STAGING_SUPABASE_SECRET_KEY` und
+  `STAGING_DATABASE_URL`.
+- Staging ist bis zur aktuellen Migration migriert.
+- Das Skript nutzt die lokale API-Implementierung gegen Staging, erzeugt eigene
+  temporaere Auth-User/Profile/Rezepte/Collections/Invites und raeumt diese am
+  Ende wieder auf.
+
+Gepruefte Feature-Vertraege:
+
+- Privates Rezept wird beim Hinzufuegen zu einer Haushalts-Collection als
+  Haushaltskopie angelegt.
+- Email-gebundener Invite ist als Preview abrufbar.
+- Falscher eingeloggter Account kann den Invite nicht annehmen.
+- Empfaenger akzeptiert den Invite als private Rezeptkopie.
+- Wiederholtes Accept ist idempotent.
+
 ## Manuelle Browser-Smoke-Pfade
 
 Die folgenden sechs Pfade muessen manuell in der Web-App oder PWA abgenommen werden.
@@ -195,6 +220,7 @@ Abweichungen):
 | 2026-07-05 | 5 | Lokal, Web/PWA, lokaler Supabase-Stack | Bestanden | Filter zeigte nur den Favoriten; nach Entfernen blieb der aktive Filter bedienbar und zeigte keinen stale Eintrag. |
 | 2026-07-05 | 6 | Lokal, kontrollierter Service Worker, lokaler Supabase-Stack | Bestanden | `sw.js` kontrollierte den Client, `rd-user-<sha256>` wurde genutzt; Status blieb nach Mutation, Cache-Aktualisierung und Reload korrekt. |
 | 2026-07-07 | API-Sanity | Production Web + Supabase Production | Bestanden | Nach Reaktivierung von Supabase lief `Apply Supabase Migrations` Run `28863540200` gruen; angewendet wurden `20260623100000_recipe_collections.sql`, `20260623100100_recipe_collection_items.sql` und `20260623100200_recipes_source_recipe_id.sql`. API-Smoke mit QA-User: `auth/me`, `auth/bootstrap`, `GET /api/v1/recipes`, Collection Create/Add/Read/Remove/Delete fuer Rezept `5`, plus Favorite Set/Read/Delete/Read fuer Rezept `5` bestanden. |
+| 2026-07-08 | Recipe-Invite-/Household-Collection-Smoke | Staging Supabase + lokale API-Implementierung | Bestanden | Staging-Migrationen bis `20260707141913_recipe_share_invites.sql` angewendet und Local/Remote synchron; `supabase:rls-smoke:staging` gruen; Security Advisors ohne Findings; `scripts/supabase/staging-recipe-invite-smoke.ts` gruen fuer Haushaltskopie beim Collection-Add, email-gebundene Invite-Preview, falscher Account `403`, Empfaenger-Private-Copy und idempotentes Re-Accept. |
 
 Hinweis: Der Pre-Merge-Smoke war bewusst vollstaendig lokal isoliert. Der
 dokumentierte Production-QA-Account und Production-Daten wurden nicht veraendert.
