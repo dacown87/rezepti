@@ -27,9 +27,9 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
    - Details: [CI / Supabase / Northflank Check](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
 3. **Produkt-/Ops-Follow-ups mit klarer Slice-Grenze**
-   - Admin-Hub fuer weitere Operator-Themen ausbauen; BYOK-Policy ist als erster Punkt live.
-   - Bug-Reporting-Flow als eigenen Slice planen und umsetzen.
-   - Recipes Sharing/Favorites/Collections: erster Slice ueber **PR #28 gemergt**; Review-Fixes, finaler Remote-CI-Lauf und lokaler 6/6-Web-/PWA-Smoke sind gruen. Der Recipe-Invite-/Household-Collection-Folge-Slice ist lokal implementiert und auf Staging gruen; Production-Rollout bleibt als naechster Gate offen.
+   - Recipes Sharing/Favorites/Collections plus Recipe-Invite-/Household-Collection-Slice sind auf Production ausgerollt und per Smoke belegt.
+   - Naechster sinnvoller Produkt-Slice: echte Email-Zustellung fuer Invites oder ein Multi-Household-Zielpicker, je nachdem ob externe Empfaenger oder Haushaltsorganisation priorisiert werden.
+   - Admin-Hub bleibt nur noch fuer neue Operator-Themen relevant; BYOK-Policy und Bug-Reporting sind live.
 
 4. **PWA nur noch als Rest-QA / optionale Nachpruefung**
    - PWA Phase 6 ist abgeschlossen; der deployte QA-Durchlauf vom 2026-06-14 ist weitgehend gruen.
