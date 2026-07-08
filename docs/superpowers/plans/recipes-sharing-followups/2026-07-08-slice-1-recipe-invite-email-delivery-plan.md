@@ -1,7 +1,7 @@
 # Slice 1: Recipe-Invite Email Delivery Plan
 
 Stand: 2026-07-08
-Status: geplant
+Status: lokal umgesetzt, vor Provider-/Staging-Smoke
 Masterplan:
 [2026-07-08-recipes-sharing-followups-master-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-07-08-recipes-sharing-followups-master-plan.md)
 
@@ -11,6 +11,17 @@ Recipe-Invites sollen nicht nur einen Link erzeugen, sondern eine echte E-Mail
 an die normalisierte Zieladresse senden. Der bestehende Invite-Vertrag bleibt:
 Der Empfaenger akzeptiert den Invite mit derselben E-Mail-Adresse und bekommt
 eine private Rezeptkopie.
+
+## Ergebnis 2026-07-08
+
+- `src/mail.ts` kapselt Invite-Mailversand mit Disabled-Fallback und
+  Resend-Provider.
+- `POST /api/v1/recipes/:id/share-invites` gibt `shareUrl` und `delivery`
+  zurueck; Providerfehler loeschen das Invite nicht.
+- Mobile zeigt gesendete Einladungen ohne Native-Share-Sheet, nutzt bei
+  `skipped`/`failed` den manuellen Link-Fallback und blockiert Invite-Erstellung
+  offline.
+- `.env.example` dokumentiert die noetigen Provider-Variablen.
 
 ## Nicht-Ziele
 

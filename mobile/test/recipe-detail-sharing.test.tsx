@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Share } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as { React?: typeof React }).React = React;
@@ -18,7 +19,10 @@ vi.mock('react-native-safe-area-context', () => ({
 
 vi.mock('@/utils/server-url', () => ({ getServerUrl: vi.fn(async () => 'http://localhost:3000') }));
 vi.mock('react-native-qrcode-svg', () => ({ default: () => React.createElement('QRCode') }));
-vi.mock('expo-linking', () => ({ openURL: vi.fn(async () => undefined) }));
+vi.mock('expo-linking', () => ({
+  openURL: vi.fn(async () => undefined),
+  createURL: vi.fn((path: string) => `recipedeck://${path.replace(/^\/+/, '')}`),
+}));
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: { getItem: vi.fn(async () => null), setItem: vi.fn(async () => undefined) },
 }));
@@ -52,6 +56,15 @@ vi.mock('@/utils/api', () => ({
   },
 }));
 vi.mock('@/utils/protected-access', () => ({ mapProtectedApiError: () => null }));
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({
+    data: {
+      activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+      memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' }],
+    },
+  }),
+}));
+vi.mock('@/utils/admin', () => ({ fetchAuthMe: vi.fn() }));
 
 // 3a hook mocks
 const hookState = vi.hoisted(() => ({
@@ -189,7 +202,11 @@ describe('RecipeDetailScreen — sharing & favorites CTAs', () => {
     await press(await waitFor(() => screen.getByTestId('copy-to-household-cta')));
 
     await waitFor(() => {
-      expect(hookState.shareMutateAsync).toHaveBeenCalledWith({ id: 99, target: 'household' });
+      expect(hookState.shareMutateAsync).toHaveBeenCalledWith({
+        id: 99,
+        target: 'household',
+        householdId: '10000000-0000-0000-0000-000000000001',
+      });
       expect(screen.getByTestId('share-feedback')).toBeTruthy();
     });
   });
@@ -213,5 +230,67 @@ describe('RecipeDetailScreen — sharing & favorites CTAs', () => {
 
     await press(await waitFor(() => screen.getByTestId('add-to-collection-cta')));
     await waitFor(() => expect(screen.getByTestId('collection-modal-open')).toBeTruthy());
+  });
+
+  it('shows sent feedback without opening the manual share sheet', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(recipePayload({})));
+    hookState.createInviteMutateAsync.mockResolvedValueOnce({
+      token: 'token-1',
+      shareUrl: 'https://app.test/share-invite/token-1',
+      delivery: { status: 'sent', provider: 'resend' },
+    });
+
+    const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
+    render(React.createElement(RecipeDetailScreen));
+
+    await waitFor(() => screen.getByTestId('recipe-share-invite-email'));
+    fireEvent.changeText(screen.getByTestId('recipe-share-invite-email'), 'friend@example.com');
+    await press(screen.getByTestId('recipe-share-invite-send'));
+
+    await waitFor(() => {
+      expect(hookState.createInviteMutateAsync).toHaveBeenCalledWith({ id: 99, email: 'friend@example.com' });
+      expect(screen.getByTestId('recipe-share-invite-feedback')).toBeTruthy();
+      expect(screen.getByText('Einladung gesendet. Beim Annehmen entsteht eine private Kopie.')).toBeTruthy();
+    });
+    expect(Share.share).not.toHaveBeenCalled();
+  });
+
+  it('keeps a manual link fallback when invite email delivery fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(recipePayload({})));
+    hookState.createInviteMutateAsync.mockResolvedValueOnce({
+      token: 'token-1',
+      shareUrl: 'https://app.test/share-invite/token-1',
+      delivery: { status: 'failed', provider: 'resend', errorCode: 'provider_rejected' },
+    });
+
+    const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
+    render(React.createElement(RecipeDetailScreen));
+
+    await waitFor(() => screen.getByTestId('recipe-share-invite-email'));
+    fireEvent.changeText(screen.getByTestId('recipe-share-invite-email'), 'friend@example.com');
+    await press(screen.getByTestId('recipe-share-invite-send'));
+
+    await waitFor(() => {
+      expect(Share.share).toHaveBeenCalledWith({
+        title: 'Geteiltes Rezept',
+        message: 'https://app.test/share-invite/token-1',
+      });
+      expect(screen.getByText('Einladung erstellt, E-Mail-Versand fehlgeschlagen. Link kann manuell geteilt werden.')).toBeTruthy();
+    });
+  });
+
+  it('keeps recipe invite creation online-only', async () => {
+    Object.defineProperty(globalThis, 'navigator', { value: { onLine: false }, writable: true, configurable: true });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(recipePayload({})));
+
+    const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
+    render(React.createElement(RecipeDetailScreen));
+
+    await waitFor(() => screen.getByTestId('recipe-share-invite-email'));
+    fireEvent.changeText(screen.getByTestId('recipe-share-invite-email'), 'friend@example.com');
+    await press(screen.getByTestId('recipe-share-invite-send'));
+
+    expect(hookState.createInviteMutateAsync).not.toHaveBeenCalled();
+    expect(screen.getByText('Einladungen können nur online erstellt werden.')).toBeTruthy();
   });
 });

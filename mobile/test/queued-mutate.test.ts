@@ -71,7 +71,7 @@ describe('queuedMutate', () => {
     expect(await queue.size()).toBe(0);
   });
 
-  it('POST body gets client_op_id injected', async () => {
+  it('object bodies get client_op_id injected', async () => {
     let capturedMutation: QueuedMutation | undefined;
     const send = vi.fn(async (m: QueuedMutation) => {
       capturedMutation = m;
@@ -83,5 +83,19 @@ describe('queuedMutate', () => {
     await queuedMutate(queue, input, deps);
 
     expect(capturedMutation?.body).toEqual({ recipeId: 7, client_op_id: 'op-5' });
+  });
+
+  it('PATCH body gets client_op_id injected for queued collection reorder', async () => {
+    let capturedMutation: QueuedMutation | undefined;
+    const send = vi.fn(async (m: QueuedMutation) => {
+      capturedMutation = m;
+      return new Response(null, { status: 200 });
+    });
+    const input: MutationInput = { endpoint: '/api/v1/recipe-collections/c1/items/reorder', method: 'PATCH', body: { recipeIds: [2, 1] } };
+    const deps: QueuedMutateDeps = { online: true, send, newId: () => 'op-6' };
+
+    await queuedMutate(queue, input, deps);
+
+    expect(capturedMutation?.body).toEqual({ recipeIds: [2, 1], client_op_id: 'op-6' });
   });
 });

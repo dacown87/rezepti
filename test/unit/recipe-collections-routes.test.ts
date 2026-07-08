@@ -11,6 +11,9 @@ const dbMocks = vi.hoisted(() => ({
   renameCollection: vi.fn(),
   deleteCollection: vi.fn(),
   addRecipeToCollection: vi.fn(),
+  reorderCollectionItems: vi.fn(),
+  bulkRemoveRecipesFromCollection: vi.fn(),
+  bulkCopyCollectionItems: vi.fn(),
   removeRecipeFromCollection: vi.fn(),
   getCollectionItemsForAuth: vi.fn(),
   shareCopyRecipe: vi.fn(),
@@ -21,6 +24,7 @@ const dbMocks = vi.hoisted(() => ({
   // against realistic ownership logic (mirrors src/db-react.ts).
   isCollectionVisibleToAuth: vi.fn(),
   canMutateCollectionForAuth: vi.fn(),
+  canManageCollectionForAuth: vi.fn(),
   isRecipeVisibleToAuth: vi.fn(),
   isShareCopyAllowed: vi.fn(),
   isRecipeLegalForCollection: vi.fn(),
@@ -39,14 +43,21 @@ const HOUSEHOLD_2 = '10000000-0000-0000-0000-000000000002'
 
 const authHeaders = { Authorization: 'Bearer valid-token', 'Content-Type': 'application/json' }
 
-function authAsUserA(opts: { activeHousehold?: string | null; memberships?: string[] } = {}) {
+function authAsUserA(opts: {
+  activeHousehold?: string | null;
+  memberships?: Array<string | { householdId: string; role: 'owner' | 'member' }>;
+} = {}) {
   const memberships = opts.memberships ?? [HOUSEHOLD_1]
   const activeHouseholdId = opts.activeHousehold === undefined ? HOUSEHOLD_1 : opts.activeHousehold
   configureAuthForTests({
     verifyAccessToken: async () => ({ id: USER_A, email: 'user-a@example.com' }),
     loadAuthorization: async () => ({
       appRole: 'user',
-      memberships: memberships.map((householdId) => ({ householdId, role: 'owner' as const })),
+      memberships: memberships.map((membership) =>
+        typeof membership === 'string'
+          ? { householdId: membership, role: 'owner' as const }
+          : membership,
+      ),
       activeHouseholdId,
     }),
   })
@@ -59,6 +70,7 @@ beforeEach(() => {
       (owner.ownerType === 'user' && target === 'household')
       || (owner.ownerType === 'household' && target === 'user'),
   )
+  dbMocks.canManageCollectionForAuth.mockReturnValue(true)
   authAsUserA()
 })
 
@@ -81,15 +93,15 @@ describe('GET /api/v1/recipe-collections', () => {
   it('returns only the caller-visible collections (User A cannot see User B private)', async () => {
     // The helper already scopes by auth; the route must return exactly what it gets.
     dbMocks.getCollectionsForAuth.mockResolvedValue([
-      { id: 'c1', kind: 'favorites', name: 'Favoriten', owner_type: 'user', item_count: 2, is_system: true },
-      { id: 'c2', kind: 'custom', name: 'Meine Liste', owner_type: 'user', item_count: 0, is_system: false },
+      { id: 'c1', kind: 'favorites', name: 'Favoriten', owner_type: 'user', household_id: null, can_manage: true, item_count: 2, is_system: true },
+      { id: 'c2', kind: 'custom', name: 'Meine Liste', owner_type: 'user', household_id: null, can_manage: true, item_count: 0, is_system: false },
     ])
     const res = await router.request('/api/v1/recipe-collections', { headers: authHeaders })
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({
       collections: [
-        { id: 'c1', kind: 'favorites', name: 'Favoriten', owner_type: 'user', item_count: 2, is_system: true },
-        { id: 'c2', kind: 'custom', name: 'Meine Liste', owner_type: 'user', item_count: 0, is_system: false },
+        { id: 'c1', kind: 'favorites', name: 'Favoriten', owner_type: 'user', household_id: null, can_manage: true, item_count: 2, is_system: true },
+        { id: 'c2', kind: 'custom', name: 'Meine Liste', owner_type: 'user', household_id: null, can_manage: true, item_count: 0, is_system: false },
       ],
     })
     expect(dbMocks.getCollectionsForAuth).toHaveBeenCalledWith(
@@ -101,18 +113,44 @@ describe('GET /api/v1/recipe-collections', () => {
     // Two members of HOUSEHOLD_1 both resolve the same household collection via the
     // auth-scoped helper. We assert the route forwards the household-scoped auth.
     dbMocks.getCollectionsForAuth.mockResolvedValue([
-      { id: 'hh1', kind: 'custom', name: 'Familienrezepte', owner_type: 'household', item_count: 3, is_system: false },
+      { id: 'hh1', kind: 'custom', name: 'Familienrezepte', owner_type: 'household', household_id: HOUSEHOLD_1, can_manage: true, item_count: 3, is_system: false },
     ])
     const res = await router.request('/api/v1/recipe-collections', { headers: authHeaders })
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({
       collections: [
-        { id: 'hh1', kind: 'custom', name: 'Familienrezepte', owner_type: 'household', item_count: 3, is_system: false },
+        { id: 'hh1', kind: 'custom', name: 'Familienrezepte', owner_type: 'household', household_id: HOUSEHOLD_1, can_manage: true, item_count: 3, is_system: false },
       ],
     })
     expect(dbMocks.getCollectionsForAuth).toHaveBeenCalledWith(
       expect.objectContaining({ memberships: [expect.objectContaining({ householdId: HOUSEHOLD_1 })] }),
     )
+  })
+
+  it('filters household collections by an explicit target household', async () => {
+    authAsUserA({ memberships: [HOUSEHOLD_1, HOUSEHOLD_2] })
+    dbMocks.getCollectionsForAuth.mockResolvedValue([
+      { id: 'user', kind: 'custom', name: 'Privat', owner_type: 'user', household_id: null, can_manage: true, item_count: 1, is_system: false },
+      { id: 'hh1', kind: 'custom', name: 'Haushalt 1', owner_type: 'household', household_id: HOUSEHOLD_1, can_manage: true, item_count: 2, is_system: false },
+      { id: 'hh2', kind: 'custom', name: 'Haushalt 2', owner_type: 'household', household_id: HOUSEHOLD_2, can_manage: true, item_count: 3, is_system: false },
+    ])
+
+    const res = await router.request(`/api/v1/recipe-collections?ownerType=household&householdId=${HOUSEHOLD_2}`, { headers: authHeaders })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      collections: [
+        { id: 'hh2', kind: 'custom', name: 'Haushalt 2', owner_type: 'household', household_id: HOUSEHOLD_2, can_manage: true, item_count: 3, is_system: false },
+      ],
+    })
+  })
+
+  it('rejects a foreign target household filter without leaking collections', async () => {
+    const res = await router.request(`/api/v1/recipe-collections?ownerType=household&householdId=${HOUSEHOLD_2}`, { headers: authHeaders })
+
+    expect(res.status).toBe(404)
+    await expect(res.json()).resolves.toMatchObject({ code: 'target_household_not_found' })
+    expect(dbMocks.getCollectionsForAuth).not.toHaveBeenCalled()
   })
 })
 
@@ -120,7 +158,7 @@ describe('GET /api/v1/recipe-collections', () => {
 describe('POST /api/v1/recipe-collections', () => {
   it('creates a custom user collection by default', async () => {
     dbMocks.createCollection.mockResolvedValue({
-      id: 'new', kind: 'custom', name: 'Test', owner_type: 'user', item_count: 0, is_system: false,
+      id: 'new', kind: 'custom', name: 'Test', owner_type: 'user', household_id: null, can_manage: true, item_count: 0, is_system: false,
     })
     const res = await router.request('/api/v1/recipe-collections', {
       method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'Test' }),
@@ -152,7 +190,7 @@ describe('POST /api/v1/recipe-collections', () => {
 
   it('creates a household collection for a member household', async () => {
     dbMocks.createCollection.mockResolvedValue({
-      id: 'hh', kind: 'custom', name: 'Fam', owner_type: 'household', item_count: 0, is_system: false,
+      id: 'hh', kind: 'custom', name: 'Fam', owner_type: 'household', household_id: HOUSEHOLD_1, can_manage: true, item_count: 0, is_system: false,
     })
     const res = await router.request('/api/v1/recipe-collections', {
       method: 'POST', headers: authHeaders,
@@ -163,6 +201,19 @@ describe('POST /api/v1/recipe-collections', () => {
       expect.objectContaining({ userId: USER_A }),
       { name: 'Fam', ownerType: 'household', householdId: HOUSEHOLD_1 },
     )
+  })
+
+  it('rejects household collection creation for non-owner members', async () => {
+    authAsUserA({ memberships: [{ householdId: HOUSEHOLD_1, role: 'member' }] })
+
+    const res = await router.request('/api/v1/recipe-collections', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ name: 'Fam', ownerType: 'household', householdId: HOUSEHOLD_1 }),
+    })
+
+    expect(res.status).toBe(404)
+    expect(dbMocks.createCollection).not.toHaveBeenCalled()
   })
 })
 
@@ -231,6 +282,22 @@ describe('PATCH/DELETE /api/v1/recipe-collections/:id', () => {
     })
     expect(res.status).toBe(200)
     expect(dbMocks.deleteCollection).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_A }), 'c1')
+  })
+
+  it('prevents household members from renaming household collections', async () => {
+    authAsUserA({ memberships: [{ householdId: HOUSEHOLD_1, role: 'member' }] })
+    dbMocks.loadCollectionRowById.mockResolvedValue({
+      id: 'hh', ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_1, kind: 'custom',
+    })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(true)
+    dbMocks.canManageCollectionForAuth.mockReturnValue(false)
+
+    const res = await router.request('/api/v1/recipe-collections/hh', {
+      method: 'PATCH', headers: authHeaders, body: JSON.stringify({ name: 'Neu' }),
+    })
+
+    expect(res.status).toBe(404)
+    expect(dbMocks.renameCollection).not.toHaveBeenCalled()
   })
 })
 
@@ -328,6 +395,64 @@ describe('POST /api/v1/recipe-collections/:id/items', () => {
     )
   })
 
+  it('allows household members to add items to a household collection', async () => {
+    authAsUserA({ memberships: [{ householdId: HOUSEHOLD_1, role: 'member' }] })
+    dbMocks.loadCollectionRowById.mockResolvedValue({
+      id: 'hh', ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_1, kind: 'custom',
+    })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(true)
+    dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 5, ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_1 })
+    dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
+    dbMocks.isRecipeLegalForCollection.mockReturnValue(true)
+    dbMocks.addRecipeToCollection.mockResolvedValue({ added: true, recipeId: 5, copied: false })
+
+    const res = await router.request('/api/v1/recipe-collections/hh/items', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ recipeId: 5 }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(dbMocks.addRecipeToCollection).toHaveBeenCalledWith(
+      expect.objectContaining({ memberships: [expect.objectContaining({ role: 'member' })] }),
+      'hh',
+      5,
+    )
+  })
+
+  it('accepts targetHouseholdId when it matches the household collection', async () => {
+    authAsUserA({ memberships: [HOUSEHOLD_1, HOUSEHOLD_2] })
+    dbMocks.loadCollectionRowById.mockResolvedValue({
+      id: 'hh2', ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_2, kind: 'custom',
+    })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(true)
+    dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 5, ownerType: 'user', ownerUserId: USER_A, householdId: null })
+    dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
+    dbMocks.addRecipeToCollection.mockResolvedValue({ added: true, recipeId: 66, copied: true })
+
+    const res = await router.request('/api/v1/recipe-collections/hh2/items', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ recipeId: 5, targetHouseholdId: HOUSEHOLD_2 }),
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ added: true, recipeId: 66, copied: true })
+  })
+
+  it('rejects targetHouseholdId that does not match the collection household', async () => {
+    authAsUserA({ memberships: [HOUSEHOLD_1, HOUSEHOLD_2] })
+    dbMocks.loadCollectionRowById.mockResolvedValue({
+      id: 'hh1', ownerType: 'household', ownerUserId: null, householdId: HOUSEHOLD_1, kind: 'custom',
+    })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(true)
+
+    const res = await router.request('/api/v1/recipe-collections/hh1/items', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ recipeId: 5, targetHouseholdId: HOUSEHOLD_2 }),
+    })
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toMatchObject({ code: 'target_household_mismatch' })
+    expect(dbMocks.loadRecipeOwnerRow).not.toHaveBeenCalled()
+    expect(dbMocks.addRecipeToCollection).not.toHaveBeenCalled()
+  })
+
   it('adding an invisible recipe → 404 (no existence leak)', async () => {
     visibleCustomCollection()
     dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 9, ownerType: 'user', ownerUserId: USER_B, householdId: null })
@@ -372,6 +497,91 @@ describe('POST /api/v1/recipe-collections/:id/items', () => {
     })
     expect(res.status).toBe(400)
     expect(dbMocks.loadCollectionRowById).not.toHaveBeenCalled()
+  })
+})
+
+describe('collection bulk item routes', () => {
+  function visibleMutableCollection(id = 'c1') {
+    dbMocks.loadCollectionRowById.mockResolvedValue({
+      id, ownerType: 'user', ownerUserId: USER_A, householdId: null, kind: 'custom',
+    })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(true)
+    dbMocks.canMutateCollectionForAuth.mockReturnValue(true)
+  }
+
+  it('reorders existing collection items', async () => {
+    visibleMutableCollection()
+    dbMocks.reorderCollectionItems.mockResolvedValue({ updated: [2, 1], missing: [] })
+
+    const res = await router.request('/api/v1/recipe-collections/c1/items/reorder', {
+      method: 'PATCH', headers: authHeaders, body: JSON.stringify({ recipeIds: [2, 1] }),
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      succeeded: [{ recipeId: 2 }, { recipeId: 1 }],
+      failed: [],
+    })
+    expect(dbMocks.reorderCollectionItems).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_A }), 'c1', [2, 1])
+  })
+
+  it('returns visible failures when reorder references items outside the collection', async () => {
+    visibleMutableCollection()
+    dbMocks.reorderCollectionItems.mockResolvedValue({ updated: [], missing: [99] })
+
+    const res = await router.request('/api/v1/recipe-collections/c1/items/reorder', {
+      method: 'PATCH', headers: authHeaders, body: JSON.stringify({ recipeIds: [99] }),
+    })
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({
+      succeeded: [],
+      failed: [{ recipeId: 99, code: 'not_in_collection' }],
+    })
+  })
+
+  it('bulk-removes collection memberships without deleting recipes', async () => {
+    visibleMutableCollection()
+    dbMocks.bulkRemoveRecipesFromCollection.mockResolvedValue({ removed: [1, 2], missing: [3] })
+
+    const res = await router.request('/api/v1/recipe-collections/c1/items/bulk-remove', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ recipeIds: [1, 2, 3] }),
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      succeeded: [{ recipeId: 1 }, { recipeId: 2 }],
+      failed: [{ recipeId: 3, code: 'not_in_collection' }],
+    })
+    expect(dbMocks.bulkRemoveRecipesFromCollection).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_A }), 'c1', [1, 2, 3])
+  })
+
+  it('bulk-copies selected collection items into a target collection', async () => {
+    dbMocks.loadCollectionRowById
+      .mockResolvedValueOnce({ id: 'source', ownerType: 'user', ownerUserId: USER_A, householdId: null, kind: 'custom' })
+      .mockResolvedValueOnce({ id: 'target', ownerType: 'user', ownerUserId: USER_A, householdId: null, kind: 'custom' })
+    dbMocks.isCollectionVisibleToAuth.mockReturnValue(true)
+    dbMocks.canMutateCollectionForAuth.mockReturnValue(true)
+    dbMocks.bulkCopyCollectionItems.mockResolvedValue({
+      succeeded: [{ sourceRecipeId: 1, recipeId: 1, added: true, copied: false }],
+      failed: [{ recipeId: 2, code: 'copy_not_allowed' }],
+    })
+
+    const res = await router.request('/api/v1/recipe-collections/source/items/bulk-copy', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ targetCollectionId: 'target', recipeIds: [1, 2] }),
+    })
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      succeeded: [{ sourceRecipeId: 1, recipeId: 1, added: true, copied: false }],
+      failed: [{ recipeId: 2, code: 'copy_not_allowed' }],
+    })
+    expect(dbMocks.bulkCopyCollectionItems).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_A }),
+      'source',
+      'target',
+      [1, 2],
+    )
   })
 })
 
@@ -435,6 +645,37 @@ describe('POST /api/v1/recipes/:id/share', () => {
     expect(dbMocks.shareCopyRecipe).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_A }), 1, { type: 'household', householdId: HOUSEHOLD_1 },
     )
+  })
+
+  it('shares a private recipe into an explicit member household', async () => {
+    authAsUserA({ activeHousehold: HOUSEHOLD_1, memberships: [HOUSEHOLD_1, HOUSEHOLD_2] })
+    dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 1, ownerType: 'user', ownerUserId: USER_A, householdId: null })
+    dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
+    dbMocks.shareCopyRecipe.mockResolvedValue({ id: 1000, scope: 'household', householdId: HOUSEHOLD_2 })
+
+    const res = await router.request('/api/v1/recipes/1/share', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ target: { type: 'household', householdId: HOUSEHOLD_2 } }),
+    })
+
+    expect(res.status).toBe(201)
+    expect(dbMocks.shareCopyRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_A }),
+      1,
+      { type: 'household', householdId: HOUSEHOLD_2 },
+    )
+  })
+
+  it('rejects an explicit foreign target household when sharing', async () => {
+    dbMocks.loadRecipeOwnerRow.mockResolvedValue({ id: 1, ownerType: 'user', ownerUserId: USER_A, householdId: null })
+    dbMocks.isRecipeVisibleToAuth.mockReturnValue(true)
+
+    const res = await router.request('/api/v1/recipes/1/share', {
+      method: 'POST', headers: authHeaders, body: JSON.stringify({ target: { type: 'household', householdId: HOUSEHOLD_2 } }),
+    })
+
+    expect(res.status).toBe(404)
+    await expect(res.json()).resolves.toMatchObject({ code: 'target_household_not_found' })
+    expect(dbMocks.shareCopyRecipe).not.toHaveBeenCalled()
   })
 
   it('share household→private returns 201 with a NEW recipe id', async () => {

@@ -69,6 +69,19 @@ Stand 2026-06-02: Die alte Lueckenliste wurde gegen den aktuellen Testbestand ab
 
 ## Durchgeführte Tests
 
+- ✅ Recipes-Sharing-Follow-up-Slices lokal verifiziert (2026-07-08):
+  Invite-Mailzustellung, Multi-Household-Zielpicker, Collection-Positionen mit
+  Reorder/Bulk, Haushalts-Collection-Rollen und erster Offline-Queue-Scope fuer
+  Collection-Item-Mutationen sind umgesetzt. Verifiziert mit
+  `npm run test:unit -- --run test/unit/mail.test.ts test/unit/recipe-share-invites-routes.test.ts test/unit/recipe-collections-routes.test.ts`
+  (`615 passed`, `28 skipped`), `npm --prefix mobile run test:unit`
+  (`389 passed`), `npm --prefix mobile run test:unit -- --run test/queued-mutate.test.ts test/collections-hooks.test.ts test/recipe-detail-sharing.test.tsx test/collection-contents-screen.test.tsx test/recipe-detail-fallbacks.test.tsx test/mobile-workflow-list-detail-shopping-ui.test.tsx`
+  (`47 passed`), `npm run mobile:typecheck`, `npm run test:mobile:rntl-guard`,
+  `npm run security:secrets` und
+  `git diff --check`. Staging-/Production-Smoke fuer die neue Migration
+  `20260708031603_recipe_collection_item_positions.sql` und echten
+  Mail-Provider-Versand bleibt vor Deploy separat offen.
+
 - ✅ Recipe-Invite-/Household-Collections-Staging-Smoke abgeschlossen (2026-07-08): `rezepti-staging` wurde mit allen noch ausstehenden Migrationen bis einschliesslich `20260707141913_recipe_share_invites.sql` aktualisiert; `npx supabase migration list --db-url "$STAGING_DATABASE_URL"` zeigte danach Local/Remote synchron. Der gegatete Staging-RLS-Smoke lief gruen mit `SUPABASE_RLS_SMOKE_TARGET=staging SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging npm run supabase:rls-smoke:staging`; die Supabase Security Advisors meldeten per `npx supabase db advisors --db-url "$STAGING_DATABASE_URL" --type security --level warn --fail-on error` keine WARN-/ERROR-Findings. Der neue Feature-Smoke `npx tsx scripts/supabase/staging-recipe-invite-smoke.ts` verifizierte gegen Staging: privates Rezept wird beim Hinzufuegen zu einer Haushalts-Collection als Haushaltskopie angelegt, email-gebundene Invite-Preview funktioniert, falscher Account kann nicht annehmen (`403`), Empfaenger nimmt als private Kopie an, wiederholtes Accept ist idempotent. Die temporaeren Smoke-User/-Daten wurden danach bereinigt.
 
 - ✅ Recipe-Invite-/Household-Collections-Production-Rollout abgeschlossen (2026-07-08): `main` wurde bis `6e7a7aa` (`v1.0.194`) gepusht. Production-Migration `20260707141913_recipe_share_invites.sql` wurde ueber `Apply Supabase Migrations` Run `28913601218` angewendet. Der korrigierte Remote-CI-Lauf `28913803470` war gruen (`test`, `e2e`, `supabase-rls-smoke`, `mobile-release-gate`, `performance-audit`), und die Docker-/Northflank-Runs `28913803496` sowie der nachgelagerte Version-Deploy `28913812673` waren inklusive Health-Poll erfolgreich. Production-Smoke gegen `https://p01--rezepti-app--2s7hvlwm5zc5.code.run` lief gruen mit `RECIPE_INVITE_SMOKE_TARGET=production RECIPE_INVITE_SMOKE_CONFIRM=rezepti-production npx tsx scripts/supabase/staging-recipe-invite-smoke.ts`: Haushaltskopie beim Collection-Add, email-gebundene Invite-Preview, falscher Account `403`, Empfaenger-Private-Copy und idempotentes Re-Accept bestaetigt. Cleanup nach dem Smoke ergab `profiles=0`, `recipes=0`, `invites=0` fuer die temporaeren Production-Smoke-Daten.

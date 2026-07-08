@@ -1,7 +1,7 @@
 # Slice 3: Collection Sorting and Bulk Actions Plan
 
 Stand: 2026-07-08
-Status: geplant
+Status: lokal umgesetzt, Migration vor Staging-Anwendung
 Masterplan:
 [2026-07-08-recipes-sharing-followups-master-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-07-08-recipes-sharing-followups-master-plan.md)
 
@@ -9,6 +9,16 @@ Masterplan:
 
 Collections sollen bei wachsender Nutzung effizient gepflegt werden koennen:
 stabile Reihenfolge, einfache Sortieroptionen und fokussierte Bulk-Aktionen.
+
+## Ergebnis 2026-07-08
+
+- Migration `20260708031603_recipe_collection_item_positions.sql` ergaenzt
+  `recipe_collection_items.position`, backfillt bestehende Items und legt den
+  Index `(collection_id, position)` an.
+- API-Endpunkte fuer Reorder, Bulk-Remove und Bulk-Copy sind umgesetzt.
+- Mobile Collection-Detail hat Auswahlmodus, Bulk-Remove, Bulk-Copy und lokale
+  Sortierung nach `Manuell`, `Neueste` und `Titel`.
+- Bulk-Remove loescht nur Collection-Mitgliedschaften, keine Rezepte.
 
 ## Nicht-Ziele
 

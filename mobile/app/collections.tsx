@@ -218,7 +218,7 @@ export default function CollectionsScreen() {
         </View>
       </Pressable>
       {/* Favorites (is_system) cannot be renamed or deleted — hide controls. */}
-      {!item.is_system && (
+      {!item.is_system && item.can_manage !== false && (
         <View className="flex-row items-center gap-1">
           <Pressable
             onPress={() => setRenaming(item)}

@@ -60,7 +60,7 @@ export type RecipeOwner =
 
 export interface RecipeAuthContext {
   userId: string;
-  memberships: Array<{ householdId: string }>;
+  memberships: Array<{ householdId: string; role?: HouseholdRole }>;
 }
 
 function recipeOwnerValues(owner: RecipeOwner, createdBy: string) {
@@ -475,6 +475,8 @@ export interface CollectionSummary {
   kind: CollectionKind;
   name: string;
   owner_type: CollectionOwnerType;
+  household_id: string | null;
+  can_manage: boolean;
   item_count: number;
   is_system: boolean;
 }
@@ -614,6 +616,26 @@ function canMutateCollection(
   return false;
 }
 
+function isHouseholdOwnerForCollection(auth: RecipeAuthContext, householdId: string | null): boolean {
+  if (!householdId) return false;
+  return auth.memberships.some((membership) =>
+    membership.householdId === householdId && (membership.role === undefined || membership.role === "owner"),
+  );
+}
+
+function canManageCollection(
+  auth: RecipeAuthContext,
+  collection: { ownerType: string; ownerUserId: string | null; householdId: string | null },
+): boolean {
+  if (collection.ownerType === "user") {
+    return collection.ownerUserId === auth.userId;
+  }
+  if (collection.ownerType === "household") {
+    return isHouseholdOwnerForCollection(auth, collection.householdId);
+  }
+  return false;
+}
+
 export async function getCollectionsForAuth(auth: RecipeAuthContext): Promise<CollectionSummary[]> {
   const db = getDb();
   const rows = await db
@@ -622,6 +644,7 @@ export async function getCollectionsForAuth(auth: RecipeAuthContext): Promise<Co
       kind: recipeCollections.kind,
       name: recipeCollections.name,
       ownerType: recipeCollections.ownerType,
+      householdId: recipeCollections.householdId,
       itemCount: count(recipes.id),
     })
     .from(recipeCollections)
@@ -639,6 +662,7 @@ export async function getCollectionsForAuth(auth: RecipeAuthContext): Promise<Co
       recipeCollections.kind,
       recipeCollections.name,
       recipeCollections.ownerType,
+      recipeCollections.householdId,
       recipeCollections.createdAt,
     )
     .orderBy(desc(recipeCollections.createdAt));
@@ -648,6 +672,8 @@ export async function getCollectionsForAuth(auth: RecipeAuthContext): Promise<Co
     kind: row.kind as CollectionKind,
     name: row.name,
     owner_type: row.ownerType as CollectionOwnerType,
+    household_id: row.householdId,
+    can_manage: row.ownerType === "user" ? true : isHouseholdOwnerForCollection(auth, row.householdId),
     item_count: Number(row.itemCount ?? 0),
     is_system: row.kind === "favorites",
   }));
@@ -665,7 +691,7 @@ export async function createCollection(
     ownerValues = { ownerType: "user", ownerUserId: auth.userId, householdId: null };
   } else {
     const householdId = input.householdId;
-    if (!householdId || !householdIdsForAuth(auth).includes(householdId)) {
+    if (!householdId || !isHouseholdOwnerForCollection(auth, householdId)) {
       throw new Error("Not a member of the target household");
     }
     ownerValues = { ownerType: "household", ownerUserId: null, householdId };
@@ -685,6 +711,7 @@ export async function createCollection(
       kind: recipeCollections.kind,
       name: recipeCollections.name,
       ownerType: recipeCollections.ownerType,
+      householdId: recipeCollections.householdId,
     });
 
   return {
@@ -692,6 +719,8 @@ export async function createCollection(
     kind: row.kind as CollectionKind,
     name: row.name,
     owner_type: row.ownerType as CollectionOwnerType,
+    household_id: row.householdId,
+    can_manage: true,
     item_count: 0,
     is_system: false,
   };
@@ -713,7 +742,7 @@ export async function renameCollection(auth: RecipeAuthContext, id: string, name
     .where(eq(recipeCollections.id, id))
     .limit(1);
 
-  if (!collection || collection.kind !== "custom" || !canMutateCollection(auth, collection)) {
+  if (!collection || collection.kind !== "custom" || !canManageCollection(auth, collection)) {
     return false;
   }
 
@@ -738,7 +767,7 @@ export async function deleteCollection(auth: RecipeAuthContext, id: string): Pro
     .where(eq(recipeCollections.id, id))
     .limit(1);
 
-  if (!collection || collection.kind !== "custom" || !canMutateCollection(auth, collection)) {
+  if (!collection || collection.kind !== "custom" || !canManageCollection(auth, collection)) {
     return false;
   }
 
@@ -764,6 +793,16 @@ async function loadCollectionForMutation(auth: RecipeAuthContext, collectionId: 
 
   if (!collection || !canMutateCollection(auth, collection)) return null;
   return collection;
+}
+
+async function nextRecipeCollectionItemPosition(collectionId: string, dbClient: any = getDb()): Promise<number> {
+  const [row] = await dbClient
+    .select({
+      nextPosition: sql<number>`coalesce(max(${recipeCollectionItems.position}), 0) + 1000`,
+    })
+    .from(recipeCollectionItems)
+    .where(eq(recipeCollectionItems.collectionId, collectionId));
+  return Number(row?.nextPosition ?? 1000);
 }
 
 /**
@@ -808,7 +847,12 @@ export async function addRecipeToCollection(
     });
     const rows = await db
       .insert(recipeCollectionItems)
-      .values({ collectionId, recipeId: copy.id, createdBy: auth.userId })
+      .values({
+        collectionId,
+        recipeId: copy.id,
+        position: await nextRecipeCollectionItemPosition(collectionId, db),
+        createdBy: auth.userId,
+      })
       .onConflictDoNothing({ target: [recipeCollectionItems.collectionId, recipeCollectionItems.recipeId] })
       .returning({ id: recipeCollectionItems.id });
 
@@ -825,7 +869,12 @@ export async function addRecipeToCollection(
   const db = getDb();
   const rows = await db
     .insert(recipeCollectionItems)
-    .values({ collectionId, recipeId, createdBy: auth.userId })
+    .values({
+      collectionId,
+      recipeId,
+      position: await nextRecipeCollectionItemPosition(collectionId, db),
+      createdBy: auth.userId,
+    })
     .onConflictDoNothing({ target: [recipeCollectionItems.collectionId, recipeCollectionItems.recipeId] })
     .returning({ id: recipeCollectionItems.id });
 
@@ -849,6 +898,120 @@ export async function removeRecipeFromCollection(
     ))
     .returning({ id: recipeCollectionItems.id });
   return rows.length > 0;
+}
+
+export async function reorderCollectionItems(
+  auth: RecipeAuthContext,
+  collectionId: string,
+  recipeIds: number[],
+): Promise<{ updated: number[]; missing: number[] }> {
+  const collection = await loadCollectionForMutation(auth, collectionId);
+  if (!collection) throw new Error("Collection not found or not writable");
+
+  const uniqueRecipeIds = [...new Set(recipeIds)];
+  if (uniqueRecipeIds.length === 0) return { updated: [], missing: [] };
+
+  const db = getDb();
+  const existingRows = await db
+    .select({ recipeId: recipeCollectionItems.recipeId })
+    .from(recipeCollectionItems)
+    .where(and(
+      eq(recipeCollectionItems.collectionId, collectionId),
+      inArray(recipeCollectionItems.recipeId, uniqueRecipeIds),
+    ));
+  const existing = new Set(existingRows.map((row) => row.recipeId));
+  const missing = uniqueRecipeIds.filter((recipeId) => !existing.has(recipeId));
+  if (missing.length > 0) return { updated: [], missing };
+
+  for (const [index, recipeId] of uniqueRecipeIds.entries()) {
+    await db
+      .update(recipeCollectionItems)
+      .set({ position: (index + 1) * 1000 })
+      .where(and(
+        eq(recipeCollectionItems.collectionId, collectionId),
+        eq(recipeCollectionItems.recipeId, recipeId),
+      ));
+  }
+
+  return { updated: uniqueRecipeIds, missing: [] };
+}
+
+export async function bulkRemoveRecipesFromCollection(
+  auth: RecipeAuthContext,
+  collectionId: string,
+  recipeIds: number[],
+): Promise<{ removed: number[]; missing: number[] }> {
+  const collection = await loadCollectionForMutation(auth, collectionId);
+  if (!collection) throw new Error("Collection not found or not writable");
+
+  const uniqueRecipeIds = [...new Set(recipeIds)];
+  if (uniqueRecipeIds.length === 0) return { removed: [], missing: [] };
+
+  const db = getDb();
+  const rows = await db
+    .delete(recipeCollectionItems)
+    .where(and(
+      eq(recipeCollectionItems.collectionId, collectionId),
+      inArray(recipeCollectionItems.recipeId, uniqueRecipeIds),
+    ))
+    .returning({ recipeId: recipeCollectionItems.recipeId });
+  const removed = rows.map((row) => row.recipeId);
+  const removedSet = new Set(removed);
+  return {
+    removed,
+    missing: uniqueRecipeIds.filter((recipeId) => !removedSet.has(recipeId)),
+  };
+}
+
+export async function bulkCopyCollectionItems(
+  auth: RecipeAuthContext,
+  sourceCollectionId: string,
+  targetCollectionId: string,
+  recipeIds: number[],
+): Promise<{
+  succeeded: Array<{ sourceRecipeId: number; recipeId: number; added: boolean; copied: boolean }>;
+  failed: Array<{ recipeId: number; code: string }>;
+}> {
+  const sourceCollection = await loadCollectionForMutation(auth, sourceCollectionId);
+  if (!sourceCollection) throw new Error("Collection not found or not writable");
+  const targetCollection = await loadCollectionForMutation(auth, targetCollectionId);
+  if (!targetCollection) throw new Error("Target collection not found or not writable");
+
+  const uniqueRecipeIds = [...new Set(recipeIds)];
+  if (uniqueRecipeIds.length === 0) return { succeeded: [], failed: [] };
+
+  const db = getDb();
+  const sourceRows = await db
+    .select({ recipeId: recipeCollectionItems.recipeId })
+    .from(recipeCollectionItems)
+    .where(and(
+      eq(recipeCollectionItems.collectionId, sourceCollectionId),
+      inArray(recipeCollectionItems.recipeId, uniqueRecipeIds),
+    ));
+  const sourceRecipeIds = new Set(sourceRows.map((row) => row.recipeId));
+
+  const succeeded: Array<{ sourceRecipeId: number; recipeId: number; added: boolean; copied: boolean }> = [];
+  const failed: Array<{ recipeId: number; code: string }> = [];
+  for (const recipeId of uniqueRecipeIds) {
+    if (!sourceRecipeIds.has(recipeId)) {
+      failed.push({ recipeId, code: "not_in_source_collection" });
+      continue;
+    }
+
+    try {
+      const result = await addRecipeToCollection(auth, targetCollectionId, recipeId);
+      succeeded.push({
+        sourceRecipeId: recipeId,
+        recipeId: result.recipeId,
+        added: result.added,
+        copied: result.copied,
+      });
+    } catch {
+      failed.push({ recipeId, code: "copy_not_allowed" });
+    }
+  }
+
+  return { succeeded, failed };
 }
 
 /**
@@ -1067,6 +1230,10 @@ export function canMutateCollectionForAuth(auth: RecipeAuthContext, collection: 
   return canMutateCollection(auth, collection);
 }
 
+export function canManageCollectionForAuth(auth: RecipeAuthContext, collection: CollectionOwnerRow): boolean {
+  return canManageCollection(auth, collection);
+}
+
 /**
  * Returns the recipes belonging to a collection that are ALSO visible to the
  * caller, each carrying the SAME read-model the list endpoint derives
@@ -1104,7 +1271,7 @@ export async function getCollectionItemsForAuth(auth: RecipeAuthContext, collect
       eq(recipeCollectionItems.collectionId, collectionId),
       recipeVisibilityForAuth(auth),
     ))
-    .orderBy(desc(recipeCollectionItems.createdAt));
+    .orderBy(recipeCollectionItems.position, desc(recipeCollectionItems.createdAt));
 
   const favoriteIds = await getFavoriteRecipeIdsForAuth(auth);
   return enrichListRowsWithReadModel(auth, rows, favoriteIds);

@@ -47,6 +47,8 @@ export interface Collection {
   kind: 'favorites' | 'custom';
   name: string;
   owner_type: 'user' | 'household';
+  household_id: string | null;
+  can_manage?: boolean;
   item_count: number;
   is_system: boolean;
 }
@@ -60,16 +62,34 @@ export interface RecipeShareInvitePreview {
   acceptedRecipeId: number | null;
 }
 
+export interface RecipeInviteDelivery {
+  status: 'sent' | 'skipped' | 'failed';
+  provider: 'disabled' | 'resend';
+  errorCode?: 'mail_not_configured' | 'provider_rejected' | 'provider_unavailable';
+}
+
 export interface CreatedRecipeShareInvite {
   token: string;
   expiresAt: string;
   preview: RecipeShareInvitePreview;
+  shareUrl?: string;
+  delivery?: RecipeInviteDelivery;
 }
 
 export interface AddRecipeToCollectionResult {
   added: boolean;
   recipeId: number;
   copied: boolean;
+}
+
+export interface CollectionBulkResult {
+  succeeded: Array<{
+    recipeId: number;
+    sourceRecipeId?: number;
+    added?: boolean;
+    copied?: boolean;
+  }>;
+  failed: Array<{ recipeId: number; code: string }>;
 }
 
 export interface ApiErrorEnvelope {
@@ -246,11 +266,14 @@ export async function deleteRecipe(id: number): Promise<void> {
 export async function shareRecipe(
   id: number,
   target: 'household' | 'user',
+  householdId?: string,
 ): Promise<ApiRecipe> {
   const res = await apiFetch(`/api/v1/recipes/${id}/share`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target: { type: target } }),
+    body: JSON.stringify({
+      target: target === 'household' ? { type: target, householdId } : { type: target },
+    }),
   });
   await assertApiOk(res, `Teilen fehlgeschlagen (${res.status})`);
   const data = await res.json() as { recipe: ApiRecipe };
@@ -268,8 +291,12 @@ export async function createRecipeShareInvite(
     body: JSON.stringify({ email }),
   });
   await assertApiOk(res, `Einladung erstellen fehlgeschlagen (${res.status})`);
-  const data = await res.json() as { invite: CreatedRecipeShareInvite };
-  return data.invite;
+  const data = await res.json() as {
+    invite: Omit<CreatedRecipeShareInvite, 'shareUrl' | 'delivery'>;
+    shareUrl?: string;
+    delivery?: RecipeInviteDelivery;
+  };
+  return { ...data.invite, shareUrl: data.shareUrl, delivery: data.delivery };
 }
 
 export async function fetchRecipeShareInvite(token: string): Promise<RecipeShareInvitePreview> {
@@ -320,6 +347,13 @@ export async function setRecipeFavorite(id: number, on: boolean): Promise<boolea
  */
 export async function fetchCollections(): Promise<Collection[]> {
   const res = await apiFetch('/api/v1/recipe-collections');
+  await assertApiOk(res, `Sammlungen laden fehlgeschlagen (${res.status})`);
+  const data = await res.json() as { collections: Collection[] };
+  return data.collections;
+}
+
+export async function fetchCollectionsForHousehold(householdId: string): Promise<Collection[]> {
+  const res = await apiFetch(`/api/v1/recipe-collections?ownerType=household&householdId=${encodeURIComponent(householdId)}`);
   await assertApiOk(res, `Sammlungen laden fehlgeschlagen (${res.status})`);
   const data = await res.json() as { collections: Collection[] };
   return data.collections;
@@ -381,11 +415,12 @@ export async function fetchCollectionItems(collectionId: string): Promise<ApiRec
 export async function addRecipeToCollection(
   collectionId: string,
   recipeId: number,
+  targetHouseholdId?: string,
 ): Promise<AddRecipeToCollectionResult> {
   const res = await apiFetch(`/api/v1/recipe-collections/${collectionId}/items`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipeId }),
+    body: JSON.stringify({ recipeId, ...(targetHouseholdId ? { targetHouseholdId } : {}) }),
   });
   await assertApiOk(res, `Rezept zur Sammlung hinzufügen fehlgeschlagen (${res.status})`);
   const data = await res.json() as {
@@ -410,4 +445,44 @@ export async function removeRecipeFromCollection(
     { method: 'DELETE' },
   );
   await assertApiOk(res, `Rezept aus Sammlung entfernen fehlgeschlagen (${res.status})`);
+}
+
+export async function reorderCollectionItems(
+  collectionId: string,
+  recipeIds: number[],
+): Promise<CollectionBulkResult> {
+  const res = await apiFetch(`/api/v1/recipe-collections/${collectionId}/items/reorder`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipeIds }),
+  });
+  await assertApiOk(res, `Sammlung sortieren fehlgeschlagen (${res.status})`);
+  return res.json() as Promise<CollectionBulkResult>;
+}
+
+export async function bulkRemoveFromCollection(
+  collectionId: string,
+  recipeIds: number[],
+): Promise<CollectionBulkResult> {
+  const res = await apiFetch(`/api/v1/recipe-collections/${collectionId}/items/bulk-remove`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipeIds }),
+  });
+  await assertApiOk(res, `Rezepte aus Sammlung entfernen fehlgeschlagen (${res.status})`);
+  return res.json() as Promise<CollectionBulkResult>;
+}
+
+export async function bulkCopyCollectionItems(
+  collectionId: string,
+  targetCollectionId: string,
+  recipeIds: number[],
+): Promise<CollectionBulkResult> {
+  const res = await apiFetch(`/api/v1/recipe-collections/${collectionId}/items/bulk-copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetCollectionId, recipeIds }),
+  });
+  await assertApiOk(res, `Rezepte in Sammlung kopieren fehlgeschlagen (${res.status})`);
+  return res.json() as Promise<CollectionBulkResult>;
 }

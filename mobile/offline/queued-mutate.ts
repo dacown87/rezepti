@@ -12,7 +12,7 @@ export interface QueuedMutateDeps {
 
 function withOpId(input: MutationInput, opId: string): QueuedMutation {
   const body =
-    input.method === 'POST' && input.body && typeof input.body === 'object'
+    input.body && typeof input.body === 'object'
       ? { ...(input.body as Record<string, unknown>), client_op_id: opId }
       : input.body;
   return { opId, endpoint: input.endpoint, method: input.method, body, createdAt: Date.now(), attempts: 0 };

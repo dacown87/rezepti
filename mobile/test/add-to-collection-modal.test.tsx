@@ -28,12 +28,20 @@ class ApiRequestError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
 vi.mock('@/utils/api', () => ({ ApiRequestError }));
-
 const hookState = vi.hoisted(() => ({
   collectionsResult: { data: [] as unknown[], isLoading: false, isError: false, refetch: vi.fn() },
   createMutateAsync: vi.fn(),
   addMutateAsync: vi.fn(),
+  authMe: {
+    activeHouseholdId: 'hh1',
+    memberships: [{ householdId: 'hh1', role: 'owner' }],
+  },
 }));
+
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: hookState.authMe }),
+}));
+vi.mock('@/utils/admin', () => ({ fetchAuthMe: vi.fn() }));
 
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => hookState.collectionsResult,
@@ -45,9 +53,10 @@ async function press(target: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => { await fireEvent.press(target); });
 }
 
-const FAVORITES = { id: 'fav', kind: 'favorites', name: 'Favoriten', owner_type: 'user', item_count: 1, is_system: true };
-const CUSTOM = { id: 'c1', kind: 'custom', name: 'Wochenende', owner_type: 'user', item_count: 2, is_system: false };
-const HOUSEHOLD = { id: 'h1', kind: 'custom', name: 'Familie', owner_type: 'household', item_count: 4, is_system: false };
+const FAVORITES = { id: 'fav', kind: 'favorites', name: 'Favoriten', owner_type: 'user', household_id: null, item_count: 1, is_system: true };
+const CUSTOM = { id: 'c1', kind: 'custom', name: 'Wochenende', owner_type: 'user', household_id: null, item_count: 2, is_system: false };
+const HOUSEHOLD = { id: 'h1', kind: 'custom', name: 'Familie', owner_type: 'household', household_id: 'hh1', item_count: 4, is_system: false };
+const HOUSEHOLD_2 = { id: 'h2', kind: 'custom', name: 'WG', owner_type: 'household', household_id: 'hh2', item_count: 1, is_system: false };
 
 async function renderModal(props: { recipeScope?: 'private' | 'household' } = {}) {
   const { AddToCollectionModal } = await import('@/components/AddToCollectionModal');
@@ -58,6 +67,10 @@ describe('AddToCollectionModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hookState.collectionsResult = { data: [FAVORITES, CUSTOM], isLoading: false, isError: false, refetch: vi.fn() };
+    hookState.authMe = {
+      activeHouseholdId: 'hh1',
+      memberships: [{ householdId: 'hh1', role: 'owner' }],
+    };
   });
 
   it('renders the picker with the custom collections only (excludes system favorites)', async () => {
@@ -75,7 +88,7 @@ describe('AddToCollectionModal', () => {
     await press(screen.getByTestId('collection-row-c1'));
 
     await waitFor(() => {
-      expect(hookState.addMutateAsync).toHaveBeenCalledWith({ collectionId: 'c1', recipeId: 42 });
+      expect(hookState.addMutateAsync).toHaveBeenCalledWith({ collectionId: 'c1', recipeId: 42, targetHouseholdId: undefined });
     });
     // success feedback
     await waitFor(() => expect(screen.getByText('Hinzugefügt')).toBeTruthy());
@@ -86,7 +99,33 @@ describe('AddToCollectionModal', () => {
     await renderModal({ recipeScope: 'private' });
 
     expect(screen.getByText('Familie')).toBeTruthy();
-    expect(screen.getByText('Als Haushaltskopie hinzufügen')).toBeTruthy();
+    expect(screen.getByText('Als Haushaltskopie in Haushalt 1 hinzufügen')).toBeTruthy();
+  });
+
+  it('shows a household picker for multiple memberships and sends the selected target', async () => {
+    hookState.authMe = {
+      activeHouseholdId: 'hh1',
+      memberships: [
+        { householdId: 'hh1', role: 'owner' },
+        { householdId: 'hh2', role: 'owner' },
+      ],
+    };
+    hookState.collectionsResult = { data: [CUSTOM, HOUSEHOLD, HOUSEHOLD_2], isLoading: false, isError: false, refetch: vi.fn() };
+    hookState.addMutateAsync.mockResolvedValueOnce({ added: true, recipeId: 77, copied: true });
+    await renderModal({ recipeScope: 'private' });
+
+    expect(screen.getByTestId('household-target-hh1').props.accessibilityState.selected).toBe(true);
+    expect(screen.queryByText('WG')).toBeNull();
+
+    await press(screen.getByTestId('household-target-hh2'));
+    expect(screen.getByText('WG')).toBeTruthy();
+    expect(screen.queryByText('Familie')).toBeNull();
+
+    await press(screen.getByTestId('collection-row-h2'));
+
+    await waitFor(() => {
+      expect(hookState.addMutateAsync).toHaveBeenCalledWith({ collectionId: 'h2', recipeId: 42, targetHouseholdId: 'hh2' });
+    });
   });
 
   it('surfaces "already in collection" (added:false) as a friendly note, not an error', async () => {
@@ -120,7 +159,7 @@ describe('AddToCollectionModal', () => {
 
     await waitFor(() => {
       expect(hookState.createMutateAsync).toHaveBeenCalledWith({ name: 'Neu' });
-      expect(hookState.addMutateAsync).toHaveBeenCalledWith({ collectionId: 'c2', recipeId: 42 });
+      expect(hookState.addMutateAsync).toHaveBeenCalledWith({ collectionId: 'c2', recipeId: 42, targetHouseholdId: undefined });
     });
   });
 });

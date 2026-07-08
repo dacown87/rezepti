@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
@@ -28,6 +29,7 @@ import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
 import { mapProtectedApiError } from '@/utils/protected-access';
 import { useToggleFavorite, useShareRecipe, useCreateRecipeShareInvite } from '@/hooks/useCollections';
 import { AddToCollectionModal } from '@/components/AddToCollectionModal';
+import { fetchAuthMe } from '@/utils/admin';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -289,10 +291,16 @@ export default function RecipeDetailScreen() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [selectedShareHouseholdId, setSelectedShareHouseholdId] = useState<string | null>(null);
 
   const toggleFavorite = useToggleFavorite();
   const shareRecipeMutation = useShareRecipe();
   const createShareInviteMutation = useCreateRecipeShareInvite();
+  const authMeQuery = useQuery({
+    queryKey: ['auth-me', 'recipe-share-targets'],
+    queryFn: fetchAuthMe,
+    enabled: shareCaps.canShareToHousehold,
+  });
 
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recipeId = Number(id);
@@ -492,7 +500,10 @@ export default function RecipeDetailScreen() {
     setShareError(null);
     setShareFeedback(null);
     try {
-      const copy = await shareRecipeMutation.mutateAsync({ id: recipeId, target });
+      const householdId = target === 'household'
+        ? selectedShareHouseholdId ?? authMeQuery.data?.activeHouseholdId ?? authMeQuery.data?.memberships[0]?.householdId
+        : undefined;
+      const copy = await shareRecipeMutation.mutateAsync({ id: recipeId, target, householdId });
       setShareFeedback({
         recipeId: copy.id,
         message: target === 'household' ? 'Kopie im Haushalt erstellt.' : 'Private Kopie erstellt.',
@@ -509,15 +520,27 @@ export default function RecipeDetailScreen() {
     if (!email || createShareInviteMutation.isPending) return;
     setInviteError(null);
     setInviteFeedback(null);
+    if (isOffline) {
+      setInviteError('Einladungen können nur online erstellt werden.');
+      return;
+    }
     try {
       const invite = await createShareInviteMutation.mutateAsync({ id: recipeId, email });
-      const url = Linking.createURL(`/share-invite/${invite.token}`);
-      await Share.share({
-        title: recipe?.name ?? 'Rezept',
-        message: url,
-      });
+      const url = invite.shareUrl ?? Linking.createURL(`/share-invite/${invite.token}`);
+      if (invite.delivery?.status !== 'sent') {
+        await Share.share({
+          title: recipe?.name ?? 'Rezept',
+          message: url,
+        });
+      }
       setInviteEmail('');
-      setInviteFeedback('Einladung erstellt. Beim Annehmen entsteht eine private Kopie.');
+      if (invite.delivery?.status === 'sent') {
+        setInviteFeedback('Einladung gesendet. Beim Annehmen entsteht eine private Kopie.');
+      } else if (invite.delivery?.status === 'failed') {
+        setInviteFeedback('Einladung erstellt, E-Mail-Versand fehlgeschlagen. Link kann manuell geteilt werden.');
+      } else {
+        setInviteFeedback('Einladung erstellt. Link kann manuell geteilt werden.');
+      }
     } catch (error) {
       setInviteError(
         error instanceof ApiRequestError ? error.message : 'Einladung konnte nicht erstellt werden.',
@@ -645,6 +668,16 @@ export default function RecipeDetailScreen() {
       duration: recipe.duration ?? undefined,
     })
     : null;
+  const shareMemberships = authMeQuery.data?.memberships ?? [];
+  const selectedShareHousehold = selectedShareHouseholdId
+    ?? authMeQuery.data?.activeHouseholdId
+    ?? shareMemberships[0]?.householdId
+    ?? null;
+  const showShareHouseholdPicker = shareCaps.canShareToHousehold && shareMemberships.length > 1;
+  const shareHouseholdLabel = (householdId: string) => {
+    const index = shareMemberships.findIndex((membership) => membership.householdId === householdId);
+    return `Haushalt ${index >= 0 ? index + 1 : ''}`.trim();
+  };
 
   return (
     <>
@@ -1003,17 +1036,40 @@ export default function RecipeDetailScreen() {
               </View>
 
               {shareCaps.canShareToHousehold && (
-                <Pressable
-                  onPress={() => handleShareTo('household')}
-                  disabled={shareRecipeMutation.isPending}
-                  testID="copy-to-household-cta"
-                  className="flex-row items-center justify-center gap-2 py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700"
-                >
-                  {shareRecipeMutation.isPending
-                    ? <ActivityIndicator size="small" color="#C84B31" />
-                    : <Home size={18} color="#C84B31" />}
-                  <Text className="text-primary-500 text-sm font-medium">In Haushalt kopieren</Text>
-                </Pressable>
+                <>
+                  {showShareHouseholdPicker && (
+                    <View className="flex-row flex-wrap gap-2">
+                      {shareMemberships.map((membership) => {
+                        const selected = membership.householdId === selectedShareHousehold;
+                        return (
+                          <Pressable
+                            key={membership.householdId}
+                            onPress={() => setSelectedShareHouseholdId(membership.householdId)}
+                            testID={`share-household-target-${membership.householdId}`}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected }}
+                            className={`px-3 py-1.5 rounded-full border ${selected ? 'bg-primary-500 border-primary-500' : 'bg-white dark:bg-espresso-800 border-warm-200 dark:border-warm-700'}`}
+                          >
+                            <Text className={`text-xs font-medium ${selected ? 'text-white' : 'text-warm-600 dark:text-warm-300'}`}>
+                              {shareHouseholdLabel(membership.householdId)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                  <Pressable
+                    onPress={() => handleShareTo('household')}
+                    disabled={shareRecipeMutation.isPending}
+                    testID="copy-to-household-cta"
+                    className="flex-row items-center justify-center gap-2 py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700"
+                  >
+                    {shareRecipeMutation.isPending
+                      ? <ActivityIndicator size="small" color="#C84B31" />
+                      : <Home size={18} color="#C84B31" />}
+                    <Text className="text-primary-500 text-sm font-medium">In Haushalt kopieren</Text>
+                  </Pressable>
+                </>
               )}
 
               {shareCaps.canCopyToPrivate && (

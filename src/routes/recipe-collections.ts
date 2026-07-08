@@ -5,6 +5,9 @@ import {
   renameCollection,
   deleteCollection,
   addRecipeToCollection,
+  reorderCollectionItems,
+  bulkRemoveRecipesFromCollection,
+  bulkCopyCollectionItems,
   removeRecipeFromCollection,
   getCollectionItemsForAuth,
   shareCopyRecipe,
@@ -13,6 +16,7 @@ import {
   loadCollectionRowById,
   isCollectionVisibleToAuth,
   canMutateCollectionForAuth,
+  canManageCollectionForAuth,
   isRecipeVisibleToAuth,
   isShareCopyAllowed,
   isRecipeLegalForCollection,
@@ -21,6 +25,14 @@ import {
 import { getUserAuth, requireUserAuth } from "../auth.js";
 
 const app = new Hono();
+
+function isMemberOfHousehold(auth: ReturnType<typeof getUserAuth>, householdId: string) {
+  return auth.memberships.some((membership) => membership.householdId === householdId);
+}
+
+function isOwnerOfHousehold(auth: ReturnType<typeof getUserAuth>, householdId: string) {
+  return auth.memberships.some((membership) => membership.householdId === householdId && membership.role === "owner");
+}
 
 // ── Sharing ─────────────────────────────────────────────────────────────────
 // POST /api/v1/recipes/:id/share — copy a recipe into the caller's household or
@@ -54,9 +66,16 @@ app.post("/api/v1/recipes/:id/share", requireUserAuth(), async (c) => {
     }
 
     if (type === "household") {
-      const householdId = auth.activeHouseholdId;
-      if (!householdId || !auth.memberships.some((m) => m.householdId === householdId)) {
+      const targetHouseholdId = (target as { householdId?: unknown }).householdId;
+      if (targetHouseholdId !== undefined && typeof targetHouseholdId !== "string") {
+        return c.json({ error: "target.householdId must be a string", code: "target_household_invalid" }, 400);
+      }
+      const householdId = targetHouseholdId ?? auth.activeHouseholdId;
+      if (!householdId) {
         return c.json({ error: "No active household" }, 400);
+      }
+      if (!isMemberOfHousehold(auth, householdId)) {
+        return c.json({ error: "Target household not found", code: "target_household_not_found" }, 404);
       }
       const copy = await shareCopyRecipe(auth, id, { type: "household", householdId });
       return c.json({ recipe: copy }, 201);
@@ -116,7 +135,21 @@ app.delete("/api/v1/recipes/:id/favorite", requireUserAuth(), async (c) => {
 app.get("/api/v1/recipe-collections", requireUserAuth(), async (c) => {
   try {
     const auth = getUserAuth(c);
-    const collections = await getCollectionsForAuth(auth);
+    const ownerType = c.req.query("ownerType");
+    const householdId = c.req.query("householdId");
+    if (ownerType !== undefined && ownerType !== "user" && ownerType !== "household") {
+      return c.json({ error: "ownerType must be 'user' or 'household'" }, 400);
+    }
+    if (householdId && !isMemberOfHousehold(auth, householdId)) {
+      return c.json({ error: "Target household not found", code: "target_household_not_found" }, 404);
+    }
+
+    const allCollections = await getCollectionsForAuth(auth);
+    const collections = allCollections.filter((collection) => {
+      if (ownerType && collection.owner_type !== ownerType) return false;
+      if (householdId && collection.household_id !== householdId) return false;
+      return true;
+    });
     return c.json({ collections });
   } catch (error) {
     console.error("Error fetching collections:", error);
@@ -147,7 +180,7 @@ app.post("/api/v1/recipe-collections", requireUserAuth(), async (c) => {
     const resolvedOwnerType: CollectionOwnerType = ownerType === "household" ? "household" : "user";
 
     if (resolvedOwnerType === "household") {
-      if (typeof householdId !== "string" || !auth.memberships.some((m) => m.householdId === householdId)) {
+      if (typeof householdId !== "string" || !isOwnerOfHousehold(auth, householdId)) {
         // Not a member of the target household → treat as not found (no leak).
         return c.json({ error: "Household not found" }, 404);
       }
@@ -183,7 +216,7 @@ app.patch("/api/v1/recipe-collections/:id", requireUserAuth(), async (c) => {
     if (collection.kind === "favorites") {
       return c.json({ error: "Favorites collection cannot be renamed" }, 400);
     }
-    if (!canMutateCollectionForAuth(auth, collection)) {
+    if (!canManageCollectionForAuth(auth, collection)) {
       return c.json({ error: "Not found" }, 404);
     }
 
@@ -209,7 +242,7 @@ app.delete("/api/v1/recipe-collections/:id", requireUserAuth(), async (c) => {
     if (collection.kind === "favorites") {
       return c.json({ error: "Favorites collection cannot be deleted" }, 400);
     }
-    if (!canMutateCollectionForAuth(auth, collection)) {
+    if (!canManageCollectionForAuth(auth, collection)) {
       return c.json({ error: "Not found" }, 404);
     }
 
@@ -258,6 +291,20 @@ app.post("/api/v1/recipe-collections/:id/items", requireUserAuth(), async (c) =>
     if (!collection || !isCollectionVisibleToAuth(auth, collection)) {
       return c.json({ error: "Not found" }, 404);
     }
+    const targetHouseholdId = body && typeof body === "object"
+      ? (body as { targetHouseholdId?: unknown }).targetHouseholdId
+      : undefined;
+    if (targetHouseholdId !== undefined) {
+      if (typeof targetHouseholdId !== "string") {
+        return c.json({ error: "targetHouseholdId must be a string", code: "target_household_invalid" }, 400);
+      }
+      if (!isMemberOfHousehold(auth, targetHouseholdId)) {
+        return c.json({ error: "Target household not found", code: "target_household_not_found" }, 404);
+      }
+      if (collection.ownerType !== "household" || collection.householdId !== targetHouseholdId) {
+        return c.json({ error: "Target household does not match collection", code: "target_household_mismatch" }, 400);
+      }
+    }
 
     const owner = await loadRecipeOwnerRow(recipeId as number);
     // Invisible recipe → 404 (no existence leak).
@@ -286,6 +333,103 @@ app.post("/api/v1/recipe-collections/:id/items", requireUserAuth(), async (c) =>
   } catch (error) {
     console.error("Error adding recipe to collection:", error);
     return c.json({ error: "Failed to add recipe to collection" }, 500);
+  }
+});
+
+function parseRecipeIds(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((recipeId) => Number.isInteger(recipeId))) return null;
+  return value;
+}
+
+app.patch("/api/v1/recipe-collections/:id/items/reorder", requireUserAuth(), async (c) => {
+  try {
+    const auth = getUserAuth(c);
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => null);
+    const recipeIds = parseRecipeIds(body && typeof body === "object" ? (body as { recipeIds?: unknown }).recipeIds : undefined);
+    if (!recipeIds) return c.json({ error: "recipeIds must be an array of integers" }, 400);
+
+    const collection = await loadCollectionRowById(id);
+    if (!collection || !isCollectionVisibleToAuth(auth, collection)) {
+      return c.json({ error: "Not found" }, 404);
+    }
+    if (!canMutateCollectionForAuth(auth, collection)) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    const result = await reorderCollectionItems(auth, id, recipeIds);
+    if (result.missing.length > 0) {
+      return c.json({
+        succeeded: [],
+        failed: result.missing.map((recipeId) => ({ recipeId, code: "not_in_collection" })),
+      }, 400);
+    }
+    return c.json({
+      succeeded: result.updated.map((recipeId) => ({ recipeId })),
+      failed: [],
+    });
+  } catch (error) {
+    console.error("Error reordering collection items:", error);
+    return c.json({ error: "Failed to reorder collection items" }, 500);
+  }
+});
+
+app.post("/api/v1/recipe-collections/:id/items/bulk-remove", requireUserAuth(), async (c) => {
+  try {
+    const auth = getUserAuth(c);
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => null);
+    const recipeIds = parseRecipeIds(body && typeof body === "object" ? (body as { recipeIds?: unknown }).recipeIds : undefined);
+    if (!recipeIds) return c.json({ error: "recipeIds must be an array of integers" }, 400);
+
+    const collection = await loadCollectionRowById(id);
+    if (!collection || !isCollectionVisibleToAuth(auth, collection)) {
+      return c.json({ error: "Not found" }, 404);
+    }
+    if (!canMutateCollectionForAuth(auth, collection)) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    const result = await bulkRemoveRecipesFromCollection(auth, id, recipeIds);
+    return c.json({
+      succeeded: result.removed.map((recipeId) => ({ recipeId })),
+      failed: result.missing.map((recipeId) => ({ recipeId, code: "not_in_collection" })),
+    });
+  } catch (error) {
+    console.error("Error bulk-removing collection items:", error);
+    return c.json({ error: "Failed to bulk-remove collection items" }, 500);
+  }
+});
+
+app.post("/api/v1/recipe-collections/:id/items/bulk-copy", requireUserAuth(), async (c) => {
+  try {
+    const auth = getUserAuth(c);
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== "object") return c.json({ error: "Invalid JSON body" }, 400);
+    const recipeIds = parseRecipeIds((body as { recipeIds?: unknown }).recipeIds);
+    const targetCollectionId = (body as { targetCollectionId?: unknown }).targetCollectionId;
+    if (!recipeIds) return c.json({ error: "recipeIds must be an array of integers" }, 400);
+    if (typeof targetCollectionId !== "string") return c.json({ error: "targetCollectionId is required" }, 400);
+
+    const sourceCollection = await loadCollectionRowById(id);
+    if (!sourceCollection || !isCollectionVisibleToAuth(auth, sourceCollection)) {
+      return c.json({ error: "Not found" }, 404);
+    }
+    const targetCollection = await loadCollectionRowById(targetCollectionId);
+    if (!targetCollection || !isCollectionVisibleToAuth(auth, targetCollection) || !canMutateCollectionForAuth(auth, targetCollection)) {
+      return c.json({ error: "Target collection not found", code: "target_collection_not_found" }, 404);
+    }
+
+    const result = await bulkCopyCollectionItems(auth, id, targetCollectionId, recipeIds);
+    return c.json({
+      succeeded: result.succeeded,
+      failed: result.failed,
+    });
+  } catch (error) {
+    console.error("Error bulk-copying collection items:", error);
+    return c.json({ error: "Failed to bulk-copy collection items" }, 500);
   }
 });
 

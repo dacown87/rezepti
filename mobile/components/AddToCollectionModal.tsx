@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, Modal, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { X, Plus, Check, FolderPlus, Star } from 'lucide-react-native';
 
 import {
@@ -9,6 +10,7 @@ import {
   type Collection,
 } from '@/hooks/useCollections';
 import { ApiRequestError } from '@/utils/api';
+import { fetchAuthMe } from '@/utils/admin';
 
 type AddState =
   | { kind: 'idle' }
@@ -39,21 +41,42 @@ export function AddToCollectionModal({
   const collectionsQuery = useCollections();
   const createCollection = useCreateCollection();
   const addToCollection = useAddRecipeToCollection();
+  const authMeQuery = useQuery({
+    queryKey: ['auth-me', 'collection-target-picker'],
+    queryFn: fetchAuthMe,
+    enabled: visible,
+  });
 
   const [state, setState] = useState<AddState>({ kind: 'idle' });
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
+  const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
 
   // Exclude the system Favoriten collection: favorites are managed by the
   // dedicated heart toggle (which invalidates the recipe/list keys so the heart
   // lights up). Adding here would only invalidate the collections key and leave
   // the list/detail heart stale, so we hide it from the add-list entirely.
-  const collections = (collectionsQuery.data ?? []).filter((c) => !c.is_system);
+  const memberships = authMeQuery.data?.memberships ?? [];
+  const defaultHouseholdId = authMeQuery.data?.activeHouseholdId ?? memberships[0]?.householdId ?? null;
+  const targetHouseholdId = selectedHouseholdId ?? defaultHouseholdId;
+  const showHouseholdPicker = recipeScope === 'private' && memberships.length > 1;
+  const householdLabel = (householdId: string) => {
+    const index = memberships.findIndex((membership) => membership.householdId === householdId);
+    return `Haushalt ${index >= 0 ? index + 1 : ''}`.trim();
+  };
+
+  const collections = (collectionsQuery.data ?? []).filter((c) => {
+    if (c.is_system) return false;
+    if (c.owner_type !== 'household') return true;
+    if (!targetHouseholdId) return true;
+    return c.household_id === targetHouseholdId;
+  });
 
   const reset = () => {
     setState({ kind: 'idle' });
     setShowCreate(false);
     setNewName('');
+    setSelectedHouseholdId(null);
   };
 
   const handleClose = () => {
@@ -73,7 +96,9 @@ export function AddToCollectionModal({
   const addRecipe = async (collectionId: string) => {
     setState({ kind: 'pending', collectionId });
     try {
-      const { added } = await addToCollection.mutateAsync({ collectionId, recipeId });
+      const collection = collections.find((c) => c.id === collectionId);
+      const targetHouseholdId = collection?.owner_type === 'household' ? collection.household_id ?? undefined : undefined;
+      const { added } = await addToCollection.mutateAsync({ collectionId, recipeId, targetHouseholdId });
       setState(added ? { kind: 'added', collectionId } : { kind: 'duplicate', collectionId });
     } catch (error) {
       setState({ kind: 'error', message: messageFor(error) });
@@ -85,8 +110,16 @@ export function AddToCollectionModal({
     if (!name) return;
     setState({ kind: 'pending', collectionId: '__new__' });
     try {
-      const created = await createCollection.mutateAsync({ name });
-      const { added } = await addToCollection.mutateAsync({ collectionId: created.id, recipeId });
+      const createAsHousehold = recipeScope === 'private' && !!targetHouseholdId;
+      const created = await createCollection.mutateAsync({
+        name,
+        ...(createAsHousehold ? { ownerType: 'household' as const, householdId: targetHouseholdId } : {}),
+      });
+      const { added } = await addToCollection.mutateAsync({
+        collectionId: created.id,
+        recipeId,
+        ...(createAsHousehold ? { targetHouseholdId: targetHouseholdId } : {}),
+      });
       setShowCreate(false);
       setNewName('');
       setState(added ? { kind: 'added', collectionId: created.id } : { kind: 'duplicate', collectionId: created.id });
@@ -119,6 +152,33 @@ export function AddToCollectionModal({
           {state.kind === 'error' && (
             <View className="mx-4 mb-2 rounded-xl bg-red-50 px-3 py-2">
               <Text className="text-red-600 text-sm">{state.message}</Text>
+            </View>
+          )}
+
+          {showHouseholdPicker && (
+            <View className="px-4 pb-2">
+              <View className="flex-row flex-wrap gap-2">
+                {memberships.map((membership) => {
+                  const selected = membership.householdId === targetHouseholdId;
+                  return (
+                    <Pressable
+                      key={membership.householdId}
+                      onPress={() => {
+                        setSelectedHouseholdId(membership.householdId);
+                        setState({ kind: 'idle' });
+                      }}
+                      testID={`household-target-${membership.householdId}`}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      className={`px-3 py-1.5 rounded-full border ${selected ? 'bg-primary-500 border-primary-500' : 'bg-white dark:bg-espresso-800 border-warm-200 dark:border-warm-700'}`}
+                    >
+                      <Text className={`text-xs font-medium ${selected ? 'text-white' : 'text-warm-600 dark:text-warm-300'}`}>
+                        {householdLabel(membership.householdId)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
           )}
 
@@ -165,7 +225,7 @@ export function AddToCollectionModal({
                         <Text className="text-sm font-medium text-warm-900 dark:text-warm-50">{c.name}</Text>
                         <Text className="text-xs text-warm-500 dark:text-warm-400">
                           {copyToHousehold
-                            ? 'Als Haushaltskopie hinzufügen'
+                            ? `Als Haushaltskopie in ${householdLabel(c.household_id ?? '')} hinzufügen`
                             : `${c.item_count} ${c.item_count === 1 ? 'Rezept' : 'Rezepte'}`}
                         </Text>
                       </View>
@@ -210,7 +270,7 @@ export function AddToCollectionModal({
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
                       <Text className={`text-sm font-semibold ${newName.trim() ? 'text-white' : 'text-warm-500'}`}>
-                        Erstellen & hinzufügen
+                        {recipeScope === 'private' && targetHouseholdId ? 'Haushalts-Collection erstellen' : 'Erstellen & hinzufügen'}
                       </Text>
                     )}
                   </Pressable>

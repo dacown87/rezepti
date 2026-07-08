@@ -18,7 +18,7 @@ vi.mock('react-native-safe-area-context', () => ({
 
 vi.mock('lucide-react-native', () => {
   const icon = () => React.createElement('Icon');
-  return { ArrowLeft: icon, FolderOpen: icon, Trash2: icon };
+  return { ArrowLeft: icon, FolderOpen: icon, Trash2: icon, CheckSquare: icon, Square: icon, Copy: icon };
 });
 
 vi.mock('react-native', () => {
@@ -49,12 +49,18 @@ vi.mock('react-native', () => {
 // ── Hook mocks ────────────────────────────────────────────────────────────────
 const hookState = vi.hoisted(() => ({
   itemsResult: { data: [] as unknown[], isLoading: false, isError: false, refetch: vi.fn() },
+  collectionsResult: { data: [] as unknown[], isLoading: false, isError: false, refetch: vi.fn() },
   removeMutateAsync: vi.fn(),
+  bulkRemoveMutateAsync: vi.fn(),
+  bulkCopyMutateAsync: vi.fn(),
 }));
 
 vi.mock('@/hooks/useCollections', () => ({
   useCollectionItems: () => hookState.itemsResult,
+  useCollections: () => hookState.collectionsResult,
   useRemoveRecipeFromCollection: () => ({ mutateAsync: hookState.removeMutateAsync, isPending: false }),
+  useBulkRemoveFromCollection: () => ({ mutateAsync: hookState.bulkRemoveMutateAsync, isPending: false }),
+  useBulkCopyCollectionItems: () => ({ mutateAsync: hookState.bulkCopyMutateAsync, isPending: false }),
 }));
 
 async function press(target: Parameters<typeof fireEvent.press>[0]) {
@@ -68,6 +74,15 @@ describe('CollectionContentsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hookState.itemsResult = { data: [RECIPE_A, RECIPE_B], isLoading: false, isError: false, refetch: vi.fn() };
+    hookState.collectionsResult = {
+      data: [
+        { id: 'c1', name: 'Wochenende', kind: 'custom', owner_type: 'user', household_id: null, item_count: 2, is_system: false },
+        { id: 'c2', name: 'Meal Prep', kind: 'custom', owner_type: 'user', household_id: null, item_count: 0, is_system: false },
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
   });
 
   it('lists the collection recipes with the collection name in the header', async () => {
@@ -98,6 +113,50 @@ describe('CollectionContentsScreen', () => {
     await waitFor(() => {
       expect(hookState.removeMutateAsync).toHaveBeenCalledWith({ collectionId: 'c1', recipeId: 2 });
     });
+  });
+
+  it('bulk-removes selected recipes without deleting the recipes themselves', async () => {
+    hookState.bulkRemoveMutateAsync.mockResolvedValueOnce({ succeeded: [{ recipeId: 1 }], failed: [] });
+    const { default: Screen } = await import('@/app/collection/[id]');
+    render(React.createElement(Screen));
+
+    await press(screen.getByTestId('collection-selection-toggle'));
+    await press(screen.getByTestId('open-recipe-1'));
+    await press(screen.getByTestId('bulk-remove-confirm'));
+
+    await waitFor(() => {
+      expect(hookState.bulkRemoveMutateAsync).toHaveBeenCalledWith({ collectionId: 'c1', recipeIds: [1] });
+      expect(screen.getByTestId('collection-bulk-feedback')).toBeTruthy();
+    });
+  });
+
+  it('bulk-copies selected recipes into a target collection', async () => {
+    hookState.bulkCopyMutateAsync.mockResolvedValueOnce({ succeeded: [{ recipeId: 1, sourceRecipeId: 1, added: true, copied: false }], failed: [] });
+    const { default: Screen } = await import('@/app/collection/[id]');
+    render(React.createElement(Screen));
+
+    await press(screen.getByTestId('collection-selection-toggle'));
+    await press(screen.getByTestId('open-recipe-1'));
+    await press(screen.getByTestId('bulk-copy-open'));
+    await press(screen.getByTestId('bulk-copy-target-c2'));
+
+    await waitFor(() => {
+      expect(hookState.bulkCopyMutateAsync).toHaveBeenCalledWith({
+        collectionId: 'c1',
+        targetCollectionId: 'c2',
+        recipeIds: [1],
+      });
+    });
+  });
+
+  it('sorts the local view by title', async () => {
+    const { default: Screen } = await import('@/app/collection/[id]');
+    render(React.createElement(Screen));
+
+    await press(screen.getByTestId('collection-sort-title'));
+
+    const rows = screen.getAllByText(/Pasta|Suppe/);
+    expect(rows[0].props.children).toBe('Pasta');
   });
 
   it('shows the empty state when the collection has no recipes', async () => {

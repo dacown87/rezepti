@@ -1,7 +1,7 @@
 # Recipes Sharing Follow-ups Master Plan
 
 Stand: 2026-07-08
-Status: geplant
+Status: lokal umgesetzt, vor Deploy-Staging/Production-Smoke
 
 Vorgaenger:
 
@@ -25,6 +25,44 @@ Der Grundschnitt ist auf Production:
 Der alte Gesamtplan vom 2026-06-23 bleibt als Zielbild gueltig, ist aber nicht
 mehr der operative Plan fuer die naechsten Schritte. Dieser Masterplan beschreibt
 die Folge-Slices nach dem Production-Rollout vom 2026-07-08.
+
+## Implementierungsstand 2026-07-08
+
+Die fuenf Folge-Slices sind lokal umgesetzt und automatisiert verifiziert.
+
+- Slice 1 liefert Invite-Mailversand ueber eine kleine Mail-Service-Schicht mit
+  Disabled-Fallback und Resend-Provider. Die Invite-API gibt `shareUrl` und
+  `delivery` zurueck; Mobile unterscheidet `sent`, `skipped` und `failed` und
+  behaelt den manuellen Share-Link als Fallback.
+- Slice 2 erweitert Share-/Collection-Mutationen um explizite Zielhaushalte.
+  Mobile zeigt bei mehreren Memberships einen Zielpicker fuer Haushaltskopien
+  und Haushaltslisten.
+- Slice 3 fuehrt `recipe_collection_items.position`, Reorder, Bulk-Remove,
+  Bulk-Copy und die mobile Collection-Auswahl-/Sortieransicht ein.
+- Slice 4 nutzt die vorhandenen Household-Rollen: Owner koennen
+  Haushalts-Collections erstellen/umbenennen/loeschen; Member duerfen Items
+  mutieren, aber keine Listen-Metadaten verwalten.
+- Slice 5 haengt ausgewaehlte Collection-Item-Schreibpfade an die bestehende
+  Offline-Queue. Invite-Erstellung bleibt bewusst online-only, Bulk-Copy und
+  Collection-Metadaten bleiben online, bis dafuer ein separater
+  Idempotenz-/Konfliktvertrag existiert.
+
+Lokale Verifikation:
+
+- `npm run test:unit -- --run test/unit/mail.test.ts test/unit/recipe-share-invites-routes.test.ts test/unit/recipe-collections-routes.test.ts`
+- `npm --prefix mobile run test:unit -- --run test/queued-mutate.test.ts test/collections-hooks.test.ts test/recipe-detail-sharing.test.tsx test/collection-contents-screen.test.tsx`
+- `npm run mobile:typecheck`
+- `npm run security:secrets`
+- `git diff --check`
+
+Noch offen vor Production:
+
+- Migration `20260708031603_recipe_collection_item_positions.sql` auf Staging
+  anwenden.
+- Staging-Smoke fuer Zielhaushalt, Bulk/Reorder, Rollen und Offline-Queue
+  durchfuehren.
+- Mail-Provider-Secrets fuer Staging/Production setzen, falls echter Versand
+  statt Disabled-Fallback gewuenscht ist.
 
 ## Zielbild
 

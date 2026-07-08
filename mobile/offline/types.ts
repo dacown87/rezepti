@@ -1,7 +1,7 @@
 export type QueuedMethod = 'POST' | 'PATCH' | 'DELETE';
 
 export interface QueuedMutation {
-  /** Client-generated UUID. Sent as `client_op_id` for POST to dedupe server-side. */
+  /** Client-generated UUID. Sent as `client_op_id` when the queued body is an object. */
   opId: string;
   endpoint: string;
   method: QueuedMethod;

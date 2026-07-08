@@ -1,7 +1,7 @@
 # Slice 5: Collections and Invites Offline Write Path Plan
 
 Stand: 2026-07-08
-Status: geplant
+Status: erster Scope lokal umgesetzt
 Masterplan:
 [2026-07-08-recipes-sharing-followups-master-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-07-08-recipes-sharing-followups-master-plan.md)
 
@@ -11,6 +11,17 @@ Ausgewaehlte Collection-Mutationen sollen offline vormerkbar sein und bei
 Netzwerk-Reconnect synchronisieren. Recipe-Invite-Erstellung wird nur dann in
 den Offline-Pfad aufgenommen, wenn der Idempotenz- und Mailversand-Vertrag klar
 ist.
+
+## Ergebnis 2026-07-08
+
+- Collection-Item-Mutationen `add`, `remove`, `reorder` und `bulk-remove`
+  koennen offline ueber die bestehende Mutation-Queue vorgemerkt werden.
+- Queue-Objektkoerper bekommen fuer POST/PATCH/DELETE ein `client_op_id`.
+- Invite-Erstellung bleibt online-only, um wiederholten Mailversand durch
+  Queue-Retry zu vermeiden.
+- Bulk-Copy sowie Collection-Erstellen/-Umbenennen/-Loeschen bleiben im ersten
+  Scope online-only; dafuer fehlt noch ein sauberer Temp-ID- und
+  Idempotenzvertrag.
 
 ## Nicht-Ziele
 

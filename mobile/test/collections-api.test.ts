@@ -9,12 +9,16 @@ import {
   shareRecipe,
   setRecipeFavorite,
   fetchCollections,
+  fetchCollectionsForHousehold,
   fetchCollectionItems,
   createCollection,
   renameCollection,
   deleteCollection,
   addRecipeToCollection,
   removeRecipeFromCollection,
+  reorderCollectionItems,
+  bulkRemoveFromCollection,
+  bulkCopyCollectionItems,
   createRecipeShareInvite,
   fetchRecipeShareInvite,
   acceptRecipeShareInvite,
@@ -70,6 +74,7 @@ const COLLECTION_FIXTURE: Collection = {
   kind: 'custom',
   name: 'Favoriten',
   owner_type: 'user',
+  household_id: null,
   item_count: 3,
   is_system: false,
 };
@@ -102,6 +107,16 @@ describe('collections / sharing / favorites API service', () => {
       expect(getHeader(init, 'Content-Type')).toBe('application/json');
       expect(getHeader(init, 'Authorization')).toBe('Bearer token-x');
       expect(JSON.parse(init.body as string)).toEqual({ target: { type: 'household' } });
+    });
+
+    it('sends an explicit household id for household share targets', async () => {
+      const fetchMock = okJson({ recipe: RECIPE_FIXTURE }, 201);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await shareRecipe(42, 'household', 'hh-2');
+
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({ target: { type: 'household', householdId: 'hh-2' } });
     });
 
     it('sends target.type="user" when target is "user"', async () => {
@@ -227,6 +242,19 @@ describe('collections / sharing / favorites API service', () => {
       vi.stubGlobal('fetch', errorResponse(500));
       await expect(fetchCollections()).rejects.toBeInstanceOf(ApiRequestError);
       await expect(fetchCollections()).rejects.toMatchObject({ status: 500 });
+    });
+  });
+
+  describe('fetchCollectionsForHousehold', () => {
+    it('filters household collections by householdId', async () => {
+      const fetchMock = okJson({ collections: [{ ...COLLECTION_FIXTURE, owner_type: 'household', household_id: 'hh-2' }] });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await fetchCollectionsForHousehold('hh-2');
+
+      expect(result).toEqual([{ ...COLLECTION_FIXTURE, owner_type: 'household', household_id: 'hh-2' }]);
+      const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/recipe-collections?ownerType=household&householdId=hh-2');
     });
   });
 
@@ -363,6 +391,16 @@ describe('collections / sharing / favorites API service', () => {
       expect(JSON.parse(init.body as string)).toEqual({ recipeId: 7 });
     });
 
+    it('sends targetHouseholdId when adding to a household collection', async () => {
+      const fetchMock = okJson({ success: true, added: true, recipeId: 77, copied: true });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await addRecipeToCollection('coll-1', 7, 'hh-2');
+
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({ recipeId: 7, targetHouseholdId: 'hh-2' });
+    });
+
     it('returns added:false when recipe was already in the collection', async () => {
       vi.stubGlobal('fetch', okJson({ success: true, added: false }));
       const result = await addRecipeToCollection('coll-1', 7);
@@ -386,6 +424,47 @@ describe('collections / sharing / favorites API service', () => {
     });
   });
 
+  describe('collection bulk operations', () => {
+    it('reorders collection items', async () => {
+      const fetchMock = okJson({ succeeded: [{ recipeId: 2 }, { recipeId: 1 }], failed: [] });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await reorderCollectionItems('coll-1', [2, 1]);
+
+      expect(result).toEqual({ succeeded: [{ recipeId: 2 }, { recipeId: 1 }], failed: [] });
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/recipe-collections/coll-1/items/reorder');
+      expect(init.method).toBe('PATCH');
+      expect(JSON.parse(init.body as string)).toEqual({ recipeIds: [2, 1] });
+    });
+
+    it('bulk-removes collection items', async () => {
+      const fetchMock = okJson({ succeeded: [{ recipeId: 1 }], failed: [{ recipeId: 2, code: 'not_in_collection' }] });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await bulkRemoveFromCollection('coll-1', [1, 2]);
+
+      expect(result.failed).toEqual([{ recipeId: 2, code: 'not_in_collection' }]);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/recipe-collections/coll-1/items/bulk-remove');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual({ recipeIds: [1, 2] });
+    });
+
+    it('bulk-copies collection items', async () => {
+      const fetchMock = okJson({ succeeded: [{ sourceRecipeId: 1, recipeId: 10, added: true, copied: true }], failed: [] });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await bulkCopyCollectionItems('source', 'target', [1]);
+
+      expect(result.succeeded).toEqual([{ sourceRecipeId: 1, recipeId: 10, added: true, copied: true }]);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://api.test/api/v1/recipe-collections/source/items/bulk-copy');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual({ targetCollectionId: 'target', recipeIds: [1] });
+    });
+  });
+
   // ── recipe share invites ─────────────────────────────────────────────────────
 
   describe('recipe share invites', () => {
@@ -403,12 +482,16 @@ describe('collections / sharing / favorites API service', () => {
             acceptedRecipeId: null,
           },
         },
+        shareUrl: 'https://app.test/share-invite/token-1',
+        delivery: { status: 'sent', provider: 'resend' },
       }, 201);
       vi.stubGlobal('fetch', fetchMock);
 
       const result = await createRecipeShareInvite(42, 'friend@example.com');
 
       expect(result.token).toBe('token-1');
+      expect(result.shareUrl).toBe('https://app.test/share-invite/token-1');
+      expect(result.delivery).toEqual({ status: 'sent', provider: 'resend' });
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toBe('https://api.test/api/v1/recipes/42/share-invites');
       expect(init.method).toBe('POST');

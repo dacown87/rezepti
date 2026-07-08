@@ -10,6 +10,12 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock('../../src/db-react.js', () => dbMocks)
 
+const mailMocks = vi.hoisted(() => ({
+  sendRecipeInviteEmail: vi.fn(),
+}))
+
+vi.mock('../../src/mail.js', () => mailMocks)
+
 const { default: router } = await import('../../src/routes/recipe-share-invites.js')
 
 const USER_A = '00000000-0000-0000-0000-00000000000a'
@@ -29,6 +35,11 @@ function authAsUserA(email = 'user-a@example.com') {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mailMocks.sendRecipeInviteEmail.mockResolvedValue({
+    status: 'skipped',
+    provider: 'disabled',
+    errorCode: 'mail_not_configured',
+  })
   authAsUserA()
 })
 
@@ -60,12 +71,84 @@ describe('recipe share invite routes', () => {
     expect(res.status).toBe(201)
     await expect(res.json()).resolves.toMatchObject({
       invite: { token: 'token-1', preview: { recipeName: 'Pasta' } },
+      shareUrl: 'http://localhost/share-invite/token-1',
+      delivery: {
+        status: 'skipped',
+        provider: 'disabled',
+        errorCode: 'mail_not_configured',
+      },
     })
     expect(dbMocks.createRecipeShareInvite).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_A, email: 'user-a@example.com' }),
       5,
       'friend@example.com',
     )
+    expect(mailMocks.sendRecipeInviteEmail).toHaveBeenCalledWith({
+      to: 'friend@example.com',
+      recipeName: 'Pasta',
+      senderEmail: 'user-a@example.com',
+      shareUrl: 'http://localhost/share-invite/token-1',
+    })
+  })
+
+  it('returns sent delivery when provider accepts the invite email', async () => {
+    dbMocks.createRecipeShareInvite.mockResolvedValue({
+      token: 'token-1',
+      expiresAt: '2026-07-21T00:00:00.000Z',
+      preview: {
+        status: 'pending',
+        recipeName: 'Pasta',
+        senderEmail: 'user-a@example.com',
+        recipientEmail: 'friend@example.com',
+        expiresAt: '2026-07-21T00:00:00.000Z',
+        acceptedRecipeId: null,
+      },
+    })
+    mailMocks.sendRecipeInviteEmail.mockResolvedValue({ status: 'sent', provider: 'resend' })
+
+    const res = await router.request('https://api.example.test/api/v1/recipes/5/share-invites', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ email: 'friend@example.com' }),
+    })
+
+    expect(res.status).toBe(201)
+    await expect(res.json()).resolves.toMatchObject({
+      shareUrl: 'https://api.example.test/share-invite/token-1',
+      delivery: { status: 'sent', provider: 'resend' },
+    })
+  })
+
+  it('keeps the invite when email delivery fails', async () => {
+    dbMocks.createRecipeShareInvite.mockResolvedValue({
+      token: 'token-1',
+      expiresAt: '2026-07-21T00:00:00.000Z',
+      preview: {
+        status: 'pending',
+        recipeName: 'Pasta',
+        senderEmail: 'user-a@example.com',
+        recipientEmail: 'friend@example.com',
+        expiresAt: '2026-07-21T00:00:00.000Z',
+        acceptedRecipeId: null,
+      },
+    })
+    mailMocks.sendRecipeInviteEmail.mockResolvedValue({
+      status: 'failed',
+      provider: 'resend',
+      errorCode: 'provider_rejected',
+    })
+
+    const res = await router.request('/api/v1/recipes/5/share-invites', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ email: 'friend@example.com' }),
+    })
+
+    expect(res.status).toBe(201)
+    await expect(res.json()).resolves.toMatchObject({
+      invite: { token: 'token-1' },
+      delivery: { status: 'failed', provider: 'resend', errorCode: 'provider_rejected' },
+    })
   })
 
   it('rejects invalid invite email with 400', async () => {

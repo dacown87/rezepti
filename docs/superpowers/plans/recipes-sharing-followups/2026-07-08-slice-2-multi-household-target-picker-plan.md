@@ -1,7 +1,7 @@
 # Slice 2: Multi-Household Target Picker Plan
 
 Stand: 2026-07-08
-Status: geplant
+Status: lokal umgesetzt, vor Staging-Smoke
 Masterplan:
 [2026-07-08-recipes-sharing-followups-master-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-07-08-recipes-sharing-followups-master-plan.md)
 
@@ -10,6 +10,16 @@ Masterplan:
 Nutzer mit mehreren Haushalten sollen bei passenden Recipe-/Collection-Aktionen
 einen Zielhaushalt auswaehlen koennen. Der aktive Haushalt bleibt Default, aber
 nicht die einzige erlaubte Zielgrenze.
+
+## Ergebnis 2026-07-08
+
+- Share- und Collection-Item-Mutationen akzeptieren explizite Zielhaushalte und
+  validieren Memberships serverseitig.
+- `GET /api/v1/recipe-collections` kann nach `ownerType` und `householdId`
+  filtern.
+- Mobile nutzt Memberships aus `auth/me`, zeigt bei mehreren Haushalten einen
+  Zielpicker und filtert Haushaltslisten passend zum Zielhaushalt.
+- Collection-Clienttypen fuehren `household_id` mit.
 
 ## Nicht-Ziele
 

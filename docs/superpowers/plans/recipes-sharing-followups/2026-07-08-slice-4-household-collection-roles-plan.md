@@ -1,7 +1,7 @@
 # Slice 4: Household Collection Role Refinement Plan
 
 Stand: 2026-07-08
-Status: geplant
+Status: lokal umgesetzt mit Option A
 Masterplan:
 [2026-07-08-recipes-sharing-followups-master-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-07-08-recipes-sharing-followups-master-plan.md)
 
@@ -11,6 +11,16 @@ Haushaltslisten sollen bei Bedarf feinere Mutationsrechte bekommen. Heute duerfe
 Haushaltsmitglieder Haushaltslisten mutieren. Der Slice fuehrt nur dann neue
 Regeln ein, wenn die Produktentscheidung klar ist, welche Aktionen geschuetzt
 werden muessen.
+
+## Ergebnis 2026-07-08
+
+- Option A ist umgesetzt: bestehende Household-Rollen steuern
+  Haushalts-Collections.
+- Owner koennen Haushalts-Collections erstellen, umbenennen und loeschen.
+- Member koennen Items hinzufuegen/entfernen und Bulk-/Reorder-Item-Aktionen
+  ausfuehren, aber keine Listen-Metadaten verwalten.
+- Collection-Read-Model liefert `can_manage`; Mobile blendet Rename/Delete fuer
+  nicht verwaltbare Collections aus.
 
 ## Nicht-Ziele
 

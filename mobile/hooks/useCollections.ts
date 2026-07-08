@@ -7,6 +7,9 @@ import {
   deleteCollection,
   addRecipeToCollection,
   removeRecipeFromCollection,
+  reorderCollectionItems,
+  bulkRemoveFromCollection,
+  bulkCopyCollectionItems,
   shareRecipe,
   createRecipeShareInvite,
   fetchRecipeShareInvite,
@@ -16,6 +19,9 @@ import {
 } from '@/utils/api';
 import { RECIPES_QUERY_KEY } from './useRecipes';
 import { recipeQueryKey } from './useRecipe';
+import { queuedMutate } from '@/offline/queued-mutate';
+import { isOnline } from '@/offline/network-status';
+import { offlineQueue, sendQueuedMutation } from '@/offline/queue-singleton';
 
 export const COLLECTIONS_QUERY_KEY = ['recipe-collections'] as const;
 export const recipeShareInviteQueryKey = (token: string) =>
@@ -24,6 +30,11 @@ export const recipeShareInviteQueryKey = (token: string) =>
 /** Query key for a single collection's contents (recipes inside the collection). */
 export const collectionItemsQueryKey = (collectionId: string) =>
   ['recipe-collections', collectionId, 'items'] as const;
+
+function newClientOpId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `op-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -61,8 +72,8 @@ export function useCollectionItems(collectionId: string | undefined) {
 export function useShareRecipe() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, target }: { id: number; target: 'household' | 'user' }) =>
-      shareRecipe(id, target),
+    mutationFn: ({ id, target, householdId }: { id: number; target: 'household' | 'user'; householdId?: string }) =>
+      shareRecipe(id, target, householdId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: RECIPES_QUERY_KEY });
     },
@@ -186,10 +197,23 @@ export function useAddRecipeToCollection() {
     mutationFn: ({
       collectionId,
       recipeId,
+      targetHouseholdId,
     }: {
       collectionId: string;
       recipeId: number;
-    }) => addRecipeToCollection(collectionId, recipeId),
+      targetHouseholdId?: string;
+    }) => {
+      if (isOnline()) return addRecipeToCollection(collectionId, recipeId, targetHouseholdId);
+      return queuedMutate(
+        offlineQueue,
+        {
+          endpoint: `/api/v1/recipe-collections/${collectionId}/items`,
+          method: 'POST',
+          body: { recipeId, ...(targetHouseholdId ? { targetHouseholdId } : {}) },
+        },
+        { online: false, send: sendQueuedMutation, newId: newClientOpId },
+      ).then(() => ({ added: true, recipeId, copied: false }));
+    },
     onSuccess: (data, { collectionId }) => {
       qc.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
       qc.invalidateQueries({ queryKey: collectionItemsQueryKey(collectionId) });
@@ -220,10 +244,84 @@ export function useRemoveRecipeFromCollection() {
     }: {
       collectionId: string;
       recipeId: number;
-    }) => removeRecipeFromCollection(collectionId, recipeId),
+    }) => {
+      if (isOnline()) return removeRecipeFromCollection(collectionId, recipeId);
+      return queuedMutate(
+        offlineQueue,
+        {
+          endpoint: `/api/v1/recipe-collections/${collectionId}/items/${recipeId}`,
+          method: 'DELETE',
+          body: { recipeId },
+        },
+        { online: false, send: sendQueuedMutation, newId: newClientOpId },
+      ).then(() => undefined);
+    },
     onSuccess: (_data, { collectionId }) => {
       qc.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
       qc.invalidateQueries({ queryKey: collectionItemsQueryKey(collectionId) });
+    },
+  });
+}
+
+export function useReorderCollectionItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ collectionId, recipeIds }: { collectionId: string; recipeIds: number[] }) =>
+      isOnline()
+        ? reorderCollectionItems(collectionId, recipeIds)
+        : queuedMutate(
+          offlineQueue,
+          {
+            endpoint: `/api/v1/recipe-collections/${collectionId}/items/reorder`,
+            method: 'PATCH',
+            body: { recipeIds },
+          },
+          { online: false, send: sendQueuedMutation, newId: newClientOpId },
+        ).then(() => ({ succeeded: recipeIds.map((recipeId) => ({ recipeId })), failed: [] })),
+    onSuccess: (_data, { collectionId }) => {
+      qc.invalidateQueries({ queryKey: collectionItemsQueryKey(collectionId) });
+    },
+  });
+}
+
+export function useBulkRemoveFromCollection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ collectionId, recipeIds }: { collectionId: string; recipeIds: number[] }) =>
+      isOnline()
+        ? bulkRemoveFromCollection(collectionId, recipeIds)
+        : queuedMutate(
+          offlineQueue,
+          {
+            endpoint: `/api/v1/recipe-collections/${collectionId}/items/bulk-remove`,
+            method: 'POST',
+            body: { recipeIds },
+          },
+          { online: false, send: sendQueuedMutation, newId: newClientOpId },
+        ).then(() => ({ succeeded: recipeIds.map((recipeId) => ({ recipeId })), failed: [] })),
+    onSuccess: (_data, { collectionId }) => {
+      qc.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: collectionItemsQueryKey(collectionId) });
+    },
+  });
+}
+
+export function useBulkCopyCollectionItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      collectionId,
+      targetCollectionId,
+      recipeIds,
+    }: {
+      collectionId: string;
+      targetCollectionId: string;
+      recipeIds: number[];
+    }) => bulkCopyCollectionItems(collectionId, targetCollectionId, recipeIds),
+    onSuccess: (_data, { targetCollectionId }) => {
+      qc.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: collectionItemsQueryKey(targetCollectionId) });
+      qc.invalidateQueries({ queryKey: RECIPES_QUERY_KEY });
     },
   });
 }

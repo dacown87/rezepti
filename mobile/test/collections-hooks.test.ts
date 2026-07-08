@@ -30,6 +30,9 @@ let renameCollectionMock: ReturnType<typeof vi.fn>;
 let deleteCollectionMock: ReturnType<typeof vi.fn>;
 let addRecipeToCollectionMock: ReturnType<typeof vi.fn>;
 let removeRecipeFromCollectionMock: ReturnType<typeof vi.fn>;
+let reorderCollectionItemsMock: ReturnType<typeof vi.fn>;
+let bulkRemoveFromCollectionMock: ReturnType<typeof vi.fn>;
+let bulkCopyCollectionItemsMock: ReturnType<typeof vi.fn>;
 let createRecipeShareInviteMock: ReturnType<typeof vi.fn>;
 let fetchRecipeShareInviteMock: ReturnType<typeof vi.fn>;
 let acceptRecipeShareInviteMock: ReturnType<typeof vi.fn>;
@@ -50,6 +53,10 @@ vi.mock('@tanstack/react-query', () => ({
   useMutation: rqMocks.useMutationMock,
 }));
 
+vi.mock('@/offline/network-status', () => ({
+  isOnline: vi.fn(() => true),
+}));
+
 vi.mock('@/utils/api', () => {
   shareRecipeMock = vi.fn();
   setRecipeFavoriteMock = vi.fn();
@@ -59,6 +66,9 @@ vi.mock('@/utils/api', () => {
   deleteCollectionMock = vi.fn();
   addRecipeToCollectionMock = vi.fn();
   removeRecipeFromCollectionMock = vi.fn();
+  reorderCollectionItemsMock = vi.fn();
+  bulkRemoveFromCollectionMock = vi.fn();
+  bulkCopyCollectionItemsMock = vi.fn();
   createRecipeShareInviteMock = vi.fn();
   fetchRecipeShareInviteMock = vi.fn();
   acceptRecipeShareInviteMock = vi.fn();
@@ -72,6 +82,9 @@ vi.mock('@/utils/api', () => {
     deleteCollection: deleteCollectionMock,
     addRecipeToCollection: addRecipeToCollectionMock,
     removeRecipeFromCollection: removeRecipeFromCollectionMock,
+    reorderCollectionItems: reorderCollectionItemsMock,
+    bulkRemoveFromCollection: bulkRemoveFromCollectionMock,
+    bulkCopyCollectionItems: bulkCopyCollectionItemsMock,
     createRecipeShareInvite: createRecipeShareInviteMock,
     fetchRecipeShareInvite: fetchRecipeShareInviteMock,
     acceptRecipeShareInvite: acceptRecipeShareInviteMock,
@@ -127,7 +140,7 @@ describe('useCollections hooks — query keys and invalidation', () => {
   // ── useShareRecipe mutation ─────────────────────────────────────────────────
 
   it('useShareRecipe invalidates RECIPES_QUERY_KEY on success', async () => {
-    let mutationFn: ((vars: { id: number; target: 'household' | 'user' }) => Promise<unknown>) | undefined;
+    let mutationFn: ((vars: { id: number; target: 'household' | 'user'; householdId?: string }) => Promise<unknown>) | undefined;
     let onSuccess: (() => void) | undefined;
     rqMocks.useMutationMock.mockImplementation((config: {
       mutationFn: typeof mutationFn;
@@ -140,10 +153,10 @@ describe('useCollections hooks — query keys and invalidation', () => {
     shareRecipeMock.mockResolvedValueOnce({ id: 99, name: 'Copy', ingredients: '[]', steps: '[]' });
 
     useShareRecipe();
-    await mutationFn?.({ id: 5, target: 'household' });
+    await mutationFn?.({ id: 5, target: 'household', householdId: 'hh-2' });
     onSuccess?.();
 
-    expect(shareRecipeMock).toHaveBeenCalledWith(5, 'household');
+    expect(shareRecipeMock).toHaveBeenCalledWith(5, 'household', 'hh-2');
     expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: RECIPES_QUERY_KEY });
     // Should NOT touch collections key
     expect(rqMocks.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: COLLECTIONS_QUERY_KEY });
@@ -209,7 +222,7 @@ describe('useCollections hooks — query keys and invalidation', () => {
       onSuccess = config.onSuccess;
       return { mutate: vi.fn() };
     });
-    createCollectionMock.mockResolvedValueOnce({ id: 'c1', kind: 'custom', name: 'Neu', owner_type: 'user', item_count: 0, is_system: false });
+    createCollectionMock.mockResolvedValueOnce({ id: 'c1', kind: 'custom', name: 'Neu', owner_type: 'user', household_id: null, item_count: 0, is_system: false });
 
     useCreateCollection();
     await mutationFn?.({ name: 'Neu' });
@@ -270,8 +283,8 @@ describe('useCollections hooks — query keys and invalidation', () => {
   // ── useAddRecipeToCollection mutation ────────────────────────────────────────
 
   it('useAddRecipeToCollection invalidates COLLECTIONS_QUERY_KEY + collection-items but NOT recipe keys', async () => {
-    let mutationFn: ((vars: { collectionId: string; recipeId: number }) => Promise<unknown>) | undefined;
-    let onSuccess: ((data: unknown, vars: { collectionId: string; recipeId: number }) => void) | undefined;
+    let mutationFn: ((vars: { collectionId: string; recipeId: number; targetHouseholdId?: string }) => Promise<unknown>) | undefined;
+    let onSuccess: ((data: unknown, vars: { collectionId: string; recipeId: number; targetHouseholdId?: string }) => void) | undefined;
     rqMocks.useMutationMock.mockImplementation((config: {
       mutationFn: typeof mutationFn;
       onSuccess?: typeof onSuccess;
@@ -283,10 +296,10 @@ describe('useCollections hooks — query keys and invalidation', () => {
     addRecipeToCollectionMock.mockResolvedValueOnce({ added: true });
 
     useAddRecipeToCollection();
-    await mutationFn?.({ collectionId: 'c1', recipeId: 7 });
-    onSuccess?.({ added: true, recipeId: 7, copied: false }, { collectionId: 'c1', recipeId: 7 });
+    await mutationFn?.({ collectionId: 'c1', recipeId: 7, targetHouseholdId: 'hh-2' });
+    onSuccess?.({ added: true, recipeId: 7, copied: false }, { collectionId: 'c1', recipeId: 7, targetHouseholdId: 'hh-2' });
 
-    expect(addRecipeToCollectionMock).toHaveBeenCalledWith('c1', 7);
+    expect(addRecipeToCollectionMock).toHaveBeenCalledWith('c1', 7, 'hh-2');
     expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: COLLECTIONS_QUERY_KEY });
     // The target collection's contents list must refresh to include the added recipe.
     expect(rqMocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['recipe-collections', 'c1', 'items'] });
@@ -297,8 +310,8 @@ describe('useCollections hooks — query keys and invalidation', () => {
   });
 
   it('useAddRecipeToCollection invalidates recipe keys when the server created a household copy', async () => {
-    let mutationFn: ((vars: { collectionId: string; recipeId: number }) => Promise<unknown>) | undefined;
-    let onSuccess: ((data: { recipeId: number; copied: boolean }, vars: { collectionId: string; recipeId: number }) => void) | undefined;
+    let mutationFn: ((vars: { collectionId: string; recipeId: number; targetHouseholdId?: string }) => Promise<unknown>) | undefined;
+    let onSuccess: ((data: { recipeId: number; copied: boolean }, vars: { collectionId: string; recipeId: number; targetHouseholdId?: string }) => void) | undefined;
     rqMocks.useMutationMock.mockImplementation((config: {
       mutationFn: typeof mutationFn;
       onSuccess?: typeof onSuccess;

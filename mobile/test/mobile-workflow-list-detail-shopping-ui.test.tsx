@@ -34,6 +34,13 @@ vi.mock('@/utils/server-url', () => ({
   getServerUrl: vi.fn(async () => 'http://localhost:3000'),
 }));
 
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: vi.fn(() => ({
+    data: { memberships: [] },
+    isLoading: false,
+  })),
+}));
+
 vi.mock('@/utils/pdf-export', () => ({
   shareRecipePDF: vi.fn(async () => undefined),
   shareRecipeCardsPDF: vi.fn(async () => undefined),

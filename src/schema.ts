@@ -80,10 +80,12 @@ export const recipeCollectionItems = pgTable("recipe_collection_items", {
   id:           uuid("id").primaryKey().defaultRandom(),
   collectionId: uuid("collection_id").notNull().references(() => recipeCollections.id, { onDelete: "cascade" }),
   recipeId:     integer("recipe_id").notNull().references(() => recipes.id, { onDelete: "cascade" }),
+  position:     integer("position").notNull().default(0),
   createdBy:    uuid("created_by").notNull(),
   createdAt:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   uniqueIndex("recipe_collection_items_collection_recipe_uidx").on(t.collectionId, t.recipeId),
+  index("recipe_collection_items_collection_position_idx").on(t.collectionId, t.position),
   index("recipe_collection_items_recipe_idx").on(t.recipeId),
 ]);
 

@@ -5,8 +5,15 @@ import {
   getRecipeShareInvitePreview,
 } from "../db-react.js";
 import { getUserAuth, requireUserAuth } from "../auth.js";
+import { sendRecipeInviteEmail } from "../mail.js";
 
 const app = new Hono();
+
+function buildShareInviteUrl(requestUrl: string, token: string) {
+  const configuredBaseUrl = (process.env.RECIPE_INVITE_BASE_URL || process.env.APP_PUBLIC_URL || "").trim();
+  const baseUrl = configuredBaseUrl || new URL(requestUrl).origin;
+  return new URL(`/share-invite/${encodeURIComponent(token)}`, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+}
 
 app.post("/api/v1/recipes/:id/share-invites", requireUserAuth(), async (c) => {
   try {
@@ -21,7 +28,14 @@ app.post("/api/v1/recipes/:id/share-invites", requireUserAuth(), async (c) => {
     }
 
     const invite = await createRecipeShareInvite(auth, id, email);
-    return c.json({ invite }, 201);
+    const shareUrl = buildShareInviteUrl(c.req.url, invite.token);
+    const delivery = await sendRecipeInviteEmail({
+      to: invite.preview.recipientEmail,
+      recipeName: invite.preview.recipeName,
+      senderEmail: invite.preview.senderEmail,
+      shareUrl,
+    });
+    return c.json({ invite, shareUrl, delivery }, 201);
   } catch (error) {
     if (error instanceof Error && error.message === "invalid_email") {
       return c.json({ error: "Invalid email", code: "invalid_email" }, 400);
