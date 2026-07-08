@@ -193,7 +193,7 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     await expect(db.addRecipeToCollection(AUTH, collection.id, foreignId)).rejects.toThrow()
   })
 
-  it('household collection rejects a private recipe', async () => {
+  it('household collection copies a private recipe into the household', async () => {
     const privateId = await db.saveRecipeToReactDb(
       sampleRecipe('__test__ my private'), 'https://example.com/mine', undefined, PRIVATE_OWNER,
     )
@@ -206,7 +206,20 @@ describe.skipIf(!hasTestDb)('Collections / Favorites / Sharing (DB)', async () =
     })
     createdCollectionIds.push(householdColl.id)
 
-    await expect(db.addRecipeToCollection(AUTH, householdColl.id, privateId)).rejects.toThrow()
+    const result = await db.addRecipeToCollection(AUTH, householdColl.id, privateId)
+    createdRecipeIds.push(result.recipeId)
+
+    expect(result.added).toBe(true)
+    expect(result.copied).toBe(true)
+    expect(result.recipeId).not.toBe(privateId)
+
+    const copied = await db.getRecipeByIdFromReactDb(result.recipeId, AUTH)
+    expect(copied.ownerType).toBe('household')
+    expect(copied.householdId).toBe(TEST_HOUSEHOLD_ID)
+    expect(copied.source_recipe_id).toBe(privateId)
+
+    const items = await db.getCollectionItemsForAuth(AUTH, householdColl.id)
+    expect(items.some((r: { id: number }) => r.id === result.recipeId)).toBe(true)
   })
 
   it('addRecipeToCollection duplicate is idempotent (unique index)', async () => {
