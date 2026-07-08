@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.195] – 2026-07-08
+
+- complete recipe sharing followup slices
+
 ## [1.0.194] – 2026-07-08
 
 
