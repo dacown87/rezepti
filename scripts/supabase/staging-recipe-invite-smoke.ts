@@ -7,16 +7,94 @@ const password = "RecipeInviteSmoke-2026!";
 const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userAEmail = `recipe-invite-a-${runId}@example.test`;
 const userBEmail = `recipe-invite-b-${runId}@example.test`;
-const sourceUrl = `https://staging-smoke.example.test/recipe-invites/${runId}`;
 
 const createdUserIds: string[] = [];
 const createdRecipeIds: number[] = [];
 const createdCollectionIds: string[] = [];
 
+type SmokeTarget = "staging" | "production";
+
+type SmokeConfig = {
+  target: SmokeTarget;
+  label: string;
+  supabaseUrl: string;
+  publishableKey: string;
+  secretKey: string;
+  databaseUrl: string;
+  apiBaseUrl: string | null;
+  sourceUrl: string;
+};
+
 function required(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required.`);
   return value;
+}
+
+function optional(...names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return null;
+}
+
+function readTarget(): SmokeTarget {
+  const raw = process.env.RECIPE_INVITE_SMOKE_TARGET?.trim().toLowerCase() || "staging";
+  if (raw === "staging" || raw === "production") return raw;
+  throw new Error("RECIPE_INVITE_SMOKE_TARGET must be staging or production.");
+}
+
+function readConfig(): SmokeConfig {
+  const target = readTarget();
+  if (target === "staging") {
+    const supabaseUrl = required("STAGING_SUPABASE_URL");
+    assert(!/prod|production/i.test(supabaseUrl), "Refusing to run staging smoke against a Supabase URL that looks like production.");
+    return {
+      target,
+      label: "Staging",
+      supabaseUrl,
+      publishableKey: optional("STAGING_SUPABASE_PUBLISHABLE_KEY", "STAGING_SUPABASE_ANON_KEY")
+        ?? required("STAGING_SUPABASE_PUBLISHABLE_KEY"),
+      secretKey: optional("STAGING_SUPABASE_SECRET_KEY", "STAGING_SUPABASE_SERVICE_ROLE_KEY")
+        ?? required("STAGING_SUPABASE_SECRET_KEY"),
+      databaseUrl: required("STAGING_DATABASE_URL"),
+      apiBaseUrl: optional("RECIPE_INVITE_SMOKE_API_BASE_URL", "STAGING_API_BASE_URL"),
+      sourceUrl: `https://staging-smoke.example.test/recipe-invites/${runId}`,
+    };
+  }
+
+  const confirm = process.env.RECIPE_INVITE_SMOKE_CONFIRM?.trim();
+  if (confirm !== "rezepti-production") {
+    throw new Error("Production smoke requires RECIPE_INVITE_SMOKE_CONFIRM=rezepti-production.");
+  }
+
+  return {
+    target,
+    label: "Production",
+    supabaseUrl: optional("PRODUCTION_SUPABASE_URL", "SUPABASE_URL")
+      ?? required("PRODUCTION_SUPABASE_URL"),
+    publishableKey: optional(
+      "PRODUCTION_SUPABASE_PUBLISHABLE_KEY",
+      "PRODUCTION_SUPABASE_ANON_KEY",
+      "SUPABASE_PUBLISHABLE_KEY",
+      "SUPABASE_ANON_KEY",
+    ) ?? required("PRODUCTION_SUPABASE_PUBLISHABLE_KEY"),
+    secretKey: optional(
+      "PRODUCTION_SUPABASE_SECRET_KEY",
+      "PRODUCTION_SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_SECRET_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+    ) ?? required("PRODUCTION_SUPABASE_SECRET_KEY"),
+    databaseUrl: optional("PRODUCTION_DATABASE_URL", "DATABASE_URL")
+      ?? required("PRODUCTION_DATABASE_URL"),
+    apiBaseUrl: optional(
+      "RECIPE_INVITE_SMOKE_API_BASE_URL",
+      "PRODUCTION_API_BASE_URL",
+      "BASE_URL",
+    ) ?? "https://p01--rezepti-app--2s7hvlwm5zc5.code.run",
+    sourceUrl: `https://production-smoke.example.test/recipe-invites/${runId}`,
+  };
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -52,26 +130,24 @@ async function signIn(supabaseUrl: string, publishableKey: string, email: string
 }
 
 async function main() {
-  const supabaseUrl = required("STAGING_SUPABASE_URL");
-  assert(!/prod|production/i.test(supabaseUrl), "Refusing to run against a Supabase URL that looks like production.");
+  const config = readConfig();
 
-  const publishableKey = process.env.STAGING_SUPABASE_PUBLISHABLE_KEY
-    ?? process.env.STAGING_SUPABASE_ANON_KEY
-    ?? required("STAGING_SUPABASE_PUBLISHABLE_KEY");
-  const secretKey = process.env.STAGING_SUPABASE_SECRET_KEY
-    ?? process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY
-    ?? required("STAGING_SUPABASE_SECRET_KEY");
-  const databaseUrl = required("STAGING_DATABASE_URL");
+  process.env.DATABASE_URL = config.databaseUrl;
+  process.env.SUPABASE_URL = config.supabaseUrl;
+  process.env.SUPABASE_PUBLISHABLE_KEY = config.publishableKey;
 
-  process.env.DATABASE_URL = databaseUrl;
-  process.env.SUPABASE_URL = supabaseUrl;
-  process.env.SUPABASE_PUBLISHABLE_KEY = publishableKey;
+  const app = config.apiBaseUrl ? null : (await import("../../src/api-react.js")).default;
+  const request = (path: string, init?: RequestInit) => {
+    if (config.apiBaseUrl) {
+      return fetch(new URL(path, config.apiBaseUrl), init);
+    }
+    return app!.request(path, init);
+  };
 
-  const { default: app } = await import("../../src/api-react.js");
-  const admin = createClient(supabaseUrl, secretKey, {
+  const admin = createClient(config.supabaseUrl, config.secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const sql = postgres(databaseUrl, { ssl: "require", prepare: false, max: 1 });
+  const sql = postgres(config.databaseUrl, { ssl: "require", prepare: false, max: 1 });
 
   try {
     for (const email of [userAEmail, userBEmail]) {
@@ -87,15 +163,15 @@ async function main() {
     }
 
     const [userAId, userBId] = createdUserIds;
-    const tokenA = await signIn(supabaseUrl, publishableKey, userAEmail);
-    const tokenB = await signIn(supabaseUrl, publishableKey, userBEmail);
+    const tokenA = await signIn(config.supabaseUrl, config.publishableKey, userAEmail);
+    const tokenB = await signIn(config.supabaseUrl, config.publishableKey, userBEmail);
 
     const bootstrapA = await assertOk(
-      await app.request("/api/v1/auth/bootstrap", { method: "POST", headers: authHeaders(tokenA) }),
+      await request("/api/v1/auth/bootstrap", { method: "POST", headers: authHeaders(tokenA) }),
       "bootstrap user A",
     );
     await assertOk(
-      await app.request("/api/v1/auth/bootstrap", { method: "POST", headers: authHeaders(tokenB) }),
+      await request("/api/v1/auth/bootstrap", { method: "POST", headers: authHeaders(tokenB) }),
       "bootstrap user B",
     );
 
@@ -103,11 +179,11 @@ async function main() {
     assert(typeof householdId === "string" && householdId.length > 0, "bootstrap did not return user A workspace id");
 
     const createRecipe = await assertOk(
-      await app.request("/api/v1/recipes", {
+      await request("/api/v1/recipes", {
         method: "POST",
         headers: authHeaders(tokenA),
         body: JSON.stringify({
-          sourceUrl,
+          sourceUrl: config.sourceUrl,
           recipe: {
             name: `Invite Smoke ${runId}`,
             emoji: "🍝",
@@ -124,7 +200,7 @@ async function main() {
     createdRecipeIds.push(privateRecipeId);
 
     const createCollection = await assertOk(
-      await app.request("/api/v1/recipe-collections", {
+      await request("/api/v1/recipe-collections", {
         method: "POST",
         headers: authHeaders(tokenA),
         body: JSON.stringify({
@@ -140,7 +216,7 @@ async function main() {
     createdCollectionIds.push(collectionId);
 
     const addToHousehold = await assertOk(
-      await app.request(`/api/v1/recipe-collections/${collectionId}/items`, {
+      await request(`/api/v1/recipe-collections/${collectionId}/items`, {
         method: "POST",
         headers: authHeaders(tokenA),
         body: JSON.stringify({ recipeId: privateRecipeId }),
@@ -152,7 +228,7 @@ async function main() {
     createdRecipeIds.push(Number(addToHousehold.recipeId));
 
     const invite = await assertOk(
-      await app.request(`/api/v1/recipes/${privateRecipeId}/share-invites`, {
+      await request(`/api/v1/recipes/${privateRecipeId}/share-invites`, {
         method: "POST",
         headers: authHeaders(tokenA),
         body: JSON.stringify({ email: userBEmail }),
@@ -163,20 +239,20 @@ async function main() {
     assert(typeof token === "string" && token.length > 20, "invite create did not return token");
 
     const preview = await assertOk(
-      await app.request(`/api/v1/share-invites/${encodeURIComponent(token)}`),
+      await request(`/api/v1/share-invites/${encodeURIComponent(token)}`),
       "fetch invite preview",
     );
     assert(preview.invite?.status === "pending", "invite preview is not pending");
     assert(preview.invite?.recipientEmail === userBEmail, "invite preview recipient mismatch");
 
-    const mismatch = await app.request(`/api/v1/share-invites/${encodeURIComponent(token)}/accept`, {
+    const mismatch = await request(`/api/v1/share-invites/${encodeURIComponent(token)}/accept`, {
       method: "POST",
       headers: authHeaders(tokenA),
     });
     assert(mismatch.status === 403, `accept with sender should return 403, got ${mismatch.status}`);
 
     const accepted = await assertOk(
-      await app.request(`/api/v1/share-invites/${encodeURIComponent(token)}/accept`, {
+      await request(`/api/v1/share-invites/${encodeURIComponent(token)}/accept`, {
         method: "POST",
         headers: authHeaders(tokenB),
       }),
@@ -189,13 +265,13 @@ async function main() {
     createdRecipeIds.push(acceptedRecipeId);
 
     const acceptedDetail = await assertOk(
-      await app.request(`/api/v1/recipes/${acceptedRecipeId}`, { headers: authHeaders(tokenB) }),
+      await request(`/api/v1/recipes/${acceptedRecipeId}`, { headers: authHeaders(tokenB) }),
       "fetch accepted private copy",
     );
     assert(acceptedDetail.scope === "private", "accepted recipe copy is not private");
 
     const acceptedAgain = await assertOk(
-      await app.request(`/api/v1/share-invites/${encodeURIComponent(token)}/accept`, {
+      await request(`/api/v1/share-invites/${encodeURIComponent(token)}/accept`, {
         method: "POST",
         headers: authHeaders(tokenB),
       }),
@@ -204,7 +280,7 @@ async function main() {
     assert(acceptedAgain.alreadyAccepted === true, "second accept did not report alreadyAccepted=true");
     assert(Number(acceptedAgain.recipe?.id) === acceptedRecipeId, "second accept returned a different recipe id");
 
-    console.log("Staging recipe invite smoke passed:");
+    console.log(`${config.label} recipe invite smoke passed:`);
     console.log("- private recipe added to household collection as household copy");
     console.log("- email-bound invite preview works");
     console.log("- wrong account cannot accept invite");

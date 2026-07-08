@@ -93,6 +93,14 @@ Recipe-Invite-/Household-Collection-Staging-Smoke:
 npx tsx scripts/supabase/staging-recipe-invite-smoke.ts
 ```
 
+Production-Smoke nach Deploy:
+
+```bash
+RECIPE_INVITE_SMOKE_TARGET=production \
+RECIPE_INVITE_SMOKE_CONFIRM=rezepti-production \
+npx tsx scripts/supabase/staging-recipe-invite-smoke.ts
+```
+
 Voraussetzungen fuer den Staging-Smoke:
 
 - Repo-`.env` enthaelt `STAGING_SUPABASE_URL`,
@@ -102,6 +110,13 @@ Voraussetzungen fuer den Staging-Smoke:
 - Das Skript nutzt die lokale API-Implementierung gegen Staging, erzeugt eigene
   temporaere Auth-User/Profile/Rezepte/Collections/Invites und raeumt diese am
   Ende wieder auf.
+- Fuer Production liest das Skript bevorzugt `PRODUCTION_*`-Variablen und faellt
+  auf `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` bzw.
+  `DATABASE_URL` zurueck. Der Production-Lauf trifft standardmaessig die
+  deployte API `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`; abweichende
+  Ziele koennen per `RECIPE_INVITE_SMOKE_API_BASE_URL` gesetzt werden.
+- Production laeuft nur mit explizitem
+  `RECIPE_INVITE_SMOKE_CONFIRM=rezepti-production`.
 
 Gepruefte Feature-Vertraege:
 
