@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.193] – 2026-07-08
+
+- add recipe invites and household list copies
+
 ## [1.0.192] – 2026-07-07
 
 
