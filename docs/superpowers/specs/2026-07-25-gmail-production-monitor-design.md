@@ -20,7 +20,10 @@ send mail through Gmail, or parse customer email.
 
 ## Credential model
 
-The downloaded Desktop OAuth JSON remains a local bootstrap artifact. A local
+The downloaded Desktop OAuth JSON remains a local bootstrap artifact. Before
+bootstrap, the Google OAuth consent screen must be published as **In
+production** for this internal operator account; an External app left in
+Testing issues this restricted-scope refresh token for only seven days. A local
 authorization command obtains a refresh token. Local `.env` and Northflank
 runtime secrets contain only `GMAIL_OAUTH_CLIENT_ID`,
 `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_OAUTH_REFRESH_TOKEN`, and
@@ -33,11 +36,16 @@ Git. The production process never depends on a local filesystem path.
    consent URL, accepts the authorization callback, and writes an ignored local
    token cache.
 2. `src/gmail-monitor.ts` creates an OAuth client from the runtime secrets and
-   calls Gmail only with `gmail.readonly`.
+   calls Gmail only with `gmail.readonly`. This restricted scope is intentional:
+   the narrower `gmail.metadata` scope cannot use Gmail's server-side `q`
+   search parameter, which the bounded exact-subject check needs.
 3. `scripts/gmail-brevo-smoke.ts` runs a bounded search for an exact subject
    and recent message, returning success only when the mail is present.
 4. A production scheduler invokes the smoke script after a controlled Brevo
-   probe or on an operations cadence. It logs no credentials or message body.
+   probe. Each probe uses a unique subject containing an ISO timestamp or UUID;
+   the checker searches that exact subject in `INBOX` for up to 15 minutes after
+   the send and succeeds only on exactly one matching message. A missing or
+   ambiguous match is an alert. It logs no credentials or message body.
 
 ## Error handling and security
 
@@ -46,7 +54,9 @@ an absent expected message produce actionable non-secret errors and non-zero
 exit status. Searches are constrained to the configured mailbox and a caller
 supplied exact subject/age window. The process logs counts and message IDs only
 when required for diagnosis, never headers, bodies, access tokens, or refresh
-tokens.
+tokens. An `invalid_grant` result is an explicit reauthorization condition:
+operators rerun the local bootstrap command, replace only the refresh-token
+secret in Northflank, and rerun the controlled probe.
 
 ## Verification
 
@@ -58,3 +68,5 @@ tokens.
   end-to-end delivery.
 - Northflank receives the four runtime secrets and runs the same smoke command
   before any recurring scheduler is enabled.
+- The runbook exercises revoked-token recovery and a deliberately missing
+  subject, and verifies that both fail closed without secret output.
