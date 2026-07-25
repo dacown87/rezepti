@@ -7,6 +7,8 @@ data/*.db-shm
 data/*.db-wal
 LoginData
 data/cookidoo-session.json
+data/client_secret_*.json
+data/gmail-oauth-token.json
 screensshots/
 .gstack/
 .superpowers/
