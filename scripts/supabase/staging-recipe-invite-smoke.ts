@@ -7,6 +7,7 @@ const password = "RecipeInviteSmoke-2026!";
 const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userAEmail = `recipe-invite-a-${runId}@example.test`;
 const userBEmail = `recipe-invite-b-${runId}@example.test`;
+const userCEmail = `recipe-invite-c-${runId}@example.test`;
 
 const createdUserIds: string[] = [];
 const createdRecipeIds: number[] = [];
@@ -150,7 +151,7 @@ async function main() {
   const sql = postgres(config.databaseUrl, { ssl: "require", prepare: false, max: 1 });
 
   try {
-    for (const email of [userAEmail, userBEmail]) {
+    for (const email of [userAEmail, userBEmail, userCEmail]) {
       const { data, error } = await admin.auth.admin.createUser({
         email,
         password,
@@ -162,9 +163,10 @@ async function main() {
       createdUserIds.push(data.user.id);
     }
 
-    const [userAId, userBId] = createdUserIds;
+    const [userAId, userBId, userCId] = createdUserIds;
     const tokenA = await signIn(config.supabaseUrl, config.publishableKey, userAEmail);
     const tokenB = await signIn(config.supabaseUrl, config.publishableKey, userBEmail);
+    const tokenC = await signIn(config.supabaseUrl, config.publishableKey, userCEmail);
 
     const bootstrapA = await assertOk(
       await request("/api/v1/auth/bootstrap", { method: "POST", headers: authHeaders(tokenA) }),
@@ -174,9 +176,26 @@ async function main() {
       await request("/api/v1/auth/bootstrap", { method: "POST", headers: authHeaders(tokenB) }),
       "bootstrap user B",
     );
+    await assertOk(
+      await request("/api/v1/auth/bootstrap", { method: "POST", headers: authHeaders(tokenC) }),
+      "bootstrap user C",
+    );
 
     const householdId = bootstrapA.workspace?.id;
     assert(typeof householdId === "string" && householdId.length > 0, "bootstrap did not return user A workspace id");
+
+    const [targetHousehold] = await sql<{ id: string }[]>`
+      insert into households (name, created_by)
+      values (${`Target household ${runId}`}, ${userAId})
+      returning id
+    `;
+    assert(targetHousehold?.id, "could not create second household");
+    await sql`
+      insert into household_memberships (household_id, user_id, role)
+      values
+        (${targetHousehold.id}, ${userAId}, 'owner'),
+        (${targetHousehold.id}, ${userCId}, 'member')
+    `;
 
     const createRecipe = await assertOk(
       await request("/api/v1/recipes", {
@@ -199,6 +218,18 @@ async function main() {
     assert(Number.isInteger(privateRecipeId), "create recipe did not return an integer id");
     createdRecipeIds.push(privateRecipeId);
 
+    const shareToSecondHousehold = await assertOk(
+      await request(`/api/v1/recipes/${privateRecipeId}/share`, {
+        method: "POST",
+        headers: authHeaders(tokenA),
+        body: JSON.stringify({ target: { type: "household", householdId: targetHousehold.id } }),
+      }),
+      "copy private recipe to selected second household",
+    );
+    const secondHouseholdRecipeId = Number(shareToSecondHousehold.recipe?.id);
+    assert(Number.isInteger(secondHouseholdRecipeId), "selected household copy did not return an integer id");
+    createdRecipeIds.push(secondHouseholdRecipeId);
+
     const createCollection = await assertOk(
       await request("/api/v1/recipe-collections", {
         method: "POST",
@@ -214,6 +245,137 @@ async function main() {
     const collectionId = createCollection.collection?.id;
     assert(typeof collectionId === "string" && collectionId.length > 0, "collection create did not return id");
     createdCollectionIds.push(collectionId);
+
+    const createTargetCollection = await assertOk(
+      await request("/api/v1/recipe-collections", {
+        method: "POST",
+        headers: authHeaders(tokenA),
+        body: JSON.stringify({
+          name: `Target Household Smoke ${runId}`,
+          ownerType: "household",
+          householdId: targetHousehold.id,
+        }),
+      }),
+      "create selected household collection",
+    );
+    const targetCollectionId = createTargetCollection.collection?.id;
+    assert(typeof targetCollectionId === "string" && targetCollectionId.length > 0, "target collection create did not return id");
+    createdCollectionIds.push(targetCollectionId);
+
+    const targetCollections = await assertOk(
+      await request(`/api/v1/recipe-collections?ownerType=household&householdId=${encodeURIComponent(targetHousehold.id)}`, {
+        headers: authHeaders(tokenA),
+      }),
+      "filter collections by selected household",
+    );
+    assert(targetCollections.collections.some((collection: { id?: string }) => collection.id === targetCollectionId), "target household collection is missing from filtered list");
+
+    const mismatchedTarget = await request(`/api/v1/recipe-collections/${collectionId}/items`, {
+      method: "POST",
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ recipeId: privateRecipeId, targetHouseholdId: targetHousehold.id }),
+    });
+    assert(mismatchedTarget.status === 400, `mismatched target household should return 400, got ${mismatchedTarget.status}`);
+
+    const memberAddsItem = await assertOk(
+      await request(`/api/v1/recipe-collections/${targetCollectionId}/items`, {
+        method: "POST",
+        headers: authHeaders(tokenC),
+        body: JSON.stringify({ recipeId: secondHouseholdRecipeId, targetHouseholdId: targetHousehold.id }),
+      }),
+      "member adds household collection item",
+    );
+    assert(memberAddsItem.added === true, "member could not add household collection item");
+
+    const memberRenamesCollection = await request(`/api/v1/recipe-collections/${targetCollectionId}`, {
+      method: "PATCH",
+      headers: authHeaders(tokenC),
+      body: JSON.stringify({ name: "Member must not rename" }),
+    });
+    assert(memberRenamesCollection.status === 404, `member rename should return 404, got ${memberRenamesCollection.status}`);
+
+    const memberReorder = await assertOk(
+      await request(`/api/v1/recipe-collections/${targetCollectionId}/items/reorder`, {
+        method: "PATCH",
+        headers: authHeaders(tokenC),
+        body: JSON.stringify({ recipeIds: [secondHouseholdRecipeId] }),
+      }),
+      "member reorders household collection item",
+    );
+    assert(memberReorder.succeeded?.[0]?.recipeId === secondHouseholdRecipeId, "member reorder did not succeed");
+
+    const createPrivateRecipe = async (suffix: string) => {
+      const response = await assertOk(
+        await request("/api/v1/recipes", {
+          method: "POST",
+          headers: authHeaders(tokenA),
+          body: JSON.stringify({
+            sourceUrl: `${config.sourceUrl}/${suffix}`,
+            recipe: { name: `Collection Smoke ${suffix} ${runId}`, emoji: "🍲", tags: ["smoke"], ingredients: ["1 item"], steps: ["Testen"] },
+          }),
+        }),
+        `create private collection recipe ${suffix}`,
+      );
+      const id = Number(response.id);
+      assert(Number.isInteger(id), `private collection recipe ${suffix} did not return an integer id`);
+      createdRecipeIds.push(id);
+      return id;
+    };
+    const bulkRecipeIds = await Promise.all(["one", "two", "three"].map(createPrivateRecipe));
+
+    const createUserCollection = async (name: string) => {
+      const response = await assertOk(
+        await request("/api/v1/recipe-collections", {
+          method: "POST",
+          headers: authHeaders(tokenA),
+          body: JSON.stringify({ name, ownerType: "user" }),
+        }),
+        `create user collection ${name}`,
+      );
+      const id = response.collection?.id;
+      assert(typeof id === "string" && id.length > 0, `user collection ${name} did not return id`);
+      createdCollectionIds.push(id);
+      return id;
+    };
+    const sourceCollectionId = await createUserCollection(`Bulk Source ${runId}`);
+    const destinationCollectionId = await createUserCollection(`Bulk Destination ${runId}`);
+    for (const recipeId of bulkRecipeIds) {
+      await assertOk(
+        await request(`/api/v1/recipe-collections/${sourceCollectionId}/items`, {
+          method: "POST", headers: authHeaders(tokenA), body: JSON.stringify({ recipeId }),
+        }),
+        `add recipe ${recipeId} to bulk source collection`,
+      );
+    }
+
+    const reorderedIds = [bulkRecipeIds[2], bulkRecipeIds[0], bulkRecipeIds[1]];
+    const reordered = await assertOk(
+      await request(`/api/v1/recipe-collections/${sourceCollectionId}/items/reorder`, {
+        method: "PATCH", headers: authHeaders(tokenA), body: JSON.stringify({ recipeIds: reorderedIds }),
+      }),
+      "reorder collection items",
+    );
+    assert(reordered.succeeded?.map((item: { recipeId: number }) => item.recipeId).join(",") === reorderedIds.join(","), "reorder response does not match requested order");
+
+    const bulkCopied = await assertOk(
+      await request(`/api/v1/recipe-collections/${sourceCollectionId}/items/bulk-copy`, {
+        method: "POST", headers: authHeaders(tokenA), body: JSON.stringify({ targetCollectionId: destinationCollectionId, recipeIds: bulkRecipeIds }),
+      }),
+      "bulk copy collection items",
+    );
+    assert(bulkCopied.succeeded?.length === bulkRecipeIds.length && bulkCopied.failed?.length === 0, "bulk copy did not copy every selected item");
+
+    const bulkRemoved = await assertOk(
+      await request(`/api/v1/recipe-collections/${sourceCollectionId}/items/bulk-remove`, {
+        method: "POST", headers: authHeaders(tokenA), body: JSON.stringify({ recipeIds: [bulkRecipeIds[0]] }),
+      }),
+      "bulk remove collection item",
+    );
+    assert(bulkRemoved.succeeded?.[0]?.recipeId === bulkRecipeIds[0], "bulk remove did not remove the selected membership");
+    await assertOk(
+      await request(`/api/v1/recipes/${bulkRecipeIds[0]}`, { headers: authHeaders(tokenA) }),
+      "verify bulk remove did not delete recipe",
+    );
 
     const addToHousehold = await assertOk(
       await request(`/api/v1/recipe-collections/${collectionId}/items`, {
@@ -286,9 +448,12 @@ async function main() {
     console.log("- wrong account cannot accept invite");
     console.log("- recipient accepts invite as private copy");
     console.log("- repeated accept is idempotent");
+    console.log("- selected household copy/filter and target mismatch boundary work");
+    console.log("- household members can mutate items but cannot manage collection metadata");
+    console.log("- collection reorder, bulk copy, and bulk remove preserve recipe ownership");
 
     // Keep user variables referenced for type-safety and easier debugging.
-    assert(userAId && userBId, "created users missing");
+    assert(userAId && userBId && userCId, "created users missing");
   } finally {
     try {
       if (createdCollectionIds.length > 0) {

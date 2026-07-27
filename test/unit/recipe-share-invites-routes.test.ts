@@ -104,7 +104,7 @@ describe('recipe share invite routes', () => {
         acceptedRecipeId: null,
       },
     })
-    mailMocks.sendRecipeInviteEmail.mockResolvedValue({ status: 'sent', provider: 'resend' })
+    mailMocks.sendRecipeInviteEmail.mockResolvedValue({ status: 'sent', provider: 'brevo' })
 
     const res = await router.request('https://api.example.test/api/v1/recipes/5/share-invites', {
       method: 'POST',
@@ -115,7 +115,7 @@ describe('recipe share invite routes', () => {
     expect(res.status).toBe(201)
     await expect(res.json()).resolves.toMatchObject({
       shareUrl: 'https://api.example.test/share-invite/token-1',
-      delivery: { status: 'sent', provider: 'resend' },
+      delivery: { status: 'sent', provider: 'brevo' },
     })
   })
 
@@ -134,7 +134,7 @@ describe('recipe share invite routes', () => {
     })
     mailMocks.sendRecipeInviteEmail.mockResolvedValue({
       status: 'failed',
-      provider: 'resend',
+      provider: 'brevo',
       errorCode: 'provider_rejected',
     })
 
@@ -147,7 +147,7 @@ describe('recipe share invite routes', () => {
     expect(res.status).toBe(201)
     await expect(res.json()).resolves.toMatchObject({
       invite: { token: 'token-1' },
-      delivery: { status: 'failed', provider: 'resend', errorCode: 'provider_rejected' },
+      delivery: { status: 'failed', provider: 'brevo', errorCode: 'provider_rejected' },
     })
   })
 

@@ -483,7 +483,7 @@ describe('collections / sharing / favorites API service', () => {
           },
         },
         shareUrl: 'https://app.test/share-invite/token-1',
-        delivery: { status: 'sent', provider: 'resend' },
+        delivery: { status: 'sent', provider: 'brevo' },
       }, 201);
       vi.stubGlobal('fetch', fetchMock);
 
@@ -491,7 +491,7 @@ describe('collections / sharing / favorites API service', () => {
 
       expect(result.token).toBe('token-1');
       expect(result.shareUrl).toBe('https://app.test/share-invite/token-1');
-      expect(result.delivery).toEqual({ status: 'sent', provider: 'resend' });
+      expect(result.delivery).toEqual({ status: 'sent', provider: 'brevo' });
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toBe('https://api.test/api/v1/recipes/42/share-invites');
       expect(init.method).toBe('POST');

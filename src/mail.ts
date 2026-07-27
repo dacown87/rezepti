@@ -1,5 +1,5 @@
 export type RecipeInviteDeliveryStatus = "sent" | "skipped" | "failed";
-export type RecipeInviteDeliveryProvider = "disabled" | "resend";
+export type RecipeInviteDeliveryProvider = "disabled" | "brevo";
 export type RecipeInviteDeliveryErrorCode =
   | "mail_not_configured"
   | "provider_rejected"
@@ -18,32 +18,46 @@ export interface RecipeInviteEmailInput {
   shareUrl: string;
 }
 
-interface ResendResponse {
-  id?: string;
+interface BrevoResponse {
+  messageId?: string;
   message?: string;
   name?: string;
 }
 
 function resolveRecipeInviteMailConfig() {
   const provider = (process.env.RECIPE_INVITE_EMAIL_PROVIDER || "").trim().toLowerCase();
-  const resendApiKey = (process.env.RESEND_API_KEY || "").trim();
+  const brevoApiKey = (process.env.BREVO_API_KEY || "").trim();
   const from = (process.env.RECIPE_INVITE_EMAIL_FROM || "").trim();
   const replyTo = (process.env.RECIPE_INVITE_EMAIL_REPLY_TO || "").trim();
 
-  if (provider && provider !== "resend") {
+  if (provider && provider !== "brevo") {
     return { enabled: false as const };
   }
 
-  if (!resendApiKey || !from) {
+  if (!brevoApiKey || !from) {
     return { enabled: false as const };
   }
 
   return {
     enabled: true as const,
-    resendApiKey,
+    brevoApiKey,
     from,
     replyTo: replyTo || undefined,
   };
+}
+
+interface Mailbox {
+  email: string;
+  name?: string;
+}
+
+function parseMailbox(value: string): Mailbox {
+  const trimmed = value.trim();
+  const named = trimmed.match(/^(.+?)\s*<([^<>\s]+@[^<>\s]+)>$/);
+  if (named) {
+    return { name: named[1].trim(), email: named[2] };
+  }
+  return { email: trimmed };
 }
 
 function buildRecipeInviteText(input: RecipeInviteEmailInput) {
@@ -54,7 +68,7 @@ function buildRecipeInviteText(input: RecipeInviteEmailInput) {
     "Oeffne den Link, melde dich mit dieser E-Mail-Adresse an und nimm die Einladung an.",
     input.shareUrl,
     "",
-    "Beim Annehmen entsteht eine private Kopie in deinem Rezepti-Konto.",
+    "Beim Annehmen entsteht eine private Kopie in deinem RecipeDeck-Konto.",
   ].join("\n");
 }
 
@@ -66,7 +80,7 @@ function buildRecipeInviteHtml(input: RecipeInviteEmailInput) {
     `<p>${escapeHtml(sender)} ein Rezept mit dir geteilt: <strong>${escapedRecipeName}</strong></p>`,
     `<p>Oeffne den Link, melde dich mit dieser E-Mail-Adresse an und nimm die Einladung an.</p>`,
     `<p><a href="${escapedShareUrl}">Rezept-Einladung oeffnen</a></p>`,
-    `<p>Beim Annehmen entsteht eine private Kopie in deinem Rezepti-Konto.</p>`,
+    `<p>Beim Annehmen entsteht eine private Kopie in deinem RecipeDeck-Konto.</p>`,
   ].join("");
 }
 
@@ -86,38 +100,42 @@ export async function sendRecipeInviteEmail(input: RecipeInviteEmailInput): Prom
   }
 
   try {
-    const response = await fetch("https://api.resend.com/emails", {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${config.resendApiKey}`,
+        Accept: "application/json",
+        "api-key": config.brevoApiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: config.from,
-        to: [input.to],
-        reply_to: config.replyTo,
+        sender: parseMailbox(config.from),
+        to: [{ email: input.to }],
+        replyTo: config.replyTo ? parseMailbox(config.replyTo) : undefined,
         subject: `Rezept-Einladung: ${input.recipeName}`,
-        text: buildRecipeInviteText(input),
-        html: buildRecipeInviteHtml(input),
+        textContent: buildRecipeInviteText(input),
+        htmlContent: buildRecipeInviteHtml(input),
       }),
     });
 
     if (response.ok) {
-      return { status: "sent", provider: "resend" };
+      return { status: "sent", provider: "brevo" };
     }
 
-    const body = await response.json().catch(() => null) as ResendResponse | null;
-    console.warn("Recipe invite email rejected by provider", {
+    const body = await response.json().catch(() => null) as BrevoResponse | null;
+    const errorCode: RecipeInviteDeliveryErrorCode = response.status >= 500
+      ? "provider_unavailable"
+      : "provider_rejected";
+    console.warn("Recipe invite email provider responded with an error", {
       status: response.status,
-      provider: "resend",
+      provider: "brevo",
       providerError: body?.name ?? body?.message ?? "unknown",
     });
-    return { status: "failed", provider: "resend", errorCode: "provider_rejected" };
+    return { status: "failed", provider: "brevo", errorCode };
   } catch (error) {
     console.warn("Recipe invite email provider unavailable", {
-      provider: "resend",
+      provider: "brevo",
       error: error instanceof Error ? error.message : "unknown",
     });
-    return { status: "failed", provider: "resend", errorCode: "provider_unavailable" };
+    return { status: "failed", provider: "brevo", errorCode: "provider_unavailable" };
   }
 }

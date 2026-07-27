@@ -193,6 +193,11 @@ yt-dlp PyInstaller static binary from GitHub Releases fails with exit 127 in `no
 `Dockerfile:51` machte `COPY public/changelog.json ./public/changelog.json` direkt aus dem Build-Context. Wenn ein Feature-Branch `public/changelog.json` nicht enthielt (typisch bei Phase-4c-Builds, wo `public/` neu gebaut wurde), loeschte der Squash-Merge die Datei auf `main`. Erster `docker-build`-Workflow auf dem Squash-Commit failte dann mit `failed to calculate checksum ... "/public/changelog.json": not found` (siehe Run `25745137805` am 2026-05-12). Selbstheilend: der `changelog-update.yml`-Workflow committete danach den naechsten Version-Bump, der die Datei wieder anlegte; der zweite Docker-Build lief auf diesem Commit gruen. Folge: jeder Squash-Merge eines Branches ohne `public/changelog.json` kostete einen roten Docker-Build und einen verzoegerten Northflank-Deploy. **Fix am 2026-05-13:** `Dockerfile`-COPY durch BuildKit-`RUN --mount=type=bind,source=public,target=/tmp/public-host` mit Shell-Fallback ersetzt — fehlt die Datei, schreibt der Build einen Minimal-Stub `{"version":"0.0.0","entries":[]}`, sodass der Image-Build durchlaeuft. `changelog-update.yml` legt die Datei beim naechsten Version-Bump wieder neu an.
 *Files:* `Dockerfile`, `.github/workflows/changelog-update.yml`, `.github/workflows/docker-publish.yml`
 
+#### production-url-and-unowned-domain-boundary (10/10, 2026-07-25)
+
+Die funktionierende Production-Origin ist `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`; ihr Health-Endpunkt liefert `200`. Die einzige vom Projekt genutzte oeffentliche Adresse ist der Shortpen-Link `https://shr.pn/RecipeDeck`, der auf diese Origin zeigt. `shr.pn` gehoert Shortpen; RecipeDeck verwaltet dort nur den Pfad `RecipeDeck`, keine eigene DNS-Domain. `recipedeck.app` gehoert **nicht** dem Projekt und darf weder als offizielle URL kommuniziert noch in Northflank registriert oder konfiguriert werden. Ein beobachteter Zertifikatsfehler auf dieser fremden Domain ist ausserhalb unseres Betriebsbereichs.
+*Files:* `.github/workflows/docker-publish.yml`, `README.md`
+
 ---
 
 ## Operationals

@@ -109,7 +109,8 @@ Voraussetzungen fuer den Staging-Smoke:
 - Staging ist bis zur aktuellen Migration migriert.
 - Das Skript nutzt die lokale API-Implementierung gegen Staging, erzeugt eigene
   temporaere Auth-User/Profile/Rezepte/Collections/Invites und raeumt diese am
-  Ende wieder auf.
+  Ende wieder auf. Es startet weder einen lokalen HTTP-Server noch einen
+  Browser oder Web-Build.
 - Fuer Production liest das Skript bevorzugt `PRODUCTION_*`-Variablen und faellt
   auf `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` bzw.
   `DATABASE_URL` zurueck. Der Production-Lauf trifft standardmaessig die
@@ -126,6 +127,19 @@ Gepruefte Feature-Vertraege:
 - Falscher eingeloggter Account kann den Invite nicht annehmen.
 - Empfaenger akzeptiert den Invite als private Rezeptkopie.
 - Wiederholtes Accept ist idempotent.
+- Multi-Household-Zielwahl und Collection-Filter akzeptieren nur eigene
+  Memberships; ein von der Collection abweichender Zielhaushalt wird abgelehnt.
+- Household-Member duerfen Collection-Items mutieren, aber keine
+  Collection-Metadaten verwalten.
+- Reorder sowie Bulk-Copy/-Remove wirken nur auf Collection-Mitgliedschaften;
+  Bulk-Remove loescht kein Rezept.
+
+Der API-/DB-Staging-Smoke deckt keinen echten PWA-Browser-Netzwerkwechsel ab.
+Diesen separaten UI-Smoke lokal ausfuehren: lokale API und lokale Web/PWA mit
+den Staging-Supabase- und Postgres-Werten konfigurieren. Eine deployte
+Staging-App-URL ist dafuer nicht erforderlich; ohne URL laeuft das Skript
+absichtlich gegen die lokale API-Implementierung mit der realen
+Staging-Datenbank.
 
 ## Manuelle Browser-Smoke-Pfade
 
@@ -237,6 +251,7 @@ Abweichungen):
 | 2026-07-07 | API-Sanity | Production Web + Supabase Production | Bestanden | Nach Reaktivierung von Supabase lief `Apply Supabase Migrations` Run `28863540200` gruen; angewendet wurden `20260623100000_recipe_collections.sql`, `20260623100100_recipe_collection_items.sql` und `20260623100200_recipes_source_recipe_id.sql`. API-Smoke mit QA-User: `auth/me`, `auth/bootstrap`, `GET /api/v1/recipes`, Collection Create/Add/Read/Remove/Delete fuer Rezept `5`, plus Favorite Set/Read/Delete/Read fuer Rezept `5` bestanden. |
 | 2026-07-08 | Recipe-Invite-/Household-Collection-Smoke | Staging Supabase + lokale API-Implementierung | Bestanden | Staging-Migrationen bis `20260707141913_recipe_share_invites.sql` angewendet und Local/Remote synchron; `supabase:rls-smoke:staging` gruen; Security Advisors ohne Findings; `scripts/supabase/staging-recipe-invite-smoke.ts` gruen fuer Haushaltskopie beim Collection-Add, email-gebundene Invite-Preview, falscher Account `403`, Empfaenger-Private-Copy und idempotentes Re-Accept. |
 | 2026-07-08 | Recipe-Invite-/Household-Collection-Smoke | Production Web + Supabase Production | Bestanden | Migration `20260707141913_recipe_share_invites.sql` ueber Run `28913601218` angewendet; korrigierter CI-Run `28913803470` gruen; Docker-/Northflank-Runs `28913803496` und `28913812673` gruen inklusive Health-Poll; Production-Smoke mit `RECIPE_INVITE_SMOKE_TARGET=production` bestaetigte Haushaltskopie beim Collection-Add, email-gebundene Invite-Preview, falscher Account `403`, Empfaenger-Private-Copy und idempotentes Re-Accept. Cleanup: `profiles=0`, `recipes=0`, `invites=0`. |
+| 2026-07-12 | Recipes-Sharing-Follow-ups | Staging Supabase/Postgres + lokale API-Implementierung | Bestanden | Migration `20260708031603_recipe_collection_item_positions.sql` angewendet und Local/Remote synchron. Erweiterter Feature-Smoke pruefte Multi-Household-Zielwahl/-Filter, Target-Mismatch, Owner-/Member-Rechte, Reorder sowie Bulk-Copy/-Remove; Staging-RLS-Smoke ebenfalls gruen. Die API lief lokal im Prozess; kein Server, Browser oder Web-Build wurde gestartet. Cleanup: `profiles=0`, `recipes=0`, `collections=0`, `users=0`. Der Browser-Off/Online-PWA-Pfad ist separat lokal gegen Staging offen. |
 
 Hinweis: Der Pre-Merge-Smoke war bewusst vollstaendig lokal isoliert. Der
 dokumentierte Production-QA-Account und Production-Daten wurden nicht veraendert.

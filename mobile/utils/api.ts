@@ -64,7 +64,7 @@ export interface RecipeShareInvitePreview {
 
 export interface RecipeInviteDelivery {
   status: 'sent' | 'skipped' | 'failed';
-  provider: 'disabled' | 'resend';
+  provider: 'disabled' | 'brevo';
   errorCode?: 'mail_not_configured' | 'provider_rejected' | 'provider_unavailable';
 }
 

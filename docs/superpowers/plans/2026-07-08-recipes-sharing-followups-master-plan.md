@@ -1,7 +1,7 @@
 # Recipes Sharing Follow-ups Master Plan
 
 Stand: 2026-07-08
-Status: lokal umgesetzt, vor Deploy-Staging/Production-Smoke
+Status: Staging-Migration und API-/RLS-Smoke gruen, vor Production-Rollout
 
 Vorgaenger:
 
@@ -31,7 +31,7 @@ die Folge-Slices nach dem Production-Rollout vom 2026-07-08.
 Die fuenf Folge-Slices sind lokal umgesetzt und automatisiert verifiziert.
 
 - Slice 1 liefert Invite-Mailversand ueber eine kleine Mail-Service-Schicht mit
-  Disabled-Fallback und Resend-Provider. Die Invite-API gibt `shareUrl` und
+  Disabled-Fallback und Brevo-Provider. Die Invite-API gibt `shareUrl` und
   `delivery` zurueck; Mobile unterscheidet `sent`, `skipped` und `failed` und
   behaelt den manuellen Share-Link als Fallback.
 - Slice 2 erweitert Share-/Collection-Mutationen um explizite Zielhaushalte.
@@ -55,14 +55,28 @@ Lokale Verifikation:
 - `npm run security:secrets`
 - `git diff --check`
 
-Noch offen vor Production:
+Vor Production erledigt am 2026-07-12:
 
 - Migration `20260708031603_recipe_collection_item_positions.sql` auf Staging
-  anwenden.
-- Staging-Smoke fuer Zielhaushalt, Bulk/Reorder, Rollen und Offline-Queue
-  durchfuehren.
+  angewendet; Local/Remote-Migrationsstand ist synchron.
+- Erweiterter Staging-Smoke pruefte Zielhaushalt, Filter, Target-Mismatch,
+  Owner-/Member-Rechte, Reorder und Bulk-Aktionen gegen die reale
+  Staging-Datenbank. Die API wurde lokal im Prozess ausgefuehrt; nur
+  Supabase/Postgres war Staging. Der Staging-RLS-Smoke war ebenfalls gruen.
+- Der Feature-Smoke bereinigt seine Testdaten; nach dem Lauf waren die
+  temporaeren Smoke-Profile, Rezepte, Collections und Auth-User jeweils bei 0.
+
+Noch offen vor einem Production-Rollout mit echtem Versand:
+
 - Mail-Provider-Secrets fuer Staging/Production setzen, falls echter Versand
   statt Disabled-Fallback gewuenscht ist.
+- Der Browser-Off/Online-PWA-Pfad bleibt ein separater UI-Smoke. Er wird mit
+  lokal ausgefuehrter API und lokaler Web/PWA gegen Staging-Supabase getestet;
+  eine deployte Staging-App ist dafuer nicht erforderlich.
+
+Ein separates Staging-Web-Deployment bleibt eine optionale Ops-Verbesserung,
+aber keine Voraussetzung fuer die QA: Der Browser-Pfad wird lokal gegen die
+Staging-Supabase-Umgebung verifiziert.
 
 ## Zielbild
 

@@ -7,7 +7,7 @@ beforeEach(() => {
   vi.restoreAllMocks()
   process.env = { ...ORIGINAL_ENV }
   delete process.env.RECIPE_INVITE_EMAIL_PROVIDER
-  delete process.env.RESEND_API_KEY
+  delete process.env.BREVO_API_KEY
   delete process.env.RECIPE_INVITE_EMAIL_FROM
   delete process.env.RECIPE_INVITE_EMAIL_REPLY_TO
 })
@@ -31,10 +31,10 @@ describe('sendRecipeInviteEmail', () => {
     })
   })
 
-  it('sends recipe invite emails through Resend when configured', async () => {
-    process.env.RECIPE_INVITE_EMAIL_PROVIDER = 'resend'
-    process.env.RESEND_API_KEY = 're_test'
-    process.env.RECIPE_INVITE_EMAIL_FROM = 'Rezepti <invite@example.com>'
+  it('sends recipe invite emails through Brevo when configured', async () => {
+    process.env.RECIPE_INVITE_EMAIL_PROVIDER = 'brevo'
+    process.env.BREVO_API_KEY = 'xkeysib_test'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
     process.env.RECIPE_INVITE_EMAIL_REPLY_TO = 'support@example.com'
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: 'email-1' }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
@@ -44,23 +44,23 @@ describe('sendRecipeInviteEmail', () => {
       recipeName: 'Pasta',
       senderEmail: 'sender@example.com',
       shareUrl: 'https://app.test/share-invite/token',
-    })).resolves.toEqual({ status: 'sent', provider: 'resend' })
+    })).resolves.toEqual({ status: 'sent', provider: 'brevo' })
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('https://api.resend.com/emails')
+    expect(url).toBe('https://api.brevo.com/v3/smtp/email')
     expect(init.method).toBe('POST')
-    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer re_test')
+    expect((init.headers as Record<string, string>)['api-key']).toBe('xkeysib_test')
     expect(JSON.parse(init.body as string)).toMatchObject({
-      from: 'Rezepti <invite@example.com>',
-      to: ['friend@example.com'],
-      reply_to: 'support@example.com',
+      sender: { name: 'RecipeDeck', email: 'invite@recipedeck.app' },
+      to: [{ email: 'friend@example.com' }],
+      replyTo: { email: 'support@example.com' },
       subject: 'Rezept-Einladung: Pasta',
     })
   })
 
   it('normalizes provider rejection into a failed delivery result', async () => {
-    process.env.RESEND_API_KEY = 're_test'
-    process.env.RECIPE_INVITE_EMAIL_FROM = 'Rezepti <invite@example.com>'
+    process.env.BREVO_API_KEY = 'xkeysib_test'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ name: 'validation_error' }), { status: 422 })))
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
@@ -71,8 +71,44 @@ describe('sendRecipeInviteEmail', () => {
       shareUrl: 'https://app.test/share-invite/token',
     })).resolves.toEqual({
       status: 'failed',
-      provider: 'resend',
+      provider: 'brevo',
       errorCode: 'provider_rejected',
+    })
+  })
+
+  it('normalizes provider network failures into a failed delivery result', async () => {
+    process.env.BREVO_API_KEY = 'xkeysib_test'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network unavailable') }))
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    await expect(sendRecipeInviteEmail({
+      to: 'friend@example.com',
+      recipeName: 'Pasta',
+      senderEmail: null,
+      shareUrl: 'https://app.test/share-invite/token',
+    })).resolves.toEqual({
+      status: 'failed',
+      provider: 'brevo',
+      errorCode: 'provider_unavailable',
+    })
+  })
+
+  it('normalizes provider server failures into an unavailable delivery result', async () => {
+    process.env.BREVO_API_KEY = 'xkeysib_test'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ message: 'temporary outage' }), { status: 503 })))
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    await expect(sendRecipeInviteEmail({
+      to: 'friend@example.com',
+      recipeName: 'Pasta',
+      senderEmail: null,
+      shareUrl: 'https://app.test/share-invite/token',
+    })).resolves.toEqual({
+      status: 'failed',
+      provider: 'brevo',
+      errorCode: 'provider_unavailable',
     })
   })
 })

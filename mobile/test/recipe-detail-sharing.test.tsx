@@ -237,7 +237,7 @@ describe('RecipeDetailScreen — sharing & favorites CTAs', () => {
     hookState.createInviteMutateAsync.mockResolvedValueOnce({
       token: 'token-1',
       shareUrl: 'https://app.test/share-invite/token-1',
-      delivery: { status: 'sent', provider: 'resend' },
+      delivery: { status: 'sent', provider: 'brevo' },
     });
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
@@ -260,7 +260,7 @@ describe('RecipeDetailScreen — sharing & favorites CTAs', () => {
     hookState.createInviteMutateAsync.mockResolvedValueOnce({
       token: 'token-1',
       shareUrl: 'https://app.test/share-invite/token-1',
-      delivery: { status: 'failed', provider: 'resend', errorCode: 'provider_rejected' },
+      delivery: { status: 'failed', provider: 'brevo', errorCode: 'provider_rejected' },
     });
 
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
