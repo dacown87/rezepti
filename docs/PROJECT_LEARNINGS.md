@@ -1,10 +1,20 @@
 # Project Learnings — RecipeDeck (rezepti)
 
-Auto-aggregierte Befunde aus gstack-Sessions. Quelle: `~/.gstack/projects/dacown87-rezepti/learnings.jsonl`.
-Stand: 2026-05-31 — 41 Eintraege.
+**Handgepflegtes Dokument.** Urspruenglich aus einem `/learn`-Export befuellt, seitdem
+direkt hier weitergeschrieben. Stand: 2026-08-07 — 57 Eintraege.
 
 Format: `[key] (confidence/10, datum)` + Insight + ggf. Files.
-Aktualisieren via `/learn` (zeigt aktuelle), neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` u.a. ergaenzt.
+
+Verhaeltnis zu gstack: `/learn` liest und schreibt ausschliesslich
+`~/.gstack/projects/dacown87-rezepti/learnings.jsonl` (aktuell 41 Eintraege) — der
+`Export`-Modus *druckt* Markdown zum Einfuegen, er ueberschreibt diese Datei nicht.
+Hand-Eintraege sind hier also sicher, gehen aber umgekehrt nicht in die JSONL zurueck
+und tauchen in `/learn`-Suchen nicht auf. Die frueheren Kopfzeilen ("auto-aggregiert",
+"41 Eintraege") beschrieben die JSONL, nicht dieses Dokument, und lasen sich dadurch
+wie ein falscher Zaehler.
+
+Achtung beim Export: `gstack-learnings-search --limit 50` — waechst die JSONL ueber 50
+Eintraege, schneidet ein Export stillschweigend ab.
 
 ---
 
@@ -61,6 +71,25 @@ Das `strictProbeEligible=true`-Gate setzt 5 aufeinanderfolgende eigenstaendige C
 
 `npx tsx -e` mit top-level `await` schlaegt fehl ("Top-level await is currently not supported with the cjs output format"). Fix: Code in eine `.ts`-Datei auslagern und `npx tsx scripts/foo.ts` aufrufen.
 *Files:* `scripts/get-db-urls.ts`
+
+#### pipe-swallows-exit-code (10/10, 2026-08-07)
+
+`npm run mobile:release-gate 2>&1 | tail -40` meldete `exit code 0` — das belegte nur, dass `tail` funktioniert. Bash gibt fuer eine Pipeline den Status des **letzten** Kommandos zurueck; ohne `set -o pipefail` geht der Status von `npm` verloren. Zweiter Schaden: `tail` behielt nur die letzten 40 Zeilen, damit waren alle Belege der vorherigen Schritte (expo-doctor, RNTL-Guard, typecheck, Export) weg. Fuer Verifikationslaeufe nie pipen, sondern in eine Datei umleiten und den Status separat festhalten: `cmd > run.log 2>&1; echo "EXIT=$?"`. Merksatz: Ein Exit-Code hinter einer Pipe ist kein Beweis.
+
+#### composite-ci-script-must-be-run-whole (10/10, 2026-08-07)
+
+Vor einem Push liefen `mobile:typecheck` und `test:mobile` gruen, in CI fiel dann `mobile-release-gate` durch. Das Gate ist eine `&&`-Kette aus sechs Schritten (`npm ci` ×2, `expo-doctor`, RNTL-Guard, `typecheck`, `build:mobile`, `test:coverage`); geprueft waren zwei davon, der Ausfall lag in `expo-doctor` — dem einzigen Schritt, den kein lokaler Lauf beruehrte. Wenn CI ein zusammengesetztes Script faehrt, lokal genau dieses Script ausfuehren, nicht seine Bestandteile.
+*Files:* `package.json`, `.github/workflows/ci.yml`
+
+#### knip-needs-workspace-entrypoints (10/10, 2026-08-07)
+
+`npx knip` ohne Config meldete **156 ungenutzte Dateien**, darunter praktisch die komplette Expo-App: `mobile/` ist ein eigenes npm-Paket mit expo-router (dateibasiertes Routing ohne explizite Imports), Service Worker und eigener Vitest-Config. Mit Workspace-Config in `knip.json` (Entry-Points inkl. Metro-Platform-Suffixe `**/*.{web,native}.{ts,tsx}`): **13 statt 156**. Ohne diese Konfiguration ist die Ausgabe unbrauchbar, nicht nur ungenau.
+*Files:* `knip.json`
+
+#### knip-unused-exports-are-not-dead-code (10/10, 2026-08-07)
+
+Die knip-Kategorie *unused exports* misst **Export-Oberflaeche**, nicht toten Code. Von den gemeldeten Symbolen waren die meisten modulintern in Gebrauch und lediglich unnoetig exportiert: `getPinterestCredentials` (speist `fetchFromPinterestApi`), `hasFacebookCookies` (steuert das yt-dlp-`--cookies`-Flag), `downloadCobaltMedia` (aufgerufen von `downloadFirstCobaltMedia`), vier `evaluateIngredientSearch`-Helfer und acht von neun `bug-reports.ts`-Konstanten. Wirklich tot war ein einziges Symbol (`BugReportCreateInput`). Auch `sharp` als "unlisted dependency" war kein Fund — der Script-Header dokumentiert `npm i sharp --no-save` als Absicht. Verlaesslich sind die Kategorien files/dependencies/unlisted/unresolved/binaries; nur die gated `npm run lint:dead:ci`. Echter Fund dort: `undici` wurde in `test/unit/web-regression.test.ts` importiert, stand in keiner `package.json` und loeste nur transitiv auf.
+*Files:* `knip.json`, `package.json`
 
 ### Web Scraping & Fetcher
 
@@ -132,6 +161,11 @@ Mobile-Testdateien importieren inzwischen echte `@testing-library/react-native`.
 
 Der Real-RNTL-Pfad ist gruen, aber nicht komplett warnfrei. Lokale `FlatList`-Testshims muessen gerenderte `renderItem`-Kinder mit stabilen Keys weitergeben, sonst erzeugen sie falsche `key`-Prop-Warnungen trotz korrekter Produkt-`keyExtractor`s. Retry-/Mutation-Events in RNTL-Fallbacktests sollten ueber `act`-Wrapper laufen. Nach der ersten Triage sind `key`-Warnungen weg und `act(...)` stark reduziert; `react-test-renderer is deprecated` bleibt aus RNTL/React-19-Internals und ist eher ein Dependency-/Renderer-Upgrade-Thema als ein lokaler Testcode-Fix.
 *Files:* `docs/TEST_STATUS.md`, `mobile/test/planner-screen-fallbacks.test.tsx`, `mobile/test/shopping-screen-fallbacks.test.tsx`, `mobile/test/recipe-list-screen-fallbacks.test.tsx`
+
+#### expo-doctor-patch-drift-blocks-release-gate (10/10, 2026-08-07)
+
+`mobile-release-gate` war seit dem 2026-08-01 rot, acht `main`-Runs in Folge: `expo-doctor` meldete `11 packages out of date`. Reine Patch-Drift innerhalb SDK 56 (`expo`, `expo-router`, `expo-image-picker` u.a. je einen Patch hinter der erwarteten Version) — kein Code- und kein Merge-Problem. Falle beim Fix: `npx expo install --fix` zieht nicht nur Patches, sondern schrieb `react-native-screens` von der exakten Pinnung `4.25.2` auf die Range `~4.26.0` um, hob also die Pinnung auf **und** machte einen Minor-Sprung. Die RN-Oekosystem-Pakete sind hier bewusst exakt gepinnt (react, react-dom, react-native, react-native-svg, react-native-reanimated, react-native-worklets, async-storage), also nach `--fix` immer den Diff pruefen und Pinnungen von Hand wiederherstellen — expo-doctor akzeptiert eine exakte Version innerhalb der erwarteten Range. Merksatz: ein tagelang roter Gate wird zur Tapete; hier war der Fix nach acht roten Runs ein Zweizeiler.
+*Files:* `mobile/package.json`, `mobile/package-lock.json`, `.github/workflows/ci.yml`
 
 #### expo-scrollview-justify-center-web (10/10, 2026-04-16)
 
@@ -208,6 +242,16 @@ Wenn Production `500` liefert und `/api/v1/health` `Failed query: select "id" fr
 Der Expo-Web-Export unter `public/` wurde am 2026-08-07 aus dem Repo entfernt (Build-Artefakt, wird vom `web-builder`-Stage neu erzeugt). Zwei CI-Jobs setzten stillschweigend voraus, dass er im Checkout liegt, und wurden erst nach dem Push rot: `test` ueber `test/unit/static-assets.test.ts`, das `readdirSync("public/assets/public")` macht, und `e2e-legacy-soak`, das `GET /` gegen einen echten Server auf `200` prueft und dafuer `public/index.html` braucht. `performance-audit` war **nicht** betroffen, weil `perf:audit` den Export selbst baut. Lehre: beim Untracken von Build-Output nicht nur den Docker-Build pruefen, sondern jeden Job, der einen echten Server startet oder das Dateisystem liest. Zweite Falle: `public/changelog.json` sah wie Build-Output aus, ist aber eine zur Laufzeit geladene Datendatei — mitgeloescht erzeugte `changelog-update.yml` sie neu und verlor die gesamte Versionshistorie.
 *Files:* `.gitignore`, `.github/workflows/ci.yml`, `test/unit/static-assets.test.ts`, `public/changelog.json`
 
+#### gitignore-route-list-rots-use-whitelist (10/10, 2026-08-07)
+
+Der `public/`-Block in `.gitignore` zaehlte jede Expo-Export-Route einzeln auf (`public/recipe/`, `public/(tabs)/`, ...). Die spaeter dazugekommenen Routen `admin/`, `collection/` und `share-invite/` wurden nie nachgetragen und lagen nach jedem `build:mobile` untracked herum — beim naechsten `git add -A` waeren sie mitgegangen. Die Liste veraltet strukturell mit jedem neuen Screen. Fix: Whitelist statt Blacklist — `public/*` ignorieren und die sieben handgepflegten Assets (Logo, vier Icons, Manifest, `changelog.json`) per `!` wieder freigeben. Fallstrick: `public/*` schreiben, nicht `public/` — bei einem ignorierten *Verzeichnis* steigt Git nicht hinein und alle Negationen darunter bleiben wirkungslos.
+*Files:* `.gitignore`
+
+#### changelog-json-addadd-conflict-loses-history (10/10, 2026-08-07)
+
+Add/add-Merge-Konflikt in `public/changelog.json`: auf `main` hatte `changelog-update.yml` die Datei mit **einem** Eintrag neu angelegt, der Feature-Branch hatte **31** (1.0.196 → 1.0.166). Die App laedt die Datei zur Laufzeit — ein reflexhaftes `--theirs` haette 30 Changelog-Eintraege in Production geloescht. Aufloesung war die Branch-Fassung (echte Obermenge, `lastUpdated` in beiden identisch), der Merge hat die Historie auf `main` nebenbei repariert. Regel: bei add/add-Konflikten in Datendateien beide Seiten **zaehlen**, nicht nur ansehen. Verwandt mit `public-export-untracked-ci-fallout` und `squash-merge-deletes-changelog-json-breaks-docker`.
+*Files:* `public/changelog.json`, `.github/workflows/changelog-update.yml`
+
 ---
 
 ## Operationals
@@ -235,6 +279,12 @@ Wenn Auth-Observer oder Auth-Cache-Watcher statisch im mobilen Root-Layout impor
 
 `npm run build:mobile` (Expo web export) completely clears and regenerates `public/` including deleting hand-maintained files like `changelog.json`. Always run `git checkout HEAD -- public/changelog.json` (and any other manually-maintained `public/` files) immediately after a build.
 *Files:* `public/changelog.json`
+
+### Git & parallele Sessions
+
+#### shared-worktree-entangles-branches (10/10, 2026-08-07)
+
+Zwei Claude-Sessions arbeiteten gleichzeitig im selben Verzeichnis. Symptome: fremde Aenderungen tauchten mitten in der Arbeit im Working Tree auf und verschwanden wieder, das Reflog zeigte zwei fremde Commits und drei `git reset`, und ein fremder Commit landete auf dem eigenen Feature-Branch — `git checkout -b` nimmt den gemeinsamen Working Tree mit, also committete die andere Session auf den neuen Branch statt auf `main`. Konsequenzen: `git status` zu Sessionbeginn ist eine Momentaufnahme, keine Zusage; vor `git stash`/`checkout`/`reset` pruefen, ob fremde Aenderungen im Baum liegen, und `git stash pop` nicht ungeprueft als erfolgreich annehmen (Exit-Code pruefen, nicht nur `echo`); fremde Commits auf dem eigenen Branch **nicht** herausrebasen — sie existieren sonst nirgends mehr, stattdessen mitnehmen und im PR-Text benennen. Fuer echte Parallelarbeit gehoeren getrennte Worktrees her.
 
 ### Obsidian Vault
 
