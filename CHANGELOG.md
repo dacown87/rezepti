@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.197] – 2026-08-07
+
+
+
 ## [1.0.196] – 2026-08-07
 
 - update recipe invite email delivery provider from Resend to Brevo
