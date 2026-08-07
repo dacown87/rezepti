@@ -1,10 +1,20 @@
 # Project Learnings — RecipeDeck (rezepti)
 
-Auto-aggregierte Befunde aus gstack-Sessions. Quelle: `~/.gstack/projects/dacown87-rezepti/learnings.jsonl`.
-Stand: 2026-08-07 — 57 Eintraege. (Zaehler war bis dahin auf 41 stehengeblieben.)
+**Handgepflegtes Dokument.** Urspruenglich aus einem `/learn`-Export befuellt, seitdem
+direkt hier weitergeschrieben. Stand: 2026-08-07 — 57 Eintraege.
 
 Format: `[key] (confidence/10, datum)` + Insight + ggf. Files.
-Aktualisieren via `/learn` (zeigt aktuelle), neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` u.a. ergaenzt.
+
+Verhaeltnis zu gstack: `/learn` liest und schreibt ausschliesslich
+`~/.gstack/projects/dacown87-rezepti/learnings.jsonl` (aktuell 41 Eintraege) — der
+`Export`-Modus *druckt* Markdown zum Einfuegen, er ueberschreibt diese Datei nicht.
+Hand-Eintraege sind hier also sicher, gehen aber umgekehrt nicht in die JSONL zurueck
+und tauchen in `/learn`-Suchen nicht auf. Die frueheren Kopfzeilen ("auto-aggregiert",
+"41 Eintraege") beschrieben die JSONL, nicht dieses Dokument, und lasen sich dadurch
+wie ein falscher Zaehler.
+
+Achtung beim Export: `gstack-learnings-search --limit 50` — waechst die JSONL ueber 50
+Eintraege, schneidet ein Export stillschweigend ab.
 
 ---
 
