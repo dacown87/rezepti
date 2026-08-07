@@ -371,3 +371,16 @@ Slice 0b ─┘
 Die Schätzung gilt für den mechanischen Teil. **Nicht enthalten** ist die
 eigentliche Unbekannte: ob Pinterest über die API brauchbare Rezeptdaten
 herausgibt und wie lange ein Facebook-Cookie-Satz in der Praxis hält.
+
+---
+
+## Verwandte Dokumente
+
+- [Master-Plan](2026-08-07-connectors-and-job-persistence-master-plan.md) —
+  Klammer über diesen Plan und die Job-Persistenz
+- [Job-Persistenz](2026-08-07-job-persistence-plan.md) — der zweite Strang aus
+  derselben Multi-User-Umstellung
+- `src/fetchers/CLAUDE.md` — das Cookidoo-Muster, das hier kopiert wird
+- `supabase/migrations/20260615170413_cookidoo_credentials_scoped.sql` und
+  `20260619113000_harden_cookidoo_credentials_store.sql` — Vorlage für Tabelle
+  und Härtung
