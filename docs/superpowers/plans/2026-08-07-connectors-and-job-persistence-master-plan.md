@@ -58,13 +58,16 @@ vorne. Die Prüfung gegen den Code hat das umgedreht:
 
 ```
 SOFORT, blockiert durch nichts, ~1 Tag zusammen
-├── Connectors  Slice 0    globale Disk-Credentials entfernen  ← Sicherheit
+├── Connectors  Slice 0    globale Disk-Credentials entfernen (Vorsorge)
 ├── Connectors  Slice 0a   Pinterest scheitert ehrlich
 ├── Connectors  Slice 0b   yt-dlp aktualisieren + Health-Check
 ├── Connectors  Slice 0c   ADR schreiben, Roadmap nachziehen
 ├── Jobs        Slice 1    Client: Fehlertext + Poll-Abbruch
 ├── Jobs        Slice 2    Concurrency-Limit + Cleanup scharfschalten
 └── Jobs        Slice 3    Cancel stoppt die Pipeline wirklich
+
+ENTSCHIEDEN, unabhängig von Pinterest, ~4 h
+└── Connectors  Slice E    Credentials verschlüsselt at rest, inkl. Cookidoo
 
 DANACH, wenn der Schmerz bleibt
 └── Jobs        Slice 4-6  Tabelle, Write-Through, SIGTERM
@@ -84,9 +87,9 @@ echten Token auch **fremde** öffentliche Pins heraus? Braucht einen
 Pinterest-Developer-Account. Fällt das durch, ist der Aufbau wertlos — ein Pin
 verlinkt fast immer auf eine Rezeptseite, die der Web-Fetcher schon kann.
 
-**B — Facebook: dürfen Session-Cookies serverseitig liegen?**
-Account-übernahme-tauglich, und `cookidoo_credentials.password` liegt heute im
-Klartext. Empfehlung: verschlüsselt at rest, Cookidoo im selben Zug.
+**B — Facebook-Cookies: ENTSCHIEDEN am 2026-08-07 — verschlüsselt at rest.**
+Cookidoo wandert im selben Zug mit; kein Klartext-Credential bleibt in der
+Datenbank zurück. Details: Slice E im Connector-Plan.
 
 ## Belege
 
@@ -97,6 +100,7 @@ Gemessen am 2026-08-07, nicht aus dem Code abgeleitet.
 | Pinterest liefert anonym keine Pin-Daten | 2 Pins, je ~1,08 MB App-Shell, keine `og:`-Tags, `__PWS_DATA__` ohne Pin-Inhalt, yt-dlp `403` |
 | Der Fetcher importiert JavaScript als Rezept | `s.pinimg.com/…/accessibility-*.mjs`, 6000 Zeichen minifiziertes JS als `textContent`; Guard an 3 Stellen dupliziert |
 | Globale Credentials sind im Fetcher noch aktiv | `pinterest.ts:12-16,28-41,312-315`, `facebook.ts:12-15,88`; `docker-compose` mountet `./data` |
+| Auf Production aber **nicht scharf** | `northflank exec` → `/app/data: No such file or directory`, keine der beiden Dateien vorhanden |
 | Cookie-Datei nicht gitignored | `.gitignore:5-11` deckt sie nicht ab |
 | Lokales yt-dlp zwei Jahre alt | `2024.04.09` vs. `2026.7.4`; Dockerfile baut mit `--upgrade` |
 | Client verwirft 404 | `extract.tsx:195` `if (!res.ok) return;`, keine Poll-Obergrenze |
@@ -140,7 +144,8 @@ ADR"-Einträge werden dann zu echten Entscheidungen.
   folgenschwersten gegen den Code verifiziert.
 - **CROSS-MODEL:** keine Spannung — die zweite Meinung war durchgehend
   schärfer als die erste Fassung, kein Widerspruch zu klären.
-- **UNRESOLVED:** 2 (Entscheidung A Pinterest-Messung, Entscheidung B
-  Cookie-Speicherung) — beide extern blockiert, nicht durch Analyse lösbar.
+- **UNRESOLVED:** 1 (Entscheidung A, Pinterest-Messung) — extern blockiert,
+  braucht einen Pinterest-Business-Account plus registrierte App. Entscheidung
+  B wurde am 2026-08-07 getroffen: verschlüsselt at rest, Cookidoo inklusive.
 - **VERDICT:** ENG CLEARED — Scope reduziert, Reihenfolge korrigiert, bereit
   zur Umsetzung ab Slice 0.

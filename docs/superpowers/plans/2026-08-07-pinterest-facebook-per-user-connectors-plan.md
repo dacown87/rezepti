@@ -36,10 +36,15 @@ Dateien bis heute:
 Disk-Loader **ausdrücklich behalten** („Kept but unexported — these are live
 internals").
 
-`docker-compose.yml` mountet `./data:/app/data`. Liegt eine der beiden Dateien
-in Production, **importiert jeder Nutzer mit fremden Credentials** — genau das
-Loch, das `a6614e7` schließen sollte, nur eine Ebene tiefer. Auf diesem Rechner
-existieren die Dateien nicht; für Production ist das ungeprüft.
+`docker-compose.yml` mountet `./data:/app/data`. Läge eine der beiden Dateien
+in Production, **importierte jeder Nutzer mit fremden Credentials** — genau das
+Loch, das `a6614e7` schließen sollte, nur eine Ebene tiefer.
+
+**Production geprüft am 2026-08-07** (`northflank exec service --projectId
+rezepti --serviceId rezepti-app`): `/app/data` **existiert dort gar nicht**,
+also auch keine der beiden Dateien. Das Loch ist **nicht scharf**. Slice 0 ist
+damit kein Hotfix, sondern Vorsorge: der Codepfad ist da, und ein später
+gemountetes Volume oder eine lokale Kopie beim Debuggen würde ihn öffnen.
 
 Zusätzlich: `data/facebook-cookies.txt` steht **nicht** in `.gitignore` (dort
 stehen nur `data/*.db`, `cookidoo-session.json`, `client_secret_*.json`,
@@ -162,19 +167,48 @@ Ein Pin trägt außerdem selten das Rezept selbst — er verlinkt auf eine
 Rezeptseite, die der generische Web-Fetcher bereits beherrscht. Der ganze
 Aufbau kauft im Kern **ein Feld**: die `link`-Property.
 
-### Entscheidung B — Facebook-Cookies serverseitig?
+### Entscheidung B — ENTSCHIEDEN am 2026-08-07: verschlüsselt at rest
 
-Sie sind eine vollwertige Session. `cookidoo_credentials.password` liegt heute
-im Klartext; dasselbe Muster hieße Klartext-Sessionschlüssel in Postgres.
+Facebook-Cookies sind eine vollwertige Session — wer sie hat, ist eingeloggt.
+`cookidoo_credentials.password` liegt heute im Klartext.
 
-| Option | Bewertung |
-|---|---|
-| B1 Klartext + Deny-all | konsistent, aber ein DB-Leak wird zur Account-Übernahme |
-| B2 verschlüsselt at rest | ~halber Tag mehr, sollte dann auch für Cookidoo gelten |
-| B3 Cookies bleiben im Client, pro Job mitgeschickt | sichersten, Nutzer fügt sie bei jedem Import ein |
-| B4 Facebook einstellen | ToS-konform, aber nicht das, was gewünscht ist |
+**Entscheidung: Credentials werden verschlüsselt gespeichert, und Cookidoo
+wandert im selben Zug mit.** Kein Klartext-Credential bleibt in der Datenbank
+zurück.
 
-Empfehlung: **B2**, Cookidoo im selben Zug. Wenn zu viel: B3.
+Begründung: Ein Datenbank-Dump — Backup, Fehlkonfiguration, kompromittierter
+Pooler — ist bei Klartext gleichbedeutend mit der Übernahme fremder
+Facebook-Accounts. Das ist der eine Datenverlust, der sich nicht reparieren
+lässt. Der Aufwand ist ein halber Tag, und da ohnehin eine Tabelle angefasst
+wird, ist der Grenzaufwand für Cookidoo nahe null.
+
+Verworfen:
+- *Klartext wie bisher* — konsistent, aber ein DB-Leak wird zur Account-Übernahme
+- *Cookies nur im Client, pro Job mitgeschickt* — sicher, aber der Nutzer müsste
+  sie bei jedem Import erneut einfügen, und sie landeten im Request-Body und
+  potenziell in Logs
+- *Facebook einstellen* — nicht gewünscht
+
+### Slice E — Verschlüsselung (Voraussetzung für Slice 1)
+
+- `CREDENTIAL_ENCRYPTION_KEY` als Env-Variable (32 Byte, base64), **nicht** in
+  der Datenbank. In Northflank als Runtime-Secret, lokal in `.env`,
+  in `.env.example` dokumentiert.
+- AES-256-GCM über `node:crypto`, keine neue Dependency. Format
+  `v1:<iv>:<authTag>:<ciphertext>`, versioniert für spätere Rotation.
+- Ein Modul `src/credential-crypto.ts` mit `encryptCredential` /
+  `decryptCredential`. **Einzige** Stelle, die den Key liest.
+- Migration: bestehende `cookidoo_credentials`-Zeilen einmalig verschlüsseln.
+  Idempotent — am `v1:`-Präfix erkennbar, was schon verschlüsselt ist.
+- Fehlender Key beim Start: **fail fast** mit klarer Meldung, nicht stillschweigend
+  auf Klartext zurückfallen.
+- Tests: Round-Trip, manipuliertes `authTag` wirft, Migration ist idempotent,
+  fehlender Key wirft beim Start.
+
+> **Betriebsrisiko, das benannt gehört:** Geht der Key verloren, sind alle
+> gespeicherten Credentials unbrauchbar. Das ist kein Datenverlust im engeren
+> Sinn — die Nutzer tragen ihre Credentials neu ein — aber es gehört ins
+> Runbook und der Key gehört in denselben Secret-Speicher wie `BREVO_API_KEY`.
 
 **ToS-Hinweis:** Es geht um den eigenen Account des Nutzers. Automatisiertes
 Abrufen verstößt trotzdem gegen die Facebook-ToS, und Facebook sperrt Accounts,
@@ -268,8 +302,29 @@ ToS-/Sperrrisiko-Hinweis.
 | Teil | Umfang |
 |---|---|
 | Slice 0 + 0a + 0b + 0c | **~4 h, der realistische Zielzustand** |
-| Messung Pinterest | 10 min, braucht Developer-Account |
-| Slice 1–4 (nur falls Messung trägt) | ~10 h, plus Verschlüsselung ~4 h |
+| Slice E (Verschlüsselung inkl. Cookidoo) | ~4 h, entschieden, unabhängig von Pinterest |
+| Messung Pinterest | 10 min Messung — Vorlauf siehe unten |
+| Slice 1–4 (nur falls Messung trägt) | ~10 h |
+
+**Slice E steht nicht unter dem Pinterest-Vorbehalt.** Die Verschlüsselung
+lohnt sich allein wegen `cookidoo_credentials.password` und kann direkt nach
+Slice 0 laufen, auch wenn Pinterest und Facebook nie kommen.
+
+### Vorlauf für die Pinterest-Messung
+
+Die zehn Minuten gelten für die Messung selbst, nicht für den Zugang. Nötig ist:
+
+1. Ein Pinterest-**Business**-Account (kostenlos, ein privater lässt sich umstellen)
+2. Eine App auf `developers.pinterest.com` → `client_id` / `client_secret`
+3. Das ergibt **Trial access**: niedrigere Rate-Limits, und erzeugte Pins/Boards
+   sind Sandbox-Objekte, die nur der Ersteller sieht
+4. Für echten Betrieb **Standard access** — Antrag mit **Video-Aufnahme** der
+   App im OAuth-Flow, den Pinterest prüft
+
+Ob `GET /v5/pins/{id}` fremde öffentliche Pins herausgibt, steht in der
+Dokumentation **nicht** — genau deshalb die Messung. Der Review-Vorbehalt
+verschärft sich dadurch: selbst bei erfolgreicher Messung unter Trial access
+steht zwischen uns und der Produktion ein Pinterest-Review mit Videonachweis.
 
 ## Verwandte Dokumente
 
