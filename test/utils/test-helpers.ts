@@ -11,16 +11,6 @@ export interface TestConfig {
   legacyDbPath: string;
 }
 
-export interface TestJob {
-  jobId: string;
-  url: string;
-  type: 'website' | 'youtube' | 'instagram' | 'tiktok';
-  byok: boolean;
-  status?: 'pending' | 'processing' | 'completed' | 'failed';
-  result?: any;
-  error?: string;
-}
-
 export interface TestResult {
   name: string;
   success: boolean;
@@ -214,29 +204,6 @@ export class TestRunner {
     console.log('='.repeat(60));
   }
 }
-
-// URL test data
-export const testUrls = {
-  website: [
-    'https://www.allrecipes.com/recipe/12345/test-recipe/',
-    'https://www.bbcgoodfood.com/recipes/classic-vegetable-lasagne',
-    'https://www.epicurious.com/recipes/food/views/chicken-piccata',
-  ],
-  youtube: [
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    'https://www.youtube.com/watch?v=9bZkp7q19f0',
-    'https://www.youtube.com/shorts/ABC123def',
-  ],
-  instagram: [
-    'https://www.instagram.com/p/ABCDEFG12345/',
-    'https://www.instagram.com/reel/XYZ789abc/',
-    'https://www.instagram.com/tv/LMN456def/',
-  ],
-  tiktok: [
-    'https://www.tiktok.com/@user/video/1234567890',
-    'https://vm.tiktok.com/ZMexample123/',
-  ],
-};
 
 // Default test configuration
 export const defaultConfig: TestConfig = {

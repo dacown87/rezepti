@@ -1,55 +1,5 @@
-// expo-sqlite DB schema — spiegelt src/schema.ts (Backend)
-// Kein Drizzle auf Mobile: raw SQL via expo-sqlite
-
-export const DB_NAME = 'recipedeck.db';
-export const DB_VERSION = 4;
-
-export const CREATE_TABLES_SQL = `
-  CREATE TABLE IF NOT EXISTS recipes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    emoji TEXT,
-    source_url TEXT,
-    image_url TEXT,
-    servings TEXT,
-    duration TEXT,
-    calories INTEGER,
-    tags TEXT,
-    category TEXT,
-    ingredients TEXT NOT NULL,
-    steps TEXT NOT NULL,
-    transcript TEXT,
-    equipment TEXT,
-    nutrition_info TEXT,
-    tried INTEGER DEFAULT 0,
-    rating INTEGER,
-    notes TEXT,
-    pdf_created INTEGER DEFAULT 0,
-    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS shopping_list (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipe_id INTEGER,
-    canonical_name TEXT NOT NULL,
-    quantity TEXT,
-    unit TEXT,
-    checked INTEGER DEFAULT 0,
-    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS meal_plan (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipe_id INTEGER NOT NULL,
-    day_of_week INTEGER NOT NULL,
-    week_start INTEGER NOT NULL,
-    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS db_version (
-    version INTEGER NOT NULL
-  );
-`;
+// Row-Typen der Backend-Tabellen — spiegelt src/schema.ts
+// Reine Typdatei: die Daten kommen ueber /api/v1/*, nicht aus einer lokalen DB.
 
 export interface Recipe {
   id: number;

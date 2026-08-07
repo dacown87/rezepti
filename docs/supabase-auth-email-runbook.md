@@ -25,7 +25,7 @@ Sind diese gesetzt, aktiviert der Workflow Custom SMTP; sonst bleibt der Supabas
 
 Fuer Brevo lauten die Werte: `SMTP_HOST=smtp-relay.brevo.com`,
 `SMTP_PORT=587`, `SMTP_USER=<Brevo SMTP Login>`, `SMTP_PASS=<Brevo SMTP Key>`,
-`SMTP_SENDER_NAME=RecipeDeck` und `SMTP_ADMIN_EMAIL=auth@recipedeck.app`.
+`SMTP_SENDER_NAME=RecipeDeck` und `SMTP_ADMIN_EMAIL=recipedeckapp@gmail.com`.
 Der SMTP Key ist ein separater Brevo-Schluessel; der Invite-API-Key gehoert
 nicht in `SMTP_PASS`.
 
@@ -79,9 +79,9 @@ Der generische Absender + „powered by Supabase" kommt vom **Supabase-Default-S
 lässt sich der Absender nicht ändern (und es gilt ein striktes Rate-Limit). Für einen eigenen Absender:
 
 Dashboard → **Project Settings → Authentication → SMTP Settings** → **Enable Custom SMTP** und die Brevo-SMTP-Daten eintragen. Danach:
-- **Sender email**: `auth@recipedeck.app`
+- **Sender email**: `recipedeckapp@gmail.com`
 - **Sender name**: `RecipeDeck`
-- `recipedeck.app` in Brevo per SPF/DKIM verifizieren (DMARC wird empfohlen; sonst landen Mails eher im Spam).
+- `recipedeckapp@gmail.com` ist in Brevo bereits als Absenderadresse verifiziert. Eine eigene Maildomain besitzt das Projekt nicht, SPF/DKIM auf `gmail.com` sind daher weder moeglich noch noetig — Brevo signiert mit seiner eigenen Sendedomain.
 
 Ohne Custom SMTP bleiben Absender und „powered by"-Footer der Supabase-Standard.
 

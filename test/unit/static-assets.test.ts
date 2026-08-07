@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { app } from "../../src/index.js";
 
+// Der Expo-Web-Export unter public/ ist seit 2026-08-07 ein Build-Artefakt und
+// nicht mehr eingecheckt. Ohne vorherigen `npm run build:mobile` gibt es keine
+// gehashten Assets, die dieser Test pruefen koennte. Die reale Auslieferung
+// deckt der e2e-legacy-soak-Job ab, der den Export vor dem Serverstart baut.
+const hasExpoExport = existsSync("public/assets/public");
+
 describe("static asset serving", () => {
-  it("serves an existing Expo hashed logo asset", async () => {
+  it.skipIf(!hasExpoExport)("serves an existing Expo hashed logo asset", async () => {
     const hashedLogo = readdirSync("public/assets/public").find((name) =>
       /^Logo\.[a-f0-9]+\.png$/i.test(name),
     );

@@ -1,6 +1,34 @@
 # CI / Supabase / Northflank Check
 
-Stand: 2026-06-24
+Stand: 2026-08-07
+
+## Update 2026-08-07
+
+### Supabase-Pause und Deploy-Health
+
+- Der Push `cd8478d..d720bb4` (Brevo-Provider + Gmail-Monitor) baute und deployte fehlerfrei, aber der Step `Poll Northflank health` im Run `31146733300` scheiterte nach 10 Versuchen (`503`, danach durchgaengig `500`).
+- Ursache war nicht der Deploy: das Production-Supabase-Projekt `zdiqtnljdxuhinqzgcnd` war nach rund vier Wochen Inaktivitaet pausiert. `/api/v1/health` meldete `Failed query: select "id" from "recipes"`, und `db.zdiqtnljdxuhinqzgcnd.supabase.co` loeste per DNS nicht mehr auf.
+- Nach manueller Reaktivierung im Dashboard antwortete die Datenbank sofort wieder; die deployte App wurde ohne Container-Restart gesund: `GET /api/v1/health -> 200 {"server":true,"database":"supabase","recipeCount":6,"status":"healthy"}`.
+- Gleiche Vorfallklasse wie am 2026-07-07. Signatur und Schnelltest stehen in [PROJECT_LEARNINGS.md](/home/patrick/Projekte/rezepti/docs/PROJECT_LEARNINGS.md) unter `supabase-free-tier-pause-signature`.
+
+### CI-Stand nach dem Push
+
+Run `31146914378` auf `main`:
+
+| Job | Ergebnis | Bewertung |
+|-----|----------|-----------|
+| `supabase-rls-smoke` | gruen | — |
+| `e2e` | gruen | — |
+| `test` | rot | `static-assets.test.ts` las den nicht mehr eingecheckten Expo-Export; gefixt |
+| `e2e-legacy-soak` | rot | `GET /` ohne `public/index.html`; Job baut den Export jetzt vorher |
+| `performance-audit` | rot | echte Budget-Findings, nicht export-bedingt (siehe unten) |
+| `mobile-release-gate` | rot | `Run Expo Doctor`, vorbestehend seit Nightly `31072485251` |
+
+Offene Budget-Findings aus `perf:validate` (`PERF_ENFORCEMENT_LEVEL: strict`): `jsBytes 5.658.208 > 5.550.000`, `gzipJsBytes 1.178.764 > 1.140.411`, `largestJsAssetBytes 4.721.487 > 4.620.000`, `LCP 25.312 ms` fuer `/` @ `mobile-375x812` gegen 1.200 ms. Der LCP-Wert liegt so weit ausserhalb der Erwartung, dass zuerst die Messung selbst zu pruefen ist.
+
+---
+
+## Stand 2026-06-24
 
 Diese Datei sammelt den aktuellen Betriebsbefund fuer GitHub CI, Supabase und Northflank sowie den naechsten Vorgehensplan. Der detaillierte Arbeitsplan zum aktuellen Stand liegt in [2026-06-15-ci-supabase-northflank-execution-plan.md](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-06-15-ci-supabase-northflank-execution-plan.md).
 

@@ -146,7 +146,16 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `api_keys` table | DB | deleted | — | — | — | — | dropped in migration 20260609143000 |
 | `push_subscriptions` | Server + RLS | user-scoped | `requireUserAuth` | owner | owner | low | — |
 
-**Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`. Key components:
+**Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`.
+
+**⚠️ `public/` ist seit 2026-08-07 ein reines Build-Artefakt und nicht mehr eingecheckt.** Im Repo liegen nur noch handgepflegte Quell-Assets (`Logo.png`, Icons, `manifest.webmanifest`); der Expo-Web-Export (`_expo/`, `*.html`, `sw.js`, `assets/`) entsteht erst durch `npm run build:mobile` bzw. den `web-builder`-Stage im Dockerfile. Konsequenzen:
+
+- Nach einem frischen Clone liefert `npm start` kein Frontend, bis einmal gebaut wurde.
+- Tests, die den Export voraussetzen, muessen das pruefen — `test/unit/static-assets.test.ts` skippt den Hashed-Asset-Fall ohne Export.
+- CI-Jobs, die einen echten Server starten, bauen den Export vorher (`e2e-legacy-soak`); `performance-audit` baut ihn ueber `perf:audit` selbst.
+- `public/changelog.json` wird vom Workflow `changelog-update.yml` erzeugt; der Dockerfile faellt auf einen Minimal-Stub zurueck, wenn die Datei fehlt.
+
+Key components:
 - `ExtractionPage` — URL input, job polling, progress display
 - `RecipeList` — List/grid view toggle (default: list), persisted in localStorage
 - `RecipeDetail` — Single recipe view with inline edit mode, serving size scaler, source link
@@ -240,7 +249,7 @@ Host github.com
 
 - **Origin:** Project was AI-generated — code may be inconsistent, pay attention to quality when touching it
 - **Test Suite**: Unit tests run with `npm test`. E2E tests (`test/e2e/`) require a running server.
-- **After frontend changes:** Bei Bedarf zuerst `npm --prefix mobile ci`, dann `npm run build:mobile` zum Aktualisieren von `public/`. Der Expo-Export kann nach erfolgreichem `Exported: ../public` lokal haengen; nicht mehrfach parallel starten.
+- **After frontend changes:** Bei Bedarf zuerst `npm --prefix mobile ci`, dann `npm run build:mobile` zum Aktualisieren von `public/`. Der Expo-Export kann nach erfolgreichem `Exported: ../public` lokal haengen; nicht mehrfach parallel starten. Das Ergebnis wird **nicht** committet (siehe Frontend-Abschnitt) — `git status` darf nach einem Build keine `public/_expo/`-Eintraege zeigen.
 - **After mobile test changes:** `npm run test:mobile:rntl-guard` ausfuehren. Neue Mobile-Tests duerfen `react-test-renderer` nicht direkt importieren; `renderAsync` ist in Testdateien abgebaut. Verbleibende `UNSAFE_queryAllByType`-Altfaelle sind in `docs/testing/rntl-migration-phase-0-inventory.md` dokumentiert.
 - **After performance-sensitive mobile changes:** `npm run perf:bundle`, bei LCP-/Shell-/Routing-Aenderungen zusaetzlich `npm run perf:lighthouse:compare` und `npm run perf:validate`. Phase 4c ist abgeschlossen: `mobile/app/+html.tsx` liefert eine route-aware statische App-Shell, damit `/shopping` und `/recipe/*` vor Expo-Web-Hydration einen stabilen LCP-Kandidaten haben.
 - **Strict performance hardening:** Fuer die 10er-Messreihe `npm run perf:stability:seed` verwenden. Das Script editiert `history.json` nicht selbst; nur `perf:validate` schreibt echte Run-Eintraege. Danach `npm run perf:budget:suggest` ausfuehren und Vorschlaege pruefen. Stand 2026-06-08: `schedule` (nightly cron 02:00 UTC) startet weiter `strict`, `push`/`pull_request` bleiben `warn`, `workflow_dispatch` weiter wahlweise `warn` oder `strict`. Der Juni-Export nutzt lazy geladene Auth-Observer/-Watcher im mobilen Root-Layout, damit Auth/Workspace-Code nicht mehr als statischer Einstiegspfad am ersten Web-Render haengt. Die Bundle-Baselines wurden dazu auf `maxJsBytes=5,550,000` und `maxLargestJsAssetBytes=4,620,000` nachgezogen. `npm run perf:validate:strict` ist damit wieder budget-clean, kann aber aktuell als `observation_blocked` enden, solange das 10er-Readiness-Fenster historische Mai-Runs mit dem frischen Juni-Run mischt.

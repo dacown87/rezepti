@@ -15,12 +15,13 @@ import {
   getBugReportStatusLabel,
   updateAdminBugReport,
   type BugReportDetail,
+  BUG_REPORT_STATUSES,
   type BugReportListItem,
   type BugReportStatus,
 } from "@/utils/bug-reporting";
 import { ApiRequestError } from "@/utils/api";
 
-const STATUS_OPTIONS: BugReportStatus[] = ["new", "triaging", "in_progress", "resolved", "closed"];
+const STATUS_OPTIONS: readonly BugReportStatus[] = BUG_REPORT_STATUSES;
 
 function formatTimestamp(value: string) {
   return new Date(value).toLocaleString("de-DE", {

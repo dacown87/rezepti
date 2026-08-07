@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
-import { writeFileSync, unlinkSync, existsSync, readFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
 import { fetchWithCobalt, downloadFirstCobaltMedia } from "./cobalt.js";
@@ -11,76 +11,8 @@ const execFileAsync = promisify(execFile);
 
 const COOKIE_PATH = join(process.cwd(), "data", "facebook-cookies.txt");
 
-export function hasFacebookCookies(): boolean {
+function hasFacebookCookies(): boolean {
   return existsSync(COOKIE_PATH);
-}
-
-export function getFacebookCookieDomains(): string[] {
-  if (!existsSync(COOKIE_PATH)) return [];
-  try {
-    const content = readFileSync(COOKIE_PATH, "utf-8");
-    const domains: string[] = [];
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const parts = trimmed.split("\t");
-      if (parts.length >= 2 && parts[0]) {
-        domains.push(parts[0]);
-      }
-    }
-    return [...new Set(domains)];
-  } catch {
-    return [];
-  }
-}
-
-export function validateFacebookCookies(content: string): { valid: boolean; error?: string } {
-  const lines = content.split("\n");
-  let hasFacebookCookie = false;
-  let hasNetscapeHeader = false;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("# Netscape")) {
-      hasNetscapeHeader = true;
-    }
-    if (trimmed && !trimmed.startsWith("#")) {
-      const parts = trimmed.split("\t");
-      if (parts.length >= 7) {
-        const domain = parts[0];
-        if (domain.includes("facebook.com")) {
-          hasFacebookCookie = true;
-        }
-      } else {
-        return { valid: false, error: "Invalid cookie line format" };
-      }
-    }
-  }
-
-  if (!hasNetscapeHeader) {
-    return { valid: false, error: "Missing Netscape HTTP Cookie File header" };
-  }
-
-  if (!hasFacebookCookie) {
-    return { valid: false, error: "No facebook.com cookies found" };
-  }
-
-  return { valid: true };
-}
-
-export function saveFacebookCookies(content: string): void {
-  mkdirSync(dirname(COOKIE_PATH), { recursive: true });
-  writeFileSync(COOKIE_PATH, content, "utf-8");
-}
-
-export function clearFacebookCookies(): void {
-  if (existsSync(COOKIE_PATH)) {
-    try {
-      unlinkSync(COOKIE_PATH);
-    } catch {
-      // best effort
-    }
-  }
 }
 
 const MAX_RETRIES = 3;

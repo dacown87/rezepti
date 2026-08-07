@@ -16,7 +16,7 @@ if (!enabled) {
     to: config.mailbox,
     recipeName,
     senderEmail: null,
-    shareUrl: 'https://recipedeck.app/share-invite/gmail-production-probe',
+    shareUrl: `${(process.env.RECIPE_INVITE_BASE_URL || 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run').replace(/\/+$/, '')}/share-invite/gmail-production-probe`,
   })
   if (sent.status !== 'sent') {
     console.error(`Gmail Brevo probe could not send through ${sent.provider}: ${sent.errorCode ?? 'unknown error'}`)

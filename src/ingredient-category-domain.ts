@@ -51,7 +51,7 @@ function splitIngredient(ingredient: string): { quantity: string; rest: string }
   return { quantity: match[1], rest: match[2] };
 }
 
-export function extractIngredientNameForMatching(fullIngredient: string): string {
+function extractIngredientNameForMatching(fullIngredient: string): string {
   const split = splitIngredient(fullIngredient);
   if (!split) {
     return fullIngredient.trim();
@@ -96,7 +96,7 @@ function levenshtein(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-export function isIngredientNameSimilar(a: string, b: string, maxDistance?: number): boolean {
+function isIngredientNameSimilar(a: string, b: string, maxDistance?: number): boolean {
   const maxLen = Math.max(a.length, b.length);
   if (maxLen === 0) {
     return false;
@@ -107,13 +107,13 @@ export function isIngredientNameSimilar(a: string, b: string, maxDistance?: numb
   return distance <= threshold;
 }
 
-export function normalizeIngredientSearchTerms(terms: string[]): string[] {
+function normalizeIngredientSearchTerms(terms: string[]): string[] {
   return terms
     .map((term) => term.toLowerCase().trim())
     .filter(Boolean);
 }
 
-export function ingredientMatchesTerm(ingredient: string, searchTerm: string): boolean {
+function ingredientMatchesTerm(ingredient: string, searchTerm: string): boolean {
   const term = searchTerm.toLowerCase().trim();
   if (!term) {
     return false;

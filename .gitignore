@@ -23,7 +23,27 @@ FilesWorking/
 test/RecipePicture/
 frontend/dist/
 frontend/node_modules/
-public/sw.js.map
+# Expo-Web-Export: seit 2026-08-07 reines Build-Artefakt (npm run build:mobile
+# bzw. web-builder-Stage im Dockerfile). Eingecheckt bleiben nur die
+# handgepflegten Quell-Assets darunter (Logo, Icons, Manifest).
+#
+# Bewusst als Whitelist: die frühere Liste zählte jede Export-Route einzeln auf
+# (public/recipe/, public/(tabs)/, ...) und veraltete mit jeder neuen Route —
+# admin/, collection/ und share-invite/ fehlten und lagen untracked herum.
+# `public/*` statt `public/` ist noetig, damit die Negationen unten greifen:
+# bei einem ignorierten Verzeichnis steigt Git gar nicht erst hinein.
+public/*
+!public/Logo.png
+!public/apple-touch-icon-180.png
+!public/icon-192.png
+!public/icon-512.png
+!public/icon-512-maskable.png
+!public/manifest.webmanifest
+# Ausnahme: public/changelog.json bleibt getrackt. Die App laedt es zur Laufzeit
+# (mobile/app/(tabs)/settings.tsx), changelog-update.yml committet es, und der
+# Dockerfile kopiert es aus dem Build-Context — fehlt es, zeigt Production nur
+# den Minimal-Stub.
+!public/changelog.json
 
 # Performance audit artifacts: only persist history + readiness (CI caches these too)
 artifacts/*

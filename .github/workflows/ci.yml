@@ -303,10 +303,21 @@ jobs:
         with:
           node-version: '24.15.0'
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install mobile dependencies
+        run: npm --prefix mobile ci
+
+      # public/ ist seit 2026-08-07 kein eingechecktes Build-Artefakt mehr. Der
+      # Soak startet einen echten Server und prueft unter anderem GET / — ohne
+      # gebaute SPA fehlt public/index.html und die Route liefert 404.
+      - name: Build mobile web export
+        run: npm run build:mobile
 
       - name: Push schema to test DB
         run: npx drizzle-kit push --force
