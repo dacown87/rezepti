@@ -1,0 +1,17 @@
+{
+  "version": "1.0.196",
+  "entries": [
+    {
+      "version": "1.0.196",
+      "date": "2026-08-07",
+      "changes": [
+        "update recipe invite email delivery provider from Resend to Brevo",
+        "add Gmail delivery monitor"
+      ]
+    }
+  ],
+  "lastUpdated": {
+    "date": "2026-08-07",
+    "time": "06:13"
+  }
+}
