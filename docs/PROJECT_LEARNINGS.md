@@ -198,6 +198,16 @@ yt-dlp PyInstaller static binary from GitHub Releases fails with exit 127 in `no
 Die funktionierende Production-Origin ist `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`; ihr Health-Endpunkt liefert `200`. Die einzige vom Projekt genutzte oeffentliche Adresse ist der Shortpen-Link `https://shr.pn/RecipeDeck`, der auf diese Origin zeigt. `shr.pn` gehoert Shortpen; RecipeDeck verwaltet dort nur den Pfad `RecipeDeck`, keine eigene DNS-Domain. `recipedeck.app` gehoert **nicht** dem Projekt und darf weder als offizielle URL kommuniziert noch in Northflank registriert oder konfiguriert werden. Ein beobachteter Zertifikatsfehler auf dieser fremden Domain ist ausserhalb unseres Betriebsbereichs. **Nachtrag 2026-08-07:** Dasselbe gilt fuer E-Mail — es gibt keine eigene Maildomain. Verifizierter Brevo-Absender fuer Invite-Mails *und* Supabase-Auth-SMTP ist die Einzeladresse `recipedeckapp@gmail.com` (zugleich die vom Gmail-Monitor ueberwachte Operator-Mailbox). Die Brevo-Spec vom 2026-07-17 nannte urspruenglich `einladungen@recipedeck.app`/`auth@recipedeck.app` und wurde korrigiert.
 *Files:* `.github/workflows/docker-publish.yml`, `README.md`, `.env.example`, `docs/supabase-auth-email-runbook.md`, `docs/superpowers/specs/2026-07-17-brevo-transactional-email-design.md`
 
+#### supabase-free-tier-pause-signature (10/10, 2026-08-07)
+
+Wenn Production `500` liefert und `/api/v1/health` `Failed query: select "id" from "recipes"` meldet, **zuerst pruefen ob das Supabase-Projekt pausiert ist** — nicht die App debuggen. Eindeutige Signatur: `db.<project-ref>.supabase.co` loest per DNS nicht mehr auf (`ENOTFOUND`), Supabase entfernt den Record beim Pausieren. Schnelltest: `getaddrinfo` gegen den Host aus `DATABASE_URL`, oder direkt ein `select 1` mit `postgres-js`. Der Free-Tier pausiert nach etwa vier Wochen Inaktivitaet; passiert am 2026-07-07 und erneut am 2026-08-07. Folge: der `Poll Northflank health`-Step im Deploy-Workflow wird rot, obwohl Build und Deploy fehlerfrei waren — das sieht wie ein kaputter Deploy aus, ist aber ein Datenbank-Betriebszustand. Reaktivierung geht nur ueber das Supabase-Dashboard; danach war die App ohne Container-Restart sofort wieder gesund.
+*Files:* `src/db-react.ts`, `.github/workflows/docker-publish.yml`
+
+#### public-export-untracked-ci-fallout (9/10, 2026-08-07)
+
+Der Expo-Web-Export unter `public/` wurde am 2026-08-07 aus dem Repo entfernt (Build-Artefakt, wird vom `web-builder`-Stage neu erzeugt). Zwei CI-Jobs setzten stillschweigend voraus, dass er im Checkout liegt, und wurden erst nach dem Push rot: `test` ueber `test/unit/static-assets.test.ts`, das `readdirSync("public/assets/public")` macht, und `e2e-legacy-soak`, das `GET /` gegen einen echten Server auf `200` prueft und dafuer `public/index.html` braucht. `performance-audit` war **nicht** betroffen, weil `perf:audit` den Export selbst baut. Lehre: beim Untracken von Build-Output nicht nur den Docker-Build pruefen, sondern jeden Job, der einen echten Server startet oder das Dateisystem liest. Zweite Falle: `public/changelog.json` sah wie Build-Output aus, ist aber eine zur Laufzeit geladene Datendatei — mitgeloescht erzeugte `changelog-update.yml` sie neu und verlor die gesamte Versionshistorie.
+*Files:* `.gitignore`, `.github/workflows/ci.yml`, `test/unit/static-assets.test.ts`, `public/changelog.json`
+
 ---
 
 ## Operationals

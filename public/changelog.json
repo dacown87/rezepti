@@ -1,6 +1,14 @@
 {
-  "version": "1.0.195",
+  "version": "1.0.196",
   "entries": [
+    {
+      "version": "1.0.196",
+      "date": "2026-08-07",
+      "changes": [
+        "update recipe invite email delivery provider from Resend to Brevo",
+        "add Gmail delivery monitor"
+      ]
+    },
     {
       "version": "1.0.195",
       "date": "2026-07-08",
@@ -132,9 +140,9 @@
       "version": "1.0.172",
       "date": "2026-06-19",
       "changes": [
-        "härte den Cookidoo-Credential-Store mit RLS, direkten GRANT-Entzügen und Household-FK-Cascade",
-        "snapshotte activeHouseholdId auch für Foto- und Text-Extraktionsjobs, damit asynchrone Imports im korrekten Haushalt landen",
-        "sperre die Haushaltsfreigabe im Settings-Screen sichtbar für Nicht-Owner und liefere die Owner-Berechtigung im Status-API-Response mit"
+        "h\u00e4rte den Cookidoo-Credential-Store mit RLS, direkten GRANT-Entz\u00fcgen und Household-FK-Cascade",
+        "snapshotte activeHouseholdId auch f\u00fcr Foto- und Text-Extraktionsjobs, damit asynchrone Imports im korrekten Haushalt landen",
+        "sperre die Haushaltsfreigabe im Settings-Screen sichtbar f\u00fcr Nicht-Owner und liefere die Owner-Berechtigung im Status-API-Response mit"
       ]
     },
     {
@@ -169,7 +177,7 @@
     }
   ],
   "lastUpdated": {
-    "date": "2026-07-08",
-    "time": "22:05"
+    "date": "2026-08-07",
+    "time": "06:13"
   }
 }

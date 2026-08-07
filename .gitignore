@@ -23,7 +23,22 @@ FilesWorking/
 test/RecipePicture/
 frontend/dist/
 frontend/node_modules/
+# Expo-Web-Export: seit 2026-08-07 reines Build-Artefakt (npm run build:mobile
+# bzw. web-builder-Stage im Dockerfile). Eingecheckt bleiben nur die
+# handgepflegten Quell-Assets darunter (Logo, Icons, Manifest).
+public/_expo/
+public/assets/
+public/*.html
+public/recipe/
+public/(tabs)/
+public/sw.js
 public/sw.js.map
+public/favicon.ico
+public/_sitemap.html
+# Ausnahme: public/changelog.json bleibt getrackt. Die App laedt es zur Laufzeit
+# (mobile/app/(tabs)/settings.tsx), changelog-update.yml committet es, und der
+# Dockerfile kopiert es aus dem Build-Context — fehlt es, zeigt Production nur
+# den Minimal-Stub.
 
 # Performance audit artifacts: only persist history + readiness (CI caches these too)
 artifacts/*
