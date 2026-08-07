@@ -1,10 +1,12 @@
 # Fetchers Codemap
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-08-07 (v1.0.196)
 
-## Overview
+A fetcher downloads source-specific raw content and returns a `ContentBundle`.
+It does **not** know about the database and makes no extraction decision — that
+is `pipeline.ts`.
 
-Fetchers are source-specific content downloaders. Each fetcher returns a `ContentBundle` containing raw data for recipe extraction.
+## The Contract
 
 ```typescript
 interface ContentBundle {
@@ -17,169 +19,155 @@ interface ContentBundle {
   imageUrls: string[];
   audioPath?: string;
   schemaRecipe?: SchemaOrgRecipe | null;
-  isCarousel?: boolean;     // Instagram: carousel detection
-  carouselCount?: number;  // Instagram: number of carousel items
+  isCarousel?: boolean;    // Instagram
+  carouselCount?: number;  // Instagram
 }
 ```
 
-## Web Fetcher
+If a fetcher sets `schemaRecipe`, the pipeline takes the fast path with no LLM
+call. Otherwise it escalates through `textContent` / `subtitles` / `audioPath` /
+`imageUrls`.
 
-**Location:** `src/fetchers/web.ts`
+## Dispatch
 
-**Purpose:** Generic web page scraping
+`pipeline.ts` branches in a `switch (classified.type)`. **There is no plugin
+registry any more** — the `PLUGINS` array was removed in the May 2026 cleanup.
+The `WebScraperPlugin` interface still lives in `src/fetchers/web/base.ts` in
+case it is worth reintroducing.
 
-**Strategy:**
-1. Fetch HTML with User-Agent header
-2. Extract Schema.org JSON-LD (`@type: Recipe`)
-3. Extract main text content via Cheerio selectors
-4. Extract images from `<img>` tags
+## Overview
 
-**Key Functions:**
-- `extractJsonLdRecipes($)` - Parse JSON-LD script tags
-- `findRecipeInJsonLd(data)` - Recursively find Recipe type
-- `extractMainText($)` - Extract readable content
-- `extractImages($, baseUrl)` - Get image URLs
+| Source | File | Lines | Technique | Status |
+|--------|------|-------|-----------|--------|
+| Web (generic) | `web/index.ts` + `web/base.ts` | 309 | fetch + cheerio | ~80%, gaps on uncommon sites |
+| YouTube | `youtube.ts` | — | yt-dlp (audio + subtitles) | ~80% |
+| Instagram | `instagram.ts` | 324 | yt-dlp → Cobalt → web scraping | ~70% |
+| TikTok | `tiktok.ts` | 266 | yt-dlp + frame OCR | ~70% |
+| Cookidoo | `cookidoo.ts` | 576 | web-login session | 100% |
+| Chefkoch | `chefkoch.ts` | 183 | dedicated scraper | ~40% |
+| Pinterest | `pinterest.ts` | 434 | Pinterest API + on-disk credentials | ⚠ effectively dead |
+| Facebook | `facebook.ts` | 300 | yt-dlp + cookie file | ⚠ effectively dead |
+| Cobalt | `cobalt.ts` | 128 | helper service, only used by Instagram | — |
 
-**Cheerio Selectors:**
-```
-[itemtype*="schema.org/Recipe"], .recipe, .recipe-content, #recipe, 
-article, main, .post-content, .entry-content
-```
+## Web — `web/base.ts` + `web/index.ts`
 
-## YouTube Fetcher
+`fetchWeb(url)` is the dispatcher. **All extraction helpers live in `base.ts`**
+and are exported — check there before writing a new helper:
 
-**Location:** `src/fetchers/youtube.ts`
+| Export | Purpose |
+|--------|---------|
+| `extractJsonLdRecipes($)` | Parse `<script type="application/ld+json">` |
+| `findRecipeInJsonLd(data)` | Recursively find `@type: Recipe` |
+| `deepFindRecipe(data)` | Deeper variant for nested graphs |
+| `extractWildJsonLd(html)` | Pull JSON-LD out of broken markup |
+| `extractMicrodataRecipe($)` | Microdata instead of JSON-LD |
+| `extractMainText($)` / `extractMainTextFull($)` | Readable main text |
+| `extractDomBlocks($, maxBlocks)` | DOM blocks as a fallback |
+| `resolveSchemaImage(...)` | Normalise a schema image URL |
+| `extractImages($, baseUrl)` | Make `<img>` URLs absolute |
 
-**Purpose:** YouTube video content extraction
+`src/fetchers/web.ts` is a thin re-export so older import paths keep working.
 
-**Strategy:**
-1. Use `yt-dlp` to download best audio + subtitles
-2. Extract video metadata (title, description)
-3. Return subtitles for LLM extraction
+These helpers are exported deliberately broadly and are therefore excluded from
+the gated knip categories — do not delete them because knip reports them as
+unused exports.
 
-**Output:**
-- `subtitles` - Full transcript text
-- `imageUrls` - Video thumbnail
-- `audioPath` - Local path to downloaded audio
+## YouTube
 
-## Instagram Fetcher
+`fetchYouTube(url, tempDir)` — `yt-dlp` downloads best audio plus subtitles.
+`cleanVTT(vtt)` reduces the VTT to running text. Output: `subtitles`,
+`imageUrls` (thumbnail), `audioPath`. Without subtitles, Whisper takes over.
 
-**Location:** `src/fetchers/instagram.ts`
+## Instagram
 
-**Purpose:** Instagram post/reel extraction with full carousel and fallback support
+Three stages, in this order:
 
-**Strategy:**
-1. Uses `yt-dlp` for video/image download
-2. Detects carousel posts via `media_count` / `children` metadata
-3. Re-downloads with `--yes-playlist` for carousel posts
-4. Extracts description, hashtags, thumbnails as text content
-5. Falls back to web scraping (Cheerio) if yt-dlp fails
+1. `yt-dlp` — detects carousels via `media_count` / `children` and re-downloads
+   with `--yes-playlist`
+2. On failure: **Cobalt** (`fetchWithCobalt`, `downloadFirstCobaltMedia`); the
+   result is merged with a parallel web scrape (images unioned, Cobalt audio
+   preferred). Cobalt is used **only** here.
+3. If Cobalt yields nothing: plain cheerio web scraping
+   (`fetchInstagramWebScraping`)
 
-**Rate Limit Management:**
-- Exponential backoff: 1s, 2s, 4s delays between retries
-- Max 3 retries for rate-limited requests
-- Graceful handling of 429 errors
+Rate limits: exponential backoff 1 s / 2 s / 4 s, max 3 attempts.
+Exports: `extractHashtags`, `detectCarousel`, `tempDirFromFilename`.
 
-**Exported Utilities:**
-- `extractHashtags(text)` - Extract hashtags from caption text
-- `detectCarousel(info)` - Detect carousel from yt-dlp metadata
-- `tempDirFromFilename(filename)` - Extract directory from filename
-- `fetchInstagramWebScraping(url)` - Fallback web scraper
-- `detectCarouselAndDownload(url, tempDir, outTemplate)` - Core download with carousel detection
+## TikTok
 
-**ContentBundle Extensions:**
-- `isCarousel` - Whether post is a carousel (multiple items)
-- `carouselCount` - Number of items in carousel
-- `audioPath` - Path to downloaded video/audio
+`fetchTikTok(url, tempDir, { apiKey })` — yt-dlp for the video, caption as text,
+`prioritizeComments` promotes useful comments.
 
-**Error Handling:**
-- Private/deleted content: Specific error messages
-- Rate limits (429): Automatic retry with backoff
-- yt-dlp failures: Falls back to web scraping
+**Frame OCR:** if `TIKTOK_OCR_ENABLED` is not `false` and `ffmpeg` is present,
+`extractTextFromVideoFrames` cuts up to `TIKTOK_MAX_OCR_FRAMES` (default 10)
+frames and sends them to the vision model. Without `ffmpeg` the OCR is skipped
+silently and the rest keeps working. The BYOK key is passed through.
 
-**Status:** 100% - Full implementation complete (Phase 11)
+## Cookidoo
 
-## TikTok Fetcher
+The largest fetcher (576 lines). Login goes through the Vorwerk CIAM **web
+form** — **not** OAuth2 ROPC, and no Playwright:
 
-**Location:** `src/fetchers/tiktok.ts`
+1. Get a CF clearance from the local scraper service (`CF_SCRAPER_URL`,
+   default `http://localhost:3001`)
+2. `POST https://ciam.prod.cookidoo.vorwerk-digital.com/login-srv/login`,
+   following redirects manually → session cookies
+3. Authenticated HTML fetch against `cookidoo.de`
+4. Parse the JSON-LD, plus dedicated selectors for ingredients, steps and equipment
 
-**Purpose:** TikTok video extraction
+**Session handling** is scope-bound: stored in `cookidoo_credentials.session_*`
+(user or household), in-memory cache plus DB writeback
+(`updateCookidooScopedSession`), invalidated on 401/403. The old on-disk store
+has been removed.
 
-**Strategy:**
-- Uses `yt-dlp` for video download
-- Extracts caption as text content
+**Known quirks:**
+- Cookidoo is behind Cloudflare → the cf-clearance-scraper container is required
+- Steps contain HTML tags and the PUA character `U+E003` (counter-rotation icon)
+  and must be filtered
+- The LLM is **disabled** for Cookidoo — it is unreliable on structured HTML
+- `extractEquipment()` selectors only partially match; open issue
 
-**Status:** 80% - Works via yt-dlp with Video OCR integration (Phase 12)
+## Chefkoch
 
-## Cookidoo Fetcher
+A dedicated fetcher, wired directly into `pipeline.ts` (not through the web
+plugins). `classifyURL` only matches `chefkoch.de/rezepte/…`. Besides
+schema.org it has its own selectors (`extractChefkochIngredients`,
+`extractChefkochSteps`) and `parseGermanPortions` for "für 4 Portionen".
+Test: `test/unit/pipeline-chefkoch.test.ts`.
 
-**Location:** `src/fetchers/cookidoo.ts`
+## Pinterest and Facebook — read this before touching them
 
-**Purpose:** Cookidoo.de recipe extraction via scoped web-login session
+Both fetchers **exist and are called by `pipeline.ts`**, but:
 
-**Auth Flow:**
-- CF-clearance bootstrap via local scraper service
-- Manual redirect-following login against Vorwerk CIAM
-- Scoped session invalidation on 401/403
+- `/api/v1/pinterest/*` and `/api/v1/facebook/*` return **`501`** since
+  2026-08; the associated credential handling was removed as orphaned code.
+- `pinterest.ts` reads OAuth tokens from `data/pinterest-credentials.json`,
+  `facebook.ts` reads cookies from `data/facebook-cookies.txt`. Those files can
+  now only be placed there **by hand**.
 
-**Endpoints:**
-- Clearance: `POST {CF_SCRAPER_URL}/cf-clearance-scraper`
-- Login: `GET cookidoo.de/profile/...` -> `POST ciam.prod.cookidoo.vorwerk-digital.com/login-srv/login`
-- Recipes: standard authenticated HTML fetch against `cookidoo.de`
+In practice both paths fail without manual files, which is why the roadmap lists
+them at 0%. `src/middleware/facebook-rate-limit.ts` additionally limits the
+Facebook path to 1 request/minute. Facebook changes its cookie format
+regularly — even with a manual file the path is brittle.
 
-**Session Management:**
-- Stored per scope in `cookidoo_credentials.session_*`
-- In-memory cache plus scoped DB writeback
-- Legacy disk files are ignored and removed best-effort
-
-**Strategy:**
-1. Fast path: Schema.org JSON-LD in response
-2. Fallback: Cheerio selectors (`.recipe-card`, `.recipe-detail`)
-
-**Status:** 100% - Fully implemented
-
-## Pinterest Fetcher
-
-**Location:** `src/fetchers/pinterest.ts`
-
-**Purpose:** Pinterest pin extraction via Pinterest API
-
-**Strategy:**
-- OAuth2 authentication with Pinterest API
-- Proxy support for API calls
-- Extracts pin metadata, images, and description
-
-**Status:** 70% - Implemented via Pinterest API + Proxy (Phase 13)
-
-## Facebook Fetcher
-
-**Location:** `src/fetchers/facebook.ts`
-
-**Purpose:** Facebook post/reel extraction with cookie management
-
-**Strategy:**
-- Cookie-based authentication (Netscape format)
-- Rate limiting with exponential backoff
-- Video-only extraction (ToS compliance)
-- ToS warning display before import
-
-**Rate Limit Management:**
-- Exponential backoff: 1s, 2s, 4s, 8s delays between retries
-- Max 5 retries for rate-limited requests
-- Domain-specific cookie validation
-
-**Status:** 70% - Implemented with cookie management + rate limiting (Phase 14)
-
-## Dependencies
-
-All fetchers depend on:
-- `src/types.ts` - `ContentBundle`, `SourceType`, `SchemaOrgRecipe`
-- External CLI: `yt-dlp` (installed on host)
+Either revive them properly or delete them; the current half-state is the worst
+of both.
 
 ## Adding a New Fetcher
 
-1. Create `src/fetchers/{source}.ts`
-2. Export function: `export async function fetch{Source}(url: string, tempDir?: string): Promise<ContentBundle>`
-3. Add case in `src/pipeline.ts` switch statement
-4. Add regex pattern in `src/classifier.ts`
-5. Add type to `SourceType` in `src/types.ts`
+1. `src/fetchers/<source>.ts` with
+   `export async function fetch<Source>(url, tempDir?): Promise<ContentBundle>`
+2. Reuse the helpers from `web/base.ts` instead of writing new ones
+3. Add the regex in `src/classifier.ts` — **order matters**
+4. Extend `SourceType` in `src/types.ts`
+5. Add the `case` in `pipeline.ts`
+6. Add a test under `test/unit/<source>.test.ts`
+
+## External Dependencies
+
+`yt-dlp` must be installed on the host (included in the Docker image).
+`ffmpeg` is optional and only relevant for TikTok OCR. Audio transcription runs
+against the Groq Whisper API — no local `whisper-cpp`.
+
+`npx tsx scripts/ytdlp-health-check.ts` checks the yt-dlp version. An outdated
+yt-dlp has repeatedly been the cause of "import suddenly stopped working".
