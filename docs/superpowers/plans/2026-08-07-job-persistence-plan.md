@@ -1,8 +1,11 @@
-# Plan: Extraktions-Jobs persistieren
+# Plan: Extraktions-Jobs — Robustheit und Persistenz
 
-**Stand:** 2026-08-07 · **Status:** ENTWURF
-**Ziel:** Jobs überleben einen Prozessneustart, und das Polling funktioniert
-auch mit mehr als einer Server-Instanz.
+**Stand:** 2026-08-07, überarbeitet nach `/plan-eng-review` · **Status:** ENTWURF
+
+> **Was sich in der Review geändert hat.** Die erste Fassung stellte die
+> Job-Tabelle in den Mittelpunkt. Die Prüfung gegen den Client hat gezeigt: die
+> beiden wertvollsten Fixes brauchen keine Tabelle, und der schlimmste
+> Nutzereffekt ist ein anderer als angenommen. Die Reihenfolge ist umgedreht.
 
 ---
 
@@ -17,128 +20,142 @@ auch mit mehr als einer Server-Instanz.
  */
 ```
 
-Vor der Supabase-Migration gab es echte Persistenz. Commit `857606f`
-(„Phase 2 — SQLite durch Supabase ersetzen") hat sie entfernt:
-
-> `job-manager.ts`: SQLite-Persistenz → in-memory Map (Jobs sind transient)
-
-403 Zeilen wurden auf eine `Map` reduziert. Das war zu dem Zeitpunkt richtig:
-Single-User, eine Instanz, lokale Datei. **Was sich seitdem geändert hat, ist
-der Kontext** — Multi-User seit Juni 2026, öffentlich geplant, Redeploy bei
-jedem Merge auf `main`. Dieser Plan revidiert die Annahme, nicht die damalige
-Entscheidung.
+`857606f` („SQLite durch Supabase ersetzen") hat 403 Zeilen Persistenz auf eine
+`Map` reduziert. Für Single-User auf einer Instanz war das richtig. Was sich
+geändert hat, ist der Kontext — nicht die damalige Entscheidung.
 
 ---
 
-## Was heute konkret kaputt ist
+## Korrektur: der Nutzer sieht keinen 404
 
-### 1. Redeploy mitten im Job → `404`, nicht „fehlgeschlagen"
-
-Eine Extraktion dauert 30–90 Sekunden. In diesem Fenster ist ein Neustart —
-Deploy nach Merge, OOM, Northflank-Restart — vollständiger Datenverlust für
-den Job. Der nächste Poll trifft auf `src/routes/extraction.ts:138`:
+Die erste Planfassung behauptete, ein Redeploy mitten im Job zeige dem Nutzer
+einen `404`. Der Client verwirft ihn:
 
 ```ts
-const job = jobManager.getJob(jobId);
-if (!job) {
-  return c.json({ error: "Job not found" }, 404);
-}
+// mobile/app/(tabs)/extract.tsx:195
+if (!res.ok) return; // transient error, keep polling
 ```
 
-Der Nutzer sieht keinen fehlgeschlagenen Import, sondern einen Job, den es nie
-gegeben hat. `completeJob` wird nie erreicht, also feuert auch die
-Web-Push-Benachrichtigung nicht.
+Es gibt keine Obergrenze für Poll-Versuche; das Intervall wird nur bei
+`completed` oder `failed` gestoppt. **Das reale Symptom ist ein Spinner, der
+auf dem letzten Fortschrittswert stehen bleibt und nie endet.**
 
-### 2. Horizontale Skalierung ist ausgeschlossen
-
-Bei zwei Instanzen hinter einem Load Balancer legt `POST /extract/react` den
-Job auf Instanz A an; `GET /extract/react/:jobId` landet je nach Routing auf
-Instanz B, die ihn nicht kennt → `404` bei etwa jedem zweiten Poll.
-
-Folgen:
-
-- Die App ist auf **genau eine** Instanz festgenagelt
-- Kein Rolling Deploy ohne Lücke — während der Umschaltung existieren
-  entweder zwei Instanzen (Polling kaputt) oder null
-- Lastspitzen nur vertikal abfangbar
-
-### 3. `/extract/jobs` ist in einer Multi-User-App schlicht falsch
-
-`src/routes/extraction.ts:205`:
+Zweiter, schwerwiegenderer Fund im selben Codepfad:
 
 ```ts
-const jobs = jobManager
-  .getRecentJobs(limit)          // die global neuesten 50 Jobs
-  .filter((job) => job.userId === auth.userId);
+// mobile/app/(tabs)/extract.tsx:234
+const failureMessage = status.result?.error || status.message || 'Extraktion fehlgeschlagen';
 ```
 
-Erst global sortieren und kappen, **dann** auf den Aufrufer filtern. Bei
-mehreren aktiven Nutzern bekommt jemand eine leere Liste, obwohl er eigene
-Jobs hat — sie liegen einfach nicht unter den global neuesten 50. Mit einer
-Tabelle wird daraus ein `WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`
-und das Problem verschwindet.
+`failJob` schreibt den Fehler **top-level** (`job-manager.ts:136`), und
+`jobToEvent` gibt ihn top-level zurück (`job-manager.ts:176`). Das
+`JobStatus`-Interface des Clients (`extract.tsx:56-71`) kennt aber gar kein
+top-level `error` — nur `hint`, das korrekt gelesen wird. `result` ist auf
+**jedem** `failJob`-Pfad `undefined`.
 
-### 4. `config.jobs` ist komplett tot
+Konsequenz: **Kein einziger Fehlertext aus `failJob` wird jemals angezeigt.**
+Der Nutzer sieht stattdessen `status.message`, also die letzte Stage-Meldung
+(„Inhalte werden abgerufen (facebook)…"). Das betrifft jeden fehlgeschlagenen
+Import, nicht nur den Neustart-Fall.
 
-```
-$ grep -rn "config.jobs" src --include=*.ts
-(keine Treffer)
-```
+Beides zusammen heißt: **die teuerste Arbeit (Tabelle) liefert weniger
+Nutzerwert als zwei Zeilen im Client.**
 
-Alle drei Werte werden nirgends gelesen:
+---
 
-| Variable | Dokumentierte Wirkung | Tatsächliche Wirkung |
-|---|---|---|
-| `JOB_CLEANUP_DAYS` | alte Jobs verwerfen | **keine** — `cleanupOldJobs()` wird nie aufgerufen |
-| `MAX_CONCURRENT_JOBS` | parallele Extraktionen begrenzen | **keine** — es gibt gar keine Begrenzung |
-| `POLL_INTERVAL_MS` | Poll-Intervall | **keine** serverseitig |
+## Die Probleme, nach tatsächlichem Wert sortiert
 
-Zwei davon sind eigenständige Probleme:
+| # | Problem | Beleg | Aufwand |
+|---|---|---|---|
+| 1 | Fehlertexte werden nie angezeigt | `extract.tsx:234` liest `result?.error`, Server schreibt top-level | ~2 Zeilen |
+| 2 | Endlos-Spinner nach Neustart | `extract.tsx:195` verwirft jeden non-ok | ~10 Zeilen |
+| 3 | Kein Concurrency-Limit | `grep -rn "config.jobs" src` → nichts | ~15 Zeilen |
+| 4 | Kein Cleanup, Map wächst unbegrenzt | `cleanupOldJobs` wird nie aufgerufen | ~5 Zeilen |
+| 5 | Cancel stoppt die Pipeline nicht | `extraction.ts:182` setzt nur `failJob`, `completeJob` bei `:476` macht es rückgängig | ~20 Zeilen |
+| 6 | Jobs überleben keinen Neustart | `getJob` → Map-Miss | Tabelle, ~1 Tag |
+| 7 | Kein horizontales Skalieren | Polling trifft die falsche Instanz | Tabelle + SIGTERM |
 
-- **Kein Cleanup** → die `Map` wächst über die gesamte Prozesslaufzeit. Bisher
-  unauffällig, weil häufig deployt wird — also ein Leck, das ausgerechnet
-  durch Problem 1 kaschiert wird.
-- **Kein Concurrency-Limit** → zehn gleichzeitige Importe starten zehn
-  parallele yt-dlp-/Groq-Pipelines. Bei einer Instanz mit begrenztem RAM ist
-  das der wahrscheinlichste Weg zu einem OOM — und der löst wiederum
-  Problem 1 aus.
+Probleme 3 und 4 sind zusätzlich die **Ursache** von Problem 6: unbegrenzte
+parallele Extraktionen mit je einem vollständigen Base64-Foto im Speicher
+(`extraction.ts:264`) sind der wahrscheinlichste Weg zu einem OOM — und ein OOM
+ist ein Neustart.
 
 ---
 
 ## Was der Fix *nicht* löst
 
-Wichtig für die Erwartung: Persistenz rettet den **Job-Status**, nicht die
-**laufende Arbeit**. Stirbt der Prozess während des Groq-Calls, ist der
-Download weg. Der Gewinn ist:
+Persistenz rettet den **Job-Status**, nicht die **laufende Arbeit**. Stirbt der
+Prozess während des Groq-Calls, ist der Download weg.
 
-- der Nutzer sieht „fehlgeschlagen, bitte erneut versuchen" statt `404`
-- Polling funktioniert über Instanzgrenzen hinweg
-- die Job-Liste stimmt
+Verschärfend, und in der ersten Fassung übersehen: `photoDataStore` und
+`textDataStore` (`extraction.ts:16-18`) sind zwei **weitere** prozesslokale
+Maps, ebenfalls per `jobId` verschlüsselt. Ein persistierter Foto- oder
+Textjob ist nach einem Neustart **grundsätzlich nicht fortsetzbar** — die
+Eingabedaten sind weg. Für diese Jobtypen kann Persistenz nur eines liefern:
+ein ehrliches `failed` statt eines Endlos-Spinners.
 
-Echte Wiederaufnahme bräuchte eine Work-Queue mit Lease/Heartbeat und
-idempotenten Pipeline-Schritten. Das ist eine deutlich größere Nummer und
-**ausdrücklich nicht Teil dieses Plans** — siehe „Später, falls nötig".
+Beide Maps werden korrekt in `finally` geleert (`:326`, `:419`) — kein Leck,
+aber während der Laufzeit hält jeder aktive Fotojob sein volles Base64 im RAM.
+Siehe Problem 3.
 
 ---
 
-## Design
+## Slices
 
-### Tabelle
+### Slice 1 — Client: ehrliches Scheitern (sofort, ~15 Zeilen)
+
+Größter Nutzergewinn pro Zeile im ganzen Plan.
+
+- `JobStatus`-Interface um top-level `error?: string` erweitern
+- `const failureMessage = status.error || status.result?.error || status.message || …`
+- Poll-Schleife: 404 auf einen Job, der schon einmal geantwortet hat, ist
+  **terminal** — Intervall stoppen, Meldung „Import unterbrochen (vermutlich
+  Serverneustart). Bitte erneut versuchen."
+- Zusätzlich eine harte Obergrenze (z. B. 300 Polls ≈ 5 min), damit kein
+  Spinner ewig läuft
+- Tests in `mobile/test/`: 404-nach-Erfolg beendet das Polling; `error`
+  top-level wird gerendert; Timeout greift
+
+### Slice 2 — Server: die zwei toten Config-Werte scharfschalten (~20 Zeilen)
+
+- Semaphore um `processJobInBackground` / `processPhotoJobInBackground` /
+  `processTextJobInBackground` aus `config.jobs.maxConcurrent`. Bei
+  Überschreitung `429` mit deutschem Klartext, **nicht** eine elfte parallele
+  Pipeline
+- `setInterval(() => jobManager.cleanupOldJobs(config.jobs.cleanupDays), …)`
+  beim Serverstart, Intervall stündlich
+- Tests: Limit greift; Cleanup entfernt alte und behält junge Jobs
+
+Damit sind `MAX_CONCURRENT_JOBS` und `JOB_CLEANUP_DAYS` erstmals wirksam.
+
+### Slice 3 — Cancel reparieren (~20 Zeilen)
+
+`DELETE /extract/react/:jobId` setzt heute nur `failJob`; die Pipeline läuft
+weiter und `completeJob` (`extraction.ts:476`) macht die Stornierung
+rückgängig. Ein `AbortController` pro Job, im `jobManager` gehalten, in
+`onEvent` geprüft. Test: Cancel während `fetching` → Job bleibt `failed`.
+
+> Wichtig **vor** Slice 4: sonst wird die Wiederauferstehung in die Datenbank
+> geschrieben.
+
+### Slice 4 — Tabelle und Write-Through (~1 Tag)
+
+Erst hier, und nur wenn Slice 1–3 den Schmerz nicht schon ausreichend gelöst
+haben.
 
 ```sql
 create table public.extraction_jobs (
-  id                  text primary key,          -- bestehendes Format job_<ts>_<rand>
+  id                  text primary key,
   url                 text not null,
-  status              text not null,             -- pending | running | completed | failed
+  status              text not null,
   progress            integer not null default 0,
   current_stage       text null,
   message             text null,
-  result              jsonb null,
+  result              jsonb null,          -- SLIM, siehe unten
   error               text null,
   hint                text null,
-  user_id             uuid null,
+  user_id             uuid null references auth.users(id) on delete cascade,
   active_household_id uuid null,
-  user_agent          text null,
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now(),
   started_at          timestamptz null,
@@ -149,169 +166,160 @@ create table public.extraction_jobs (
 
 create index extraction_jobs_user_created_idx
   on public.extraction_jobs (user_id, created_at desc);
-create index extraction_jobs_active_url_idx
-  on public.extraction_jobs (url) where status in ('pending','running');
-```
 
-Plus, analog zu `20260619113000_harden_cookidoo_credentials_store.sql`:
-
-```sql
 alter table public.extraction_jobs enable row level security;
 revoke all on table public.extraction_jobs from anon, authenticated;
 ```
 
-Zwei bewusste Abweichungen von der bestehenden Struktur:
+Vier Entscheidungen, die aus der Review stammen:
 
-- **`result` als `jsonb`, nicht `text`.** Die JSON-als-`text`-Spalten bei
-  `recipes` sind ein SQLite-Erbe (siehe `docs/CODEMAPS/DATABASE.md`). Eine
-  neue Tabelle muss diesen Fehler nicht wiederholen.
-- **`apiKeyHash` wird nicht persistiert.** Das Feld existiert heute auf dem
-  In-Memory-Job. Es in die Datenbank zu schreiben, würde einen
-  BYOK-Schlüssel-Hash dauerhaft ablegen — ohne dass ein Aufrufer ihn nach dem
-  Job-Start noch liest. Prüfen und, wenn bestätigt, beim Umbau ganz fallen
-  lassen.
+**`result` wird beschnitten.** `completeJob` bekommt heute
+`{ success, recipeId, recipe: recipeData, imageSuggestions }`, und
+`recipeData.imageUrl` darf ein Data-URL bis 500 KB sein
+(`extraction.ts:307-309`). Das vollständige Objekt zu persistieren hieße bis zu
+500 KB Base64 pro Fotojob in der Tabelle — verdoppelt zu `recipes.image_url`.
+Gespeichert wird nur `{ success, recipeId, imageSuggestions, qualityWarnings,
+nutritionEstimated, error }`. Das `recipe`-Objekt bleibt im Speicher-Cache für
+die laufende Polling-Session.
 
-### Write-Through statt Read-Through
+> Nebenbefund: `jobToEvent` schickt `result` bei **jedem Poll** an den Client —
+> heute also potenziell 500 KB Base64 pro Sekunde. Das ist ein bestehender
+> Bug, unabhängig von diesem Plan, und sollte in Slice 1 mit erledigt werden.
 
-Die `Map` bleibt als Prozess-Cache erhalten; jede Mutation schreibt zusätzlich
-in die Tabelle. `getJob` liest aus der Map und fällt bei einem Miss auf die DB
-zurück. So kostet der häufigste Pfad (Polling durch dieselbe Instanz, die den
-Job hält) keine zusätzliche Query, und der Cross-Instanz-Fall funktioniert
-trotzdem.
+**Keine Fire-and-forget-Writes.** Die erste Fassung widersprach sich hier
+selbst. `emit()` in `pipeline.ts:47-49` **awaitet** `onEvent` bereits, also ist
+ein awaiteter Single-Row-Update pro Stage kostenlos. Unawaitete parallele
+Updates könnten out-of-order landen und `completeJob` überschreiben. Also:
+durchgängig `await`.
 
-Schreibvolumen pro Job: `createJob`, `startJob`, ~5× `updateJob` (eine pro
-Pipeline-Stage), `completeJob`/`failJob` — also **7–8 Writes**. Für Postgres
-belanglos.
+**Kein Map-Cache.** Die erste Fassung wollte einen Write-Through-Cache „für den
+heißen Pfad". Der heiße Pfad ist ein Primary-Key-Lookup pro Sekunde pro aktivem
+Job. Der Cache kauft nichts und erzeugt Kohärenzfragen. Die Map entfällt.
 
-### Die eigentliche mechanische Arbeit: sync → async
+**`apiKeyHash` entfällt ganz.** Nichts in `src/` oder `mobile/` liest das Feld;
+es wird aktuell sogar an den Client serialisiert (`extraction.ts:210`). Weder
+persistieren noch behalten.
 
-Alle `JobManager`-Methoden sind heute **synchron**. Mit DB-Schreibzugriff
-werden sie `async`, und jeder Aufrufer muss `await`en.
+Aufrufer: **alle in `src/routes/extraction.ts`.** Methoden werden `async`,
+`createTestInstance` bekommt einen In-Memory-Fake-Store als Dependency.
 
-Gute Nachricht: **alle Produktivaufrufer liegen in einer einzigen Datei**,
-`src/routes/extraction.ts`. Verteilung:
+### Slice 5 — SIGTERM statt Start-Sweep
 
-| Methode | Aufrufe |
-|---|---|
-| `updateJob` | 7 |
-| `failJob` | 7 |
-| `getJob` | 5 |
-| `createJob` | 5 |
-| `startJob` | 3 |
-| `completeJob` | 3 |
-| `getRecentJobs`, `jobToEvent`, `isUrlProcessing`, `getJobEventsSince` | je 1 |
+Die erste Fassung wollte beim **Start** alle `running`-Jobs auf `failed`
+setzen. Das ist falsch herum: bei einem Rolling Deploy laufen kurz zwei
+Instanzen, und die neue würde die lebenden Jobs der alten abschießen — genau
+das Ereignis, für das der Sweep gedacht war.
 
-Dazu die Tests: `test/unit/job-manager.test.ts`,
-`test/unit/job-completion-push.test.ts`, `test/unit/photo-extraction.test.ts`.
-`JobManager.createTestInstance` mit injizierbaren Dependencies existiert
-bereits — dort kommt ein In-Memory-Fake-Store als vierte Dependency dazu,
-damit die Unit-Tests ohne Datenbank laufen.
+Richtig: `process.on('SIGTERM')` in `src/index.ts` (existiert heute nicht), die
+**eigenen** in-flight Jobs auf `failed` setzen mit
+`error: "Serverneustart während der Verarbeitung"`, dann beenden. Korrekt unter
+Rolling Deploys, kein `worker_id`, kein Heartbeat.
 
-Die Fire-and-forget-Aufrufe im async-Pfad (`updateJob` innerhalb von
-`onEvent`) dürfen den Pipeline-Lauf nicht blockieren oder abbrechen: ein
-fehlgeschlagener Status-Write ist ein geloggter Fehler, kein Jobabbruch.
+Ein Heartbeat-Modell (`worker_id` + `last_heartbeat_at`) braucht es erst, wenn
+Instanzen **hart** sterben (OOM, SIGKILL). Bis dahin bleibt ein Job dann
+`running` in der Tabelle — sichtbar, aber nicht falsch.
 
----
+### Slice 6 — Doku
 
-## Slices
-
-### Slice 1 — Tabelle und Store
-
-Migration, `src/schema.ts`, RLS, Zugriffsfunktionen in `db-react.ts`
-(`insertJob`, `updateJobRow`, `loadJob`, `listJobsForUser`,
-`findActiveJobByUrl`, `deleteJobsOlderThan`). Abdeckung in
-`scripts/supabase/rls-smoke.ts`: Nutzer A sieht die Jobs von Nutzer B nicht.
-
-Noch kein Verhaltenswechsel — nur die Infrastruktur.
-
-### Slice 2 — JobManager auf Write-Through umbauen
-
-Methoden `async`, `src/routes/extraction.ts` durchgängig `await`en,
-Store-Dependency in `createTestInstance` ergänzen, bestehende Tests grün
-halten. `getJob` mit DB-Fallback bei Cache-Miss.
-
-Danach überlebt ein Job den Neustart, und Polling funktioniert
-instanzübergreifend.
-
-### Slice 3 — Die Folgeprobleme mitnehmen
-
-Sie hängen alle am selben Umbau und sollten nicht als Restposten liegen
-bleiben:
-
-- `/extract/jobs` auf `listJobsForUser(userId, limit)` umstellen — behebt
-  Problem 3
-- `cleanupOldJobs` an `config.jobs.cleanupDays` hängen und tatsächlich
-  aufrufen (Intervall beim Serverstart oder direkt als SQL-Delete beim
-  Job-Anlegen)
-- Concurrency-Limit aus `config.jobs.maxConcurrent` durchsetzen: bei
-  Überschreitung `429` mit klarer deutscher Meldung statt eines elften
-  parallelen yt-dlp-Prozesses
-- `isUrlProcessing` gegen die Tabelle statt gegen die Map — sonst ist die
-  Doppel-Import-Sperre instanzlokal und damit wirkungslos
-
-### Slice 4 — Verwaiste Jobs beim Start aufräumen
-
-Nach einem Neustart stehen Jobs mit Status `running` in der Tabelle, an denen
-niemand mehr arbeitet. Beim Serverstart einmalig alle `pending`/`running`-Jobs
-auf `failed` setzen mit `error: "Serverneustart während der Verarbeitung"` und
-einem `hint`, der zum erneuten Versuch auffordert.
-
-> **Achtung bei Slice 4 und mehreren Instanzen:** Der Start-Sweep würde die
-> laufenden Jobs der *anderen* Instanz abschießen. Solange nur eine Instanz
-> läuft, ist das unkritisch. Vor dem Scale-out muss der Sweep durch ein
-> Heartbeat-Modell ersetzt werden (Job trägt `worker_id` + `last_heartbeat_at`,
-> verwaist gilt ab „kein Heartbeat seit N Minuten"). **Das ist die eigentliche
-> Voraussetzung für Skalierung** — Slice 1–3 machen das Polling
-> instanzübergreifend korrekt, Slice 4 in seiner einfachen Form nicht.
-
-### Slice 5 — Doku
-
-`CLAUDE.md`, `docs/CODEMAPS/ARCHITECTURE.md` und `docs/CODEMAPS/BACKEND.md`
-beschreiben den In-Memory-Zustand aktuell korrekt inklusive seiner Folgen. Das
-muss mit dem Umbau angepasst werden — im selben PR, nicht später.
+`CLAUDE.md`, `docs/CODEMAPS/ARCHITECTURE.md`, `docs/CODEMAPS/BACKEND.md` im
+selben PR.
 
 ---
 
-## Reihenfolge und Aufwand
+## Ausdrücklich gestrichen
+
+**`/extract/jobs` reparieren.** Die erste Fassung führte als Problem #3, dass
+der Endpunkt die global neuesten 50 Jobs holt und *danach* filtert. Das stimmt
+— aber `grep -rn "extract/jobs" mobile/` findet **keinen einzigen Konsumenten**.
+Der Endpunkt wird von nichts aufgerufen. Entweder löschen oder liegen lassen;
+er ist kein Headline-Outcome.
+
+**„Nutzer A sieht die Jobs von Nutzer B nicht" als RLS-Smoke-Kriterium.** Der
+Server verbindet über `DATABASE_URL` als Rolle `postgres` (`.env.example:41`)
+und **umgeht RLS**. `enable row level security` + `revoke all … from anon,
+authenticated` ohne Policies ist ein **Deny-all für die PostgREST-Data-API**,
+kein Per-User-Scoping. Ein rls-smoke-Test „A sieht B nicht" würde vakuum
+bestehen, weil beide nichts sehen.
+
+Die Grenze, die hier tatsächlich zählt, ist `authorizeJobAccess`
+(`extraction.ts:42-53`). Sie gehört durch einen **Server-Contract-Test mit zwei
+echten Tokens** abgesichert, nicht durch rls-smoke. Der Deny-all bleibt
+trotzdem richtig und wird gesetzt — nur mit korrekter Begründung.
+
+---
+
+## Testabdeckung
 
 ```
-Slice 1 (Tabelle + RLS)
-   ▼
-Slice 2 (Write-Through, sync → async)
-   ▼
-Slice 3 (Job-Liste, Cleanup, Concurrency, Doppel-Import-Sperre)
-   ▼
-Slice 4 (Start-Sweep)  ──► Heartbeat erst vor dem Scale-out
-   ▼
-Slice 5 (Doku)
+CODE PATHS                                        USER FLOWS
+[+] mobile/app/(tabs)/extract.tsx                 [+] Import mit Serverneustart
+  ├── Poll-Schleife                                 ├── [GAP] Redeploy → terminale Meldung
+  │   ├── [GAP] 404 nach Erfolg → terminal          └── [GAP] Poll-Timeout nach 5 min
+  │   ├── [GAP] 404 vor erstem Erfolg → weiter
+  │   └── [GAP] Poll-Obergrenze erreicht          [+] Fehleranzeige
+  └── Fehleranzeige                                 ├── [GAP] failJob-Text sichtbar
+      └── [GAP] status.error top-level              └── [★★ TESTED] hint — extract-bug-reporting
+
+[+] src/routes/extraction.ts                      [+] Lastspitze
+  ├── Semaphore                                     └── [GAP] 11. Import → 429 mit Klartext
+  │   ├── [GAP] unter Limit → läuft
+  │   └── [GAP] über Limit → 429
+  └── Cancel
+      └── [GAP] Cancel während fetching → failed bleibt failed
+
+[+] src/job-manager.ts
+  ├── [★★★ TESTED] createJob/complete/fail — job-manager.test.ts
+  ├── [★★★ TESTED] Push bei completeJob — job-completion-push.test.ts
+  ├── [GAP] cleanupOldJobs per Intervall
+  └── [GAP] Write-Through: await-Reihenfolge, completeJob nicht überschrieben
+
+[+] Auth-Grenze
+  └── [GAP] [→E2E] Nutzer B pollt Job von Nutzer A → 403/404 (zwei echte Tokens)
+
+COVERAGE: 3/16 Pfade   |  GAPS: 13 (1 E2E)
 ```
 
-| Slice | Umfang |
-|---|---|
-| 1 | ~2 h inkl. RLS-Smoke |
-| 2 | ~3 h, die Hälfte davon Tests |
-| 3 | ~2 h |
-| 4 | ~1 h |
-| 5 | ~30 min |
+**Regression-Regel:** Der Fehlertext-Bug (`result?.error`) ist eine
+Regression — bestehendes Verhalten, das nie funktioniert hat und niemandem
+auffiel. Der Test dafür ist **kritisch** und nicht verhandelbar.
 
-Insgesamt ein guter Tag. Risikoarm, weil der Aufrufkreis auf eine Datei
-begrenzt ist und die Tests bereits eine injizierbare Instanz nutzen.
+## Failure Modes
 
----
+| Codepfad | Realistischer Fehler | Test? | Error-Handling? | Nutzer sieht? |
+|---|---|---|---|---|
+| Poll nach Redeploy | 404 | GAP | nein — `return` | **nichts, Endlos-Spinner** ⚠️ kritisch |
+| `failJob` | jeder Importfehler | GAP | ja, serverseitig | **falschen Text** ⚠️ kritisch |
+| Parallele Fotoimporte | OOM | GAP | nein | Neustart, alle Jobs weg ⚠️ kritisch |
+| Cancel | Wiederauferstehung | GAP | nein | „fertig" nach Abbruch |
+| DB-Write in `updateJob` | Postgres-Timeout | GAP | geplant: loggen | nichts (korrekt) |
 
-## Später, falls nötig
+Drei kritische Lücken: kein Test, kein Error-Handling, stiller Fehler.
 
-Echte Wiederaufnahme unterbrochener Extraktionen — Work-Queue mit
-Lease/Heartbeat, idempotente Pipeline-Schritte, Retry mit Backoff. Das lohnt
-sich erst, wenn Importe teuer genug sind, dass ein Neuversuch wehtut, oder
-wenn mehrere Worker laufen sollen. Bis dahin ist „ehrlich scheitern und der
-Nutzer drückt nochmal" die richtige Menge Komplexität.
+## Parallelisierung
 
----
+| Lane | Slices | Module |
+|---|---|---|
+| A | 1 | `mobile/app/(tabs)/extract.tsx`, `mobile/test/` |
+| B | 2, 3 | `src/routes/extraction.ts`, `src/job-manager.ts`, `src/index.ts` |
+| C | 4, 5 | dieselben Module wie B → **muss nach B** |
+
+Lane A und B sind unabhängig und laufen parallel. Lane C wartet auf B
+(Konflikt in `extraction.ts` und `job-manager.ts`).
+
+## Aufwand
+
+| Slice | Umfang | Nutzen |
+|---|---|---|
+| 1 | ~1 h | hoch — behebt zwei sichtbare Bugs |
+| 2 | ~1 h | hoch — verhindert die OOM-Ursache |
+| 3 | ~1 h | mittel |
+| 4 | ~5 h | mittel — nötig fürs Skalieren |
+| 5 | ~1 h | mittel |
+| 6 | ~30 min | — |
+
+**Slice 1–3 zusammen: ~3 Stunden für den Großteil des Nutzens.**
 
 ## Verwandte Dokumente
 
 - [Master-Plan](2026-08-07-connectors-and-job-persistence-master-plan.md)
-- `docs/CODEMAPS/ARCHITECTURE.md` — Abschnitt „Jobs Live Only in Process Memory"
-- `docs/CODEMAPS/BACKEND.md` — Job Manager
-- Obsidian → `Projekte/RecipeDeck/Entscheidungen.md` — „Offene Punkte ohne ADR"
+- `docs/CODEMAPS/ARCHITECTURE.md` — „Jobs Live Only in Process Memory"

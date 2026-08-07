@@ -1,386 +1,279 @@
-# Plan: Pinterest- und Facebook-Connectors mit Per-User-Credentials
+# Plan: Pinterest- und Facebook-Connectors
 
-**Stand:** 2026-08-07 · **Status:** ENTWURF, wartet auf zwei Entscheidungen
-**Ziel:** Jeder Nutzer hinterlegt seine eigenen Pinterest-/Facebook-Credentials,
-und der Import aus beiden Quellen funktioniert wieder.
+**Stand:** 2026-08-07, überarbeitet nach `/plan-eng-review` · **Status:** ENTWURF
+
+> **Was sich in der Review geändert hat.** Die erste Fassung plante zuerst den
+> Credential-Stack und schob eine Sicherheitslücke hinter zwei offene
+> Entscheidungen. Das ist umgedreht. Außerdem hat die Prüfung eine Behauptung
+> der ersten Fassung widerlegt (siehe „Korrektur").
 
 ---
 
 ## Warum der Zustand so ist
 
-Beide Connectors waren einmal implementiert (`68d89f6` Pinterest, `088d4ac` +
-`2621f92` Facebook). Am 2026-06-09 hat `a6614e7` sie im Zuge der
-Multi-User-Umstellung auf `501` gesetzt — zu Recht: beide legten **einen
-globalen Credential-Satz** auf Disk ab (`data/pinterest-credentials.json`,
-`data/facebook-cookies.txt`). In einer Mehrbenutzer-App hätte jeder Nutzer mit
-dem Account eines anderen importiert. Am 2026-08-07 hat `8f57b08` die
-verwaisten Disk-Helfer entfernt.
+Beide Connectors waren implementiert (`68d89f6` Pinterest, `088d4ac` + `2621f92`
+Facebook). Am 2026-06-09 hat `a6614e7` **die Routen** im Zuge der
+Multi-User-Umstellung auf `501` gesetzt: beide legten einen globalen
+Credential-Satz auf Disk ab. Am 2026-08-07 hat `8f57b08` einen Teil der
+Disk-Helfer entfernt.
 
-Die Fetcher selbst wurden nie deaktiviert — `pipeline.ts` ruft `fetchPinterest`
-und `fetchFacebook` weiterhin auf. Sie laufen also, nur ohne Credentials.
+### Korrektur zur ersten Fassung
 
-Cookidoo hat denselben Weg schon hinter sich (globale Datei → scoped
-Postgres-Zeilen mit RLS, 2026-06-15). **Dieses Muster wird hier kopiert**, nicht
-neu erfunden.
+Die erste Fassung schrieb, die Fetcher „laufen also, nur ohne Credentials", und
+`8f57b08` habe „die verwaisten Disk-Helfer entfernt". Beides ist zu optimistisch.
+
+`a6614e7` hat **nur die Routen** angefasst. Die Fetcher lesen die globalen
+Dateien bis heute:
+
+| Ort | Was |
+|---|---|
+| `src/fetchers/pinterest.ts:12-16` | `CREDENTIALS_FILE = data/pinterest-credentials.json` |
+| `src/fetchers/pinterest.ts:28-41` | `loadCredentialsFromDisk` + `getPinterestCredentials`, prozessweit gecacht |
+| `src/fetchers/pinterest.ts:312-315` | `fetchFromPinterestApi` nutzt sie für **jeden** Nutzer |
+| `src/fetchers/facebook.ts:12-15, 88` | `COOKIE_PATH = data/facebook-cookies.txt`, an yt-dlp gehängt |
+
+`8f57b08` hat laut eigener Commit-Message `getPinterestCredentials` und den
+Disk-Loader **ausdrücklich behalten** („Kept but unexported — these are live
+internals").
+
+`docker-compose.yml` mountet `./data:/app/data`. Liegt eine der beiden Dateien
+in Production, **importiert jeder Nutzer mit fremden Credentials** — genau das
+Loch, das `a6614e7` schließen sollte, nur eine Ebene tiefer. Auf diesem Rechner
+existieren die Dateien nicht; für Production ist das ungeprüft.
+
+Zusätzlich: `data/facebook-cookies.txt` steht **nicht** in `.gitignore` (dort
+stehen nur `data/*.db`, `cookidoo-session.json`, `client_secret_*.json`,
+`gmail-oauth-token.json`). Eine versehentlich abgelegte Cookie-Datei wird
+committet — das ist eine vollständige Facebook-Session im Git-Verlauf.
 
 ---
 
-## Messung statt Vermutung: was heute wirklich passiert
-
-Alles unten wurde am 2026-08-07 gegen die Live-Seiten gemessen, nicht aus dem
-Code abgeleitet.
+## Gemessener Ist-Stand (2026-08-07)
 
 ### Pinterest: anonymes Scraping ist tot
 
-Zwei echte Pins abgerufen (`/pin/1055599405112143/`, `/pin/61713443933/`):
+Zwei echte Pins (`/pin/1055599405112143/`, `/pin/61713443933/`):
 
 | Messung | Ergebnis |
 |---|---|
-| HTTP-Status | 200 |
-| HTML-Größe | ~1,08 MB — für **beide** Pins nahezu identisch (App-Shell, nicht Pin-Inhalt) |
-| `og:title`, `og:description`, `og:image` | **komplett abwesend** |
-| `"link":"…"` im HTML | nicht vorhanden |
-| `__PWS_DATA__`-Payload | 80 KB, enthält `context`, `experiments`, `routeTree` — **keine Pin-Daten**. Kein `grid_title`, kein `seo_description`, kein `link`, kein `rich_metadata` |
-| `yt-dlp` auf den Pin | `ERROR: Unable to download JSON metadata: HTTP Error 403: Forbidden` |
+| HTTP | 200, ~1,08 MB — für beide Pins nahezu identisch (App-Shell) |
+| `og:*`-Tags | **keine** |
+| `"link":"…"` | nicht vorhanden |
+| `__PWS_DATA__` | 80 KB, nur `context`/`experiments`/`routeTree`, **keine Pin-Daten** |
+| yt-dlp 2024.04.09 | `HTTP Error 403: Forbidden` |
 
 Pinterest rendert Pin-Inhalte für anonyme Besucher vollständig client-seitig.
-**Es gibt keinen Scraping-Pfad mehr, der repariert werden könnte.** Die
-Vermutung „jeder Nutzer braucht eigene Credentials" ist damit nicht nur
-sauberer, sondern die einzige Option.
+Es gibt keinen Scraping-Pfad, den man reparieren könnte.
 
-### Pinterest: zwei echte Bugs, unabhängig von Credentials
+### Pinterest: der Fetcher importiert heute JavaScript als Rezept
 
-**Bug 1 — der Fetcher liefert aktuell Müll statt eines Fehlers.**
-`fetchPinterest` gibt für beide Test-Pins zurück:
+`fetchPinterest` liefert für beide Test-Pins:
 
 ```
 url:         https://s.pinimg.com/webapp/www/_/_/accessibility-be939e6aa4c84056.mjs
-type:        web
 textContent: (self.modernJsonp=self.modernJsonp||[]).push([[25550],{868529(e,t,n){…
              — 6000 Zeichen minifiziertes JavaScript
 ```
 
-`findOriginalUrl` prüft Kandidaten mit `!url.includes("pinterest.")`.
-`s.pinimg.com` enthält diese Zeichenkette nicht, rutscht also durch — und
-`fetchWeb()` lädt anschließend ein JS-Bundle, das als Rezepttext ins LLM geht.
-Ein Import „gelingt" damit scheinbar und produziert Unsinn, statt ehrlich zu
-scheitern.
+Ursache: der Guard ist `!url.includes("pinterest.")`, und `s.pinimg.com`
+enthält diese Zeichenkette nicht. Der Guard ist **dreimal dupliziert**:
 
-**Bug 2 — das `__PWS_DATA__`-Muster passt nicht mehr zum Markup.**
-Der Fetcher sucht die Zuweisungsform:
+- `findOriginalUrl` (`pinterest.ts:89`)
+- `extractLinkFromJson` (`pinterest.ts:149`)
+- `extractImagesFromHtml` (`pinterest.ts:234`)
 
-```js
-/__PWS_(?:DATA|INITIAL_PROPS)__\s*=\s*(\{.+?\})(?:\s*;|\s*<)/s
-```
+> Welche der vier Strategien den CDN-Treffer produziert hat, ist **nicht
+> gemessen**. Strategie 3 (`"link":"https://…"`-Regex über rohes HTML,
+> `:120-123`) kann Inline-Bundle-JSON genauso treffen wie Strategie 4. Der Fix
+> muss alle Stellen abdecken, nicht die vermutete.
 
-Ausgeliefert wird heute aber ein JSON-Script-Tag:
+Zweiter Bug: das `__PWS_DATA__`-Muster sucht die Zuweisungsform
+`__PWS_DATA__ = {…}`; ausgeliefert wird `<script id="__PWS_DATA__"
+type="application/json">`. Der Zweig ist wirkungslos.
 
-```html
-<script id="__PWS_DATA__" type="application/json">{…}</script>
-```
+### Facebook: erst die Version prüfen
 
-Der Zweig ist also seit einer Pinterest-Frontend-Änderung wirkungslos. (Selbst
-mit korrigiertem Muster liefert er anonym nichts — siehe Tabelle oben —, aber
-authentifiziert könnte er wieder tragen.)
-
-### Facebook: Versionsproblem, nicht zwingend Codeproblem
-
-| Messung | Ergebnis |
-|---|---|
-| `yt-dlp` auf diesem Rechner | **2024.04.09** |
-| aktuelle Release (PyPI) | **2026.7.4** |
-| Dockerfile | `pip3 install --upgrade yt-dlp` → Production zieht beim Build die aktuelle Version |
-
-Der Entwicklungsrechner läuft mit einem über zwei Jahre alten Binary.
-Facebook ist der versionsempfindlichste Extractor überhaupt.
-**Vor jeder Codeänderung an `facebook.ts` muss lokal aktualisiert werden**,
-sonst debuggt man die falsche Sache. `docs/PROJECT_LEARNINGS.md` führt
-„yt-dlp veraltet" bereits als wiederkehrende Ursache.
-
-`scripts/ytdlp-health-check.ts` existiert, testet aber nur YouTube, Instagram
-und TikTok — **weder Facebook noch Pinterest** — und ist an kein npm-Script und
-keinen CI-Job angeschlossen.
+Lokal läuft yt-dlp **2024.04.09**, aktuell ist **2026.7.4**. Das Dockerfile
+installiert mit `--upgrade`, Production weicht also ab. Facebook ist der
+versionsempfindlichste Extractor. `scripts/ytdlp-health-check.ts` deckt
+Facebook und Pinterest nicht ab und hängt an keinem npm-Script.
 
 ---
 
-## Zwei Entscheidungen, die vor der Umsetzung fallen müssen
+## Slices
 
-### Entscheidung A — Pinterest: welcher Credential-Typ?
+### Slice 0 — Die Lücke schließen (sofort, blockiert durch nichts)
 
-Der bestehende Code erwartet `clientId`, `clientSecret`, `accessToken`,
-`refreshToken` und ruft `GET https://api.pinterest.com/v5/pins/{id}`.
+Das Einzige in diesem Plan, das ein Sicherheitsproblem ist.
 
-Das ist unbequem: Pinterest v5 gibt über diesen Endpunkt regulär nur Pins
-zurück, auf die der authentifizierte Account **Zugriff hat** — typischerweise
-eigene Pins und eigene Boards. Für einen beliebigen fremden Pin, den jemand
-importieren will, ist mit `404`/`403` zu rechnen.
+- `CREDENTIALS_FILE`, `loadCredentialsFromDisk`, `getPinterestCredentials`,
+  `cachedCredentials` und `fetchFromPinterestApi` aus `pinterest.ts` entfernen
+- `COOKIE_PATH`, `hasFacebookCookies` und den `--cookies`-Zweig aus
+  `facebook.ts` entfernen
+- `data/pinterest-credentials.json` und `data/facebook-cookies.txt` in
+  `.gitignore`
+- Best-effort-Löschung beim Start, analog zu `removeLegacyCookidooFiles()`
+  (`cookidoo.ts:39-48`, aufgerufen aus `platforms.ts:17,29,56,73,103`) — eine
+  vergessene Datei auf einem Volume soll verschwinden, nicht liegen bleiben
 
-**Das muss verifiziert werden, bevor der Credential-Stack darauf gebaut wird.**
-Ein Wegwerf-Skript mit einem echten Token gegen (a) einen eigenen Pin, (b) einen
-fremden öffentlichen Pin beantwortet das in zehn Minuten. Fällt (b) durch, ist
-der API-Weg für den eigentlichen Anwendungsfall wertlos und es bleiben:
+~15 Zeilen netto Löschung.
 
-| Option | Aufwand | Nutzen |
-|---|---|---|
-| **A1 — OAuth-App pro Nutzer** (jeder legt eine eigene Pinterest-App an, trägt Client-ID/Secret ein, wir machen den OAuth-Flow) | hoch: OAuth-Redirect, Token-Refresh, Onboarding-Doku | funktioniert nur, wenn (b) klappt |
-| **A2 — eine RecipeDeck-App, Nutzer autorisiert sich** (Standard-OAuth, wir halten Client-ID/Secret serverseitig) | mittel + **Pinterest App Review** für Production-Scopes | bester UX, externe Abhängigkeit mit unklarer Dauer |
-| **A3 — Session-Cookies wie bei Cookidoo** (Nutzer hinterlegt `_pinterest_sess`) | niedrig | juristisch/ToS grenzwertig, Cookies laufen ab, brüchig |
-| **A4 — Pinterest fallen lassen** und stattdessen den Nutzer den Ziel-Link importieren lassen | null | Rezepte auf Pinterest sind fast immer nur Verlinkungen auf echte Rezeptseiten, die wir schon können |
+### Slice 0a — Ehrlich scheitern statt Müll importieren
 
-> **Meine Empfehlung: erst (b) messen, dann entscheiden — und A4 ernsthaft
-> gegen A2 abwägen.** Ein Pinterest-Pin trägt selten das Rezept selbst; er
-> verlinkt auf eine Rezeptseite, die der generische Web-Fetcher bereits
-> beherrscht. Der ganze Credential-Aufbau kauft im Kern eine Zeile: die
-> `link`-Property des Pins. Wenn A2 an einem App-Review hängt, ist A4 plus ein
-> guter Fehlertext („Öffne den Pin und importiere den verlinkten Artikel")
-> möglicherweise das bessere Produkt.
+- Guard durch eine **Host-Denylist** ersetzen (`pinterest.*`, `pinimg.com`),
+  an **allen drei** Stellen; zusätzlich Asset-Endungen (`.mjs`, `.js`, `.css`,
+  `.json`) und Nicht-HTTP-Schemata ausschließen
+- `__PWS_DATA__`-Muster um die Script-Tag-Form ergänzen
+- Ohne verwertbaren Originallink oder Text: **Fehler werfen** —
+  „Pinterest liefert ohne Anmeldung keine Pin-Daten mehr. Bitte den verlinkten
+  Artikel direkt importieren."
+- Tests in `test/unit/pinterest.test.ts`: CDN-URL abgelehnt (alle drei
+  Codepfade), Script-Tag-Form geparst, leeres Ergebnis wirft
 
-### Entscheidung B — Facebook: Session-Cookies serverseitig speichern?
+### Slice 0b — yt-dlp-Realität herstellen
 
-Der Facebook-Pfad braucht `--cookies` für yt-dlp. Diese Cookies sind eine
-**vollwertige Facebook-Session** — wer sie hat, ist eingeloggt. Das ist eine
-andere Risikoklasse als ein Cookidoo-Passwort.
+- Lokal `pip3 install --upgrade yt-dlp`, **danach** Facebook neu bewerten
+- `scripts/ytdlp-health-check.ts` um Facebook und Pinterest erweitern, als
+  npm-Script `ytdlp:health`, in den Nightly-CI-Lauf
 
-Verschärfend: `cookidoo_credentials.password` liegt heute **im Klartext** in der
-Datenbank. Das gleiche Muster für Facebook-Cookies zu übernehmen, heißt
-Klartext-Sessionschlüssel in Postgres.
+### Slice 0c — Den Zustand dokumentieren
+
+ADR in `Projekte/RecipeDeck/Entscheidungen.md`: die `501`-Routen sind kein
+Halbzustand mehr, sondern eine Entscheidung mit Begründung. Roadmap in
+`CLAUDE.md` und `docs/CODEMAPS/FETCHERS.md` nachziehen.
+
+**Nach Slice 0–0c ist der Halbzustand beendet.** Aufwand: ein halber Tag.
+
+---
+
+## Optional: der Credential-Stack
+
+Nur bauen, wenn die Messung unten trägt. Bis dahin ist der Zielzustand
+„dokumentiert eingestellt", nicht „gleich kommt der Umbau".
+
+### Vorgelagerte Messung (10 Minuten, braucht einen Pinterest-Developer-Account)
+
+Gibt `GET https://api.pinterest.com/v5/pins/{id}` mit einem echten Token auch
+**fremde** öffentliche Pins heraus, oder nur eigene? Die v5-API ist auf Pins
+ausgelegt, auf die der Account Zugriff hat. Fällt das durch, ist der gesamte
+Credential-Aufbau für den eigentlichen Anwendungsfall wertlos.
+
+Ein Pin trägt außerdem selten das Rezept selbst — er verlinkt auf eine
+Rezeptseite, die der generische Web-Fetcher bereits beherrscht. Der ganze
+Aufbau kauft im Kern **ein Feld**: die `link`-Property.
+
+### Entscheidung B — Facebook-Cookies serverseitig?
+
+Sie sind eine vollwertige Session. `cookidoo_credentials.password` liegt heute
+im Klartext; dasselbe Muster hieße Klartext-Sessionschlüssel in Postgres.
 
 | Option | Bewertung |
 |---|---|
-| **B1 — wie Cookidoo, Klartext + RLS** | konsistent, aber ein DB-Leak wird zur Account-Übernahme |
-| **B2 — verschlüsselt at rest** (`pgcrypto` oder App-seitig mit einem Key aus der Env) | deutlich besser, ~einen halben Tag Mehraufwand, sollte dann auch für Cookidoo gelten |
-| **B3 — Cookies bleiben auf dem Client**, werden pro Job mitgeschickt und nie persistiert | am sichersten, aber der Nutzer muss sie bei jedem Import einfügen |
-| **B4 — Facebook fallen lassen** | Facebook verbietet automatisiertes Scraping in den ToS; der Code loggt diese Warnung heute schon bei jedem Aufruf |
+| B1 Klartext + Deny-all | konsistent, aber ein DB-Leak wird zur Account-Übernahme |
+| B2 verschlüsselt at rest | ~halber Tag mehr, sollte dann auch für Cookidoo gelten |
+| B3 Cookies bleiben im Client, pro Job mitgeschickt | sichersten, Nutzer fügt sie bei jedem Import ein |
+| B4 Facebook einstellen | ToS-konform, aber nicht das, was gewünscht ist |
 
-> **Meine Empfehlung: B2**, und dann Cookidoo im selben Zug mitnehmen. Wenn das
-> zu viel ist: B3 für Facebook, weil es die Speicherfrage ganz vermeidet.
-> B1 würde ich nicht wählen — nicht weil es heute weh tut, sondern weil ein
-> Klartext-Session-Cookie das eine Datum ist, dessen Verlust nicht reparabel ist.
+Empfehlung: **B2**, Cookidoo im selben Zug. Wenn zu viel: B3.
 
-**Hinweis zu den ToS:** Es geht hier um den eigenen Account des Nutzers und den
-eigenen Gebrauch. Trotzdem verstößt automatisiertes Abrufen gegen die
-Facebook-ToS, und Facebook sperrt Accounts, die auffällig werden. Das ist eine
-Entscheidung, die der Betreiber bewusst treffen sollte — der Code trägt die
-Warnung bereits, sie gehört zusätzlich in die UI.
+**ToS-Hinweis:** Es geht um den eigenen Account des Nutzers. Automatisiertes
+Abrufen verstößt trotzdem gegen die Facebook-ToS, und Facebook sperrt Accounts,
+die auffallen. Der Code loggt die Warnung bereits (`facebook.ts:255`); sie
+gehört zusätzlich sichtbar in die UI.
 
----
+### Slice 1 — **Eine** Credential-Tabelle
 
-## Umsetzung in Slices
+Die erste Fassung wollte eine neue generische Tabelle **neben**
+`cookidoo_credentials`. Das wäre halb-DRY: zwei Formen für dasselbe Problem,
+und der nächste Connector muss raten. Stattdessen `cookidoo_credentials` um
+eine `platform`-Spalte erweitern, bestehende Zeilen auf `'cookidoo'` migrieren,
+Tabelle umbenennen. Unique-Indizes werden `(platform, user_id)` bzw.
+`(platform, household_id)`.
 
-Slice 0 ist unabhängig von beiden Entscheidungen und sollte sofort laufen.
-Slice 1–5 setzen Entscheidung A und B voraus.
+Aus der Review zusätzlich:
+- FK `user_id → auth.users(id) on delete cascade` — fehlt heute auch bei
+  `cookidoo_credentials`; ein gelöschter Nutzer hinterlässt sonst
+  Klartext-Credentials
+- `created_by`-Index mitnehmen (existiert bei Cookidoo als
+  `cookidoo_credentials_created_by_idx`)
+- `enable row level security` + `revoke all … from anon, authenticated`
 
-### Slice 0 — Ehrliches Scheitern statt Müll (sofort, klein)
-
-Das Wichtigste zuerst, weil es heute aktiv Schaden anrichtet: ein
-Pinterest-Import produziert ein Rezept aus minifiziertem JavaScript.
-
-- `findOriginalUrl`: Kandidaten gegen eine **Host-Denylist** prüfen statt gegen
-  `includes("pinterest.")` — mindestens `pinterest.*`, `pinimg.com`,
-  `s.pinimg.com`. Zusätzlich Endungen wie `.mjs`, `.js`, `.css`, `.json`
-  ausschließen und nur `http(s)`-Schemata zulassen.
-- Den Body-Text-Regex-Fallback (Strategie 4) entfernen. Er kann per Konstruktion
-  keinen verlässlichen Treffer liefern und ist die Quelle des CDN-Treffers.
-- `__PWS_DATA__`-Muster um die Script-Tag-Form ergänzen.
-- Wenn am Ende weder Originallink noch verwertbarer Text vorliegt: **Fehler
-  werfen** mit deutschem Klartext („Pinterest liefert ohne Anmeldung keine
-  Pin-Daten mehr. Bitte den verlinkten Artikel direkt importieren."), statt ein
-  leeres Bundle zurückzugeben.
-- Tests in `test/unit/pinterest.test.ts`: CDN-URL wird abgelehnt, Script-Tag-Form
-  wird geparst, leeres Ergebnis wirft.
-
-**Ergebnis:** Pinterest funktioniert danach immer noch nicht — scheitert aber
-sichtbar und richtig, statt still Unsinn zu speichern.
-
-### Slice 0b — yt-dlp-Realität herstellen (sofort, klein)
-
-- Lokal `pip3 install --upgrade yt-dlp` (2024.04.09 → 2026.7.4) und den
-  Facebook-Pfad **danach erneut** bewerten. Gut möglich, dass ein Teil der
-  „Facebook geht nicht"-Symptome allein davon kommt.
-- `scripts/ytdlp-health-check.ts` um Facebook und Pinterest erweitern.
-- Als npm-Script `ytdlp:health` verfügbar machen und in den Nightly-CI-Lauf
-  hängen — Extractor-Bruch soll auffallen, bevor ein Nutzer ihn meldet.
-
-### Slice 1 — Generische Connector-Credentials in Postgres
-
-Cookidoo hat eine dedizierte Tabelle. Für zwei weitere Connectors lohnt eine
-generische:
-
-```sql
-create table public.platform_credentials (
-  id            bigserial primary key,
-  platform      text not null,             -- 'pinterest' | 'facebook'
-  scope_type    text not null,             -- 'user' | 'household'
-  user_id       uuid null,
-  household_id  uuid null references public.households(id) on delete cascade,
-  payload       text not null,             -- JSON, ggf. verschlüsselt (Entscheidung B)
-  created_by    uuid not null,
-  expires_at    timestamptz null,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now(),
-  constraint platform_credentials_platform_check
-    check (platform in ('pinterest', 'facebook')),
-  constraint platform_credentials_scope_type_check
-    check (scope_type in ('user', 'household')),
-  constraint platform_credentials_scope_shape_check
-    check (
-      (scope_type = 'user'      and user_id is not null and household_id is null)
-      or
-      (scope_type = 'household' and user_id is null and household_id is not null)
-    )
-);
-
-create unique index platform_credentials_user_uidx
-  on public.platform_credentials (platform, user_id) where scope_type = 'user';
-create unique index platform_credentials_household_uidx
-  on public.platform_credentials (platform, household_id) where scope_type = 'household';
-```
-
-Dazu zwingend, analog zu `20260619113000_harden_cookidoo_credentials_store.sql`:
-
-```sql
-alter table public.platform_credentials enable row level security;
-revoke all on table public.platform_credentials from anon, authenticated;
-revoke all on sequence public.platform_credentials_id_seq from anon, authenticated;
-```
-
-- `src/schema.ts` nachziehen
-- `scripts/supabase/rls-smoke.ts` erweitern: Nutzer A darf die Zeile von Nutzer B
-  weder lesen noch schreiben
-- **Cookidoo bleibt vorerst auf seiner eigenen Tabelle.** Eine Migration dorthin
-  ist ein separater Slice und kein Teil dieser Arbeit.
+> **Was das Deny-all wirklich ist.** Der Server verbindet über `DATABASE_URL`
+> als Rolle `postgres` (`.env.example:41`) und **umgeht RLS**. Das
+> Cookidoo-„Hardening" (`20260619113000_…`) ist RLS-aktiviert **ohne Policies**
+> plus Revoke — also ein Deny-all für die PostgREST-Data-API, kein
+> Per-User-Scoping. Für Credentials ist das genau richtig, aber es darf nicht
+> als „RLS scopet pro Nutzer" beschrieben werden. Die Grenze, die zählt, ist
+> die Server-API.
+>
+> Folglich ist „Nutzer A sieht die Credentials von B nicht" **kein** taugliches
+> rls-smoke-Kriterium — beide sehen nichts, der Test bestünde vakuum. Die
+> Owner-Grenze gehört in einen **Server-Contract-Test mit zwei echten Tokens**.
 
 ### Slice 2 — Resolver und Routen
 
-In `db-react.ts`, gebaut wie die Cookidoo-Funktionen:
+`savePlatformCredentials`, `deletePlatformCredentials`,
+`resolvePlatformCredentials`, `getPlatformStatus`, Share/Unshare — gebaut wie
+die Cookidoo-Funktionen, mit `platform` als erstem Parameter. Cookidoo-Aufrufer
+auf die neue Signatur umstellen.
 
-```
-savePlatformCredentials(platform, userId, payload)
-deletePlatformCredentials(platform, userId)
-resolvePlatformCredentials(platform, auth)      // Priorität user > household
-getPlatformStatus(platform, auth)
-sharePlatformCredentialsToHousehold(platform, auth)   // nur Household-Owner
-deleteHouseholdPlatformShare(platform, auth)
-```
+Die `501`-Stubs in `routes/platforms.ts` ersetzen. Beim Speichern
+**validieren**: Pinterest-Token gegen einen API-Ping, Facebook-Cookies auf
+Netscape-Format und Anwesenheit von `c_user`/`xs`. Ungültiges nicht persistieren.
 
-In `routes/platforms.ts` die `501`-Stubs ersetzen:
+### Slice 3 — Fetcher auf den Auth-Kontext
 
-| Route | Ersetzt durch |
-|---|---|
-| `GET /api/v1/pinterest/status` | `scope`, `connected`, `expiresAt`, `sharedByCurrentHousehold`, `canManageHouseholdShare` |
-| `POST/DELETE /api/v1/pinterest/credentials` | private Credentials des Callers |
-| `POST/DELETE /api/v1/facebook/cookies` | dito, Cookie-Datei als Text im Body |
-| jeweils `…/share` | Household-Freigabe, owner-only |
+**Zuerst die Kontextform festlegen** — die erste Fassung erfand einen Typnamen,
+ohne die Form zu entscheiden. Es gibt drei bestehende Shapes:
 
-Beim Speichern **validieren, nicht blind ablegen**: Pinterest-Token gegen einen
-API-Ping prüfen, Facebook-Cookies auf Netscape-Format und Anwesenheit der
-`c_user`/`xs`-Cookies. Ungültiges gar nicht erst persistieren.
+| Typ | userId | memberships | activeHouseholdId |
+|---|---|---|---|
+| `RecipeAuthContext` (`db-react.ts:61`) | ✓ | ✓ | ✗ |
+| `CookidooAuthContext` (`db-react.ts:1667`) | ✓ | ✓ | ✓ |
+| `PipelineOptions` (`pipeline.ts:30`) | ✓ | ✗ | ✓ |
 
-`CLAUDE.md` (Endpoint-Tabelle **und** Route Auth Inventory) im selben PR
-nachziehen — die Tabellen sind gerade frisch korrekt, das soll so bleiben.
+`pipeline.ts:85-89` baut den Cookidoo-Kontext mit **`memberships: []`**
+hardcoded. Das geht nur gut, weil `resolveCookidooCredentials` ausschließlich
+`userId` und `activeHouseholdId` liest.
 
-### Slice 3 — Fetcher auf den Auth-Kontext umstellen
+**Entscheidung: `resolvePlatformCredentials` darf `memberships` nicht
+benutzen.** Sonst liefert der Vordergrundpfad (`GET /status`) eine Credential
+und der Hintergrundpfad `null` — Settings zeigt „verbunden", der Import sagt
+„keine Credentials". Auflösung strikt `user → activeHousehold → null`. Wenn
+Memberships-Fallback gewünscht ist, muss `PipelineOptions` sie mitschleppen —
+dann in einem eigenen Slice, bewusst.
 
-Genau das Muster, das `fetchCookidoo` schon nutzt:
-
-```ts
-export async function fetchPinterest(
-  url: string,
-  tempDir?: string,
-  auth?: PlatformAuthContext,
-): Promise<ContentBundle>
-```
-
-- Modul-globales `cachedCredentials` in `pinterest.ts` **ersatzlos streichen** —
-  ein prozessweiter Cache über Nutzergrenzen hinweg ist in einer Multi-User-App
-  genau der Fehler, den `a6614e7` beseitigt hat.
-- `hasFacebookCookies()` und `COOKIE_PATH` in `facebook.ts` durch den Resolver
-  ersetzen. Die Cookie-Datei pro Job in ein Temp-Verzeichnis schreiben, nach dem
-  Job **löschen** (`finally`), nie nach `data/`.
-- `pipeline.ts`: `case "pinterest"` und `case "facebook"` bekommen den Kontext
-  durchgereicht — `case "cookidoo"` zeigt, wie.
-- `routes/extraction.ts` / `job-manager.ts` snapshotten `activeHouseholdId`
-  bereits; für die neuen Connectors gilt dieselbe Regel, sonst greift der
-  Household-Fallback im Async-Pfad ins Leere.
+Weiter: prozessweiten Cache streichen, Cookie-Datei pro Job in ein
+Temp-Verzeichnis und im `finally` löschen, `pipeline.ts` reicht den Kontext
+durch.
 
 ### Slice 4 — Mobile-UI
 
-In `mobile/app/(tabs)/settings.tsx` zwei Abschnitte analog zum Cookidoo-Block:
-
-- **Pinterest** — Felder je nach Entscheidung A; bei OAuth ein
-  „Mit Pinterest verbinden"-Button statt Textfeldern
-- **Facebook** — mehrzeiliges Feld für die Cookie-Datei, plus eine
-  Kurzanleitung, wie man sie exportiert
-- Beide mit Status-Badge, „Trennen", und — falls Household-Owner — dem
-  Freigabe-Schalter
-- Für Facebook ein **sichtbarer Warnhinweis** in der UI: eigener Account,
-  gegen die Facebook-ToS, Sperrrisiko
-
-### Slice 5 — Roadmap-Wahrheit wiederherstellen
-
-`CLAUDE.md`, `docs/CODEMAPS/FETCHERS.md` und die Obsidian-Notizen führen beide
-Connectors derzeit korrekt als „faktisch tot". Sobald Slice 3 steht, muss das
-zusammen mit dem Code aktualisiert werden — nicht später.
+Zwei Abschnitte in `settings.tsx` analog zum Cookidoo-Block, mit Status-Badge,
+Trennen, Household-Freigabe für Owner — und für Facebook einem sichtbaren
+ToS-/Sperrrisiko-Hinweis.
 
 ---
 
-## Was ich nicht empfehle
+## Ausdrücklich nicht im Scope
 
-- **Die Disk-Helfer aus `8f57b08` zurückholen.** Sie waren die globale Variante;
-  `git revert` würde genau das Problem wiederherstellen, das die Abschaltung
-  ausgelöst hat.
-- **Slice 1–4 bauen, bevor Entscheidung A verifiziert ist.** Wenn der
-  Pinterest-v5-Endpunkt fremde Pins nicht herausgibt, ist die halbe Arbeit für
-  eine Funktion gebaut, die es nicht gibt. Die Messung kostet zehn Minuten.
-- **Facebook und Pinterest in einem PR.** Sie teilen sich nur die Tabelle aus
-  Slice 1. Danach sind es zwei unabhängige Stränge mit sehr unterschiedlichem
-  Risiko.
+- **Die Disk-Helfer aus `8f57b08` zurückholen.** Sie waren die globale Variante.
+- **Eine zweite Credential-Tabelle** neben `cookidoo_credentials`.
+- **Slice 1–4 vor der Messung.** Zehn Minuten sparen mehrere Stunden.
+- **Facebook und Pinterest in einem PR.** Nach Slice 1 zwei unabhängige Stränge
+  mit sehr unterschiedlichem Risiko.
 
-## Reihenfolge
+## Aufwand
 
-```
-Slice 0  ─┐  unabhängig, sofort
-Slice 0b ─┘
-
-           Entscheidung A messen (10 min) ─┐
-           Entscheidung B treffen ─────────┤
-                                           ▼
-                                        Slice 1  (Tabelle + RLS)
-                                           │
-                              ┌────────────┴────────────┐
-                              ▼                         ▼
-                     Slice 2/3 Pinterest        Slice 2/3 Facebook
-                              │                         │
-                              └────────────┬────────────┘
-                                           ▼
-                                    Slice 4 (UI) → Slice 5 (Doku)
-```
-
-## Aufwandsschätzung
-
-| Slice | Umfang |
+| Teil | Umfang |
 |---|---|
-| 0 | ~1 h, klein und risikoarm |
-| 0b | ~1 h, davon das meiste Warten auf yt-dlp-Läufe |
-| 1 | ~2 h inkl. RLS-Smoke |
-| 2 | ~3 h für beide Plattformen |
-| 3 | ~3 h, plus ungewisse Zeit für die tatsächliche Extraktionsqualität |
-| 4 | ~3 h inkl. Tests |
-| 5 | ~30 min |
-
-Die Schätzung gilt für den mechanischen Teil. **Nicht enthalten** ist die
-eigentliche Unbekannte: ob Pinterest über die API brauchbare Rezeptdaten
-herausgibt und wie lange ein Facebook-Cookie-Satz in der Praxis hält.
-
----
+| Slice 0 + 0a + 0b + 0c | **~4 h, der realistische Zielzustand** |
+| Messung Pinterest | 10 min, braucht Developer-Account |
+| Slice 1–4 (nur falls Messung trägt) | ~10 h, plus Verschlüsselung ~4 h |
 
 ## Verwandte Dokumente
 
-- [Master-Plan](2026-08-07-connectors-and-job-persistence-master-plan.md) —
-  Klammer über diesen Plan und die Job-Persistenz
-- [Job-Persistenz](2026-08-07-job-persistence-plan.md) — der zweite Strang aus
-  derselben Multi-User-Umstellung
-- `src/fetchers/CLAUDE.md` — das Cookidoo-Muster, das hier kopiert wird
-- `supabase/migrations/20260615170413_cookidoo_credentials_scoped.sql` und
-  `20260619113000_harden_cookidoo_credentials_store.sql` — Vorlage für Tabelle
-  und Härtung
+- [Master-Plan](2026-08-07-connectors-and-job-persistence-master-plan.md)
+- [Job-Persistenz](2026-08-07-job-persistence-plan.md)
+- `src/fetchers/CLAUDE.md` — das Cookidoo-Muster
+- `supabase/migrations/20260615170413_…` und `20260619113000_…`

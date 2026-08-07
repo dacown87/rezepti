@@ -1,122 +1,146 @@
-# Master-Plan: Connectors und Job-Persistenz
+# Master-Plan: Connectors und Job-Robustheit
 
-**Stand:** 2026-08-07 (v1.0.196) · **Status:** ENTWURF
+**Stand:** 2026-08-07, überarbeitet nach `/plan-eng-review` · **Status:** ENTWURF
 
 Klammer über zwei Arbeitsstränge, die beim Doku-Abgleich am 2026-08-07 als
-belegte Baustellen aufgefallen sind. Beide waren vorher nirgends geplant — sie
-standen nur als „faktisch tot" bzw. „offener Punkt" in der Bestandsaufnahme.
+belegte Baustellen aufgefallen sind.
 
 > **Was dieses Dokument nicht ist.** Es ersetzt weder `TODO.md` (die operative
-> Arbeitsliste) noch den Obsidian-Phasenplan (Strategie und Historie). Es
-> klammert genau zwei Stränge und endet, wenn beide erledigt sind. Der
-> kritische Pfad des Projekts bleibt der Brevo-Mailversand aus `TODO.md`.
+> Arbeitsliste) noch den Obsidian-Phasenplan. Es klammert genau zwei Stränge und
+> endet, wenn beide erledigt sind. Der kritische Pfad des Projekts bleibt der
+> Brevo-Mailversand aus `TODO.md`.
 
 ## Die beiden Teilpläne
 
 | Plan | Inhalt |
 |---|---|
-| [Pinterest/Facebook Per-User-Connectors](2026-08-07-pinterest-facebook-per-user-connectors-plan.md) | Eigene Credentials pro Nutzer, Fetcher auf den Auth-Kontext umstellen, Import wieder funktionsfähig |
-| [Job-Persistenz](2026-08-07-job-persistence-plan.md) | Extraktions-Jobs überleben Neustarts, Polling funktioniert instanzübergreifend |
+| [Pinterest/Facebook Connectors](2026-08-07-pinterest-facebook-per-user-connectors-plan.md) | Globale Disk-Credentials entfernen, ehrliches Scheitern, optional Per-User-Credentials |
+| [Job-Robustheit](2026-08-07-job-persistence-plan.md) | Sichtbare Fehler, Concurrency-Limit, optional Persistenz |
 
 ## Warum zusammen betrachtet
 
-Technisch sind sie unabhängig und können parallel laufen. Zusammen betrachtet
-werden sie, weil sie **denselben Ursprung** haben: die Umstellung auf
-Multi-User im Juni 2026 hat beide Bereiche mit Annahmen aus der
-Single-User-Zeit zurückgelassen.
+Technisch unabhängig, gemeinsamer Ursprung: die Multi-User-Umstellung im Juni
+2026 hat beide Bereiche mit Annahmen aus der Single-User-Zeit zurückgelassen.
 
-- Die Connectors legten **einen globalen Credential-Satz** auf Disk ab. In
-  einer Mehrbenutzer-App hätte jeder mit dem Account eines anderen importiert,
-  deshalb wurden sie in `a6614e7` korrekt abgeschaltet — aber nie umgebaut.
+- Die Connectors lasen **einen globalen Credential-Satz** von Disk. `a6614e7`
+  hat die *Routen* auf `501` gesetzt — die *Fetcher* lesen die Dateien bis
+  heute.
 - Die Jobs liegen in einer **prozesslokalen Map**, weil `857606f` sie
-  ausdrücklich als „transient" eingestuft hat. Das stimmte für einen Nutzer und
-  eine Instanz.
+  ausdrücklich als „transient" eingestuft hat.
 
-Beide sind also nicht kaputtgegangen, sondern nicht mitgezogen worden.
+Beide sind nicht kaputtgegangen, sondern nicht mitgezogen worden.
 
-## Gemeinsames Muster
+## Was die Engineering-Review geändert hat
 
-Beide Stränge lösen ihr Problem auf demselben Weg, den Cookidoo am 2026-06-15
-schon gegangen ist:
+Die erste Planfassung stellte in beiden Strängen die teure Infrastruktur nach
+vorne. Die Prüfung gegen den Code hat das umgedreht:
 
-```
-globaler Zustand (Datei / Prozessspeicher)
-        ↓
-scoped Postgres-Zeile mit RLS
-        ↓
-Resolver mit Auth-Kontext, user > household
-```
-
-Wer einen der beiden Stränge umsetzt, sollte sich vorher
-`supabase/migrations/20260615170413_cookidoo_credentials_scoped.sql`, die
-Härtung in `20260619113000_harden_cookidoo_credentials_store.sql` und
-`src/fetchers/CLAUDE.md` ansehen. Das Muster ist erprobt und muss nicht neu
-erfunden werden — insbesondere das `revoke all … from anon, authenticated`
-gehört zu jeder neuen Tabelle dazu.
+1. **Die Sicherheitslücke lag hinter zwei offenen Entscheidungen.** Die
+   globalen Disk-Credentials in `pinterest.ts` und `facebook.ts` sind ~15 Zeilen
+   Löschung, blockiert durch nichts, und `data/facebook-cookies.txt` ist nicht
+   einmal gitignored. Das ist jetzt Slice 0.
+2. **Der Nutzer sieht keinen 404, sondern einen Endlos-Spinner.**
+   `extract.tsx:195` verwirft jeden non-ok-Poll. Die Annahme der ersten Fassung
+   war falsch.
+3. **Fehlertexte werden nie angezeigt.** `extract.tsx:234` liest
+   `status.result?.error`, der Server schreibt top-level `error`, und das
+   Client-Interface kennt das Feld nicht. Betrifft **jeden** fehlgeschlagenen
+   Import, nicht nur den Neustart-Fall. Zwei Zeilen.
+4. **RLS scopet hier gar nichts.** Der Server verbindet als Rolle `postgres`
+   und umgeht RLS. Das Cookidoo-Muster ist ein Deny-all für die
+   PostgREST-Data-API — richtig, aber kein Per-User-Scoping. Beide Pläne hatten
+   ein Akzeptanzkriterium, das vakuum bestanden hätte.
+5. **Der Start-Sweep war falsch herum.** Bei einem Rolling Deploy hätte die
+   neue Instanz die lebenden Jobs der alten abgeschossen. Ein
+   SIGTERM-Handler löst dasselbe Problem korrekt und ohne Heartbeat.
 
 ## Reihenfolge
 
 ```
-SOFORT, blockiert durch nichts
-├── Connectors Slice 0    Pinterest scheitert ehrlich statt JS zu importieren
-├── Connectors Slice 0b   yt-dlp aktualisieren, Health-Check erweitern
-└── Job-Persistenz        Slice 1 bis 5 komplett
+SOFORT, blockiert durch nichts, ~1 Tag zusammen
+├── Connectors  Slice 0    globale Disk-Credentials entfernen  ← Sicherheit
+├── Connectors  Slice 0a   Pinterest scheitert ehrlich
+├── Connectors  Slice 0b   yt-dlp aktualisieren + Health-Check
+├── Connectors  Slice 0c   ADR schreiben, Roadmap nachziehen
+├── Jobs        Slice 1    Client: Fehlertext + Poll-Abbruch
+├── Jobs        Slice 2    Concurrency-Limit + Cleanup scharfschalten
+└── Jobs        Slice 3    Cancel stoppt die Pipeline wirklich
 
-BLOCKIERT durch zwei Entscheidungen
-└── Connectors Slice 1–5  Credential-Tabelle, Routen, Fetcher, UI
+DANACH, wenn der Schmerz bleibt
+└── Jobs        Slice 4-6  Tabelle, Write-Through, SIGTERM
+
+NUR nach bestandener Messung
+└── Connectors  Slice 1-4  Credential-Tabelle, Routen, Fetcher, UI
 ```
 
-Die Job-Persistenz ist vollständig unblockiert und in sich abgeschlossen — sie
-ist der bessere Startpunkt, wenn ein Tag Zeit ist. Bei den Connectors sind nur
-die beiden kleinen Slices sofort machbar; der Rest wartet.
+Die sofortigen Slices sind zusammen etwa ein Tag und decken den Großteil des
+Nutzens beider Stränge ab. Das war in der ersten Fassung nicht sichtbar.
 
 ## Offene Entscheidungen
 
-Beide liegen beim Betreiber, nicht bei der Umsetzung. Details und Optionen im
-Connector-Plan.
-
-**A — Pinterest: welches Credential-Modell?**
+**A — Pinterest: lohnt der Credential-Stack überhaupt?**
 Vorgelagert eine Messung von zehn Minuten: Gibt `GET /v5/pins/{id}` mit einem
-echten Token auch **fremde** öffentliche Pins heraus, oder nur eigene? Fällt
-das durch, ist der ganze Credential-Aufbau für den eigentlichen Anwendungsfall
-wertlos. Braucht einen Pinterest-Developer-Account.
+echten Token auch **fremde** öffentliche Pins heraus? Braucht einen
+Pinterest-Developer-Account. Fällt das durch, ist der Aufbau wertlos — ein Pin
+verlinkt fast immer auf eine Rezeptseite, die der Web-Fetcher schon kann.
 
 **B — Facebook: dürfen Session-Cookies serverseitig liegen?**
-Sie sind account-übernahme-tauglich, und `cookidoo_credentials.password` liegt
-heute im Klartext. Empfehlung: verschlüsselt at rest, und Cookidoo im selben
-Zug mitnehmen.
+Account-übernahme-tauglich, und `cookidoo_credentials.password` liegt heute im
+Klartext. Empfehlung: verschlüsselt at rest, Cookidoo im selben Zug.
 
 ## Belege
 
-Alles unten wurde am 2026-08-07 gemessen, nicht aus dem Code abgeleitet. Die
-Details stehen in den Teilplänen.
+Gemessen am 2026-08-07, nicht aus dem Code abgeleitet.
 
 | Befund | Beleg |
 |---|---|
-| Pinterest liefert anonym keine Pin-Daten mehr | 2 Pins, je ~1,08 MB App-Shell, keine `og:`-Tags, `__PWS_DATA__` ohne Pin-Inhalt, yt-dlp `403` |
-| Der Pinterest-Fetcher importiert JavaScript als Rezept | `findOriginalUrl` → `s.pinimg.com/webapp/.../accessibility-*.mjs`, 6000 Zeichen minifiziertes JS als `textContent` |
-| Lokales yt-dlp ist zwei Jahre alt | installiert `2024.04.09`, aktuell `2026.7.4`; Dockerfile baut mit `--upgrade`, Production weicht also ab |
-| Job-Verlust bei Redeploy | `getJob` → Map-Miss → `404 Job not found` in `routes/extraction.ts:138` |
-| `/extract/jobs` ist multi-user-falsch | global neueste 50 holen, **dann** auf den Aufrufer filtern |
-| `config.jobs` ist tot | `grep -rn "config.jobs" src` → keine Treffer; kein Cleanup, **kein Concurrency-Limit** |
+| Pinterest liefert anonym keine Pin-Daten | 2 Pins, je ~1,08 MB App-Shell, keine `og:`-Tags, `__PWS_DATA__` ohne Pin-Inhalt, yt-dlp `403` |
+| Der Fetcher importiert JavaScript als Rezept | `s.pinimg.com/…/accessibility-*.mjs`, 6000 Zeichen minifiziertes JS als `textContent`; Guard an 3 Stellen dupliziert |
+| Globale Credentials sind im Fetcher noch aktiv | `pinterest.ts:12-16,28-41,312-315`, `facebook.ts:12-15,88`; `docker-compose` mountet `./data` |
+| Cookie-Datei nicht gitignored | `.gitignore:5-11` deckt sie nicht ab |
+| Lokales yt-dlp zwei Jahre alt | `2024.04.09` vs. `2026.7.4`; Dockerfile baut mit `--upgrade` |
+| Client verwirft 404 | `extract.tsx:195` `if (!res.ok) return;`, keine Poll-Obergrenze |
+| Fehlertexte unsichtbar | `extract.tsx:234` liest `result?.error`, `job-manager.ts:136` schreibt top-level |
+| `config.jobs` tot | `grep -rn "config.jobs" src` → nichts; kein Cleanup, kein Concurrency-Limit |
+| Cancel wird rückgängig gemacht | `extraction.ts:182` setzt nur `failJob`, `:476` ruft `completeJob` |
+| `/extract/jobs` ohne Konsumenten | `grep -rn "extract/jobs" mobile/` → nichts |
+| Server umgeht RLS | `DATABASE_URL` als Rolle `postgres` (`.env.example:41`) |
 
 ## Was danach besser ist
 
-- Pinterest und Facebook importieren wieder — oder sind bewusst und
-  dokumentiert eingestellt, statt als Halbzustand weiterzulaufen
-- Kein Import speichert mehr stillschweigend Unsinn
-- Ein Redeploy mitten in einer Extraktion erzeugt eine verständliche
-  Fehlermeldung statt `404`
-- Die Job-Liste zeigt jedem Nutzer seine eigenen Jobs
-- Es gibt eine Obergrenze für parallele Extraktionen
-- Der letzte harte Blocker für mehr als eine Server-Instanz ist ein
-  Heartbeat-Modell — und der ist dann benannt statt unbekannt
+- Kein Nutzer importiert mehr mit den Credentials eines anderen
+- Kein Import speichert stillschweigend Unsinn
+- Fehlgeschlagene Importe zeigen ihren tatsächlichen Grund
+- Kein Endlos-Spinner nach einem Redeploy
+- Es gibt eine Obergrenze für parallele Extraktionen — die wahrscheinlichste
+  OOM-Ursache
+- Ein Abbruch bleibt ein Abbruch
+- Pinterest und Facebook sind entweder funktionsfähig oder dokumentiert
+  eingestellt, statt als Halbzustand weiterzulaufen
 
 ## Nach Abschluss
 
-Dieses Dokument und die beiden Teilpläne nach `docs/superpowers/plans/`
-belassen (Archiv), die Ergebnisse aber dorthin schreiben, wo sie gelesen
-werden: `CLAUDE.md`, `docs/CODEMAPS/`, und als ADR in
+Beide Teilpläne bleiben als Archiv liegen. Die Ergebnisse gehören dorthin, wo
+sie gelesen werden: `CLAUDE.md`, `docs/CODEMAPS/`, und als ADR in
 `Projekte/RecipeDeck/Entscheidungen.md`. Die dortigen „Offene Punkte ohne
-ADR"-Einträge zu Pinterest/Facebook und zur Job-Persistenz werden dann zu
-echten Entscheidungen.
+ADR"-Einträge werden dann zu echten Entscheidungen.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | AUTH FAILED | refresh token revoked |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | ISSUES RESOLVED | 14 issues, 3 critical gaps, scope reduced |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **OUTSIDE VOICE:** Codex nicht verfügbar (Auth abgelaufen), unabhängiger
+  Claude-Subagent gelaufen — 11 zusätzliche Befunde, alle sieben
+  folgenschwersten gegen den Code verifiziert.
+- **CROSS-MODEL:** keine Spannung — die zweite Meinung war durchgehend
+  schärfer als die erste Fassung, kein Widerspruch zu klären.
+- **UNRESOLVED:** 2 (Entscheidung A Pinterest-Messung, Entscheidung B
+  Cookie-Speicherung) — beide extern blockiert, nicht durch Analyse lösbar.
+- **VERDICT:** ENG CLEARED — Scope reduziert, Reihenfolge korrigiert, bereit
+  zur Umsetzung ab Slice 0.
