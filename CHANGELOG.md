@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.196] – 2026-08-07
+
+- update recipe invite email delivery provider from Resend to Brevo
+- add Gmail delivery monitor
+
 ## [1.0.195] – 2026-07-08
 
 - complete recipe sharing followup slices
