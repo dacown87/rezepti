@@ -52,3 +52,9 @@ artifacts/performance/*
 !artifacts/performance/history.json
 !artifacts/performance/readiness.json
 !artifacts/performance/stability-seed.json
+
+# Plattform-Credentials — nie committen (globale Disk-Credentials sind entfernt,
+# die Pfade bleiben aber als Stolperfalle bestehen bis der verschluesselte
+# DB-Pfad steht)
+data/pinterest-credentials.json
+data/facebook-cookies.txt

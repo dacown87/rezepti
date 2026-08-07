@@ -2,43 +2,64 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
 import { fetchWeb } from "./web.js";
 
 const execFileAsync = promisify(execFile);
 
-const CREDENTIALS_FILE = join(
-  process.cwd(),
-  "data",
-  "pinterest-credentials.json"
-);
+/*
+ * Pinterest fetch strategy
+ * ─────────────────────────────────────────────────────────────────────────
+ * A pin almost never carries the recipe itself — it links to a recipe page
+ * the generic web fetcher already handles. So the whole job here is: find
+ * that outbound link and hand off to fetchWeb().
+ *
+ *   pin URL
+ *     │
+ *     ├─1─► DOM selectors        (carousel link, rel=noopener, og:see_also)
+ *     ├─2─► __PWS_DATA__ JSON    (assignment form AND <script type=json> form)
+ *     ├─3─► "link":"…" regex     over raw HTML
+ *     │        │
+ *     │        └─ every candidate must pass isUsableExternalUrl()
+ *     │
+ *     ├─ found ──► fetchWeb(originalUrl)          ← the good path
+ *     └─ none  ──► yt-dlp / og: metadata          ← thin, often empty
+ *                     └─ nothing usable ──► throw (see below)
+ *
+ * As of 2026-08-07 an anonymous request returns a ~1 MB app shell with no
+ * og: tags and a __PWS_DATA__ payload holding no pin data at all, so the
+ * "none" branch is the common case. Throwing there is deliberate: returning
+ * an empty bundle used to send whatever text was lying around — including
+ * minified CDN JavaScript — straight into the LLM.
+ */
 
-interface PinterestCredentials {
-  clientId: string;
-  clientSecret: string;
-  accessToken: string;
-  refreshToken: string;
-  expiresAt?: number;
-}
+/*
+ * Candidate filter. The old check was `!url.includes("pinterest.")`, which
+ * let s.pinimg.com through — the Pinterest asset CDN. Live pins resolved to
+ * accessibility-<hash>.mjs and the pipeline imported 6000 characters of
+ * minified JavaScript as recipe text.
+ */
+const BLOCKED_LINK_HOSTS = [
+  /(^|\.)pinterest\.[a-z.]+$/i,
+  /(^|\.)pinimg\.com$/i,
+];
 
-let cachedCredentials: PinterestCredentials | null = null;
+const ASSET_PATH = /\.(mjs|c?js|css|json|map|woff2?|ttf|eot|ico|svg|txt|xml)$/i;
 
-function loadCredentialsFromDisk(): PinterestCredentials | null {
-  if (!existsSync(CREDENTIALS_FILE)) return null;
+/** True when `raw` is an off-Pinterest page we could plausibly extract a recipe from. */
+export function isUsableExternalUrl(raw: string): boolean {
+  let url: URL;
   try {
-    const content = readFileSync(CREDENTIALS_FILE, "utf-8");
-    return JSON.parse(content) as PinterestCredentials;
+    url = new URL(raw);
   } catch {
-    return null;
+    return false;
   }
-}
-
-function getPinterestCredentials(): PinterestCredentials | null {
-  if (cachedCredentials) return cachedCredentials;
-  cachedCredentials = loadCredentialsFromDisk();
-  return cachedCredentials;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (BLOCKED_LINK_HOSTS.some((re) => re.test(url.hostname))) return false;
+  if (ASSET_PATH.test(url.pathname)) return false;
+  return true;
 }
 
 const USER_AGENTS = [
@@ -86,15 +107,17 @@ export function findOriginalUrl($: cheerio.CheerioAPI, html?: string): string | 
     } else {
       url = $(selector).first().attr("href");
     }
-    if (url && !url.includes("pinterest.") && url.startsWith("http")) {
+    if (url && isUsableExternalUrl(url)) {
       return url;
     }
   }
 
-  // 2. Pinterest-Embedded-JSON: Pinterest bettet Pin-Daten in Script-Tags ein
+  // 2. Pinterest-Embedded-JSON: Pin-Daten stecken in Script-Tags
   if (html) {
     const scriptPatterns = [
-      // __PWS_DATA__ oder __PWS_INITIAL_PROPS__
+      // Script-Tag-Form — das ist die Form, die Pinterest heute ausliefert
+      /<script[^>]+id=["']__PWS_(?:DATA|INITIAL_PROPS)__["'][^>]*>([\s\S]*?)<\/script>/,
+      // Ältere Zuweisungsform
       /__PWS_(?:DATA|INITIAL_PROPS)__\s*=\s*(\{.+?\})(?:\s*;|\s*<)/s,
       // initial-data Script-Tag
       /<script[^>]+id=["']initial-data["'][^>]*>(\{.+?\})<\/script>/s,
@@ -107,32 +130,25 @@ export function findOriginalUrl($: cheerio.CheerioAPI, html?: string): string | 
       if (match) {
         try {
           const data = JSON.parse(match[1]);
-          // Suche nach "link" in den Pin-Daten (rekursiv bis Tiefe 5)
           const link = extractLinkFromJson(data, 0);
-          if (link && !link.includes("pinterest.") && link.startsWith("http")) {
-            return link;
-          }
+          if (link) return link;
         } catch { /* JSON ungültig, weiter */ }
       }
     }
 
-    // 3. Einfacher Regex-Fallback auf "link":"https://..." im HTML
+    // 3. Regex-Fallback auf "link":"https://..." im rohen HTML
     const linkMatch = html.match(/"link"\s*:\s*"(https?:\/\/[^"]+)"/);
-    if (linkMatch && !linkMatch[1].includes("pinterest.")) {
+    if (linkMatch && isUsableExternalUrl(linkMatch[1])) {
       return linkMatch[1];
     }
   }
 
-  // 4. URL-Extraktion aus Body-Text (letzter Ausweg)
-  const bodyText = $("body").text();
-  const urlPattern = /https?:\/\/[^\s<>"']+(?:\/[^\s<>"']*)?/gi;
-  const matches = bodyText.match(urlPattern) || [];
-  for (const match of matches) {
-    if (!match.includes("pinterest.") && match.includes("://")) {
-      return match;
-    }
-  }
-
+  /*
+   * Es gab hier eine vierte Strategie: alle URLs aus dem Body-Text greifen und
+   * die erste nicht-Pinterest nehmen. Sie ist entfernt. Der Body-Text einer
+   * Pinterest-Seite besteht heute im Wesentlichen aus Bundle-Quellcode, und
+   * die Strategie konnte per Konstruktion keinen verlässlichen Treffer liefern.
+   */
   return null;
 }
 
@@ -146,7 +162,7 @@ function extractLinkFromJson(obj: unknown, depth: number): string | null {
     return null;
   }
   const record = obj as Record<string, unknown>;
-  if (typeof record.link === "string" && record.link.startsWith("http") && !record.link.includes("pinterest.")) {
+  if (typeof record.link === "string" && isUsableExternalUrl(record.link)) {
     return record.link;
   }
   for (const value of Object.values(record)) {
@@ -216,6 +232,10 @@ export function extractRecipeKeywords(text: string): string[] {
   return found;
 }
 
+/*
+ * Bilder sind der eine Fall, in dem pinimg.com erwünscht ist — das ist
+ * Pinterests Bild-CDN. Gefiltert wird hier nur, was kein Bild sein kann.
+ */
 export function extractImagesFromHtml(
   $: cheerio.CheerioAPI,
   baseUrl: string
@@ -225,19 +245,14 @@ export function extractImagesFromHtml(
   $("img").each((_, el) => {
     const src =
       $(el).attr("src") || $(el).attr("data-src") || $(el).attr("data-pin-img");
-    if (src) {
-      try {
-        const absoluteUrl = new URL(src, baseUrl).href;
-        if (
-          absoluteUrl.includes("pinimg") ||
-          absoluteUrl.includes("pinterest") ||
-          !absoluteUrl.includes("pinterest.")
-        ) {
-          images.push(absoluteUrl);
-        }
-      } catch {
-        // skip invalid URLs
-      }
+    if (!src) return;
+    try {
+      const absolute = new URL(src, baseUrl);
+      if (absolute.protocol !== "http:" && absolute.protocol !== "https:") return;
+      if (ASSET_PATH.test(absolute.pathname) && !/\.(jpe?g|png|webp|gif|avif)$/i.test(absolute.pathname)) return;
+      images.push(absolute.href);
+    } catch {
+      // skip invalid URLs
     }
   });
 
@@ -306,92 +321,25 @@ async function downloadWithYtDlp(
   }
 }
 
-async function fetchFromPinterestApi(
-  pinId: string
-): Promise<ContentBundle | null> {
-  const creds = getPinterestCredentials();
-  if (!creds || !creds.accessToken) return null;
-
-  try {
-    const response = await fetch(
-      `https://api.pinterest.com/v5/pins/${pinId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${creds.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.error(
-        `Pinterest API error: ${response.status} ${response.statusText}`
-      );
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      id: string;
-      title?: string;
-      description?: string;
-      link?: string;
-      media?: { images?: { "600x"?: { url?: string } } };
-    };
-
-    const imageUrl = data.media?.images?.["600x"]?.url || null;
-    const originalUrl = data.link || null;
-
-    if (originalUrl) {
-      try {
-        return await fetchWeb(originalUrl);
-      } catch {
-        // Fall through to limited content
-      }
-    }
-
-    return {
-      url: `https://pinterest.com/pin/${data.id}/`,
-      type: "pinterest",
-      title: data.title || "Pinterest Pin",
-      description: data.description || "",
-      textContent: data.description || "",
-      imageUrls: imageUrl ? [imageUrl] : [],
-      audioPath: undefined,
-      schemaRecipe: null,
-    };
-  } catch (error) {
-    console.error("Pinterest API fetch error:", error);
-    return null;
-  }
-}
-
-function extractPinIdFromUrl(url: string): string | null {
-  const match = url.match(/\/pin\/(\d+)/);
-  return match ? match[1] : null;
-}
+export const PINTEREST_NO_DATA_ERROR =
+  "Pinterest liefert ohne Anmeldung keine Pin-Daten mehr.";
 
 export async function fetchPinterest(
   url: string,
   tempDir?: string
 ): Promise<ContentBundle> {
-  const pinId = extractPinIdFromUrl(url);
-  if (pinId) {
-    const apiResult = await fetchFromPinterestApi(pinId);
-    if (apiResult) return apiResult;
-  }
-
   const html = await fetchHTMLWithUserAgent(url);
   const $ = cheerio.load(html);
 
   const { title, description, imageUrl } = extractPinMetadata($, html);
 
+  // Der eigentliche Nutzen: den verlinkten Artikel finden und dorthin abgeben.
   const originalUrl = findOriginalUrl($, html);
-
   if (originalUrl) {
     try {
       return await fetchWeb(originalUrl);
     } catch {
-      // Fall through to limited content if web fetch fails
+      // Fall through — der Pin selbst ist immer noch einen Versuch wert.
     }
   }
 
@@ -420,13 +368,22 @@ export async function fetchPinterest(
     ? enhancedDescription
     : description;
 
+  /*
+   * Ohne Originallink, ohne Text und ohne Bild gibt es nichts zu extrahieren.
+   * Früher kam hier ein leeres Bundle zurück und die Pipeline hat aus dem
+   * erstbesten Seitentext ein "Rezept" gebaut. Ein ehrlicher Fehler ist besser.
+   */
+  if (!textContent.trim() && allImages.length === 0) {
+    throw new Error(PINTEREST_NO_DATA_ERROR);
+  }
+
   return {
     url,
     type: "pinterest",
     title: title.replace(/[_-] Pinterest$/i, "").trim() || "Pinterest Pin",
     description,
     textContent,
-    imageUrls: allImages.length > 0 ? allImages : [],
+    imageUrls: allImages,
     audioPath: undefined,
     schemaRecipe: null,
     isCarousel: false,

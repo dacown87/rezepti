@@ -360,6 +360,14 @@ export function toUserFriendlyError(error: unknown): UserFriendlyError {
     };
   }
 
+  // Pinterest serves no pin data to anonymous requests any more
+  if (/Pinterest liefert ohne Anmeldung/i.test(raw)) {
+    return {
+      message: "Pinterest gibt zu diesem Pin keine Daten heraus.",
+      hint: "Öffne den Pin im Browser und importiere stattdessen die verlinkte Rezeptseite.",
+    };
+  }
+
   // Bot-protection / access denied (403/401 from fetchWeb)
   if (/HTTP 403|HTTP 401|access denied|bot.?schutz|cloudflare/i.test(raw)) {
     return {

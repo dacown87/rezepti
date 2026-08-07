@@ -107,6 +107,12 @@ Facebook und Pinterest nicht ab und hängt an keinem npm-Script.
 
 ## Slices
 
+> **Slice 0, 0a und 0c sind für Pinterest am 2026-08-07 umgesetzt.** Der
+> Facebook-Anteil von Slice 0 bleibt bewusst offen — das Entfernen des
+> Disk-Pfads würde den einzigen funktionierenden Weg kappen, bevor der
+> verschlüsselte DB-Pfad steht. Slice 0b (yt-dlp) ist offen. Der Rest liegt
+> als Backlog in `TODO.md`.
+
 ### Slice 0 — Die Lücke schließen (sofort, blockiert durch nichts)
 
 Das Einzige in diesem Plan, das ein Sicherheitsproblem ist.
