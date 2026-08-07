@@ -1,162 +1,177 @@
 # Frontend Codemap
 
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-08-07 (v1.0.196)
 
-## Technology Stack
+`mobile/` is the **only** frontend source — web, iOS and Android.
 
-- **Framework:** React 18 with Vite
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **Routing:** React Router v6
-- **State:** React hooks + Context (minimal)
-- **Build Output:** `public/` (served by backend)
+> There is no Vite/React SPA any more. The `frontend/` directory in the repo is
+> an empty, untracked leftover; it is neither built nor tested.
 
-## Entry Point
+## Stack
 
-**Location:** `frontend/src/main.tsx`
+Expo ~56.0.19 · React Native 0.85.3 · React 19.2.3 · Expo Router ~56.2.18 ·
+NativeWind 4 on Tailwind 3.4 · TanStack Query 5 · Supabase JS 2
 
-```typescript
-// Mounts App to #root
-// Loads index.html from public/
+`mobile/` is its **own npm package** with its own `package.json`, `tsconfig.json`
+and bundler (Metro) — hence `npm --prefix mobile ...` for everything mobile.
+
+## Routing (`mobile/app/`, Expo Router, file-based)
+
+```
+app/
+├── _layout.tsx              Root: fonts, theme, query-client persistence,
+│                            auth observer, login-first guard, offline flush,
+│                            bug-report modal, PWA update
+├── +html.tsx                Route-aware static app shell (LCP before hydration)
+├── +not-found.tsx
+├── modal.tsx
+├── account.tsx              Login / signup / workspace — reachable anonymously
+├── recipe/[id].tsx          Detail: ingredients, steps, scaling, cook mode, inline edit
+├── collections.tsx          Collection overview
+├── collection/[id].tsx      Collection contents
+├── share-invite/[token].tsx View and accept an invite
+├── admin/index.tsx          Admin hub
+├── admin/bug-reports.tsx
+├── admin/byok-validation-policy.tsx
+└── (tabs)/
+    ├── index.tsx            Recipe list, search, ingredient search, categories
+    ├── extract.tsx          URL / text / photo import
+    ├── scanner.tsx          QR scanner / generator
+    ├── planner.tsx          7-day meal planner
+    ├── shopping.tsx         Shopping list
+    └── settings.tsx         BYOK, Cookidoo, push opt-in, app status
 ```
 
-## App Routes
+**Login-first gate:** a guard in the root layout redirects anonymous access to
+`/account` with a matching `returnTo`; only `/account` itself stays directly
+reachable. Toggle: `EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE`.
 
-**Location:** `frontend/src/App.tsx`
+**Performance note:** the auth observer and workspace watcher are loaded
+**lazily** in the root layout so they do not sit on the first web render.
+`+html.tsx` emits a route-dependent static shell before hydration — without it
+Lighthouse has no LCP candidate (Phase 4c).
 
-| Path | Component | Description |
-|------|-----------|-------------|
-| `/` | `RecipeList` | Main recipe list |
-| `/extract` | `ExtractionPage` | URL input, photo import, QR scanner |
-| `/settings` | `SettingsPage` | BYOK, app status |
-| `/shopping` | `ShoppingPage` | Shopping list |
-| `/planner` | `PlannerPage` | 7-day meal planner with QR import |
-| `/recipe/:id` | `RecipeDetail` | Recipe detail view |
-| `/recipe/:id/cook` | `CookMode` | Fullscreen cook mode |
+## `mobile/utils/` — the logic layer
 
-## Components
+| File | Purpose |
+|------|---------|
+| `api.ts` | `apiFetch` — auth header, **one** forced token refresh + retry on 401 |
+| `auth.ts`, `auth-storage.ts` | Supabase client, session in `expo-secure-store` |
+| `account-bootstrap.ts` | Calls `/auth/bootstrap` after first sign-in |
+| `protected-access.ts` | `mapProtectedApiError` → `token_expired` / `auth_invalid` / offline |
+| `login-first-routing.ts` | Which route is allowed anonymously |
+| `query-client.ts` | QueryClient + **per-user persistence**; posts `SET_USER` / `CLEAR_USER` / `SKIP_WAITING` to the SW |
+| `server-url.ts` | `getServerUrl()` — AsyncStorage override, else `''` (web, relative) or `PRODUCTION_URL` (native) |
+| `recipe-mapper.ts` | Row (snake_case) → UI model (camelCase) |
+| `recipe-list-screen-data.ts`, `planner-screen-data.ts`, `shopping-service.ts` | Screen logic, separately testable |
+| `scaling.ts` | `parseServingsNumber`, `scaleIngredient` — 100% test coverage |
+| `ingredient-category-domain.ts` | **byte-identical duplicate** of `src/ingredient-category-domain.ts`, guarded by a drift test |
+| `pdf-export*.ts` | Base + `.native` (expo-print) + `.web` (jsPDF download) |
+| `recipe-qr.ts` | QR payload (offline JSON) |
+| `image-compress.ts` | `compressIfNeeded` — JPEG requantisation in up to 4 steps down to ≤ 256,000 bytes. **Native only**; on web the URI is returned unchanged |
+| `bug-reporting.ts` | Modal controller + last-failure snapshot |
+| `admin.ts`, `cookidoo-settings.ts`, `use-theme.ts` | Admin calls, Cookidoo UI state, theme |
 
-### Layout
+## `mobile/hooks/`
 
-**Location:** `frontend/src/components/Layout.tsx`
+`useRecipes`, `useRecipe`, `useCollections` (TanStack Query) · `useOfflineQueue` ·
+`usePushSubscription` (full opt-in lifecycle including denied-sticky and
+iOS-needs-install) · `usePwaInstall` · `usePwaUpdate`.
 
-- Navigation sidebar with icons
-- Routes: Home, Extract, Shopping, Planner, Settings
-- Toast notification system
-- Responsive design (mobile-first)
+## `mobile/components/`
 
-### RecipeList
+`AddToCollectionModal`, `BugReportModal`, `BugReportHeaderAction`,
+`ImagePickerModal`, `OfflineBanner`, `ProtectedAccessNotice`, `StepText`,
+`StyledText`, `Themed`, `ExternalLink`, `useColorScheme`,
+`ScannerCamera.{native,web}`, plus `admin/AdminBugReportsScreen` and
+`settings/MyBugReportsSection`.
 
-**Location:** `frontend/src/components/RecipeList.tsx`
+## `mobile/offline/` — the write path
 
-- Grid/list view toggle (persisted in localStorage)
-- Search/filter by ingredients
-- Rating display (1-5 stars)
-- Click to navigate to detail
+| File | Purpose |
+|------|---------|
+| `idb-store.ts` | IndexedDB `recipedeck-offline` / store `mutation-queue` |
+| `mutation-queue.ts` | FIFO queue, flushed on reconnect |
+| `queued-mutate.ts` | Wrapper: enqueue instead of failing when offline / 5xx / network error |
+| `network-status.ts` | `onReconnect` — `online` and visibility listeners |
+| `background-sync.ts` | SW tag `flush-mutations` |
+| `queue-singleton.ts`, `temp-id.ts`, `types.ts` | Infrastructure |
 
-### RecipeDetail
+Affected surfaces: shopping list and meal planner. Planner POSTs carry
+`client_op_id` for server-side idempotency; the shopping list dedupes via its
+`(household_id, recipe_id, canonical_name)` index. Reconciliation is
+last-write-wins by refetch (`setOnFlushed(load)`).
 
-**Location:** `frontend/src/components/RecipeDetail.tsx`
+## `mobile/sw/` — service worker
 
-- Full recipe display: name, emoji, tags, image
-- Two-column layout: ingredients | steps
-- Inline edit mode (click to edit fields)
-- Serving size scaler (×0.5–×4)
-- Rating & notes (Phase 3a)
-- "Cook Mode" button
-- Original recipe link
-- Share via QR code
+TypeScript source, bundled to `public/sw.js` by `scripts/pwa/build-sw.ts`
+(runs automatically as `postbuild:mobile`).
 
-### ExtractionPage
+| File | Purpose |
+|------|---------|
+| `sw.ts` | Entry: install / activate / fetch / push / notificationclick / sync |
+| `cache-names.ts` | SHA-256 user hashing, cache naming, persisted user hash |
+| `recipe-cache-handler.ts` | StaleWhileRevalidate for `GET /api/v1/recipes/*` |
+| `routing.ts` | Navigation vs asset request detection |
+| `push-handler.ts` | Push payload → notification |
 
-**Location:** `frontend/src/components/ExtractionPage.tsx`
+Cache families:
 
-- URL input field (YouTube, Instagram, TikTok, websites)
-- Photo import (camera capture or file upload)
-- QR code scanner (BarcodeDetector API)
-- Job creation → polling for status
-- Progress display (stage, percentage)
-- Result preview
-- Redirect to recipe detail on success
-- Error handling with retry
+- `rd-shell-v<buildHash>` — NetworkFirst for navigations (3 s timeout)
+- `rd-assets-v<buildHash>` — CacheFirst for `/_expo/static/**`
+- `rd-user-<sha256(userId)>` — recipe data, deliberately **without** a build
+  suffix so it survives app updates
+- `rd-user-meta` — persisted user hash
 
-### CookMode
+`CLEAR_USER` deletes all `rd-user-*`. Unknown user = network-only. The precache
+is capped at 5 MB; the PDF-export chunks (`pdf-export`, `html2canvas`, `purify`)
+are excluded on purpose and served at runtime from `rd-assets`.
 
-**Location:** `frontend/src/components/CookMode.tsx`
+## There Is No Local SQL Database
 
-- Fullscreen recipe view
-- Wake lock API (prevent screen sleep)
-- Large text for easy reading
-- Step-by-step navigation
-- Exit button
+A common misconception from older notes: **`mobile/db/schema.ts` is a pure type
+file** mirroring the backend tables. `expo-sqlite` is in the dependencies but is
+**never imported**. Client persistence is exactly three things:
 
-### ShoppingPage
+1. Per-user TanStack Query persistence (AsyncStorage) — offline read of the list
+2. Service worker cache `rd-user-*` — offline read of detail pages
+3. IndexedDB mutation queue — offline write
 
-**Location:** `frontend/src/components/ShoppingPage.tsx`
+## Platform Splits
 
-- Multi-recipe aggregation
-- Check-off items
-- Clipboard export
-- Clear checked/all buttons
-- Add custom items
+Metro resolves `.native.*` / `.web.*` automatically. There are exactly three:
 
-### PlannerPage
+| Module | Native | Web |
+|--------|--------|-----|
+| `ScannerCamera` | `expo-camera` | BarcodeDetector API, `jsQR` fallback |
+| `pdf-export` | `expo-print` + jsPDF | Browser download (jsPDF) |
+| `useColorScheme` | React Native | `useColorScheme.web.ts` |
 
-**Location:** `frontend/src/components/PlannerPage.tsx`
+## Tests
 
-- 7-day week view
-- Drag & drop recipes (dnd-kit)
-- Assign recipes to days
-- Clear week button
-- QR code scanner to add recipes directly to plan
-
-### SettingsPage
-
-**Location:** `frontend/src/components/SettingsPage.tsx`
-
-- BYOK key management (validate, store, remove)
-- App status (DB health, recipe count)
-- Changelog modal
-
-### Shared Components
-
-| Component | Purpose |
-|-----------|---------|
-| `Toast.tsx` | Toast notification UI |
-| `ToastManager.tsx` | Toast state management |
-| `SkeletonLoader.tsx` | Loading placeholder |
-| `ChangelogModal.tsx` | Version changelog display |
-| `ShareModal.tsx` | Share recipe dialog |
-| `PDFSelectionModal.tsx` | PDF export selection (single recipe or all) |
-
-## Utility Functions
-
-**Location:** `frontend/src/utils/`
-
-- `scaling.ts` - Portion scaling utilities
-  - `parseServingsNumber(servings)` - Parse "4 Portionen" → 4
-  - `scaleIngredient(ingredient, factor)` - Scale quantity
-
-## API Client
-
-Frontend communicates with backend via REST API. See [Backend Codemap](BACKEND.md) for endpoints.
-
-## Styling
-
-Tailwind CSS with custom design tokens:
-- Primary: Orange/amber theme
-- Mobile-first responsive breakpoints
-- Dark mode support via `dark:` classes
+55 files under `mobile/test/`, Vitest. UI-near tests import
+`@testing-library/react-native`, which under Vitest resolves through the facade
+`mobile/test/testing-library-rn-real.ts`. `react-test-renderer` must **not** be
+imported directly — `npm run test:mobile:rntl-guard` blocks it. Rules:
+`docs/testing/rntl-migration-authoring-checklist.md`.
 
 ## Build
 
 ```bash
-npm run build:react   # Production build → public/
-npm run dev:react     # Dev server (Vite)
+npm run build:mobile        # Expo web export → public/ (+ SW rebuild)
+npm run mobile:typecheck
+npm run test:mobile
+npm run mobile:release-gate # exactly what CI runs — run it whole
 ```
 
-## PWA Support
+`mobile:release-gate` is an `&&` chain of six steps. Run the **complete** script
+before pushing, not individual parts — and do not pipe it, or you lose the exit
+code (`cmd > run.log 2>&1; echo "EXIT=$?"`).
 
-- Service worker via Vite PWA plugin
-- Installable on mobile home screen
-- Offline capability for installed app
+## Web Export in Docker
+
+The `web-builder` stage copies **only** `mobile/` and takes
+`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`,
+`EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE` and `EXPO_PUBLIC_VAPID_PUBLIC_KEY` as
+**build args**. Setting them only as Northflank runtime secrets produces an
+image where they are missing — login and Web Push then do not work.

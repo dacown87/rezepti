@@ -1,181 +1,228 @@
 # Database Codemap
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-08-07 (v1.0.196)
 
-## Database
+**Database:** Supabase PostgreSQL · **ORM:** Drizzle via `postgres-js` ·
+**Connection:** `DATABASE_URL` (pooler format)
 
-**File:** `data/rezepti-react.db`
+> **SQLite is fully gone.** `better-sqlite3`, `./data/rezepti-react.db`,
+> `src/db.ts` and `src/db-manager.ts` no longer exist. Anything that still
+> mentions SQLite predates 2026-04-16.
 
-**Technology:** SQLite with Drizzle ORM + better-sqlite3
+## Layout
 
-**Initialization:** `ensureReactSchema()` called on server startup
+| File | Role |
+|------|------|
+| `src/schema.ts` (338 lines) | Drizzle table definitions, 17 tables |
+| `src/db-react.ts` (2758 lines) | **all** data access — 86 exports |
+| `supabase/migrations/*.sql` | the authoritative source for the schema |
+| `drizzle.config.ts` | for `db:push` / `db:studio` |
 
-## Schema
+`resolvePostgresSsl()` decides on TLS from the connection string.
+`ensureReactSchema()` is a **no-op** — the schema comes from migrations.
 
-### Recipes Table
+`db-react.ts` is by far the largest module in the project. It is not a
+repository pattern but a flat set of functions grouped by domain. When
+extending it, put the new function into the matching group rather than at the
+end of the file.
 
-```sql
-CREATE TABLE recipes (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  name        TEXT NOT NULL,
-  emoji       TEXT,
-  source_url  TEXT,
-  image_url   TEXT,
-  servings    TEXT,
-  duration    TEXT,          -- 'kurz' | 'mittel' | 'lang'
-  calories    INTEGER,
-  tags        TEXT,           -- JSON array
-  ingredients TEXT NOT NULL,  -- JSON array
-  steps       TEXT NOT NULL,  -- JSON array
-  transcript  TEXT,
-  tried       INTEGER DEFAULT 0,
-  rating      INTEGER,       -- 1-5 stars, null = unrated
-  notes       TEXT,          -- personal notes
-  pdf_created INTEGER DEFAULT 0,
-  created_at  INTEGER         -- Unix timestamp
-);
+## Owner Model
+
+Every user-owned row has an explicit owner — a user **or** a household. There
+are no global recipes and no null-owner compatibility.
+
+```ts
+type RecipeOwner = { type: "user"; userId } | { type: "household"; householdId }
 ```
 
-### Ingredient Dictionary Table
+- `owner_type = 'user'` → `owner_user_id` set, `household_id` NULL
+- `owner_type = 'household'` → `household_id` set, `owner_user_id` NULL
 
-```sql
-CREATE TABLE ingredient_dictionary (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  canonical_name TEXT NOT NULL UNIQUE,
-  aliases TEXT        -- JSON array
-);
+Enforced by CHECK constraints (`*_owner_shape_check`) on top of Row Level
+Security. Sharing always means **copying** (`shareCopyRecipe`,
+`acceptRecipeShareInvite`), never shared mutation of the same row.
+
+## The Central Pattern: `RecipeAuthContext`
+
+Almost every recipe function takes a `RecipeAuthContext` (user id + households +
+active household). The internal helper `recipeVisibilityForAuth(auth)` builds
+the `WHERE` clause from it — **one** place where visibility is decided:
+
+```ts
+db.select().from(recipes).where(recipeVisibilityForAuth(auth))
 ```
 
-### Shopping List Table
+`canMutateRecipeForAuth` is currently identical to read visibility.
 
-```sql
-CREATE TABLE shopping_list (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  recipe_id INTEGER,
-  canonical_name TEXT NOT NULL,
-  quantity TEXT,      -- e.g. "200" or "1/2"
-  unit TEXT,          -- e.g. "g", "ml", "Stück"
-  checked INTEGER DEFAULT 0,
-  created_at INTEGER
-);
+**Rule: no new query against `recipes` without `recipeVisibilityForAuth(auth)`.**
+Leaving it out bypasses the primary trust boundary — RLS would still catch it in
+production, but tests run without RLS.
+
+## Tables (17)
+
+```
+auth.users (Supabase)
+   ├── user_profiles            app_role: 'user' | 'admin'
+   ├── user_default_households
+   └── household_memberships ──► households
+                                     │
+recipes ◄── recipe_collection_items ──► recipe_collections
+   │  ▲                                     (favorites | custom)
+   │  └── recipe_share_invites (email-bound, token hash)
+   ├──► meal_plan        (household-scoped)
+   └──► shopping_list    (household-scoped)
+
+ingredient_dictionary          global, read-only for everyone
+cookidoo_credentials           user-default, optional household share
+bug_reports (+ rate limits)    user-scoped, admin reads all
+push_subscriptions             user-scoped
+byok_validation_policies       global, admin-only
+byok_validation_rate_limits    per user + key hash + hourly window
 ```
 
-### Meal Plan Table
+### `recipes`
 
-```sql
-CREATE TABLE meal_plan (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  recipe_id INTEGER NOT NULL,
-  day_of_week INTEGER NOT NULL,  -- 0=Monday, 6=Sunday
-  week_start INTEGER NOT NULL,  -- Monday as Unix timestamp
-  created_at INTEGER
-);
+Core columns: `id` (serial PK), `name`, `emoji`, `source_url`, `image_url`,
+`servings`, `duration`, `calories`, `tags`, `category`, `ingredients`, `steps`,
+`transcript`, `equipment`, `nutrition_info`, `ingredient_groups`, `tried`,
+`rating`, `notes`, `pdf_created`, `created_at`, `updated_at`.
+
+Ownership columns: `owner_type` (NOT NULL, CHECK), `owner_user_id`,
+`household_id`, `created_by`, `source_recipe_id` (origin of a share copy).
+
+Indexes: `recipes_owner_user_idx (owner_user_id, created_at, id)`,
+`recipes_household_idx (household_id, created_at, id)`, `recipes_created_by_idx`.
+
+### `recipe_collections` / `recipe_collection_items`
+
+`uuid` PK. `kind` is `favorites` or `custom`; there may be only **one**
+favorites list per user and per household, enforced by two partial unique
+indexes. Items carry `position` (integer, default 0);
+`UNIQUE (collection_id, recipe_id)` prevents duplicates, both FKs are
+`ON DELETE CASCADE`.
+
+Putting a **private** recipe into a **household** collection creates a household
+copy — a collection never contains foreign-owned recipes.
+
+### `recipe_share_invites`
+
+Email-bound direct invite. Only the `token_hash` is stored, never the token.
+`status` ∈ `pending | accepted | revoked | expired`, coupled by CHECK to
+`accepted_by_user_id` / `accepted_recipe_id` / `accepted_at` (all set or all
+NULL). Accepting creates a **private copy** for the recipient; repeated
+acceptance is idempotent and a wrong account cannot accept.
+
+### `shopping_list` / `meal_plan` (household-scoped)
+
+`shopping_list`: `household_id` NOT NULL,
+`UNIQUE (household_id, recipe_id, canonical_name)` with `NULLS NOT DISTINCT` —
+which is simultaneously the dedupe rule for the offline write path, so the
+shopping list needs **no** `client_op_id`.
+
+`meal_plan`: `day_of_week` 0=Monday … 6=Sunday, `week_start` as a Unix timestamp
+of the Monday. `client_op_id` (uuid, nullable) plus the partial unique index
+`meal_plan_household_opid_uidx` provides **idempotency for the offline mutation
+queue**.
+
+### Operations tables
+
+| Table | Purpose | Scope |
+|-------|---------|-------|
+| `cookidoo_credentials` | Cookidoo login + scoped session | user-default, optional household share (`user > household`) |
+| `bug_reports` | Bug reporting incl. `lastFailureSnapshot` | user-scoped, admin reads all |
+| `bug_report_submission_rate_limits` | Abuse protection | user-scoped |
+| `push_subscriptions` | Web Push endpoints (VAPID) | user-scoped, 410/404 auto-pruned |
+| `byok_validation_policies` | Rate-limit policy for `/keys/validate` | global, admin-only |
+| `byok_validation_rate_limits` | Consumed budget | per user + key hash + hourly window |
+
+> The `api_keys` table was **dropped** in migration `20260609143000` — there is
+> no server-side BYOK key store.
+
+## Function Groups in `db-react.ts`
+
+| Group | Examples |
+|-------|----------|
+| Recipes | `saveRecipeToReactDb`, `getRecipeListFromReactDb`, `getRecipeByIdFromReactDb`, `updateRecipeInReactDb`, `deleteRecipeFromReactDb`, `getRecipeCount` |
+| Ingredient search | `searchRecipesByIngredients`, `searchRecipesByIngredientsAdvanced`, `findCanonicalBySimilarity` |
+| Visibility | `isRecipeVisibleToAuth`, `isShareCopyAllowed`, `isRecipeLegalForCollection`, `loadRecipeOwnerRow` |
+| Collections | `getCollectionsForAuth`, `createCollection`, `renameCollection`, `deleteCollection`, `addRecipeToCollection`, `removeRecipeFromCollection`, `reorderCollectionItems`, `bulkRemoveRecipesFromCollection`, `bulkCopyCollectionItems` |
+| Favorites | `resolveFavoritesCollection`, `setFavorite`, `toggleFavorite`, `getFavoriteRecipeIdsForAuth` |
+| Sharing | `shareCopyRecipe`, `createRecipeShareInvite`, `getRecipeShareInvitePreview`, `acceptRecipeShareInvite`, `deriveRecipeShareReadModel` |
+| Users / households | `loadUserAuthorization`, `ensureUserProfile`, `ensureDefaultHouseholdForUser`, `chooseActiveHouseholdId`, `getAccountBootstrapStatus` |
+| Cookidoo | `saveUserCookidooCredentials`, `resolveCookidooCredentials`, `shareCookidooCredentialsToHousehold`, `getCookidooStatus`, `updateCookidooScopedSession` |
+| Shopping | `getShoppingList`, `addToShoppingList`, `toggleShoppingItem`, `clearCheckedItems`, `clearAllShoppingItems` |
+| Meal plan | `getMealPlanForWeek`, `addRecipeToMealPlan`, `removeRecipeFromMealPlan`, `clearMealPlanForWeek` |
+| Dictionary | `getAllDictionaryEntries`, `addToDictionary`, `deleteDictionaryEntry` |
+| Bug reports | `createBugReport`, `listMyBugReports`, `listBugReportsForAdmin`, `updateBugReportAdminFields`, `recordBugReportSubmissionAttempt` |
+| BYOK | `getByokValidationPolicy`, `upsertByokValidationPolicy`, `recordByokValidationAttempt` |
+| Push | `getPushSubscriptionsForUser`, `addPushSubscription`, `deletePushSubscriptionByEndpoint` |
+
+## Pitfall: JSON is stored as `text`, not `jsonb`
+
+`tags`, `ingredients`, `steps`, `equipment`, `nutrition_info` and
+`ingredient_groups` are `text` columns holding JSON — a leftover from the
+SQLite era.
+
+- Write: `JSON.stringify(...)`, `null` when empty
+- Read: `JSON.parse(row.tags ?? "[]")`
+
+No SQL querying into the JSON structure — that is why ingredient search loads
+rows and filters in JS. Migrating to `jsonb` would be its own migration and has
+deliberately not happened.
+
+## Pitfall: camelCase vs snake_case
+
+Drizzle rows are snake_case (`image_url`, `nutrition_info`); `RecipeData` in the
+rest of the app is camelCase (`imageUrl`, `nutritionInfo`). The mapping happens
+in `db-react.ts`, and PATCH payloads from the client arrive camelCase. This has
+been a recurring source of bugs — see `docs/PROJECT_LEARNINGS.md`.
+
+## Changing the Schema — Order of Operations
+
+1. Write the migration: `supabase/migrations/<timestamp>_<name>.sql`
+2. Update `src/schema.ts`
+3. Add the access functions in `db-react.ts`
+4. Set the RLS policy and cover it in `scripts/supabase/rls-smoke.ts`
+5. `npm run supabase:rls-smoke` locally, then the `supabase-rls-smoke` CI job
+
+```bash
+npx drizzle-kit push          # local experimentation only
+npx supabase db push --yes    # staging
 ```
 
-### Extraction Jobs Table
+Production migrations run through the manual *Apply Supabase Migrations*
+workflow, not locally.
 
-```sql
-CREATE TABLE extraction_jobs (
-  id TEXT PRIMARY KEY,
-  url TEXT NOT NULL,
-  status TEXT NOT NULL,
-  progress INTEGER DEFAULT 0,
-  current_stage TEXT,
-  message TEXT,
-  result TEXT,         -- JSON
-  error TEXT,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  started_at INTEGER,
-  completed_at INTEGER,
-  api_key_hash TEXT,
-  user_agent TEXT
-);
+## Row Level Security
+
+RLS is enabled on every user table; app requests run with the Supabase user JWT
+as role `authenticated`. The server API is the primary boundary, RLS the second —
+**RLS must never allow more than the API.**
+
+## Connection Notes
+
+The direct host `db.<ref>.supabase.co` works locally but gives **ENOTFOUND**
+from Northflank. Always use the transaction pooler:
+
+```
+postgresql://postgres.[ref]:<password>@aws-0-[region].pooler.supabase.com:6543/postgres
 ```
 
-Indexes:
-- `idx_extraction_jobs_status` - (status, updated_at)
-- `idx_extraction_jobs_created` - (created_at DESC)
-- `idx_extraction_jobs_url` - (url)
+Note the username format: `postgres.[ref]`, not just `postgres`. The pooler URL
+is **not** in the main Database → Connection String view — it lives under
+Settings → Database → Connection pooling (scroll down).
 
-## Drizzle Schema
+`prepare: false` is required — pgbouncer in transaction mode does not support
+prepared statements.
 
-**Location:** `src/schema.ts`
+> If the host stops resolving **locally too**, the Supabase project is
+> **paused** (free tier pauses after ~4 weeks of inactivity and removes the DNS
+> record). Happened on 2026-07-07 and again on 2026-08-07.
 
-```typescript
-export const recipes = sqliteTable("recipes", { ... });
-export const ingredientDictionary = sqliteTable("ingredient_dictionary", { ... });
-export const shoppingList = sqliteTable("shopping_list", { ... });
-export const mealPlan = sqliteTable("meal_plan", { ... });
-```
+## Tests
 
-## Database Functions
-
-**Location:** `src/db-react.ts`
-
-### Recipe CRUD
-
-| Function | Purpose |
-|----------|---------|
-| `saveRecipeToReactDb(recipe, sourceUrl, transcript?)` | Insert new recipe |
-| `getAllRecipesFromReactDb()` | Get all recipes (ordered by created_at) |
-| `getRecipeByIdFromReactDb(id)` | Get single recipe |
-| `updateRecipeInReactDb(id, fields)` | Update recipe fields |
-| `deleteRecipeFromReactDb(id)` | Delete recipe |
-| `getRecipeCount()` | Lightweight count |
-| `searchRecipesByIngredients(ingredients[])` | Filter by ingredients (OR logic) |
-
-### Ingredient Dictionary
-
-| Function | Purpose |
-|----------|---------|
-| `getAllDictionaryEntries()` | List all entries |
-| `addToDictionary(canonicalName, aliases?)` | Add entry |
-| `findCanonicalBySimilarity(name)` | Fuzzy match |
-
-### Shopping List
-
-| Function | Purpose |
-|----------|---------|
-| `getShoppingList()` | Get all items |
-| `addToShoppingList(recipeId?, canonicalName, quantity?, unit?)` | Add item |
-| `toggleShoppingItem(id)` | Toggle checked state |
-| `deleteShoppingItem(id)` | Delete single item |
-| `clearCheckedItems()` | Delete all checked |
-| `clearAllShoppingItems()` | Clear entire list |
-
-### Meal Plan
-
-| Function | Purpose |
-|----------|---------|
-| `getMealPlanForWeek(weekStart)` | Get week's plan |
-| `addRecipeToMealPlan(recipeId, dayOfWeek, weekStart)` | Add recipe |
-| `removeRecipeFromMealPlan(id)` | Remove entry |
-| `clearMealPlanForWeek(weekStart)` | Clear week |
-
-## JSON Serialization
-
-JSON arrays (tags, ingredients, steps, aliases) are stored as TEXT in SQLite and parsed/serialized in code:
-
-```typescript
-// Deserialize (DB → API)
-JSON.parse(row.tags) as string[]
-
-// Serialize (API → DB)
-JSON.stringify(recipe.tags)
-```
-
-## Migrations
-
-Migrations are handled in `ensureReactSchema()` using `ALTER TABLE` with try/catch to handle existing databases gracefully.
-
-## Configuration
-
-**Location:** `src/config.ts`
-
-```typescript
-sqlite: {
-  path: process.env.SQLITE_PATH || "data/rezepti.db",
-  reactPath: process.env.SQLITE_REACT_PATH || "data/rezepti-react.db"
-}
-```
+`test/unit/db-react.test.ts`, `db-react-fuzzy.test.ts`,
+`recipe-collections-routes.test.ts`, `recipe-share-invites-routes.test.ts`,
+`collections-sharing.test.ts`, `cookidoo-storage.test.ts`,
+`planner-idempotency.test.ts`. The RLS contract is covered separately by
+`npm run supabase:rls-smoke`.

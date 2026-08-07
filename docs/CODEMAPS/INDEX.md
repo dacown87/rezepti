@@ -1,99 +1,122 @@
-# Rezepti Codemaps
+# RecipeDeck Codemaps
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-08-07 (v1.0.196)
 
 ## Overview
 
-Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, Instagram, TikTok, web pages) and saves them to a local SQLite database. Recipes are processed and output in German. It uses Groq API (Llama models) for extraction/translation, with fallback paths through schema.org parsing, audio transcription, and vision models.
+RecipeDeck extracts recipes from URLs (YouTube, Instagram, TikTok, Cookidoo,
+Chefkoch, generic web pages), free text and photo uploads, and stores them in
+**Supabase PostgreSQL**. Recipes are processed and output in German. Groq
+(Llama models) does extraction and translation, with fallback paths through
+schema.org parsing, audio transcription and vision models.
+
+The frontend is Expo React Native (`mobile/`) — one codebase for Web, Android
+and iOS. Since June 2026 the app is multi-user: Supabase Auth with a
+login-first gate, Row Level Security on every user table, and an explicit
+owner model (`user` **or** `household`).
+
+The repository, Docker image and Northflank service are still named `rezepti`.
 
 ## Architecture Map
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Rezepti Architecture                           │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   ┌──────────┐     ┌──────────────┐     ┌─────────────────────────────────┐ │
-│   │  Client  │────▶│  Hono Server │────▶│      Pipeline Orchestrator      │ │
-│   │ (React)  │     │  (index.ts)  │     │        (pipeline.ts)            │ │
-│   └──────────┘     └──────────────┘     └─────────────────────────────────┘ │
-│        │                                    │                               │
-│        │           ┌───────────────────────┘                               │
-│        │           ▼                                                       │
-│        │     ┌─────────────┐                                               │
-│        │     │  Classifier │                                               │
-│        │     │(classifier) │                                               │
-│        │     └──────┬──────┘                                               │
-│        │            │                                                       │
-│        ▼            ▼                                                       │
-│   ┌──────────────────────────────────────────────┐                         │
-│   │              Fetchers Layer                   │                         │
-│   │  ┌─────────┐ ┌──────────┐ ┌───────┐ ┌──────┐ ┌─────────┐ ┌────────┐  │                         │
-│   │  │  Web    │ │ YouTube  │ │ TikTok│ │ Insta│ │Pinterest│ │ Facebook│  │                         │
-│   │  │ (cheerio│ │(yt-dlp) │ │(yt-dlp│ │yt-dlp│ │  API    │ │ Cookies │  │                         │
-│   │  └─────────┘ └──────────┘ └───────┘ └──────┘ └─────────┘ └────────┘  │                         │
-│   └──────────────────────────────────────────────┘                         │
-│                              │                                              │
-│                              ▼                                              │
-│   ┌──────────────────────────────────────────────┐                         │
-│   │            Processors Layer                   │                         │
-│   │  ┌────────────┐ ┌─────────┐ ┌──────────────┐  │                         │
-│   │  │Schema-Org │ │   LLM   │ │   Whisper    │  │                         │
-│   │  │ (fast)    │ │(Groq)   │ │ (Audio)      │  │                         │
-│   │  └────────────┘ └─────────┘ └──────────────┘  │                         │
-│   └──────────────────────────────────────────────┘                         │
-│                              │                                              │
-│                              ▼                                              │
-│   ┌──────────────────────────────────────────────┐                         │
-│   │           Database Layer (SQLite)             │                         │
-│   │  ┌─────────────────────────────────────────┐   │                         │
-│   │  │ recipes | shopping_list | meal_plan    │   │                         │
-│   │  │ ingredient_dictionary | extraction_jobs │   │                         │
-│   │  └─────────────────────────────────────────┘   │                         │
-│   └──────────────────────────────────────────────┘                         │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│  Clients — one codebase: mobile/                              │
+│  Expo Web (browser / PWA)      Expo Native (iOS, Android)     │
+└───────────────────────────┬───────────────────────────────────┘
+                            │ HTTPS + Supabase user JWT
+                            ▼
+┌───────────────────────────────────────────────────────────────┐
+│  Hono server — src/index.ts                                   │
+│  CORS · compress · static public/ · SPA fallback · API mount  │
+└───────────────────────────┬───────────────────────────────────┘
+                            ▼
+┌───────────────────────────────────────────────────────────────┐
+│  API — src/api-react.ts mounts eleven routers in src/routes/  │
+│  auth · recipes · recipe-collections · recipe-share-invites   │
+│  extraction · keys · planner · platforms · push · admin       │
+│  bug-reports          [auth middleware: src/auth.ts]          │
+└───────────────┬───────────────────────────────┬───────────────┘
+                │ extraction                    │ CRUD
+                ▼                               ▼
+┌───────────────────────────────┐   ┌───────────────────────────┐
+│  job-manager.ts (in-memory!)  │   │  db-react.ts              │
+│  job ids, polling, events     │   │  postgres-js + Drizzle    │
+│  → Web Push on completion     │   │  → Supabase PostgreSQL    │
+└───────────────┬───────────────┘   └───────────────────────────┘
+                ▼
+┌───────────────────────────────────────────────────────────────┐
+│  pipeline.ts — orchestrator                                   │
+│  classifier → fetchers/* → processors/* → db-react            │
+└───────────────────────────────────────────────────────────────┘
 ```
+
+## Codemaps
+
+- [Architecture](ARCHITECTURE.md) — system boundaries, layering rules, control flow
+- [Backend](BACKEND.md) — `src/` in detail: server, routers, pipeline, processors, auth
+- [Database](DATABASE.md) — `src/schema.ts` + `src/db-react.ts`, owner model in code
+- [Fetchers](FETCHERS.md) — source-specific downloaders and per-platform status
+- [Frontend](FRONTEND.md) — `mobile/`: routes, hooks, offline layer, service worker
 
 ## Key Modules
 
 | Module | Purpose | Location |
 |--------|---------|----------|
-| Server | HTTP server, static file serving, SPA fallback | `src/index.ts` |
-| API | All REST endpoints (recipes, extraction, shopping, planner) | `src/api-react.ts` |
-| Pipeline | Orchestrates extraction workflow | `src/pipeline.ts` |
-| Classifier | Determines URL source type | `src/classifier.ts` |
-| Database | SQLite CRUD with Drizzle ORM | `src/db-react.ts` |
-| Job Manager | Extraction job persistence | `src/job-manager.ts` |
+| Server | HTTP server, static serving, SPA fallback | `src/index.ts` |
+| API mount | Mounts the routers — no route logic of its own | `src/api-react.ts` |
+| Routers | The actual REST endpoints | `src/routes/*.ts` |
+| Auth | JWT verification, `requireUserAuth` / `requireAuth` | `src/auth.ts` |
+| Pipeline | Orchestrates the extraction workflow | `src/pipeline.ts` |
+| Classifier | URL → source type | `src/classifier.ts` |
+| Database | All data access, PostgreSQL via Drizzle | `src/db-react.ts` |
+| Job Manager | Extraction job tracking (in-memory) | `src/job-manager.ts` |
 
 ## Data Flow
 
-1. **Request:** Client sends URL → `/api/v1/extract/react`
-2. **Job Creation:** Job manager creates polling job, returns `jobId`
-3. **Classification:** URL classified (youtube/instagram/tiktok/cookidoo/web)
-4. **Fetching:** Source-specific fetcher downloads content
-5. **Extraction:** Try schema.org → LLM text → Whisper audio → Vision model
-6. **Saving:** Recipe saved to SQLite, job marked complete
-7. **Polling:** Client polls `/api/v1/extract/react/:jobId` for status
+1. **Request** — client posts a URL to `/api/v1/extract/react` with a user JWT
+2. **Job creation** — `jobManager.createJob` returns a `jobId` and snapshots the
+   caller's `userId` / `householdId` (the async run has no request context)
+3. **Classification** — youtube / instagram / tiktok / cookidoo / chefkoch /
+   pinterest / facebook, falling through to `web`
+4. **Fetching** — the source-specific fetcher returns a `ContentBundle`
+5. **Extraction** — schema.org JSON-LD → LLM text → Whisper audio → vision model
+6. **Saving** — recipe written to Supabase, job marked complete
+7. **Notification** — `completeJob` sends a Web Push to the job owner
+8. **Polling** — client polls `/api/v1/extract/react/:jobId`
+
+## Code Size (lines, excluding tests)
+
+| Area | Largest modules |
+|------|-----------------|
+| Database | `db-react.ts` 2758 — by far the largest module |
+| Fetchers | `cookidoo.ts` 576, `pinterest.ts` 434, `instagram.ts` 324 |
+| Routes | `extraction.ts` 494, `recipe-collections.ts` 457, `planner.ts` 271 |
+| Core | `pipeline.ts` 447, `schema.ts` 338, `auth.ts` 284 |
+
+`src/` totals roughly 11,000 lines of TypeScript.
 
 ## External Dependencies
 
-- **Groq API** - LLM extraction (Llama 3.3 70B, Llama 4 Scout)
-- **yt-dlp** - YouTube/Instagram/TikTok video downloading
-- **SQLite** - Local database (better-sqlite3 + Drizzle)
-- **Cheerio** - HTML parsing for web fetcher
-- **Pinterest API** - Pinterest pin extraction (Phase 13)
-- **Facebook** - Cookie-based access with rate limiting (Phase 14)
+- **Groq API** — LLM extraction (Llama 3.3 70B, Llama 4 Scout, Whisper turbo)
+- **Supabase** — PostgreSQL, Auth, Row Level Security
+- **yt-dlp** — YouTube / Instagram / TikTok / Facebook downloading (required)
+- **ffmpeg** — optional, only for TikTok frame OCR
+- **Cheerio** — HTML parsing for the web fetcher
+- **Brevo** — transactional email (recipe invites + Supabase auth SMTP)
+- **cf-clearance-scraper** — Cloudflare bypass for Cookidoo, separate container on port 3001
 
-## Codemaps
+## What is documented elsewhere
 
-- [Architecture](ARCHITECTURE.md) - High-level system overview
-- [Backend](BACKEND.md) - API routes, pipeline, processors
-- [Frontend](FRONTEND.md) - React components and pages
-- [Database](DATABASE.md) - Schema and queries
-- [Fetchers](FETCHERS.md) - Source-specific content downloaders
+- **Route auth matrix** (owner, read/write boundary, risk): `CLAUDE.md`,
+  section "Route Auth Inventory" — that is the authoritative source
+- **Known pitfalls:** `docs/PROJECT_LEARNINGS.md`
+- **Runbooks:** `docs/pwa-runbook.md`, `docs/auth-runbook-route-privacy.md`,
+  `docs/gmail-production-monitor-runbook.md`
+- **Operative task list:** `TODO.md`
 
 ## Related Documentation
 
-- [CLAUDE.md](../../CLAUDE.md) - Main project documentation
-- [Master Plan](../../docs/superpowers/plans/2026-03-26-master-phasenplan.md) - Strategic roadmap
+- [CLAUDE.md](../../CLAUDE.md) — main project documentation
+- [TODO.md](../../TODO.md) — current work list
+- Obsidian vault → `Projekte/RecipeDeck/` — linked long-form version of these maps

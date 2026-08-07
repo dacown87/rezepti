@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Rezepti is a TypeScript web service that extracts recipes from URLs (YouTube, Instagram, TikTok, web pages), free text, and photo uploads, then saves them to Supabase PostgreSQL. Recipes are processed and output in German. It uses Groq API (Llama models) for extraction/translation, with fallback paths through schema.org parsing, audio transcription, and vision models.
+RecipeDeck is a TypeScript web service that extracts recipes from URLs (YouTube, Instagram, TikTok, web pages), free text, and photo uploads, then saves them to Supabase PostgreSQL. Recipes are processed and output in German. It uses Groq API (Llama models) for extraction/translation, with fallback paths through schema.org parsing, audio transcription, and vision models.
+
+The product is called **RecipeDeck**; the repository, Docker image and Northflank service are still named `rezepti`. Both names refer to the same thing.
+
+Multi-user since June 2026: Supabase Auth with a login-first gate, Row Level Security on every user table, and an explicit owner model (`user` **or** `household`) on every user-owned row.
 
 ## Commands
 
@@ -46,7 +50,11 @@ Test suite: Vitest for unit/e2e tests. Mobile UI-near tests import `@testing-lib
 - `./src:/app/src` — Hot-Reload für Server-Code (nur Dev-Modus)
 - `./public:/app/public` — Hot-Reload für Frontend (nur Dev-Modus)
 
-**Wichtig:** `./node_modules` nie als Volume mounten — `better-sqlite3` ist host-spezifisch kompiliert und inkompatibel mit Linux im Container.
+**Wichtig:** `./node_modules` nie als Volume mounten. Ursprünglich wegen `better-sqlite3` (host-spezifisch kompiliert, inkompatibel mit Linux im Container); das Paket ist weg, die Regel bleibt richtig, weil native Module im Container anders gebaut werden als auf dem Host.
+
+**Nicht in dieser Compose-Datei:** der `cf-clearance-scraper` (Port 3001, für Cookidoo) läuft als eigener Container. `CF_SCRAPER_URL` zeigt darauf, Default `http://localhost:3001`.
+
+Die drei Services binden alle Port 3000 — es kann immer nur einer laufen.
 
 **GitHub Secrets (einmalig im Repo setzen):**
 - `DOCKERHUB_USERNAME` = `dacown`
@@ -62,13 +70,13 @@ Test suite: Vitest for unit/e2e tests. Mobile UI-near tests import `@testing-lib
 
 **Request flow:** HTTP request → Pipeline → Classifier → Fetcher → Processor → Supabase PostgreSQL save
 
-The server (`src/index.ts`) serves the React app and mounts the React API router.
+The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA fallback) and mounts the API router.
 
 **Pipeline stages**: classifying → fetching → transcribing → analyzing_image → extracting → exporting → done/error
 
 **Key modules:**
 - `src/pipeline.ts` — Orchestrator that routes through the extraction workflow; saves to Supabase-backed React DB and accepts per-job LLM options
-- `src/classifier.ts` — Determines URL source type (youtube/instagram/tiktok/web)
+- `src/classifier.ts` — Determines URL source type; regexes are tried in order (youtube, instagram, tiktok, cookidoo, chefkoch, pinterest, facebook) and fall through to `web`
 - `src/fetchers/` — Source-specific content downloaders (yt-dlp for video; cheerio for web)
   - `web/base.ts` — shared extraction utilities + `WebScraperPlugin` interface
   - `web/index.ts` — generic `fetchWeb` dispatcher; Chefkoch ist hier nicht mehr registriert
@@ -77,11 +85,15 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
 - `src/processors/whisper.ts` — Audio transcription via Groq Whisper API; supports per-job BYOK
 - `src/processors/ingredient-parser.ts` — `parseIngredient(raw)` → `{amount, unit, food, note?}`; ephemeral (no DB field)
-- `src/db-react.ts` — PostgreSQL connection (postgres-js + Drizzle ORM), CRUD functions for React DB
-- `src/api-react.ts` — All `/api/v1/*` endpoints (recipes, extraction jobs, BYOK, health)
-- `src/job-manager.ts` — Job persistence for polling-based extraction
-- `src/schema.ts` — Drizzle table schema for `recipes`
+- `src/db-react.ts` — PostgreSQL connection (postgres-js + Drizzle ORM) and **all** data access; ~2,750 lines, 86 exports. Every recipe query goes through the internal `recipeVisibilityForAuth(auth)` clause — never query `recipes` without it
+- `src/api-react.ts` — Mount point only. The eleven routers live in `src/routes/`: `auth`, `recipes`, `recipe-collections`, `recipe-share-invites`, `extraction`, `keys`, `planner`, `platforms`, `push`, `admin`, `bug-reports`
+- `src/job-manager.ts` — Job tracking for polling-based extraction. **In-memory `Map`, no DB persistence** — a restart or redeploy loses running jobs, and horizontal scaling would break polling. `createJob` snapshots `userId`/`householdId` because the async run has no request context. `completeJob` fires the Web Push notification
+- `src/auth.ts` — `requireUserAuth` / `requireAuth` middleware, Supabase JWT verification, uniform `AuthFlowError` payloads
+- `src/schema.ts` — Drizzle table schema, 17 tables (recipes, collections, invites, households, memberships, shopping, planner, dictionary, cookidoo, bug reports, push, BYOK)
 - `src/types.ts` — Core types and Zod schemas (RecipeData, ContentBundle, SchemaOrgRecipe)
+- `src/mail.ts` — the single provider boundary for invite emails (Brevo)
+- `src/push.ts` — VAPID Web Push fan-out with 410/404 auto-prune
+- `src/gmail-monitor.ts` — internal delivery monitor for the operator mailbox. **No HTTP endpoint** — never expose it as one
 
 **Database:** PostgreSQL via Supabase. Connection via `DATABASE_URL` env var (postgres-js + Drizzle ORM). Legacy SQLite (`rezepti-react.db`, `better-sqlite3`) and `db.ts`/`db-manager.ts` have been removed.
 
@@ -91,10 +103,12 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 3. Audio transcription (Groq Whisper) → LLM extraction
 4. Vision model on images (Groq Llama 4 Scout, fallback)
 
-**API Endpoints:**
+**API Endpoints** (complete as of 2026-08-07; source of truth is `src/routes/*.ts`):
+
 | Route | Method | Description |
 |-------|--------|-------------|
-| `/` | GET | Main UI (React app), open |
+| `/` | GET | Main UI (Expo web export), open |
+| `/api/v1/auth/me` | GET | Current user + workspace, `requireUserAuth` |
 | `/api/v1/recipes` | GET/POST | List / create recipes, `requireUserAuth` |
 | `/api/v1/recipes/:id` | GET/PATCH/DELETE | Single recipe CRUD inside the caller's owner scope, `requireUserAuth` |
 | `/api/v1/recipes/:id/image` | GET | Fetch recipe image, `requireUserAuth` |
@@ -103,7 +117,13 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/recipe-collections` | GET/POST | List / create recipe collections (private or household-scoped), `requireUserAuth` |
 | `/api/v1/recipe-collections/:id` | PATCH/DELETE | Rename / delete a collection (owner only), `requireUserAuth` |
 | `/api/v1/recipe-collections/:id/items` | GET/POST | List recipes in a collection / add a recipe (recipe-level visibility re-applied), `requireUserAuth` |
+| `/api/v1/recipe-collections/:id/items/reorder` | PATCH | Set explicit item order, `requireUserAuth` |
+| `/api/v1/recipe-collections/:id/items/bulk-remove` | POST | Remove several items at once, `requireUserAuth` |
+| `/api/v1/recipe-collections/:id/items/bulk-copy` | POST | Copy several items into another collection, `requireUserAuth` |
 | `/api/v1/recipe-collections/:id/items/:recipeId` | DELETE | Remove a recipe from a collection, `requireUserAuth` |
+| `/api/v1/recipes/:id/share-invites` | POST | Create an email-bound invite; response carries `shareUrl` **and** `delivery`, `requireUserAuth` |
+| `/api/v1/share-invites/:token` | GET | Preview an invite by token (token is the credential, no middleware) |
+| `/api/v1/share-invites/:token/accept` | POST | Accept → private copy for the recipient; idempotent, wrong account fails, `requireUserAuth` |
 | `/api/v1/extract/react` | POST | Start URL extraction job (polling), `requireUserAuth` |
 | `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel a job, only visible to the owning user (inline user check, no middleware) |
 | `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars), `requireUserAuth` |
@@ -125,14 +145,22 @@ The server (`src/index.ts`) serves the React app and mounts the React API router
 | `/api/v1/dictionary/match` | GET | Match ingredient against dictionary (open, global read-only) |
 | `/api/v1/planner` | GET/POST/DELETE | Meal planner CRUD, `requireAuth` (household-scoped) |
 | `/api/v1/auth/bootstrap` | POST | Bootstrap user account after first sign-in, `requireUserAuth` |
+| `/api/v1/bug-reports` | POST | Submit a report incl. `lastFailureSnapshot`, `requireUserAuth` (5 per 60 min) |
+| `/api/v1/bug-reports/me` | GET | The caller's own reports, `requireUserAuth` |
+| `/api/v1/admin/bug-reports` | GET | All reports, admin only — otherwise `403 admin_required` |
+| `/api/v1/admin/bug-reports/:id` | GET/PATCH | Report detail / change status, admin only |
+| `/api/v1/admin/byok-validation-policy` | GET/PUT | Shared BYOK rate-limit policy, admin only |
 
 BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths. No server-side key storage (the api_keys store was removed). If no user BYOK key is supplied, Groq calls continue to fall back to the server-side `GROQ_API_KEY`.
 
-## Route Auth Inventory (S3, 2026-06-19)
+## Route Auth Inventory (S3, 2026-06-19 — extended 2026-08-07)
 
 | Surface | Layer | Owner Model | Auth | Read Boundary | Write Boundary | Risk | Action |
 |---------|-------|-------------|------|---------------|----------------|------|--------|
 | `recipes` | Server + RLS | user/household | `requireUserAuth` + `recipeVisibilityForAuth` | owner | owner | low | — |
+| `recipe_collections` / `_items` | Server + RLS | user/household | `requireUserAuth` | visible collections | owner/manager role | low | adding a private recipe to a household collection creates a household copy |
+| `recipe_share_invites` create/accept | Server + RLS | user-scoped, email-bound | `requireUserAuth` | inviter and invited account | inviter creates, invited account accepts | low | accept is idempotent; wrong account cannot accept |
+| `share-invites/:token` preview | Server | token-scoped | **none — the token is the credential** | anyone holding the token | — | medium | only `token_hash` is stored. Preview returns `status`, `recipeName`, `senderEmail`, `recipientEmail`, `expiresAt` — **two email addresses**, no recipe body. Do not widen this payload |
 | `planner` / `shopping` | Server + RLS | household-scoped | `requireAuth` | household | household | low | — |
 | `auth/bootstrap` | Server + DB | user-scoped bootstrap with household side-effect | `requireUserAuth` | caller | caller | low | — |
 | extraction jobs create/list | Server | user-scoped | `requireUserAuth` | user | user | low | — |
@@ -148,8 +176,13 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `/api/v1/images/search` | Server | user-scoped | `requireUserAuth` | — | — | low | added auth 2026-06-12 — prevents unauthenticated Unsplash credit drain |
 | `api_keys` table | DB | deleted | — | — | — | — | dropped in migration 20260609143000 |
 | `push_subscriptions` | Server + RLS | user-scoped | `requireUserAuth` | owner | owner | low | — |
+| `bug_reports` submit/list-own | Server + RLS | user-scoped | `requireUserAuth` | own reports | own reports | low | rate-limited, 5 per 60 min |
+| `admin/bug-reports` | Server | admin-only | `requireUserAuth` + admin gate | all reports | status/notes | medium | non-admin gets `403 admin_required` |
+| `admin/byok-validation-policy` | Server | global, admin-only | `requireUserAuth` + admin gate | admin | admin | medium | policy applies to every user's `/keys/validate` |
 
-**Frontend:** React SPA (Vite + TypeScript + Tailwind CSS), built to `public/`.
+**Frontend:** Expo React Native (`mobile/`) — **the only frontend source**, for web *and* native. Expo Router (file-based), NativeWind 4 on Tailwind 3.4, TanStack Query with per-user persistence. The web build is `npm run build:mobile` → `public/`.
+
+> There is no Vite/React SPA any more. `frontend/` is an empty, untracked leftover — it is neither built nor tested. Anything that used to live under `frontend/src/` is now under `mobile/`.
 
 **⚠️ `public/` ist seit 2026-08-07 ein reines Build-Artefakt und nicht mehr eingecheckt.** Im Repo liegen nur noch handgepflegte Quell-Assets (`Logo.png`, Icons, `manifest.webmanifest`); der Expo-Web-Export (`_expo/`, `*.html`, `sw.js`, `assets/`) entsteht erst durch `npm run build:mobile` bzw. den `web-builder`-Stage im Dockerfile. Konsequenzen:
 
@@ -158,14 +191,29 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 - CI-Jobs, die einen echten Server starten, bauen den Export vorher (`e2e-legacy-soak`); `performance-audit` baut ihn ueber `perf:audit` selbst.
 - `public/changelog.json` wird vom Workflow `changelog-update.yml` erzeugt; der Dockerfile faellt auf einen Minimal-Stub zurueck, wenn die Datei fehlt.
 
-Key components:
-- `ExtractionPage` — URL input, job polling, progress display
-- `RecipeList` — List/grid view toggle (default: list), persisted in localStorage
-- `RecipeDetail` — Single recipe view with inline edit mode, serving size scaler, source link
-- `PlannerPage` — 7-day meal planner with Drag & Drop (dnd-kit) for recipe assignment
-- `ScannerPage` — QR code scanner/generator (BarcodeDetector API)
-- `SettingsPage` — BYOK key management, App Status with Roadmap modal
-- `frontend/src/utils/scaling.ts` — `parseServingsNumber`, `scaleIngredient` for portion scaling
+Routes (`mobile/app/`, Expo Router):
+
+| Path | Purpose |
+|------|---------|
+| `(tabs)/index.tsx` | Recipe list, search, ingredient search, category filter |
+| `(tabs)/extract.tsx` | URL / free-text / photo import with job polling |
+| `(tabs)/scanner.tsx` | QR scanner + generator (BarcodeDetector, `jsQR` fallback) |
+| `(tabs)/planner.tsx` | 7-day meal planner with drag & drop |
+| `(tabs)/shopping.tsx` | Shopping list |
+| `(tabs)/settings.tsx` | BYOK, Cookidoo, push opt-in, app status |
+| `recipe/[id].tsx` | Detail view: ingredients, steps, scaling, cook mode, inline edit |
+| `account.tsx` | Login / signup / workspace — reachable anonymously |
+| `collections.tsx`, `collection/[id].tsx` | Collection list and contents |
+| `share-invite/[token].tsx` | View and accept an invite |
+| `admin/index.tsx`, `admin/bug-reports.tsx`, `admin/byok-validation-policy.tsx` | Admin surfaces |
+| `+html.tsx` | Route-aware static app shell (LCP candidate before hydration) |
+| `_layout.tsx` | Root: fonts, theme, query persistence, auth observer, login-first guard, offline-queue flush, bug-report modal, PWA update |
+
+**Login-first gate:** a guard redirects anonymous access to `/account` with a matching `returnTo`; only `/account` itself stays directly reachable. Toggle: `EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE`.
+
+Key modules: `mobile/utils/scaling.ts` (`parseServingsNumber`, `scaleIngredient`), `mobile/utils/api.ts` (`apiFetch` with one forced token refresh + retry on 401), `mobile/utils/query-client.ts` (per-user query persistence, SW messages), `mobile/offline/` (IndexedDB mutation queue), `mobile/sw/` (service worker source).
+
+**There is no local SQL database on the client.** `mobile/db/schema.ts` is a pure type file mirroring the backend tables; `expo-sqlite` is a dependency but is never imported. Client persistence is exactly three layers: per-user TanStack Query persistence (list offline-read), the SW `rd-user-*` cache (detail offline-read), and the IndexedDB mutation queue (offline write).
 
 ## PWA (Progressive Web App)
 
@@ -208,9 +256,11 @@ Key components:
 
 ## External CLI Dependencies
 
-These must be installed on the host: `yt-dlp`
+Required on the host: `yt-dlp` (included in the Docker image). `npx tsx scripts/ytdlp-health-check.ts` checks the version — an outdated yt-dlp has repeatedly been the cause of "import suddenly stopped working".
 
-Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no local `whisper-cpp` or `ffmpeg` required.
+Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no local `whisper-cpp` required.
+
+`ffmpeg` is **optional**: it is only used to cut frames for TikTok OCR (`extractTextFromVideoFrames`). Without it, OCR is silently skipped and everything else keeps working. It is installed in the Docker image anyway.
 
 ## Configuration
 
@@ -266,11 +316,14 @@ Host github.com
 
 ## Planning Documents
 
-- **Master Plan (kanonisch):** Obsidian Vault → `Projekte/RecipeDeck/Phasenplan.md` — Immer aktuellster Stand. Zuerst hier nachschlagen.
+**Wo steht die Wahrheit?** Für den Tagesbetrieb `TODO.md` **in diesem Repo**. Für Routen, Owner und Boundaries das „Route Auth Inventory" oben. Für Strategie und Historie der Obsidian-Phasenplan.
+
+- **TODO (operativ, maßgeblich):** `TODO.md` — ganz oben „Naechste Schritte" mit aktueller Reihenfolge und Runbook-Links
+- **Master Plan (Strategie/Historie):** Obsidian Vault → `Projekte/RecipeDeck/Phasenplan.md` — oben der Plan von März 2026 (teils überholt), unten die Konsolidierung bis 2026-08-07. **Keine** operative Arbeitsliste.
 - **Legacy Plan:** `docs/superpowers/plans/2026-03-26-master-phasenplan.md` — Veraltet, nur als Archiv. Nicht mehr maßgeblich.
 - **Autoplan-Review:** `~/.claude/plans/joyful-kindling-anchor.md` — Vollständiger Projektstand-Review (2026-04-09) mit offenen Punkten
-- **Codemaps:** `docs/CODEMAPS/` — Architecture, Backend, Fetchers, Database, Frontend
-- **TODO:** `TODO.md` — Aktuelle Aufgaben und offene Bugs
+- **Codemaps:** `docs/CODEMAPS/` — Index, Architecture, Backend, Database, Fetchers, Frontend (nachgezogen 2026-08-07). Ausführlichere, verlinkte Fassung im Vault unter `Projekte/RecipeDeck/Codemaps/`.
+- **ADRs:** Obsidian Vault → `Projekte/RecipeDeck/Entscheidungen.md` — Architektur-Entscheidungen inkl. Begründung und Konsequenzen
 - **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions. Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
 - **RNTL Migration Inventory:** `docs/testing/rntl-migration-phase-0-inventory.md` — aktueller Mobile-Test-Migrationsstand, Real-RNTL-Runtime-Fix, abgebauter `UNSAFE_queryAllByType`-Rest und verbleibende Warnklassen.
 - **RNTL Authoring Checklist:** `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests nach Entfernung des Compat-Layers.
@@ -301,19 +354,21 @@ Legacy code and dead files removed:
 - ❌ `test/scripts/run-tests.ts`, `test/utils/test-setup.ts` — broken test utilities removed
 - ✅ `frontend/src/components/ChangelogModal.tsx` — extracted as shared component (no longer duplicated in Layout + SettingsPage)
 
+> Historical section — kept for context. The whole `frontend/` tree was removed in April 2026 when `mobile/` became the only frontend source, so the paths above no longer exist.
+
 ## Roadmap
 
-Planned features and current implementation status (as of March 2026):
+Planned features and current implementation status (reviewed 2026-08-07, v1.0.196):
 
 ### Import & Extraction
 - Websites (general): 80% — works, gaps on uncommon sites
 - YouTube: 80% — audio, subtitles, vision fallback
-- TikTok: 70% — via yt-dlp
-- Instagram: 70% — via yt-dlp
-- Chefkoch: 40% — Schema.org partially works
-- Cookidoo: 100% — OAuth2 ROPC flow implemented in `src/fetchers/cookidoo.ts`
-- Pinterest: 0%
-- Facebook: 0%
+- TikTok: 70% — via yt-dlp, plus optional frame OCR
+- Instagram: 70% — yt-dlp, then Cobalt, then plain web scraping
+- Chefkoch: 40% — Schema.org partially works; dedicated fetcher wired in `pipeline.ts`
+- Cookidoo: 100% — **form-based web login** against Vorwerk CIAM (`login-srv/login`) with a CF-clearance bootstrap via `CF_SCRAPER_URL`. Not OAuth2, not ROPC, no Playwright. Sessions are stored per scope in `cookidoo_credentials.session_*`
+- Pinterest: 0% — the fetcher exists and `pipeline.ts` calls it, but `/api/v1/pinterest/*` returns `501` and credentials can only be placed in `data/pinterest-credentials.json` by hand
+- Facebook: 0% — same shape: fetcher exists, `/api/v1/facebook/*` returns `501`, cookies only via `data/facebook-cookies.txt`
 - Photo import (camera/gallery): 100% ✅ — Phase 3b delivered
 
 ### Recipe Display & Navigation
@@ -331,7 +386,9 @@ Planned features and current implementation status (as of March 2026):
 - Enter available ingredients → get recipe suggestions: 0%
 
 ### Community & Social
-- User login (incl. "stay logged in"): 0%
+- User login (incl. "stay logged in"): 100% ✅ — Supabase Auth, login-first gate, RLS on every user table, `user`/`household` owner model (June 2026)
+- Households (default household on first sign-in, memberships): 100% ✅
+- Recipe invites by email: 100% ✅ code-side — email-bound, only `token_hash` stored, accept creates a private copy. Delivery is live in code but the Brevo secrets are not set in production, so `delivery.status=skipped` and the manual share link is the fallback
 - Rating system (stars): 100% ✅ — Phase 3a delivered
 - Personal notes: 100% ✅ — Phase 3a delivered
 - Comment function: 0%
@@ -344,13 +401,13 @@ Planned features and current implementation status (as of March 2026):
 - Recipe card as PDF: 100% ✅ — Phase 4 delivered with QR code
 
 ### Mobile & Responsive Design
-- Mobile first approach: 100% ✅ — React frontend with mobile-ready interfaces
+- Mobile first approach: 100% ✅ — Expo React Native, one codebase for web and native
 - PWA (Homescreen install): 100% ✅ — Phase 2 delivered
 - PWA offline write path (mutation queue + idempotency): 100% ✅ — delivered 2026-06-14 (v1.0.163)
 - PWA Background Sync (flush queue on reconnect): 100% ✅ — delivered 2026-06-14 (v1.0.163)
 - Web Push (job-completion notifications, opt-in): 100% ✅ — delivered 2026-06-14 (v1.0.163)
-- Media queries for typical screen sizes: 100% ✅ — React app responsive with Tailwind CSS
-- Android app (Flutter): 0%
+- Media queries for typical screen sizes: 100% ✅ — responsive via NativeWind/Tailwind
+- Android / iOS app: in progress — EAS Build profiles exist in `mobile/eas.json`, triggered locally via the EAS CLI. The former `eas-build.yml` GitHub workflow **no longer exists**. (The old "Flutter" plan was dropped when the app moved to Expo.)
 
 ## Testing
 
@@ -358,11 +415,15 @@ Planned features and current implementation status (as of March 2026):
 - `npm test -- --run --exclude="test/e2e/**"` — run only unit tests
 - `npm test` — all tests (E2E tests fail if server not running)
 
-**Test Status (2026-06-08):**
-- Root/Auth gates: zuletzt dokumentiert `npm run test:auth` gruen fuer den Auth-Onboarding-Slice; Details in `docs/TEST_STATUS.md`
-- Mobile unit tests: der Auth-Cache-Watch-Regressionstest `test/query-client-auth-cache.test.ts` laeuft gruen; Gesamtstand siehe `docs/TEST_STATUS.md`
+**Test Status (2026-08-07, lokal gemessen):**
+- Root Unit (`--exclude test/e2e/**`): 626 bestanden, 28 uebersprungen (57 Dateien)
+- Mobile Unit: 389 bestanden (51 Dateien)
+- Der uebersprungene `static-assets.test.ts`-Fall („serves an existing Expo hashed logo asset") braucht ein vorheriges `npm run build:mobile` — siehe `public/`-Abschnitt
 - Mobile RNTL guard: `npm run test:mobile:rntl-guard` blockiert neue direkte `react-test-renderer`-Imports
 - E2E contract gate: CI startet echten Server und fuehrt `npm run test:e2e:contract` aus
+- Details und Historie: `docs/TEST_STATUS.md`
+
+**CI-Jobs (`.github/workflows/ci.yml`):** `test`, `e2e`, `supabase-rls-smoke`, `e2e-legacy-soak`, `mobile-release-gate`, `performance-audit`. Weitere Workflows: `changelog-update.yml`, `docker-publish.yml`, `supabase-auth-config.yml` (*Sync Supabase Auth Config*), `supabase-db-push.yml` (*Apply Supabase Migrations* — der einzige vorgesehene Weg fuer Production-Migrationen).
 
 **Test Coverage:**
 | Area | Tests | Files |
