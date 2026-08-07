@@ -6,14 +6,6 @@ export type BugReportType = typeof BUG_REPORT_TYPES[number];
 export type BugReportStatus = typeof BUG_REPORT_STATUSES[number];
 export type BugReportSourceArea = typeof BUG_REPORT_SOURCE_AREAS[number];
 
-export interface BugReportCreateInput {
-  reportType: BugReportType;
-  sourceArea: BugReportSourceArea;
-  description: string;
-  route?: string | null;
-  metadata?: unknown;
-}
-
 export interface BugReportAdminPatchInput {
   status?: BugReportStatus;
   adminNotes?: string | null;
@@ -27,14 +19,17 @@ export interface BugReportFilters {
   offset?: number;
 }
 
-export const BUG_REPORT_DESCRIPTION_MAX_LENGTH = 4000;
-export const BUG_REPORT_ROUTE_MAX_LENGTH = 300;
-export const BUG_REPORT_METADATA_STRING_MAX_LENGTH = 500;
-export const BUG_REPORT_ADMIN_NOTES_MAX_LENGTH = 4000;
+// Nur modulintern verwendet — die Grenzwerte wirken ueber die normalize*/clamp*
+// Helfer unten, nicht ueber direkten Zugriff von aussen.
+const BUG_REPORT_DESCRIPTION_MAX_LENGTH = 4000;
+const BUG_REPORT_ROUTE_MAX_LENGTH = 300;
+const BUG_REPORT_METADATA_STRING_MAX_LENGTH = 500;
+const BUG_REPORT_ADMIN_NOTES_MAX_LENGTH = 4000;
+const BUG_REPORT_LIST_MAX_LIMIT = 100;
+
 export const BUG_REPORT_RATE_LIMIT_WINDOW_MINUTES = 60;
 export const BUG_REPORT_RATE_LIMIT_MAX_REQUESTS = 5;
 export const BUG_REPORT_LIST_DEFAULT_LIMIT = 20;
-export const BUG_REPORT_LIST_MAX_LIMIT = 100;
 
 const TOP_LEVEL_ALLOWED_KEYS = new Set([
   "appVersion",

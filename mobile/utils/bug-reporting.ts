@@ -1,8 +1,14 @@
 import { apiFetch, assertApiOk, readApiError } from "./api";
 
-export type BugReportType = "general" | "import_failure";
-export type BugReportStatus = "new" | "triaging" | "in_progress" | "resolved" | "closed";
-export type BugReportSourceArea = "global_button" | "import_error";
+// Muss mit den Listen in src/bug-reports.ts uebereinstimmen — abgesichert durch
+// test/unit/bug-report-enums-contract.test.ts (Root-Suite).
+const BUG_REPORT_TYPES = ["general", "import_failure"] as const;
+const BUG_REPORT_SOURCE_AREAS = ["global_button", "import_error"] as const;
+export const BUG_REPORT_STATUSES = ["new", "triaging", "in_progress", "resolved", "closed"] as const;
+
+export type BugReportType = (typeof BUG_REPORT_TYPES)[number];
+export type BugReportStatus = (typeof BUG_REPORT_STATUSES)[number];
+export type BugReportSourceArea = (typeof BUG_REPORT_SOURCE_AREAS)[number];
 
 export interface BugReportListItem {
   id: string;
