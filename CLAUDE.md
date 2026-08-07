@@ -367,8 +367,8 @@ Planned features and current implementation status (reviewed 2026-08-07, v1.0.19
 - Instagram: 70% — yt-dlp, then Cobalt, then plain web scraping
 - Chefkoch: 40% — Schema.org partially works; dedicated fetcher wired in `pipeline.ts`
 - Cookidoo: 100% — **form-based web login** against Vorwerk CIAM (`login-srv/login`) with a CF-clearance bootstrap via `CF_SCRAPER_URL`. Not OAuth2, not ROPC, no Playwright. Sessions are stored per scope in `cookidoo_credentials.session_*`
-- Pinterest: 0% — the fetcher exists and `pipeline.ts` calls it, but `/api/v1/pinterest/*` returns `501` and credentials can only be placed in `data/pinterest-credentials.json` by hand
-- Facebook: 0% — same shape: fetcher exists, `/api/v1/facebook/*` returns `501`, cookies only via `data/facebook-cookies.txt`
+- Pinterest: 0% — Pinterest serves no pin data to anonymous requests any more (measured 2026-08-07: ~1.08 MB app shell, no `og:` tags, `__PWS_DATA__` without pin content, yt-dlp `403`). The fetcher still follows an outbound article link when it finds one and otherwise fails with a clear hint. The global disk credentials were removed on 2026-08-07; `/api/v1/pinterest/*` returns `501`
+- Facebook: 0% — fetcher exists and `pipeline.ts` calls it, `/api/v1/facebook/*` returns `501`, and cookies can only be placed in `data/facebook-cookies.txt` by hand. Deliberately left that way until the encrypted per-user path exists — see `TODO.md`
 - Photo import (camera/gallery): 100% ✅ — Phase 3b delivered
 
 ### Recipe Display & Navigation

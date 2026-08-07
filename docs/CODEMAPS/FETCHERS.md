@@ -45,8 +45,8 @@ case it is worth reintroducing.
 | TikTok | `tiktok.ts` | 266 | yt-dlp + frame OCR | ~70% |
 | Cookidoo | `cookidoo.ts` | 576 | web-login session | 100% |
 | Chefkoch | `chefkoch.ts` | 183 | dedicated scraper | ~40% |
-| Pinterest | `pinterest.ts` | 434 | Pinterest API + on-disk credentials | ⚠ effectively dead |
-| Facebook | `facebook.ts` | 300 | yt-dlp + cookie file | ⚠ effectively dead |
+| Pinterest | `pinterest.ts` | 391 | outbound-link handoff to `fetchWeb` | 0% — anonymous access closed |
+| Facebook | `facebook.ts` | 300 | yt-dlp + **global** cookie file | 0% — no supported credential path |
 | Cobalt | `cobalt.ts` | 128 | helper service, only used by Instagram | — |
 
 ## Web — `web/base.ts` + `web/index.ts`
@@ -135,23 +135,64 @@ schema.org it has its own selectors (`extractChefkochIngredients`,
 `extractChefkochSteps`) and `parseGermanPortions` for "für 4 Portionen".
 Test: `test/unit/pipeline-chefkoch.test.ts`.
 
-## Pinterest and Facebook — read this before touching them
+## Pinterest
 
-Both fetchers **exist and are called by `pipeline.ts`**, but:
+**Location:** `src/fetchers/pinterest.ts` (391 lines)
 
-- `/api/v1/pinterest/*` and `/api/v1/facebook/*` return **`501`** since
-  2026-08; the associated credential handling was removed as orphaned code.
-- `pinterest.ts` reads OAuth tokens from `data/pinterest-credentials.json`,
-  `facebook.ts` reads cookies from `data/facebook-cookies.txt`. Those files can
-  now only be placed there **by hand**.
+**Purpose:** find the recipe page a pin links to and hand off to `fetchWeb`.
+A pin almost never carries the recipe itself.
 
-In practice both paths fail without manual files, which is why the roadmap lists
-them at 0%. `src/middleware/facebook-rate-limit.ts` additionally limits the
-Facebook path to 1 request/minute. Facebook changes its cookie format
-regularly — even with a manual file the path is brittle.
+**Strategy:**
+1. DOM selectors (carousel link, `rel=noopener`, `og:see_also`)
+2. `__PWS_DATA__` JSON — both the `<script type="application/json">` form
+   Pinterest ships today and the older assignment form
+3. `"link":"…"` regex over the raw HTML
+4. Every candidate must pass `isUsableExternalUrl()` — host denylist
+   (`pinterest.*`, `pinimg.com`) plus asset-extension and scheme checks
+5. No outbound link → yt-dlp / `og:` metadata; nothing usable → **throw**
 
-Either revive them properly or delete them; the current half-state is the worst
-of both.
+**Status:** 0% in practice. Measured 2026-08-07: an anonymous request returns a
+~1.08 MB app shell — near-identical between two different pins — with no `og:`
+tags and a `__PWS_DATA__` payload containing no pin data; yt-dlp gets a `403`.
+There is no anonymous scraping path left to repair.
+
+**Why it throws.** The old guard was `!url.includes("pinterest.")`, which let
+`s.pinimg.com` through. Both test pins resolved to an `accessibility-<hash>.mjs`
+CDN bundle, and `fetchWeb` then fed 6000 characters of minified JavaScript to
+the LLM as recipe text — a successful-looking import producing nonsense. The
+guard was duplicated in three places, so fixing only `findOriginalUrl` would
+have left the JSON path able to return a CDN asset. Failing honestly is better;
+`toUserFriendlyError` maps the error to a hint pointing at the linked article.
+
+`extractImagesFromHtml` deliberately still allows `pinimg.com` — that is the
+legitimate image CDN — and only rejects what cannot be an image.
+
+> The global disk credentials (`data/pinterest-credentials.json`,
+> `getPinterestCredentials`, `fetchFromPinterestApi`) were removed on
+> 2026-08-07. They applied to **every** user: the multi-user hole `a6614e7`
+> closed at the route level but not in the fetcher. `/api/v1/pinterest/*` still
+> returns `501`.
+
+## Facebook — read this before touching it
+
+The fetcher **exists and is called by `pipeline.ts`**, but:
+
+- `/api/v1/facebook/*` returns **`501`** since 2026-08; the credential routes
+  were removed as orphaned code.
+- `facebook.ts:12-15,88` still reads cookies from `data/facebook-cookies.txt`,
+  a **global** file that applies to every user. It was deliberately left in
+  place when Pinterest's equivalent was removed — deleting it would cut the
+  only working route before the encrypted per-user path exists.
+- The file is gitignored since 2026-08-07. It is a full Facebook session; do
+  not commit it and do not copy it around.
+
+`src/middleware/facebook-rate-limit.ts` limits the path to 1 request/minute.
+Facebook changes its cookie format regularly, so even with a manual file the
+path is brittle — and automated retrieval violates the Facebook ToS, which the
+fetcher logs on every call.
+
+Next step is queued in `TODO.md`: encrypted per-user credentials, then this
+disk path goes away.
 
 ## Adding a New Fetcher
 
