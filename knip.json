@@ -1,0 +1,52 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/**/*.{ts,mts,mjs,js}",
+        "test/**/*.test.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "scripts/**/*.{ts,mts,mjs}",
+        "test/**/*.ts"
+      ]
+    },
+    "mobile": {
+      "metro": false,
+      "entry": [
+        "app/**/*.{ts,tsx}",
+        "sw/sw.ts",
+        "test/**/*.test.{ts,tsx}",
+        "test/react-native-shim.ts",
+        "components/__tests__/**",
+        "*.config.{js,ts}",
+        "**/*.{web,native,ios,android}.{ts,tsx}"
+      ],
+      "project": [
+        "app/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "constants/**/*.ts",
+        "db/**/*.ts",
+        "hooks/**/*.ts",
+        "offline/**/*.ts",
+        "sw/**/*.ts",
+        "utils/**/*.ts",
+        "test/**/*.{ts,tsx}"
+      ]
+    }
+  },
+  "ignore": [
+    "public/**",
+    "dist/**",
+    "data/**"
+  ],
+  "ignoreDependencies": [
+    "sharp",
+    "@expo/vector-icons",
+    "babel-preset-expo",
+    "expo-updates",
+    "expo-system-ui",
+    "mobile"
+  ]
+}
