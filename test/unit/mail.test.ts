@@ -34,7 +34,7 @@ describe('sendRecipeInviteEmail', () => {
   it('sends recipe invite emails through Brevo when configured', async () => {
     process.env.RECIPE_INVITE_EMAIL_PROVIDER = 'brevo'
     process.env.BREVO_API_KEY = 'xkeysib_test'
-    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <recipedeckapp@gmail.com>'
     process.env.RECIPE_INVITE_EMAIL_REPLY_TO = 'support@example.com'
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: 'email-1' }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
@@ -51,7 +51,7 @@ describe('sendRecipeInviteEmail', () => {
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['api-key']).toBe('xkeysib_test')
     expect(JSON.parse(init.body as string)).toMatchObject({
-      sender: { name: 'RecipeDeck', email: 'invite@recipedeck.app' },
+      sender: { name: 'RecipeDeck', email: 'recipedeckapp@gmail.com' },
       to: [{ email: 'friend@example.com' }],
       replyTo: { email: 'support@example.com' },
       subject: 'Rezept-Einladung: Pasta',
@@ -60,7 +60,7 @@ describe('sendRecipeInviteEmail', () => {
 
   it('normalizes provider rejection into a failed delivery result', async () => {
     process.env.BREVO_API_KEY = 'xkeysib_test'
-    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <recipedeckapp@gmail.com>'
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ name: 'validation_error' }), { status: 422 })))
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
@@ -78,7 +78,7 @@ describe('sendRecipeInviteEmail', () => {
 
   it('normalizes provider network failures into a failed delivery result', async () => {
     process.env.BREVO_API_KEY = 'xkeysib_test'
-    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <recipedeckapp@gmail.com>'
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network unavailable') }))
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
@@ -96,7 +96,7 @@ describe('sendRecipeInviteEmail', () => {
 
   it('normalizes provider server failures into an unavailable delivery result', async () => {
     process.env.BREVO_API_KEY = 'xkeysib_test'
-    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <invite@recipedeck.app>'
+    process.env.RECIPE_INVITE_EMAIL_FROM = 'RecipeDeck <recipedeckapp@gmail.com>'
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ message: 'temporary outage' }), { status: 503 })))
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 

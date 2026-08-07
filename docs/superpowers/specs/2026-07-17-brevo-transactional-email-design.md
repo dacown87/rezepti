@@ -1,12 +1,19 @@
 # Brevo Transactional Email Design
 
-Stand: 2026-07-17  
-Status: abgestimmt, bereit fuer Implementierungsplanung
+Stand: 2026-08-07 (Absender korrigiert; urspruengliche Fassung 2026-07-17)  
+Status: implementiert, wartet auf Provider-Secrets und Versand-Smoke
 
 ## Ziel
 
 RecipeDeck versendet produktive transaktionale E-Mails ausschliesslich ueber
-Brevo und die verifizierte Domain `recipedeck.app`.
+Brevo und die dort verifizierte Absenderadresse `recipedeckapp@gmail.com`.
+
+> **Korrektur 2026-08-07:** Die urspruengliche Fassung nannte die Domain
+> `recipedeck.app` als Versanddomain. Diese Domain gehoert dem Projekt **nicht**
+> (siehe `docs/PROJECT_LEARNINGS.md`) und darf nicht verwendet werden. Gueltig
+> ist ausschliesslich die verifizierte Einzeladresse
+> `recipedeckapp@gmail.com` — dieselbe Mailbox, die der Gmail-Production-Monitor
+> ueberwacht.
 
 Dies umfasst zwei klar getrennte Versandwege:
 
@@ -19,9 +26,9 @@ Der kostenlose Brevo-Tarif ist ausreichend fuer den aktuellen Produktumfang.
 
 - Provider: Brevo.
 - Produktname und sichtbarer Sendername: `RecipeDeck`.
-- Versanddomain: `recipedeck.app`.
-- Invite-Absender: `RecipeDeck <einladungen@recipedeck.app>`.
-- Auth-Absender: `RecipeDeck <auth@recipedeck.app>`.
+- Versandidentitaet: in Brevo verifizierte Einzeladresse, keine eigene Domain.
+- Invite-Absender: `RecipeDeck <recipedeckapp@gmail.com>`.
+- Auth-Absender: `RecipeDeck <recipedeckapp@gmail.com>`.
 - Invite-Versand: Brevo Transactional Email REST API.
 - Supabase Auth: Brevo SMTP.
 - Kein Newsletter-, Marketing- oder allgemeines Mail-System ist Teil dieses
@@ -59,7 +66,7 @@ RecipeDeck-Runtime-Secrets:
 
 - `RECIPE_INVITE_EMAIL_PROVIDER=brevo`
 - `BREVO_API_KEY`
-- `RECIPE_INVITE_EMAIL_FROM=RecipeDeck <einladungen@recipedeck.app>`
+- `RECIPE_INVITE_EMAIL_FROM=RecipeDeck <recipedeckapp@gmail.com>`
 - optional `RECIPE_INVITE_EMAIL_REPLY_TO`
 
 GitHub-Secrets fuer den bestehenden Auth-Config-Workflow:
@@ -69,10 +76,14 @@ GitHub-Secrets fuer den bestehenden Auth-Config-Workflow:
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_SENDER_NAME=RecipeDeck`
-- `SMTP_ADMIN_EMAIL=auth@recipedeck.app`
+- `SMTP_ADMIN_EMAIL=recipedeckapp@gmail.com`
 
-Brevo muss vor dem produktiven Versand `recipedeck.app` per DNS verifiziert
-haben (SPF und DKIM; DMARC wird empfohlen).
+`recipedeckapp@gmail.com` ist in Brevo als Absenderadresse verifiziert. Eine
+DNS-Verifikation (SPF/DKIM/DMARC) auf `gmail.com` ist fuer uns nicht moeglich
+und nicht erforderlich; Brevo signiert mit seiner eigenen Sendedomain. Fuer das
+aktuelle Volumen ist das ausreichend. Eine eigene, DNS-verifizierte Maildomain
+bleibt der spaetere Ausbaupfad, wenn Zustellbarkeit oder Markenauftritt es
+verlangen — sie ist bewusst nicht Teil dieses Slices.
 
 ## Fehlerverhalten und Datenschutz
 

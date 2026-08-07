@@ -195,8 +195,8 @@ yt-dlp PyInstaller static binary from GitHub Releases fails with exit 127 in `no
 
 #### production-url-and-unowned-domain-boundary (10/10, 2026-07-25)
 
-Die funktionierende Production-Origin ist `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`; ihr Health-Endpunkt liefert `200`. Die einzige vom Projekt genutzte oeffentliche Adresse ist der Shortpen-Link `https://shr.pn/RecipeDeck`, der auf diese Origin zeigt. `shr.pn` gehoert Shortpen; RecipeDeck verwaltet dort nur den Pfad `RecipeDeck`, keine eigene DNS-Domain. `recipedeck.app` gehoert **nicht** dem Projekt und darf weder als offizielle URL kommuniziert noch in Northflank registriert oder konfiguriert werden. Ein beobachteter Zertifikatsfehler auf dieser fremden Domain ist ausserhalb unseres Betriebsbereichs.
-*Files:* `.github/workflows/docker-publish.yml`, `README.md`
+Die funktionierende Production-Origin ist `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`; ihr Health-Endpunkt liefert `200`. Die einzige vom Projekt genutzte oeffentliche Adresse ist der Shortpen-Link `https://shr.pn/RecipeDeck`, der auf diese Origin zeigt. `shr.pn` gehoert Shortpen; RecipeDeck verwaltet dort nur den Pfad `RecipeDeck`, keine eigene DNS-Domain. `recipedeck.app` gehoert **nicht** dem Projekt und darf weder als offizielle URL kommuniziert noch in Northflank registriert oder konfiguriert werden. Ein beobachteter Zertifikatsfehler auf dieser fremden Domain ist ausserhalb unseres Betriebsbereichs. **Nachtrag 2026-08-07:** Dasselbe gilt fuer E-Mail — es gibt keine eigene Maildomain. Verifizierter Brevo-Absender fuer Invite-Mails *und* Supabase-Auth-SMTP ist die Einzeladresse `recipedeckapp@gmail.com` (zugleich die vom Gmail-Monitor ueberwachte Operator-Mailbox). Die Brevo-Spec vom 2026-07-17 nannte urspruenglich `einladungen@recipedeck.app`/`auth@recipedeck.app` und wurde korrigiert.
+*Files:* `.github/workflows/docker-publish.yml`, `README.md`, `.env.example`, `docs/supabase-auth-email-runbook.md`, `docs/superpowers/specs/2026-07-17-brevo-transactional-email-design.md`
 
 ---
 
