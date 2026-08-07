@@ -95,7 +95,7 @@ export async function fetchWithCobalt(
   return null;
 }
 
-export async function downloadCobaltMedia(
+async function downloadCobaltMedia(
   mediaUrl: string,
   tempDir: string,
   filename: string

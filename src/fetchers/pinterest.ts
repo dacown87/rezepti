@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { existsSync, mkdirSync, writeFileSync, unlinkSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
 import { fetchWeb } from "./web.js";
@@ -15,7 +15,7 @@ const CREDENTIALS_FILE = join(
   "pinterest-credentials.json"
 );
 
-export interface PinterestCredentials {
+interface PinterestCredentials {
   clientId: string;
   clientSecret: string;
   accessToken: string;
@@ -35,49 +35,10 @@ function loadCredentialsFromDisk(): PinterestCredentials | null {
   }
 }
 
-export function savePinterestCredentialsToDisk(
-  credentials: PinterestCredentials
-): void {
-  mkdirSync(dirname(CREDENTIALS_FILE), { recursive: true });
-  writeFileSync(
-    CREDENTIALS_FILE,
-    JSON.stringify(credentials, null, 2),
-    "utf-8"
-  );
-  cachedCredentials = credentials;
-}
-
-export function clearPinterestCredentialsFromDisk(): void {
-  cachedCredentials = null;
-  if (existsSync(CREDENTIALS_FILE)) {
-    try {
-      unlinkSync(CREDENTIALS_FILE);
-    } catch {
-      // best effort
-    }
-  }
-}
-
-export function getPinterestCredentials(): PinterestCredentials | null {
+function getPinterestCredentials(): PinterestCredentials | null {
   if (cachedCredentials) return cachedCredentials;
   cachedCredentials = loadCredentialsFromDisk();
   return cachedCredentials;
-}
-
-export function hasPinterestCredentials(): boolean {
-  return getPinterestCredentials() !== null;
-}
-
-export function getPinterestStatus(): {
-  connected: boolean;
-  hasFileCredentials: boolean;
-} {
-  const creds = getPinterestCredentials();
-  const hasFileCreds = existsSync(CREDENTIALS_FILE);
-  return {
-    connected: creds !== null,
-    hasFileCredentials: hasFileCreds,
-  };
 }
 
 const USER_AGENTS = [
