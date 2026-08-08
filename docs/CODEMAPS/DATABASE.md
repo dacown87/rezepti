@@ -135,6 +135,15 @@ queue**.
 | `byok_validation_policies` | Rate-limit policy for `/keys/validate` | global, admin-only |
 | `byok_validation_rate_limits` | Consumed budget | per user + key hash + hourly window |
 
+`cookidoo_credentials.password` and `.session_cookies` are encrypted at rest
+(AES-256-GCM, format `v1:<iv>:<authTag>:<ciphertext>`) — encrypted on write and
+decrypted on read exclusively inside `db-react.ts`, via `src/credential-crypto.ts`.
+The key lives in the `CREDENTIAL_ENCRYPTION_KEY` env var, never in the database.
+`email` and `session_user_agent` remain plaintext. Rows written before this
+shipped may still hold plaintext in `password`/`session_cookies` — tolerated on
+read (checked before the key is touched) until `npm run credentials:encrypt-backfill`
+has run against that environment.
+
 > The `api_keys` table was **dropped** in migration `20260609143000` — there is
 > no server-side BYOK key store.
 
@@ -149,7 +158,7 @@ queue**.
 | Favorites | `resolveFavoritesCollection`, `setFavorite`, `toggleFavorite`, `getFavoriteRecipeIdsForAuth` |
 | Sharing | `shareCopyRecipe`, `createRecipeShareInvite`, `getRecipeShareInvitePreview`, `acceptRecipeShareInvite`, `deriveRecipeShareReadModel` |
 | Users / households | `loadUserAuthorization`, `ensureUserProfile`, `ensureDefaultHouseholdForUser`, `chooseActiveHouseholdId`, `getAccountBootstrapStatus` |
-| Cookidoo | `saveUserCookidooCredentials`, `resolveCookidooCredentials`, `shareCookidooCredentialsToHousehold`, `getCookidooStatus`, `updateCookidooScopedSession` |
+| Cookidoo | `saveUserCookidooCredentials`, `resolveCookidooCredentials`, `shareCookidooCredentialsToHousehold`, `getCookidooStatus`, `updateCookidooScopedSession`; plus `listCookidooCredentialSecretsForBackfill` / `updateCookidooCredentialSecretsById`, two narrow exports used only by `scripts/encrypt-cookidoo-credentials.ts` that deliberately bypass the encrypt-on-write/decrypt-on-read layer |
 | Shopping | `getShoppingList`, `addToShoppingList`, `toggleShoppingItem`, `clearCheckedItems`, `clearAllShoppingItems` |
 | Meal plan | `getMealPlanForWeek`, `addRecipeToMealPlan`, `removeRecipeFromMealPlan`, `clearMealPlanForWeek` |
 | Dictionary | `getAllDictionaryEntries`, `addToDictionary`, `deleteDictionaryEntry` |

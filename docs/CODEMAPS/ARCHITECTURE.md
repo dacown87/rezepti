@@ -39,7 +39,7 @@ RecipeDeck is a full-stack recipe extraction and management application:
                 ▼                               ▼
 ┌───────────────────────────────┐   ┌───────────────────────────┐
 │  job-manager.ts (in-memory)   │   │  db-react.ts              │
-│  job ids, polling, events     │   │  postgres-js + Drizzle    │
+│  job ids, polling, cancel     │   │  postgres-js + Drizzle    │
 │  → Web Push on completion     │   │  → Supabase PostgreSQL    │
 └───────────────┬───────────────┘   └───────────────────────────┘
                 ▼
@@ -79,8 +79,10 @@ PDF export) and `GET /api/v1/share-invites/:token` (the token *is* the credentia
 POST /extract/react | /extract/text | /extract/photo
   └─ routes/extraction.ts
        ├─ requireUserAuth → snapshot userId + active householdId
+       ├─ concurrencyLimitResponse → 429 if server or per-user cap reached
        ├─ jobManager.createJob(...)          → jobId returned immediately
        └─ async: pipeline.processURL(...)
+            ├─ jobManager.isCancelled(jobId)? → throw JobCancelledError (checked at each stage boundary)
             ├─ classifier.classifyURL(url)   → SourceType
             ├─ switch(type) → fetchers/*     → ContentBundle
             ├─ processors/schema-org         → fastest path, no LLM call
@@ -88,7 +90,14 @@ POST /extract/react | /extract/text | /extract/photo
             ├─ processors/llm                → text/image → RecipeData (Zod)
             └─ db-react.saveRecipeToReactDb  → Postgres
        └─ jobManager.completeJob → push.sendPushToUser(owner)
+            (no-op if the job was already cancelled — completeJob refuses to mutate it)
 ```
+
+`DELETE /extract/react/:jobId` calls `jobManager.cancelJob`, which sets a
+terminal `cancelRequested` job immediately; the background run only notices
+at its next stage-boundary check and unwinds via `JobCancelledError`, which
+every background handler swallows quietly (the terminal state was already
+set).
 
 The job carries the auth scope as a **snapshot**: the later async run has no
 request context, so `userId` and `householdId` are frozen at creation time.
@@ -131,13 +140,31 @@ Content fetched
 ## Jobs Live Only in Process Memory
 
 `JobManager` (`src/job-manager.ts`) keeps every job in a `Map` inside the
-process — **no DB persistence**. Consequences:
+process — **no DB persistence**. That has not changed. What has changed is
+that the in-memory state is now actively bounded and managed instead of
+growing unchecked:
 
-- A restart or redeploy loses running jobs; the client polls into the void.
-- Horizontal scaling is off the table: with more than one instance, polling
+- A restart or redeploy still loses running jobs; the client polls into the void.
+- Horizontal scaling is still off the table: with more than one instance, polling
   can land on a process that does not know the job. Moving job state into the
-  database is a prerequisite for any scale-out.
-- Cleanup runs from `config.jobs.cleanupDays` (default 7 days), process-local.
+  database is still a prerequisite for any scale-out.
+- Cleanup runs from `config.jobs.cleanupDays` (default 7 days), process-local,
+  now on a recurring timer (`startJobCleanupTimer`, hourly, unref'd) instead of
+  only ever being reachable via a manual call.
+- Concurrency is bounded: `getActiveJobs(config.jobs.stalledAfterMs)` counts
+  pending/running jobs touched within the last `JOB_STALLED_AFTER_MINUTES`
+  (default 30) and `routes/extraction.ts` rejects new jobs with `429` once
+  `MAX_CONCURRENT_JOBS` (server-wide, default 6) or `MAX_CONCURRENT_JOBS_PER_USER`
+  (default 3) is reached. The staleness window exists so one hung import
+  (a network call that never settles) can't permanently occupy a slot.
+- Cancellation is state-based, not signal-based — nothing downstream (yt-dlp
+  child processes, the OpenAI SDK client) accepts an `AbortSignal` today.
+  `cancelJob` sets `cancelRequested` and a terminal `failed` state
+  immediately; the background run only notices at its next stage-boundary
+  check, so an already-running fetch or LLM call still finishes. Every other
+  mutator (`startJob`, `updateJob`, `completeJob`, `failJob`) refuses to touch
+  a job once `cancelRequested` is set, so a late completion can never
+  resurrect a cancelled job or fire its "Rezept fertig" push.
 
 ## Job Polling Pattern
 
@@ -243,7 +270,8 @@ rezepti/
 │   ├── pipeline.ts               # Extraction orchestrator
 │   ├── classifier.ts             # URL → SourceType
 │   ├── db-react.ts               # All data access
-│   ├── job-manager.ts            # Job tracking (in-memory)
+│   ├── job-manager.ts            # Job tracking (in-memory, bounded concurrency + cancellation)
+│   ├── credential-crypto.ts      # AES-256-GCM at-rest encryption for stored credentials
 │   ├── config.ts                 # Env config
 │   ├── schema.ts                 # Drizzle schema, 17 tables
 │   ├── types.ts                  # Core types + Zod schemas

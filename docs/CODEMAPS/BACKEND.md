@@ -29,7 +29,7 @@ routers are mounted at `/`; the full paths live in the route files themselves.
 
 | File | Lines | Contents |
 |------|-------|----------|
-| `routes/extraction.ts` | 494 | URL / text / photo jobs, polling, cancel, image search |
+| `routes/extraction.ts` | 554 | URL / text / photo jobs, polling, cancel, concurrency limits, image search |
 | `routes/recipe-collections.ts` | 457 | Collections, favorites, sharing, reorder, bulk ops |
 | `routes/planner.ts` | 271 | Shopping list, dictionary, meal plan |
 | `routes/bug-reports.ts` | 241 | Bug reporting + admin view |
@@ -64,10 +64,10 @@ routers are mounted at `/`; the full paths live in the route files themselves.
 | `/api/v1/recipe-collections/:id/items/bulk-remove` | POST | `requireUserAuth` | Remove several |
 | `/api/v1/recipe-collections/:id/items/bulk-copy` | POST | `requireUserAuth` | Copy several into another collection |
 | `/api/v1/recipe-collections/:id/items/:recipeId` | DELETE | `requireUserAuth` | Remove one |
-| `/api/v1/extract/react` | POST | `requireUserAuth` | Start URL job → `{jobId, pollUrl}` |
-| `/api/v1/extract/react/:jobId` | GET/DELETE | inline owner check | Poll (`?since=`) / cancel |
-| `/api/v1/extract/text` | POST | `requireUserAuth` | Free-text job (min 50 chars) |
-| `/api/v1/extract/photo` | POST | `requireUserAuth` | Photo upload (multipart) |
+| `/api/v1/extract/react` | POST | `requireUserAuth` | Start URL job → `{jobId, pollUrl}`; `429` (`scope: "server"\|"user"`) once the concurrency limit is reached |
+| `/api/v1/extract/react/:jobId` | GET/DELETE | inline owner check | Poll (`?since=`) / cancel (state-based, not signal-based) |
+| `/api/v1/extract/text` | POST | `requireUserAuth` | Free-text job (min 50 chars); same `429` concurrency gate |
+| `/api/v1/extract/photo` | POST | `requireUserAuth` | Photo upload (multipart); same `429` concurrency gate, checked before the upload is read into memory |
 | `/api/v1/extract/jobs` | GET | `requireUserAuth` | Caller's recent jobs |
 | `/api/v1/images/search` | GET | `requireUserAuth` | Image suggestions (auth added 2026-06-12) |
 | `/api/v1/keys/validate` | POST | `requireUserAuth` | Validate a Groq key; DB-backed rate limit |
@@ -135,22 +135,47 @@ the generic web fetcher. An invalid URL throws `Ungültige URL: …`.
 
 ## Job Manager
 
-**Location:** `src/job-manager.ts` (189 lines)
+**Location:** `src/job-manager.ts` (256 lines)
 
 `JobManager` as a singleton (`jobManager`), jobs in a **`Map` inside the
-process** — **no database**.
+process** — **no database**. That has not changed; concurrency limiting,
+cancellation and scheduled cleanup were added on top of the same in-memory model.
 
 **Methods:** `createJob(url, userAgent?, apiKeyHash?, userId?, householdId?)`,
-`startJob`, `updateJob`, `completeJob`, `failJob`, `getJob`, `isUrlProcessing`,
-cleanup after `config.jobs.cleanupDays`.
+`startJob`, `updateJob`, `completeJob`, `failJob`, `cancelJob`, `isCancelled`,
+`getJob`, `getRecentJobs`, `getActiveJobs(staleAfterMs?)`, `isUrlProcessing`,
+`cleanupOldJobs(daysToKeep)`, and the standalone exported
+`startJobCleanupTimer(manager, daysToKeep, intervalMs)`.
 
 `createJob` freezes `userId` and `householdId` because the async run has no
-request context. `completeJob` fires the Web Push notification to the job owner.
+request context. `completeJob` fires the Web Push notification to the job owner
+— but only if the job has not been cancelled; the `cancelRequested` check runs
+before the push block.
+
+**Cancellation is state-based, not signal-based:** nothing downstream (yt-dlp
+child processes, the OpenAI SDK client) accepts an `AbortSignal` today, so
+`cancelJob(jobId)` sets `cancelRequested: true` and an immediate terminal
+`failed` state; `startJob`, `updateJob`, `completeJob` and `failJob` all check
+`cancelRequested` first and refuse to mutate the job further. The background
+run in `routes/extraction.ts` only notices at its next stage-boundary
+`isCancelled` check and unwinds via a local `JobCancelledError`, which each
+background handler swallows quietly (the terminal state was already set).
+
+**Concurrency limiting:** `getActiveJobs(staleAfterMs?)` filters to
+`pending`/`running` jobs, optionally excluding ones untouched for longer than
+`staleAfterMs` (so one hung job can't block the count forever).
+`routes/extraction.ts` uses this with `config.jobs.stalledAfterMs` to enforce
+`config.jobs.maxConcurrent` (server-wide) and `config.jobs.maxConcurrentPerUser`.
 
 **Job states:** `pending` → `running` → `completed` | `failed`
 
+`startJobCleanupTimer` is called once from `src/index.ts` (inside the existing
+`!process.env.VITEST` guard) and re-runs `cleanupOldJobs(config.jobs.cleanupDays)`
+hourly; the timer is `unref()`'d and swallows its own errors.
+
 ⚠️ A restart or redeploy loses running jobs, and horizontal scaling would break
-polling. Moving job state into the DB is a prerequisite for any scale-out.
+polling. Moving job state into the DB is a prerequisite for any scale-out —
+none of the above changes that.
 
 ## Processors
 
@@ -168,10 +193,11 @@ overwrite the server key. Models come from `config.groq`.
 
 | Module | Lines | Purpose |
 |--------|-------|---------|
-| `db-react.ts` | 2758 | All data access — see [DATABASE.md](DATABASE.md) |
+| `db-react.ts` | 2809 | All data access — see [DATABASE.md](DATABASE.md) |
 | `schema.ts` | 338 | Drizzle tables (17) |
 | `types.ts` | 123 | `RecipeData`, `ContentBundle`, `SchemaOrgRecipe` + Zod schemas |
-| `config.ts` | — | Env loader: `groq`, `supabase`, `cookidoo`, `tiktok`, `cobalt`, `web`, `port`, `jobs` |
+| `config.ts` | 39 | Env loader: `groq`, `supabase`, `cookidoo`, `tiktok`, `cobalt`, `web`, `port`, `jobs` |
+| `credential-crypto.ts` | 136 | AES-256-GCM at-rest encryption (`v1:<iv>:<authTag>:<ciphertext>`) for stored credentials — sole reader of `CREDENTIAL_ENCRYPTION_KEY`, lazy key validation, legacy plaintext tolerated on read only |
 | `byok-validator.ts` | 214 | `BYOKValidator` — check a Groq key against the API |
 | `byok-policy.ts` | — | `enforceByokValidation` — DB-backed rate limit, logs a fallback if the table is missing |
 | `ingredient-dictionary.ts` | — | `extractIngredientName`, `isSimilar`, `parseIngredientFull` |
@@ -196,9 +222,17 @@ config = {
   cobalt:   { apiUrl, apiKey },
   web:      { mlFallback },
   port,
-  jobs:     { cleanupDays, maxConcurrent, pollInterval },
+  jobs:     { cleanupDays, maxConcurrent, maxConcurrentPerUser, pollInterval, stalledAfterMs },
 }
 ```
+
+`jobs.maxConcurrent` (`MAX_CONCURRENT_JOBS`, default 6) and
+`jobs.maxConcurrentPerUser` (`MAX_CONCURRENT_JOBS_PER_USER`, default 3) back
+the `429` concurrency gate in `routes/extraction.ts`; `jobs.stalledAfterMs`
+(`JOB_STALLED_AFTER_MINUTES`, default 30, stored pre-multiplied to
+milliseconds) is the staleness window passed into `getActiveJobs`.
+`CREDENTIAL_ENCRYPTION_KEY` is read directly by `credential-crypto.ts`, not
+through `config` — see below.
 
 > There is no `config.sqlite` any more.
 
@@ -207,9 +241,13 @@ config = {
 ```
 routes/*      → db-react, job-manager, pipeline, auth, bug-reports, byok-*, push, mail
 pipeline      → classifier, fetchers/*, processors/*, db-react
-db-react      → schema, config, ingredient-dictionary
+db-react      → schema, config, ingredient-dictionary, credential-crypto
 fetchers/*    → types, config, fetchers/web/base
 processors/*  → config, types
 ```
+
+`credential-crypto.ts` itself depends on nothing in this codebase besides
+`node:crypto` — it is deliberately not folded into `config.ts` so the key
+isn't reachable from every module that imports `config`.
 
 Only `routes/*` knows HTTP, only `db-react.ts` knows SQL.
