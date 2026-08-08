@@ -1,6 +1,11 @@
 {
-  "version": "1.0.202",
+  "version": "1.0.203",
   "entries": [
+    {
+      "version": "1.0.203",
+      "date": "2026-08-08",
+      "changes": []
+    },
     {
       "version": "1.0.202",
       "date": "2026-08-08",
@@ -160,15 +165,10 @@
         "zentralisiere die BYOK-Validation-Policy fuer keys/validate und alle BYOK-Extraction-Einstiege inklusive admin-only Runtime-Config",
         "ergaenze GET /api/v1/auth/me, den Operator-Runbook fuer Set/Verify/Rollback und halte den bisherigen keys/validate-Invalid-Key-Vertrag kompatibel"
       ]
-    },
-    {
-      "version": "1.0.173",
-      "date": "2026-06-19",
-      "changes": []
     }
   ],
   "lastUpdated": {
     "date": "2026-08-08",
-    "time": "21:33"
+    "time": "21:34"
   }
 }
