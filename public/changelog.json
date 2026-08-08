@@ -1,6 +1,11 @@
 {
-  "version": "1.0.206",
+  "version": "1.0.207",
   "entries": [
+    {
+      "version": "1.0.207",
+      "date": "2026-08-08",
+      "changes": []
+    },
     {
       "version": "1.0.206",
       "date": "2026-08-08",
@@ -156,15 +161,10 @@
       "changes": [
         "implement bug reporting slice"
       ]
-    },
-    {
-      "version": "1.0.177",
-      "date": "2026-06-20",
-      "changes": []
     }
   ],
   "lastUpdated": {
     "date": "2026-08-08",
-    "time": "22:00"
+    "time": "22:15"
   }
 }
