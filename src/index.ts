@@ -7,6 +7,7 @@ import { join, extname } from "node:path";
 import type { Context } from "hono";
 import { config } from "./config.js";
 import reactApi from "./api-react.js";
+import { jobManager, startJobCleanupTimer } from "./job-manager.js";
 
 export const app = new Hono();
 
@@ -152,4 +153,5 @@ if (!process.env.VITEST) {
   const port = config.port;
   console.log(`Rezepti läuft auf http://localhost:${port}`);
   serve({ fetch: app.fetch, port });
+  startJobCleanupTimer(jobManager, config.jobs.cleanupDays, 60 * 60 * 1000);
 }

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { jobManager } from "../job-manager.js";
+import { config } from "../config.js";
 import { processURL, toUserFriendlyError, buildQualityWarnings } from "../pipeline.js";
 import { extractRecipeFromImage, extractRecipeFromText } from "../processors/llm.js";
 import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
@@ -37,6 +38,33 @@ function byokValidationFailureResponse(c: Context, error: unknown) {
     return null;
   }
   return c.json(error.payload, error.status);
+}
+
+function concurrencyLimitResponse(c: Context, userId: string) {
+  const active = jobManager.getActiveJobs(config.jobs.stalledAfterMs);
+
+  if (active.length >= config.jobs.maxConcurrent) {
+    return c.json({
+      error: "Zu viele Importe laufen gerade gleichzeitig. Bitte in einer Minute erneut versuchen.",
+      status: "busy",
+      scope: "server",
+      activeJobs: active.length,
+      maxConcurrent: config.jobs.maxConcurrent,
+    }, 429);
+  }
+
+  const own = active.filter((job) => job.userId === userId).length;
+  if (own >= config.jobs.maxConcurrentPerUser) {
+    return c.json({
+      error: `Du hast bereits ${own} Importe laufen. Bitte warte, bis einer davon fertig ist.`,
+      status: "busy",
+      scope: "user",
+      activeJobs: own,
+      maxConcurrent: config.jobs.maxConcurrentPerUser,
+    }, 429);
+  }
+
+  return null;
 }
 
 async function authorizeJobAccess(c: { req: { header: (name: string) => string | undefined } }, job: ExtractionJob): Promise<void> {
@@ -91,6 +119,9 @@ app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
         status: "conflict"
       }, 409);
     }
+
+    const busy = concurrencyLimitResponse(c, auth.userId);
+    if (busy) return busy;
 
     let apiKeyHash: string | undefined;
     try {
@@ -244,6 +275,9 @@ app.post("/api/v1/extract/photo", requireUserAuth(), async (c) => {
       return c.json({ error: "Datei zu groß. Maximum: 10 MB" }, 400);
     }
 
+    const busy = concurrencyLimitResponse(c, auth.userId);
+    if (busy) return busy;
+
     let apiKeyHash: string | undefined;
     try {
       apiKeyHash = await validateOptionalApiKey(apiKey, auth.userId);
@@ -344,6 +378,9 @@ app.post("/api/v1/extract/text", requireUserAuth(), async (c) => {
     if (text.length > 50_000) {
       return c.json({ error: "Text darf maximal 50.000 Zeichen lang sein" }, 400);
     }
+
+    const busy = concurrencyLimitResponse(c, auth.userId);
+    if (busy) return busy;
 
     let apiKeyHash: string | undefined;
     try {
