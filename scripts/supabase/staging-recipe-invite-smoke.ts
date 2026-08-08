@@ -1,3 +1,16 @@
+// Smoke test for the recipe-invite flow: ownership boundaries, idempotent
+// accept, and household-collection copy semantics against a real Supabase +
+// Postgres target (staging or production).
+//
+// This does NOT validate email deliverability. Three reasons: (1) recipients
+// are `@example.test` addresses — a reserved, non-deliverable TLD, so no
+// inbox can ever receive them and a provider rejection proves nothing about
+// mail config; (2) the script does not read or report the `delivery` field
+// that `POST /api/v1/recipes/:id/share-invites` returns; (3) without
+// `RECIPE_INVITE_SMOKE_API_BASE_URL` set, requests run in-process against the
+// LOCAL build and LOCAL env, never the deployed server. See the mode banner
+// printed at startup and the delivery output near invite creation below.
+
 import "dotenv/config";
 
 import { createClient } from "@supabase/supabase-js";
@@ -144,6 +157,29 @@ async function main() {
     }
     return app!.request(path, init);
   };
+
+  console.log("========================================================");
+  console.log(`EXECUTION MODE: ${config.label} (target=${config.target})`);
+  if (config.apiBaseUrl) {
+    console.log(`Requests go over HTTP to: ${config.apiBaseUrl}`);
+  } else {
+    console.log("Requests run IN-PROCESS (no HTTP, no base URL configured).");
+    console.log("This exercises the LOCAL build with the LOCAL environment.");
+    console.log("The deployed server is NOT exercised by this run.");
+  }
+  console.log("========================================================");
+
+  if (config.target === "production" && !config.apiBaseUrl) {
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.log("! WARNING: production target without an API base URL. !");
+    console.log("! The deployed production server is NOT being tested. !");
+    console.log("! Only the production DATABASE is touched directly.   !");
+    console.log("! Mail configuration (Brevo etc.) is read from the    !");
+    console.log("! LOCAL environment, not from the deployed service.   !");
+    console.log("! Set RECIPE_INVITE_SMOKE_API_BASE_URL to actually    !");
+    console.log("! exercise the deployed server and its real config.   !");
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  }
 
   const admin = createClient(config.supabaseUrl, config.secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -399,6 +435,16 @@ async function main() {
     );
     const token = invite.invite?.token;
     assert(typeof token === "string" && token.length > 20, "invite create did not return token");
+
+    console.log("--------------------------------------------------------");
+    console.log("INFORMATIONAL — mail delivery outcome (not asserted, not pass/fail):");
+    console.log(`  status: ${invite.delivery?.status}`);
+    console.log(`  provider: ${invite.delivery?.provider}`);
+    console.log(`  errorCode: ${invite.delivery?.errorCode ?? "-"}`);
+    console.log(`  Recipient (${userBEmail}) is an @example.test address, which cannot`);
+    console.log("  receive real mail. A 'failed'/'provider_rejected' result here is");
+    console.log("  expected and is NOT evidence of a mail configuration defect.");
+    console.log("--------------------------------------------------------");
 
     const preview = await assertOk(
       await request(`/api/v1/share-invites/${encodeURIComponent(token)}`),
