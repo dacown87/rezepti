@@ -51,6 +51,11 @@ const STAGE_LABELS: Record<string, string> = {
   done: 'Fertig!',
 };
 
+// 900 Versuche à 1000 ms ≈ 15 Minuten. Bewusst deutlich über der längsten
+// Import-Schätzung (TikTok ~5 Min.), damit kein echter Import abgeschnitten wird.
+const MAX_POLL_ATTEMPTS = 900;
+const POLL_INTERVAL_MS = 1000;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface JobStatus {
@@ -59,6 +64,7 @@ interface JobStatus {
   progress?: number;
   message?: string;
   hint?: string;
+  error?: string;
   result?: {
     success?: boolean;
     recipe?: RecipePayload;
@@ -147,6 +153,9 @@ export default function ExtractScreen() {
   const navRecipeIdRef = useRef<number | null>(null);
 
   const handledRef = useRef(false);
+  const pollAttemptsRef = useRef(0);
+  const everRespondedRef = useRef(false);
+  const pollJobIdRef = useRef<string | null>(null);
   const submittedUrlRef = useRef<string | undefined>(undefined);
   const submittedModeRef = useRef<Mode>('url');
 
@@ -187,11 +196,67 @@ export default function ExtractScreen() {
     if (!jobId) return;
     handledRef.current = false;
 
-    const interval = setInterval(async () => {
+    if (pollJobIdRef.current !== jobId) {
+      pollJobIdRef.current = jobId;
+      pollAttemptsRef.current = 0;
+      everRespondedRef.current = false;
+    }
+
+    let interval: ReturnType<typeof setInterval>;
+
+    const finishWithFailure = (
+      message: string,
+      hint: string | null,
+      jobStatus: string,
+      currentStage: string | null,
+      qualityWarnings: string[] = []
+    ) => {
+      handledRef.current = true;
+      clearInterval(interval);
+      setError(message);
+      setErrorHint(hint);
+      captureFailureSnapshot({
+        mode: submittedModeRef.current,
+        jobId,
+        jobStatus,
+        currentStage,
+        errorMessage: message,
+        errorHint: hint,
+        qualityWarnings,
+      });
+      setIsLoading(false);
+      setJobId(null);
+    };
+
+    interval = setInterval(async () => {
       if (handledRef.current) return;
+
+      pollAttemptsRef.current += 1;
+      if (pollAttemptsRef.current > MAX_POLL_ATTEMPTS) {
+        finishWithFailure(
+          'Zeitüberschreitung beim Import. Der Server hat zu lange nicht geantwortet. Bitte erneut versuchen.',
+          null,
+          'failed',
+          stage
+        );
+        return;
+      }
+
       try {
         const res = await apiFetch(`/api/v1/extract/react/${jobId}`);
-        if (!res.ok) return; // transient error, keep polling
+        if (!res.ok) {
+          if (res.status === 404 && everRespondedRef.current) {
+            finishWithFailure(
+              'Import unterbrochen (vermutlich Serverneustart). Bitte erneut versuchen.',
+              null,
+              'failed',
+              stage
+            );
+            return;
+          }
+          return; // transient error, keep polling
+        }
+        everRespondedRef.current = true;
 
         const status: JobStatus = await res.json();
         const p = status.progress ?? STAGES[status.currentStage ?? ''] ?? 0;
@@ -232,28 +297,19 @@ export default function ExtractScreen() {
             setSuccess(true);
           }
         } else if (status.status === 'failed') {
-          handledRef.current = true;
-          clearInterval(interval);
-          const failureMessage = status.result?.error || status.message || 'Extraktion fehlgeschlagen';
-          const failureHint = status.hint ?? null;
-          setError(failureMessage);
-          setErrorHint(failureHint);
-          captureFailureSnapshot({
-            mode: submittedModeRef.current,
-            jobId,
-            jobStatus: status.status,
-            currentStage: status.currentStage ?? stage,
-            errorMessage: failureMessage,
-            errorHint: failureHint,
-            qualityWarnings: status.result?.qualityWarnings ?? [],
-          });
-          setIsLoading(false);
-          setJobId(null);
+          const failureMessage = status.error || status.result?.error || status.message || 'Extraktion fehlgeschlagen';
+          finishWithFailure(
+            failureMessage,
+            status.hint ?? null,
+            status.status,
+            status.currentStage ?? stage,
+            status.result?.qualityWarnings ?? []
+          );
         }
       } catch {
         // keep polling on transient network errors
       }
-    }, 1000);
+    }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [captureFailureSnapshot, jobId, stage]);
