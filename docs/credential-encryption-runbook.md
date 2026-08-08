@@ -26,6 +26,21 @@ openssl rand -base64 32
 - Gehoert in denselben Secret-Store wie `BREVO_API_KEY` — Northflank Runtime Secret, **nicht** ins Repo, nicht in `.env` committen.
 - Lokal in `.env` eintragen (siehe `.env.example`), niemals in `.env.example` selbst mit echtem Wert.
 
+### Stand Production (2026-08-08)
+
+`CREDENTIAL_ENCRYPTION_KEY` ist auf dem Northflank-Service `rezepti-app` (Projekt `rezepti`) **gesetzt**.
+Verifikation: `sha256(key)` beginnt mit `f8ad06851437` — damit laesst sich ein in der Northflank-UI
+abgelesener Wert abgleichen, ohne den Schluessel irgendwo im Klartext zu hinterlegen.
+
+Northflanks `update service runtime-environment` **ersetzt** die komplette Runtime-Environment, es
+mergt nicht. Beim Setzen wurden die vier Bestandsvariablen (`DATABASE_URL`, `GROQ_API_KEY`,
+`SUPABASE_ANON_KEY`, `SUPABASE_URL`) deshalb ausgelesen und vollstaendig mitgeschrieben; danach per
+Hash-Vergleich als unveraendert bestaetigt. Wer diese Variable kuenftig per CLI/API aendert, muss
+genauso vorgehen — ein Aufruf mit nur einer Variablen loescht alle anderen.
+
+Der Service startet bei einer Env-Aenderung neu. `/api/v1/health` lieferte danach wieder
+`200 {"status":"healthy","recipeCount":6}`.
+
 **WICHTIG — Schluesselverlust:** Geht `CREDENTIAL_ENCRYPTION_KEY` verloren, sind alle gespeicherten
 Cookidoo-Zugangsdaten (Passwort + Session) unbrauchbar. Es gibt keine Wiederherstellung ohne den
 Schluessel. Jede:r betroffene Nutzer:in muss die Cookidoo-Zugangsdaten in den App-Einstellungen neu
