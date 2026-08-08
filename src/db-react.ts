@@ -24,6 +24,7 @@ import {
 import type { BugReportRow } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
+import { decryptCredential, encryptCredential } from "./credential-crypto.js";
 import {
   CATEGORY_KEYWORDS,
   detectCategory,
@@ -1887,6 +1888,7 @@ export async function saveUserCookidooCredentials(
 ): Promise<void> {
   const db = getDb();
   const now = new Date();
+  const encryptedPassword = encryptCredential(password);
   await db
     .insert(cookidooCredentials)
     .values({
@@ -1894,7 +1896,7 @@ export async function saveUserCookidooCredentials(
       userId,
       householdId: null,
       email,
-      password,
+      password: encryptedPassword,
       createdBy: userId,
       sessionCookies: null,
       sessionUserAgent: null,
@@ -1906,7 +1908,7 @@ export async function saveUserCookidooCredentials(
       targetWhere: sql`${cookidooCredentials.scopeType} = 'user'`,
       set: {
         email,
-        password,
+        password: encryptedPassword,
         createdBy: userId,
         sessionCookies: null,
         sessionUserAgent: null,
@@ -1935,7 +1937,8 @@ export async function getCookidooPrivateCredentials(userId: string): Promise<Pic
     .from(cookidooCredentials)
     .where(and(eq(cookidooCredentials.scopeType, "user"), eq(cookidooCredentials.userId, userId)))
     .limit(1);
-  return row ?? null;
+  if (!row) return null;
+  return { email: row.email, password: decryptCredential(row.password) };
 }
 
 export async function shareCookidooCredentialsToHousehold(auth: CookidooAuthContext): Promise<boolean> {
@@ -1951,6 +1954,9 @@ export async function shareCookidooCredentialsToHousehold(auth: CookidooAuthCont
 
   const db = getDb();
   const now = new Date();
+  // getCookidooPrivateCredentials() above already decrypted this password; re-encrypt here with
+  // a fresh IV for the household-scoped row rather than copying ciphertext (would reuse the IV).
+  const encryptedPassword = encryptCredential(privateCreds.password);
   await db
     .insert(cookidooCredentials)
     .values({
@@ -1958,7 +1964,7 @@ export async function shareCookidooCredentialsToHousehold(auth: CookidooAuthCont
       userId: null,
       householdId,
       email: privateCreds.email,
-      password: privateCreds.password,
+      password: encryptedPassword,
       createdBy: auth.userId,
       sessionCookies: null,
       sessionUserAgent: null,
@@ -1970,7 +1976,7 @@ export async function shareCookidooCredentialsToHousehold(auth: CookidooAuthCont
       targetWhere: sql`${cookidooCredentials.scopeType} = 'household'`,
       set: {
         email: privateCreds.email,
-        password: privateCreds.password,
+        password: encryptedPassword,
         createdBy: auth.userId,
         sessionCookies: null,
         sessionUserAgent: null,
@@ -2020,8 +2026,8 @@ export async function resolveCookidooCredentials(auth: CookidooAuthContext): Pro
       userId: userRow.userId,
       householdId: userRow.householdId,
       email: userRow.email,
-      password: userRow.password,
-      sessionCookies: userRow.sessionCookies,
+      password: decryptCredential(userRow.password),
+      sessionCookies: userRow.sessionCookies !== null ? decryptCredential(userRow.sessionCookies) : null,
       sessionUserAgent: userRow.sessionUserAgent,
       sessionExpiresAt: userRow.sessionExpiresAt,
     };
@@ -2055,8 +2061,8 @@ export async function resolveCookidooCredentials(auth: CookidooAuthContext): Pro
     userId: householdRow.userId,
     householdId: householdRow.householdId,
     email: householdRow.email,
-    password: householdRow.password,
-    sessionCookies: householdRow.sessionCookies,
+    password: decryptCredential(householdRow.password),
+    sessionCookies: householdRow.sessionCookies !== null ? decryptCredential(householdRow.sessionCookies) : null,
     sessionUserAgent: householdRow.sessionUserAgent,
     sessionExpiresAt: householdRow.sessionExpiresAt,
   };
@@ -2095,10 +2101,12 @@ export async function updateCookidooScopedSession(
     ? and(eq(cookidooCredentials.scopeType, "user"), eq(cookidooCredentials.userId, scope.userId!))
     : and(eq(cookidooCredentials.scopeType, "household"), eq(cookidooCredentials.householdId, scope.householdId!));
 
+  // A live Cookidoo session cookie is itself a credential — whoever holds it is logged in
+  // without needing the password — so it is encrypted at rest exactly like the password.
   await db
     .update(cookidooCredentials)
     .set({
-      sessionCookies: session.sessionCookies,
+      sessionCookies: encryptCredential(session.sessionCookies),
       sessionUserAgent: session.sessionUserAgent,
       sessionExpiresAt: session.sessionExpiresAt,
       updatedAt: new Date(),
@@ -2121,6 +2129,49 @@ export async function clearCookidooScopedSession(scope: CookidooScopeRef): Promi
       updatedAt: new Date(),
     })
     .where(where);
+}
+
+// ── Backfill-only raw accessors (scripts/encrypt-cookidoo-credentials.ts) ──────────────────────
+// These two deliberately BYPASS the encrypt/decrypt layer: the backfill script needs to see the
+// raw stored value to decide whether it is already encrypted, and it does its own encryption
+// before writing back, so a decrypting read or an encrypting write here would either hide the
+// legacy plaintext rows the script exists to find, or double-encrypt an already-encrypted value.
+// Normal callers must keep going through saveUserCookidooCredentials / resolveCookidooCredentials
+// / updateCookidooScopedSession, which do enforce encryption — do not call these from anywhere
+// else.
+
+export interface CookidooCredentialSecretRow {
+  id: number;
+  password: string;
+  sessionCookies: string | null;
+}
+
+export async function listCookidooCredentialSecretsForBackfill(): Promise<CookidooCredentialSecretRow[]> {
+  const db = getDb();
+  return db
+    .select({
+      id: cookidooCredentials.id,
+      password: cookidooCredentials.password,
+      sessionCookies: cookidooCredentials.sessionCookies,
+    })
+    .from(cookidooCredentials);
+}
+
+export async function updateCookidooCredentialSecretsById(
+  id: number,
+  secrets: { password?: string; sessionCookies?: string },
+): Promise<void> {
+  if (secrets.password === undefined && secrets.sessionCookies === undefined) return;
+
+  const db = getDb();
+  const set: { password?: string; sessionCookies?: string; updatedAt: Date } = { updatedAt: new Date() };
+  if (secrets.password !== undefined) set.password = secrets.password;
+  if (secrets.sessionCookies !== undefined) set.sessionCookies = secrets.sessionCookies;
+
+  await db
+    .update(cookidooCredentials)
+    .set(set)
+    .where(eq(cookidooCredentials.id, id));
 }
 
 export async function recordBugReportSubmissionAttempt(

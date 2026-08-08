@@ -57,6 +57,7 @@
     "lint:dead:ci": "knip --include files,dependencies,unlisted,unresolved,binaries",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "credentials:encrypt-backfill": "tsx scripts/encrypt-cookidoo-credentials.ts",
     "supabase:rls-smoke": "tsx scripts/supabase/rls-smoke.ts",
     "supabase:rls-smoke:staging": "SUPABASE_RLS_SMOKE_TARGET=staging SUPABASE_RLS_SMOKE_CONFIRM=rezepti-staging tsx scripts/supabase/rls-smoke.ts",
     "docker:dev": "docker compose up rezepti",
