@@ -249,6 +249,121 @@ describe("JobManager", () => {
     expect(manager.getJobEventsSince("job_missing", 0)).toBeNull();
   });
 
+  it("cancels a pending job with the German cancellation message", () => {
+    setTime(1_000);
+    const job = manager.createJob("https://example.com/recipe");
+
+    setTime(1_500);
+    expect(manager.cancelJob(job.id)).toBe(true);
+
+    expect(job.status).toBe("failed");
+    expect(job.progress).toBe(100);
+    expect(job.error).toBe("Import vom Nutzer abgebrochen");
+    expect(job.cancelRequested).toBe(true);
+    expect(job.completedAt).toBe(1_500);
+    expect(job.updatedAt).toBe(1_500);
+  });
+
+  it("refuses to cancel an already completed job and leaves it untouched", () => {
+    setTime(1_000);
+    const job = manager.createJob("https://example.com/recipe");
+    setTime(2_000);
+    manager.completeJob(job.id, { success: true });
+    const snapshot = { ...job };
+
+    setTime(3_000);
+    expect(manager.cancelJob(job.id)).toBe(false);
+    expect(job).toEqual(snapshot);
+  });
+
+  it("refuses to cancel an already failed job and leaves it untouched", () => {
+    setTime(1_000);
+    const job = manager.createJob("https://example.com/recipe");
+    setTime(2_000);
+    manager.failJob(job.id, "boom");
+    const snapshot = { ...job };
+
+    setTime(3_000);
+    expect(manager.cancelJob(job.id)).toBe(false);
+    expect(job).toEqual(snapshot);
+  });
+
+  it("returns false for an unknown job", () => {
+    expect(manager.cancelJob("job_missing")).toBe(false);
+    expect(manager.isCancelled("job_missing")).toBe(false);
+  });
+
+  // Regression test for the resurrection bug: a background pipeline that
+  // finishes after the user cancelled must not be able to flip the job back
+  // to "completed".
+  it("blocks completeJob from resurrecting a cancelled job", () => {
+    setTime(1_000);
+    const job = manager.createJob("https://example.com/recipe");
+    manager.startJob(job.id);
+
+    setTime(2_000);
+    expect(manager.cancelJob(job.id)).toBe(true);
+
+    setTime(3_000);
+    expect(manager.completeJob(job.id, { success: true, recipeId: 99 })).toBe(false);
+
+    expect(job.status).toBe("failed");
+    expect(job.error).toBe("Import vom Nutzer abgebrochen");
+    expect(job.result).toBeUndefined();
+    expect(job.updatedAt).toBe(2_000);
+  });
+
+  it("does not fire the push notification when completeJob is called on a cancelled job", async () => {
+    const spy = vi.fn().mockResolvedValue(undefined);
+    const cancelPushManager = JobManager.createTestInstance({ pushSender: spy });
+
+    const job = cancelPushManager.createJob("https://example.com/recipe", undefined, undefined, "user-42");
+    cancelPushManager.startJob(job.id);
+    cancelPushManager.cancelJob(job.id);
+
+    expect(
+      cancelPushManager.completeJob(job.id, {
+        success: true,
+        recipeId: 1,
+        recipe: { name: "Pizza" } as any,
+      }),
+    ).toBe(false);
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("blocks updateJob and startJob from mutating a cancelled job", () => {
+    setTime(1_000);
+    const job = manager.createJob("https://example.com/recipe");
+
+    setTime(2_000);
+    expect(manager.cancelJob(job.id)).toBe(true);
+    const snapshot = { ...job };
+
+    setTime(3_000);
+    expect(manager.startJob(job.id)).toBe(false);
+    expect(
+      manager.updateJob(job.id, { progress: 50, status: "running", message: "resurrected?" }),
+    ).toBe(false);
+
+    expect(job).toEqual(snapshot);
+  });
+
+  it("excludes a cancelled job from getActiveJobs", () => {
+    setTime(1_000);
+    const job = manager.createJob("https://example.com/recipe");
+    manager.startJob(job.id);
+
+    expect(manager.getActiveJobs()).toEqual([job]);
+
+    setTime(2_000);
+    manager.cancelJob(job.id);
+
+    expect(manager.getActiveJobs()).toEqual([]);
+  });
+
   it("removes jobs older than the retention window", () => {
     const day = 24 * 60 * 60 * 1000;
 
