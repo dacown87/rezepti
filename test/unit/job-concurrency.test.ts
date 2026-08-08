@@ -70,36 +70,40 @@ vi.mock('../../src/utils/image-search.js', () => ({
 const { default: extractionRouter } = await import('../../src/routes/extraction.js')
 
 const userId = '00000000-0000-0000-0000-000000000001'
+const userIdB = '00000000-0000-0000-0000-000000000002'
 const householdId = '10000000-0000-0000-0000-000000000001'
-const authHeaders = { Authorization: 'Bearer valid-token' }
+const validToken = 'valid-token'
+const validTokenB = 'valid-token-b'
+const authHeaders = { Authorization: `Bearer ${validToken}` }
+const authHeadersB = { Authorization: `Bearer ${validTokenB}` }
 
 function makeFile(name: string, type: string, sizeBytes: number) {
   const content = new Uint8Array(sizeBytes).fill(0)
   return new File([content], name, { type })
 }
 
-async function postUrl(url: string) {
+async function postUrl(url: string, headers: Record<string, string> = authHeaders) {
   return extractionRouter.request('/api/v1/extract/react', {
     method: 'POST',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
   })
 }
 
-async function postText(text: string) {
+async function postText(text: string, headers: Record<string, string> = authHeaders) {
   return extractionRouter.request('/api/v1/extract/text', {
     method: 'POST',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   })
 }
 
-async function postPhoto(file: File) {
+async function postPhoto(file: File, headers: Record<string, string> = authHeaders) {
   const formData = new FormData()
   formData.append('file', file)
   return extractionRouter.request('/api/v1/extract/photo', {
     method: 'POST',
-    headers: authHeaders,
+    headers,
     body: formData,
   })
 }
@@ -109,9 +113,14 @@ const longEnoughText =
 
 describe('extraction concurrency limit', () => {
   const originalMaxConcurrent = config.jobs.maxConcurrent
+  const originalMaxConcurrentPerUser = config.jobs.maxConcurrentPerUser
 
   function setLimit(n: number) {
     (config.jobs as { maxConcurrent: number }).maxConcurrent = n
+  }
+
+  function setPerUserLimit(n: number) {
+    (config.jobs as { maxConcurrentPerUser: number }).maxConcurrentPerUser = n
   }
 
   beforeEach(() => {
@@ -124,8 +133,14 @@ describe('extraction concurrency limit', () => {
     // under CI load. Fake timers make the background job deterministic: it
     // never runs unless a test explicitly advances timers.
     vi.useFakeTimers()
+    // The bearer token itself carries the identity here so a test can act as
+    // a second, independent user just by sending a different token — no
+    // mid-test reconfiguration of the auth adapters required.
     configureAuthForTests({
-      verifyAccessToken: async () => ({ id: userId, email: 'user-a@example.com' }),
+      verifyAccessToken: async (token) => ({
+        id: token === validTokenB ? userIdB : userId,
+        email: token === validTokenB ? 'user-b@example.com' : 'user-a@example.com',
+      }),
       loadAuthorization: async () => ({
         appRole: 'user',
         memberships: [{ householdId, role: 'owner' }],
@@ -137,6 +152,7 @@ describe('extraction concurrency limit', () => {
   afterEach(() => {
     vi.useRealTimers()
     ;(config.jobs as { maxConcurrent: number }).maxConcurrent = originalMaxConcurrent
+    ;(config.jobs as { maxConcurrentPerUser: number }).maxConcurrentPerUser = originalMaxConcurrentPerUser
     // Drain any jobs this test created so active-job state never leaks
     // into the next test (jobManager is a module-level singleton).
     for (const job of jobManager.getActiveJobs()) {
@@ -147,12 +163,14 @@ describe('extraction concurrency limit', () => {
 
   it('creates a job when the server is under the concurrency limit', async () => {
     setLimit(5)
+    setPerUserLimit(99) // this test is about the global limit, not the per-user one
     const res = await postUrl('https://example.com/under-limit')
     expect(res.status).toBe(202)
   })
 
   it('returns a German 429 busy payload once the URL route hits the limit', async () => {
     setLimit(1)
+    setPerUserLimit(99) // this test is about the global limit, not the per-user one
     const first = await postUrl('https://example.com/filler-a')
     expect(first.status).toBe(202)
 
@@ -162,6 +180,7 @@ describe('extraction concurrency limit', () => {
     const body = await second.json()
     expect(body).toMatchObject({
       status: 'busy',
+      scope: 'server',
       activeJobs: 1,
       maxConcurrent: 1,
     })
@@ -172,6 +191,7 @@ describe('extraction concurrency limit', () => {
 
   it('enforces the shared limit across entry points: a URL job blocks a text job', async () => {
     setLimit(1)
+    setPerUserLimit(99) // this test is about the global limit, not the per-user one
     const urlJob = await postUrl('https://example.com/url-filler')
     expect(urlJob.status).toBe(202)
 
@@ -179,11 +199,13 @@ describe('extraction concurrency limit', () => {
     expect(textRes.status).toBe(429)
     const body = await textRes.json()
     expect(body.status).toBe('busy')
+    expect(body.scope).toBe('server')
     expect(body.error).toMatch(/gleichzeitig/)
   })
 
   it('enforces the shared limit across entry points: a URL job blocks a photo job', async () => {
     setLimit(1)
+    setPerUserLimit(99) // this test is about the global limit, not the per-user one
     const urlJob = await postUrl('https://example.com/url-filler-2')
     expect(urlJob.status).toBe(202)
 
@@ -195,6 +217,7 @@ describe('extraction concurrency limit', () => {
     expect(photoRes.status).toBe(429)
     const body = await photoRes.json()
     expect(body.status).toBe('busy')
+    expect(body.scope).toBe('server')
 
     // The whole point of checking concurrency before `file.arrayBuffer()` is
     // to avoid materialising the upload into base64 in RAM. We can't observe
@@ -206,6 +229,7 @@ describe('extraction concurrency limit', () => {
 
   it('rejects a text job at the limit without creating a job', async () => {
     setLimit(1)
+    setPerUserLimit(99) // this test is about the global limit, not the per-user one
     const urlJob = await postUrl('https://example.com/url-filler-3')
     expect(urlJob.status).toBe(202)
 
@@ -217,6 +241,7 @@ describe('extraction concurrency limit', () => {
 
   it('allows new jobs again once active jobs drop back under the limit', async () => {
     setLimit(1)
+    setPerUserLimit(99) // this test is about the global limit, not the per-user one
     const first = await postUrl('https://example.com/first')
     expect(first.status).toBe(202)
     const firstBody = await first.json()
@@ -229,5 +254,70 @@ describe('extraction concurrency limit', () => {
 
     const nowAllowed = await postUrl('https://example.com/third')
     expect(nowAllowed.status).toBe(202)
+  })
+
+  it('blocks a user at their per-user limit with a German 429 while the server stays free', async () => {
+    setLimit(10)
+    setPerUserLimit(2)
+
+    const first = await postUrl('https://example.com/per-user-a')
+    expect(first.status).toBe(202)
+    const second = await postUrl('https://example.com/per-user-b')
+    expect(second.status).toBe(202)
+
+    const third = await postUrl('https://example.com/per-user-c')
+    expect(third.status).toBe(429)
+
+    const body = await third.json()
+    expect(body).toMatchObject({
+      status: 'busy',
+      scope: 'user',
+      activeJobs: 2,
+      maxConcurrent: 2,
+    })
+    expect(body.error).toBe('Du hast bereits 2 Importe laufen. Bitte warte, bis einer davon fertig ist.')
+
+    // The global limit was nowhere near tripped — this really was the
+    // per-user gate, not a coincidental global one.
+    expect(jobManager.getActiveJobs().length).toBe(2)
+    expect(config.jobs.maxConcurrent).toBe(10)
+  })
+
+  it('reports the server scope when both the global and per-user limits would trip', async () => {
+    setLimit(1)
+    setPerUserLimit(1)
+
+    const first = await postUrl('https://example.com/both-limits-a')
+    expect(first.status).toBe(202)
+
+    const second = await postUrl('https://example.com/both-limits-b')
+    expect(second.status).toBe(429)
+
+    const body = await second.json()
+    // Both gates would reject this request (1 active >= global max 1, and
+    // 1 active-for-this-user >= per-user max 1) — the global check runs
+    // first and must win.
+    expect(body.scope).toBe('server')
+    expect(body.maxConcurrent).toBe(1)
+  })
+
+  it('lets a second user create a job while the first user is stuck at their per-user limit', async () => {
+    setLimit(10)
+    setPerUserLimit(1)
+
+    const userAJob = await postUrl('https://example.com/two-users-a')
+    expect(userAJob.status).toBe(202)
+
+    const userABlocked = await postUrl('https://example.com/two-users-a-2')
+    expect(userABlocked.status).toBe(429)
+    const blockedBody = await userABlocked.json()
+    expect(blockedBody.scope).toBe('user')
+
+    const userBJob = await postUrl('https://example.com/two-users-b', authHeadersB)
+    expect(userBJob.status).toBe(202)
+
+    const active = jobManager.getActiveJobs()
+    expect(active.filter((job) => job.userId === userId).length).toBe(1)
+    expect(active.filter((job) => job.userId === userIdB).length).toBe(1)
   })
 })
