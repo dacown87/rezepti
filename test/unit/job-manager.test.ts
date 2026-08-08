@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { JobManager } from "../../src/job-manager.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { JobManager, startJobCleanupTimer } from "../../src/job-manager.js";
 
 function createTestManager() {
   let currentTime = 1_000_000_000_000;
@@ -164,6 +164,39 @@ describe("JobManager", () => {
     expect(manager.getActiveJobs()).toEqual([pending, running]);
   });
 
+  it("returns active jobs unfiltered when no staleness window is given", () => {
+    setTime(1_000);
+    const pending = manager.createJob("https://example.com/pending");
+
+    setTime(2_000);
+    const running = manager.createJob("https://example.com/running");
+    manager.startJob(running.id);
+
+    // Advance time far beyond any reasonable staleness window; without an
+    // explicit staleAfterMs argument, behaviour must stay identical to today.
+    setTime(1_000_000_000);
+
+    expect(manager.getActiveJobs()).toEqual([pending, running]);
+  });
+
+  it("excludes stale active jobs when a staleness window is given, keeps fresh ones", () => {
+    setTime(1_000);
+    const stalled = manager.createJob("https://example.com/stalled");
+    manager.startJob(stalled.id);
+
+    setTime(2_000);
+    const fresh = manager.createJob("https://example.com/fresh");
+    manager.startJob(fresh.id);
+
+    // 30 minute window; advance time so `stalled` (last touched at 1_000)
+    // falls outside it, then refresh `fresh` so it stays inside it.
+    const staleAfterMs = 30 * 60 * 1000;
+    setTime(2_000 + staleAfterMs + 1);
+    manager.updateJob(fresh.id, { message: "still alive" });
+
+    expect(manager.getActiveJobs(staleAfterMs)).toEqual([fresh]);
+  });
+
   it("detects urls that are currently being processed", () => {
     setTime(1_000);
     const pending = manager.createJob("https://example.com/pending");
@@ -229,5 +262,69 @@ describe("JobManager", () => {
     expect(manager.cleanupOldJobs(7)).toBe(1);
     expect(manager.getJob(oldJob.id)).toBeNull();
     expect(manager.getJob(recentJob.id)).toBe(recentJob);
+  });
+});
+
+describe("startJobCleanupTimer", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("removes old jobs on each tick and keeps young ones, logging only when something was removed", () => {
+    const day = 24 * 60 * 60 * 1000;
+    const { manager, setTime } = createTestManager();
+
+    setTime(day);
+    const oldJob = manager.createJob("https://example.com/old");
+
+    setTime(5 * day);
+    const recentJob = manager.createJob("https://example.com/recent");
+
+    setTime(10 * day);
+    vi.useFakeTimers();
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const timer = startJobCleanupTimer(manager, 7, 1000);
+    vi.advanceTimersByTime(1000);
+
+    expect(manager.getJob(oldJob.id)).toBeNull();
+    expect(manager.getJob(recentJob.id)).toBe(recentJob);
+    expect(consoleLogSpy).toHaveBeenCalledWith("[jobs] cleanup removed 1 alte Jobs");
+
+    // A second tick with nothing left to remove must not log again.
+    consoleLogSpy.mockClear();
+    vi.advanceTimersByTime(1000);
+    expect(consoleLogSpy).not.toHaveBeenCalled();
+
+    clearInterval(timer);
+  });
+
+  it("unrefs the returned timer so it never keeps the Node process alive", () => {
+    const fakeTimer = { unref: vi.fn() } as unknown as ReturnType<typeof setInterval>;
+    const setIntervalSpy = vi.spyOn(global, "setInterval").mockReturnValue(fakeTimer);
+    const { manager } = createTestManager();
+
+    const timer = startJobCleanupTimer(manager, 7, 1000);
+
+    expect(timer).toBe(fakeTimer);
+    expect(fakeTimer.unref).toHaveBeenCalledTimes(1);
+    setIntervalSpy.mockRestore();
+  });
+
+  it("swallows a throwing cleanupOldJobs so it can never kill the process", () => {
+    const { manager } = createTestManager();
+    vi.spyOn(manager, "cleanupOldJobs").mockImplementation(() => {
+      throw new Error("boom");
+    });
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.useFakeTimers();
+    const timer = startJobCleanupTimer(manager, 7, 1000);
+
+    expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    clearInterval(timer);
   });
 });

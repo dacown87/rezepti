@@ -147,9 +147,16 @@ export class JobManager {
       .slice(0, limit);
   }
 
-  getActiveJobs(): ExtractionJob[] {
+  // staleAfterMs is optional and, when omitted, keeps the original unbounded
+  // behaviour: a job that hangs (a network call that never settles) never
+  // reaches a terminal state, and cleanupOldJobs only evicts by createdAt
+  // after days. Without this window, one hung import would occupy its
+  // concurrency slot forever and block ALL imports until a server restart —
+  // a worse failure than the unbounded concurrency this limit is meant to fix.
+  getActiveJobs(staleAfterMs?: number): ExtractionJob[] {
     return Array.from(this.jobs.values())
       .filter(j => j.status === "pending" || j.status === "running")
+      .filter(j => staleAfterMs === undefined || j.updatedAt >= this.deps.now() - staleAfterMs)
       .sort((a, b) => a.createdAt - b.createdAt);
   }
 
@@ -187,3 +194,24 @@ export class JobManager {
 }
 
 export const jobManager = JobManager.getInstance();
+
+// Standalone function (not a class method) precisely so it is testable with
+// fake timers without booting the HTTP server.
+export function startJobCleanupTimer(
+  manager: JobManager,
+  daysToKeep: number,
+  intervalMs: number,
+): ReturnType<typeof setInterval> {
+  const timer = setInterval(() => {
+    try {
+      const removed = manager.cleanupOldJobs(daysToKeep);
+      if (removed > 0) {
+        console.log(`[jobs] cleanup removed ${removed} alte Jobs`);
+      }
+    } catch (error) {
+      console.error("[jobs] cleanup failed:", error);
+    }
+  }, intervalMs);
+  timer.unref();
+  return timer;
+}

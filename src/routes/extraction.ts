@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { jobManager } from "../job-manager.js";
+import { config } from "../config.js";
 import { processURL, toUserFriendlyError, buildQualityWarnings } from "../pipeline.js";
 import { extractRecipeFromImage, extractRecipeFromText } from "../processors/llm.js";
 import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
@@ -37,6 +38,17 @@ function byokValidationFailureResponse(c: Context, error: unknown) {
     return null;
   }
   return c.json(error.payload, error.status);
+}
+
+function concurrencyLimitResponse(c: Context) {
+  const active = jobManager.getActiveJobs(config.jobs.stalledAfterMs).length;
+  if (active < config.jobs.maxConcurrent) return null;
+  return c.json({
+    error: "Zu viele Importe laufen gerade gleichzeitig. Bitte in einer Minute erneut versuchen.",
+    status: "busy",
+    activeJobs: active,
+    maxConcurrent: config.jobs.maxConcurrent,
+  }, 429);
 }
 
 async function authorizeJobAccess(c: { req: { header: (name: string) => string | undefined } }, job: ExtractionJob): Promise<void> {
@@ -91,6 +103,9 @@ app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
         status: "conflict"
       }, 409);
     }
+
+    const busy = concurrencyLimitResponse(c);
+    if (busy) return busy;
 
     let apiKeyHash: string | undefined;
     try {
@@ -244,6 +259,9 @@ app.post("/api/v1/extract/photo", requireUserAuth(), async (c) => {
       return c.json({ error: "Datei zu groß. Maximum: 10 MB" }, 400);
     }
 
+    const busy = concurrencyLimitResponse(c);
+    if (busy) return busy;
+
     let apiKeyHash: string | undefined;
     try {
       apiKeyHash = await validateOptionalApiKey(apiKey, auth.userId);
@@ -344,6 +362,9 @@ app.post("/api/v1/extract/text", requireUserAuth(), async (c) => {
     if (text.length > 50_000) {
       return c.json({ error: "Text darf maximal 50.000 Zeichen lang sein" }, 400);
     }
+
+    const busy = concurrencyLimitResponse(c);
+    if (busy) return busy;
 
     let apiKeyHash: string | undefined;
     try {

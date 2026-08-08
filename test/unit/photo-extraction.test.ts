@@ -11,6 +11,7 @@ const mockGetJob = vi.fn()
 const mockIsUrlProcessing = vi.fn().mockReturnValue(false)
 const mockJobToEvent = vi.fn()
 const mockGetRecentJobs = vi.fn()
+const mockGetActiveJobs = vi.fn().mockReturnValue([])
 
 vi.mock('../../src/job-manager.js', () => ({
   jobManager: {
@@ -24,6 +25,7 @@ vi.mock('../../src/job-manager.js', () => ({
     getJobEventsSince: vi.fn(),
     getRecentJobs: mockGetRecentJobs,
     isUrlProcessing: mockIsUrlProcessing,
+    getActiveJobs: mockGetActiveJobs,
   },
 }))
 

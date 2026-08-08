@@ -33,5 +33,6 @@ export const config = {
     cleanupDays: parseInt(process.env.JOB_CLEANUP_DAYS || "7", 10),
     maxConcurrent: parseInt(process.env.MAX_CONCURRENT_JOBS || "5", 10),
     pollInterval: parseInt(process.env.POLL_INTERVAL_MS || "2000", 10),
+    stalledAfterMs: parseInt(process.env.JOB_STALLED_AFTER_MINUTES || "30", 10) * 60 * 1000,
   },
 } as const;
