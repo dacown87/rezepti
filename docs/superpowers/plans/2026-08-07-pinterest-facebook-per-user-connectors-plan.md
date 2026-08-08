@@ -103,6 +103,30 @@ installiert mit `--upgrade`, Production weicht also ab. Facebook ist der
 versionsempfindlichste Extractor. `scripts/ytdlp-health-check.ts` deckt
 Facebook und Pinterest nicht ab und hängt an keinem npm-Script.
 
+> **Gemessen am 2026-08-08 (Umsetzung Slice 0b) — die Vermutung war richtig,
+> und die Folge ist größer als erwartet.** Dieselbe öffentliche Facebook-URL,
+> `yt-dlp --dump-json --no-download`:
+>
+> | Version | Ergebnis |
+> |---|---|
+> | `2024.04.09` | `No video formats found!` |
+> | `2026.07.04` | Titel, Dauer, mp4 — **ohne Cookies** |
+>
+> Der Roadmap-Eintrag „Facebook: 0%" maß also ein zwei Jahre altes lokales
+> Binary, nicht Facebook. Da der Dockerfile mit `--upgrade` baut, lief
+> Production die ganze Zeit mit einer funktionierenden Version. **Einschränkung:
+> geprüft ist nur die yt-dlp-Metadaten-Extraktion, kein End-to-End-Rezeptimport.**
+>
+> Installiert wurde über `pipx` nach `~/.local/bin` (steht in `PATH` vor
+> `/usr/bin`); `/usr/bin/yt-dlp` ist das apt-Paket und wäre durch ein
+> `pip3 install` darüber beschädigt worden.
+>
+> Ebenfalls gemessen: Instagram scheitert an einer Login-Wall, TikTok an
+> `Your IP address is blocked` — beides umgebungsabhängig, kein
+> Extraktor-Signal. Der Health-Check klassifiziert deshalb nach Tier
+> (`required`/`advisory`/`unsupported`) und Fehlerklasse und geht nur bei
+> aktionablen Regressionen rot.
+
 ---
 
 ## Slices

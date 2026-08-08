@@ -132,8 +132,25 @@ Damit sind `MAX_CONCURRENT_JOBS` und `JOB_CLEANUP_DAYS` erstmals wirksam.
 
 `DELETE /extract/react/:jobId` setzt heute nur `failJob`; die Pipeline läuft
 weiter und `completeJob` (`extraction.ts:476`) macht die Stornierung
-rückgängig. Ein `AbortController` pro Job, im `jobManager` gehalten, in
-`onEvent` geprüft. Test: Cancel während `fetching` → Job bleibt `failed`.
+rückgängig. ~~Ein `AbortController` pro Job, im `jobManager` gehalten, in
+`onEvent` geprüft.~~ Test: Cancel während `fetching` → Job bleibt `failed`.
+
+> **Korrigiert am 2026-08-08 (Umsetzung Slice 3).** Kein `AbortController`.
+> Nichts flussabwärts konsumiert heute ein `AbortSignal`: die Fetcher starten
+> yt-dlp als Kindprozess, die LLM-Aufrufe laufen über das OpenAI-SDK. Ein
+> Controller, dessen Signal niemand liest, wäre Dekoration; ein Signal durch
+> acht Fetcher plus Whisper zu fädeln ist ein eigener Slice.
+>
+> Umgesetzt ist stattdessen zustandsbasierte Stornierung im `JobManager`:
+> `cancelJob` setzt `cancelRequested`, und `startJob`/`updateJob`/`completeJob`/
+> `failJob` verweigern die Mutation eines so markierten Jobs. **Der Guard in
+> `completeJob` ist der eigentliche Fix** — er steht vor dem Push-Block, sodass
+> ein abgebrochener Job auch kein „Rezept fertig 🍳" mehr sendet (das tat er
+> vorher). Die `isCancelled`-Prüfungen an den Stage-Grenzen sorgen nur dafür,
+> dass die Pipeline früher aufhört.
+>
+> Ehrliche Grenze: ein bereits laufender Download oder Modellaufruf läuft zu
+> Ende. Echter Abbruch mitten im Transfer bleibt offen.
 
 > Wichtig **vor** Slice 4: sonst wird die Wiederauferstehung in die Datenbank
 > geschrieben.
@@ -182,9 +199,16 @@ Gespeichert wird nur `{ success, recipeId, imageSuggestions, qualityWarnings,
 nutritionEstimated, error }`. Das `recipe`-Objekt bleibt im Speicher-Cache für
 die laufende Polling-Session.
 
-> Nebenbefund: `jobToEvent` schickt `result` bei **jedem Poll** an den Client —
-> heute also potenziell 500 KB Base64 pro Sekunde. Das ist ein bestehender
-> Bug, unabhängig von diesem Plan, und sollte in Slice 1 mit erledigt werden.
+> ~~Nebenbefund: `jobToEvent` schickt `result` bei **jedem Poll** an den Client —
+> heute also potenziell 500 KB Base64 pro Sekunde.~~
+>
+> **Zurückgezogen am 2026-08-08 (Umsetzung Slice 1).** Falsch. `job.result`
+> wird ausschließlich in `completeJob` gesetzt (`job-manager.ts:112`); während
+> der gesamten Laufzeit ist es `undefined`, und der Client stoppt das Intervall
+> bei der ersten `completed`-Antwort. Es ist höchstens **eine** große Antwort,
+> kein Dauerstrom. In Slice 1 folglich nicht umgesetzt. Die Beschneidung von
+> `result` für die Persistenz (Slice 4) bleibt davon unberührt richtig — dort
+> geht es um Speicherplatz in der Tabelle, nicht um Bandbreite.
 
 **Keine Fire-and-forget-Writes.** Die erste Fassung widersprach sich hier
 selbst. `emit()` in `pipeline.ts:47-49` **awaitet** `onEvent` bereits, also ist
