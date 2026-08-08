@@ -41,7 +41,7 @@ The repository, Docker image and Northflank service are still named `rezepti`.
                 ▼                               ▼
 ┌───────────────────────────────┐   ┌───────────────────────────┐
 │  job-manager.ts (in-memory!)  │   │  db-react.ts              │
-│  job ids, polling, events     │   │  postgres-js + Drizzle    │
+│  job ids, polling, cancel     │   │  postgres-js + Drizzle    │
 │  → Web Push on completion     │   │  → Supabase PostgreSQL    │
 └───────────────┬───────────────┘   └───────────────────────────┘
                 ▼
@@ -70,7 +70,8 @@ The repository, Docker image and Northflank service are still named `rezepti`.
 | Pipeline | Orchestrates the extraction workflow | `src/pipeline.ts` |
 | Classifier | URL → source type | `src/classifier.ts` |
 | Database | All data access, PostgreSQL via Drizzle | `src/db-react.ts` |
-| Job Manager | Extraction job tracking (in-memory) | `src/job-manager.ts` |
+| Job Manager | Extraction job tracking (in-memory, bounded concurrency, cancellation, cleanup timer) | `src/job-manager.ts` |
+| Credential Crypto | AES-256-GCM at-rest encryption for stored credentials | `src/credential-crypto.ts` |
 
 ## Data Flow
 
@@ -89,9 +90,9 @@ The repository, Docker image and Northflank service are still named `rezepti`.
 
 | Area | Largest modules |
 |------|-----------------|
-| Database | `db-react.ts` 2758 — by far the largest module |
+| Database | `db-react.ts` 2809 — by far the largest module |
 | Fetchers | `cookidoo.ts` 576, `pinterest.ts` 434, `instagram.ts` 324 |
-| Routes | `extraction.ts` 494, `recipe-collections.ts` 457, `planner.ts` 271 |
+| Routes | `extraction.ts` 554, `recipe-collections.ts` 457, `planner.ts` 271 |
 | Core | `pipeline.ts` 447, `schema.ts` 338, `auth.ts` 284 |
 
 `src/` totals roughly 11,000 lines of TypeScript.

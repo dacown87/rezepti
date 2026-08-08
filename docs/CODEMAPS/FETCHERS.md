@@ -118,7 +118,10 @@ form** — **not** OAuth2 ROPC, and no Playwright:
 **Session handling** is scope-bound: stored in `cookidoo_credentials.session_*`
 (user or household), in-memory cache plus DB writeback
 (`updateCookidooScopedSession`), invalidated on 401/403. The old on-disk store
-has been removed.
+has been removed. `password` and `session_cookies` are encrypted at rest
+(AES-256-GCM via `src/credential-crypto.ts`, `v1:` format) — `db-react.ts`
+encrypts on write and decrypts on read, so this fetcher only ever sees
+plaintext in memory. `email` and `session_user_agent` are stored as plaintext.
 
 **Known quirks:**
 - Cookidoo is behind Cloudflare → the cf-clearance-scraper container is required
@@ -210,5 +213,16 @@ disk path goes away.
 `ffmpeg` is optional and only relevant for TikTok OCR. Audio transcription runs
 against the Groq Whisper API — no local `whisper-cpp`.
 
-`npx tsx scripts/ytdlp-health-check.ts` checks the yt-dlp version. An outdated
-yt-dlp has repeatedly been the cause of "import suddenly stopped working".
+`npm run ytdlp:health` (runner: `scripts/ytdlp-health.ts`, logic:
+`scripts/ytdlp-health-check.ts`) checks the installed yt-dlp version and probes
+one test URL per platform. `ytdlp-health-check.ts` has no top-level side
+effects — only constants, pure helpers and an exported `main()` — so it can be
+unit-tested without ever shelling out to yt-dlp; the thin runner is what
+actually calls `main()`. Platforms are tiered `required` / `advisory` /
+`unsupported` (Pinterest is `unsupported` by design) and failures are
+classified as `extractor` (actionable, fails the check) vs. `environment`
+(IP blocks, login walls, rate limits — logged but not gating). An outdated
+yt-dlp has repeatedly been the cause of "import suddenly stopped working";
+the check also fails once the installed version is more than 180 days old
+(warns past 90). Runs nightly in CI (`ytdlp-health` job, cron 02:00 UTC) or
+on demand via `workflow_dispatch`.

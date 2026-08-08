@@ -85,15 +85,16 @@ The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA 
 - `src/processors/schema-org.ts` — Fast path: parses schema.org/Recipe JSON-LD
 - `src/processors/whisper.ts` — Audio transcription via Groq Whisper API; supports per-job BYOK
 - `src/processors/ingredient-parser.ts` — `parseIngredient(raw)` → `{amount, unit, food, note?}`; ephemeral (no DB field)
-- `src/db-react.ts` — PostgreSQL connection (postgres-js + Drizzle ORM) and **all** data access; ~2,750 lines, 86 exports. Every recipe query goes through the internal `recipeVisibilityForAuth(auth)` clause — never query `recipes` without it
+- `src/db-react.ts` — PostgreSQL connection (postgres-js + Drizzle ORM) and **all** data access; ~2,800 lines, 86 exported functions (120 exports incl. types). Every recipe query goes through the internal `recipeVisibilityForAuth(auth)` clause — never query `recipes` without it
 - `src/api-react.ts` — Mount point only. The eleven routers live in `src/routes/`: `auth`, `recipes`, `recipe-collections`, `recipe-share-invites`, `extraction`, `keys`, `planner`, `platforms`, `push`, `admin`, `bug-reports`
-- `src/job-manager.ts` — Job tracking for polling-based extraction. **In-memory `Map`, no DB persistence** — a restart or redeploy loses running jobs, and horizontal scaling would break polling. `createJob` snapshots `userId`/`householdId` because the async run has no request context. `completeJob` fires the Web Push notification
+- `src/job-manager.ts` — Job tracking for polling-based extraction. **In-memory `Map`, no DB persistence** — a restart or redeploy loses running jobs, and horizontal scaling would break polling. `createJob` snapshots `userId`/`householdId` because the async run has no request context. `completeJob` fires the Web Push notification. Cancellation is state-based, not signal-based: `cancelJob` sets a terminal `cancelRequested` job that `startJob`/`updateJob`/`completeJob`/`failJob` all refuse to mutate further, so a background pipeline that finishes after cancellation cannot resurrect the job or fire a stray push. `getActiveJobs(staleAfterMs?)` backs the concurrency limits in `src/routes/extraction.ts`, ignoring jobs untouched longer than the window so one hung import can't permanently occupy a slot. `startJobCleanupTimer` (exported standalone, unref'd) runs `cleanupOldJobs` hourly from `src/index.ts`
 - `src/auth.ts` — `requireUserAuth` / `requireAuth` middleware, Supabase JWT verification, uniform `AuthFlowError` payloads
 - `src/schema.ts` — Drizzle table schema, 17 tables (recipes, collections, invites, households, memberships, shopping, planner, dictionary, cookidoo, bug reports, push, BYOK)
 - `src/types.ts` — Core types and Zod schemas (RecipeData, ContentBundle, SchemaOrgRecipe)
 - `src/mail.ts` — the single provider boundary for invite emails (Brevo)
 - `src/push.ts` — VAPID Web Push fan-out with 410/404 auto-prune
 - `src/gmail-monitor.ts` — internal delivery monitor for the operator mailbox. **No HTTP endpoint** — never expose it as one
+- `src/credential-crypto.ts` — AES-256-GCM encryption for credentials stored at rest (Cookidoo password + session cookies), format `v1:<iv>:<authTag>:<ciphertext>`. Sole reader of `CREDENTIAL_ENCRYPTION_KEY` (deliberately not added to `src/config.ts`); key validation is lazy (checked at point of use, not at boot). Legacy plaintext rows (no `v1:` prefix) are tolerated on read, checked before the key is touched
 
 **Database:** PostgreSQL via Supabase. Connection via `DATABASE_URL` env var (postgres-js + Drizzle ORM). Legacy SQLite (`rezepti-react.db`, `better-sqlite3`) and `db.ts`/`db-manager.ts` have been removed.
 
@@ -124,10 +125,10 @@ The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA 
 | `/api/v1/recipes/:id/share-invites` | POST | Create an email-bound invite; response carries `shareUrl` **and** `delivery`, `requireUserAuth` |
 | `/api/v1/share-invites/:token` | GET | Preview an invite by token (token is the credential, no middleware) |
 | `/api/v1/share-invites/:token/accept` | POST | Accept → private copy for the recipient; idempotent, wrong account fails, `requireUserAuth` |
-| `/api/v1/extract/react` | POST | Start URL extraction job (polling), `requireUserAuth` |
+| `/api/v1/extract/react` | POST | Start URL extraction job (polling), `requireUserAuth`; `429` when the server-wide or per-user concurrency limit is reached |
 | `/api/v1/extract/react/:jobId` | GET/DELETE | Poll / cancel a job, only visible to the owning user (inline user check, no middleware) |
-| `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars), `requireUserAuth` |
-| `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling), `requireUserAuth` |
+| `/api/v1/extract/text` | POST | Start free-text extraction job (polling, min 50 chars), `requireUserAuth`; `429` when the server-wide or per-user concurrency limit is reached |
+| `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling), `requireUserAuth`; `429` when the server-wide or per-user concurrency limit is reached (checked before the upload is read into memory) |
 | `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user, `requireUserAuth` |
 | `/api/v1/keys/validate` | POST | Validate BYOK API key, `requireUserAuth` |
 | `/api/v1/health` | GET | Server + DB status, open by design |
@@ -163,9 +164,9 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `share-invites/:token` preview | Server | token-scoped | **none — the token is the credential** | anyone holding the token | — | medium | only `token_hash` is stored. Preview returns `status`, `recipeName`, `senderEmail`, `recipientEmail`, `expiresAt` — **two email addresses**, no recipe body. Do not widen this payload |
 | `planner` / `shopping` | Server + RLS | household-scoped | `requireAuth` | household | household | low | — |
 | `auth/bootstrap` | Server + DB | user-scoped bootstrap with household side-effect | `requireUserAuth` | caller | caller | low | — |
-| extraction jobs create/list | Server | user-scoped | `requireUserAuth` | user | user | low | — |
-| extraction job poll/cancel | Server | user-scoped | inline ownership check | owner | owner | medium | middleware-free by design |
-| `cookidoo/credentials` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | resolved scope (`user > household`) | private row by caller; household share by active-household owner only | low | implemented 2026-06-15; legacy disk singleton removed |
+| extraction jobs create/list | Server | user-scoped | `requireUserAuth` | user | user | low | the three POST entry points return `429` (`scope: "server"` or `"user"`) once `config.jobs.maxConcurrent` / `maxConcurrentPerUser` active jobs are reached |
+| extraction job poll/cancel | Server | user-scoped | inline ownership check | owner | owner | medium | middleware-free by design; cancel is state-based (`cancelJob`/`cancelRequested`), not signal-based |
+| `cookidoo/credentials` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | resolved scope (`user > household`) | private row by caller; household share by active-household owner only | low | implemented 2026-06-15; legacy disk singleton removed. `password`/`session_cookies` are AES-256-GCM encrypted at rest via `src/credential-crypto.ts` (`email`/`session_user_agent` stay plaintext) |
 | `cookidoo/status` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | caller sees resolved scope + share flag | — | low | returns `scope`, `connected`, `sharedByCurrentHousehold`, `canManageHouseholdShare` |
 | Pinterest / Facebook routes | Server | disabled | `requireUserAuth` + 501 | — | — | low | — |
 | `/api/v1/proxy/image` | Server | open-by-design | none | public | — | low | SSRF-guarded, needed for PDF export |
@@ -264,7 +265,9 @@ Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no 
 
 ## Configuration
 
-Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com) and `DATABASE_URL` (PostgreSQL connection string, e.g. from Supabase).
+Copy `.env.example` to `.env`. Required: `GROQ_API_KEY` (get free at console.groq.com) and `DATABASE_URL` (PostgreSQL connection string, e.g. from Supabase). `CREDENTIAL_ENCRYPTION_KEY` (32 bytes, base64, e.g. `openssl rand -base64 32`) is required before any platform credentials (currently Cookidoo) can be stored — `src/credential-crypto.ts` validates it lazily at the point a credential is written or read, not at boot, so a missing key only fails the Cookidoo connector rather than the whole app.
+
+Job concurrency knobs (`src/config.ts`, all optional with defaults): `MAX_CONCURRENT_JOBS` (server-wide, default 6), `MAX_CONCURRENT_JOBS_PER_USER` (default 3), `JOB_STALLED_AFTER_MINUTES` (default 30 — how long a job can go untouched before it stops counting against the concurrency limits), `JOB_CLEANUP_DAYS` (default 7).
 
 ## Git / SSH
 
