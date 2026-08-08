@@ -23,6 +23,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_ytdlp_health:
+        description: 'Run yt-dlp health check job'
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 2 * * *'
 
@@ -377,6 +382,34 @@ jobs:
             test-results/**
             junit*.xml
           if-no-files-found: warn
+
+  ytdlp-health:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_ytdlp_health == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.15.0'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Matcht den Dockerfile-Installationsweg (--upgrade, siehe Dockerfile
+      # Zeile ~9), damit dieser Job dieselbe yt-dlp-Version wie Production
+      # bekommt. --break-system-packages ist noetig, weil Ubuntu-Runner ihr
+      # System-Python als externally-managed markieren (PEP 668) — ohne das
+      # Flag bricht pip3 install auf neueren runner-images ab.
+      - name: Install yt-dlp
+        run: pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp
+
+      - name: Run yt-dlp health check
+        run: npm run ytdlp:health
 
   mobile-release-gate:
     runs-on: ubuntu-latest

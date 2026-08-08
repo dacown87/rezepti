@@ -256,7 +256,7 @@ Key modules: `mobile/utils/scaling.ts` (`parseServingsNumber`, `scaleIngredient`
 
 ## External CLI Dependencies
 
-Required on the host: `yt-dlp` (included in the Docker image). `npx tsx scripts/ytdlp-health-check.ts` checks the version — an outdated yt-dlp has repeatedly been the cause of "import suddenly stopped working".
+Required on the host: `yt-dlp` (included in the Docker image). `npm run ytdlp:health` checks the version and a per-platform test matrix — an outdated yt-dlp has repeatedly been the cause of "import suddenly stopped working" (2024.04.09 sat unnoticed on the dev machine for two years while the Dockerfile always installed `--upgrade`). Platforms are tiered (`required`/`advisory`/`unsupported`): only a `required` platform (YouTube, Facebook) failing with an actionable extractor error turns the check red — an Instagram/TikTok warning just means a login wall or IP block, not a regression.
 
 Audio transcription uses the Groq Whisper API (`whisper-large-v3-turbo`) — no local `whisper-cpp` required.
 
@@ -368,7 +368,7 @@ Planned features and current implementation status (reviewed 2026-08-07, v1.0.19
 - Chefkoch: 40% — Schema.org partially works; dedicated fetcher wired in `pipeline.ts`
 - Cookidoo: 100% — **form-based web login** against Vorwerk CIAM (`login-srv/login`) with a CF-clearance bootstrap via `CF_SCRAPER_URL`. Not OAuth2, not ROPC, no Playwright. Sessions are stored per scope in `cookidoo_credentials.session_*`
 - Pinterest: 0% — Pinterest serves no pin data to anonymous requests any more (measured 2026-08-07: ~1.08 MB app shell, no `og:` tags, `__PWS_DATA__` without pin content, yt-dlp `403`). The fetcher still follows an outbound article link when it finds one and otherwise fails with a clear hint. The global disk credentials were removed on 2026-08-07; `/api/v1/pinterest/*` returns `501`
-- Facebook: 0% — fetcher exists and `pipeline.ts` calls it, `/api/v1/facebook/*` returns `501`, and cookies can only be placed in `data/facebook-cookies.txt` by hand. Deliberately left that way until the encrypted per-user path exists — see `TODO.md`
+- Facebook: fetcher confirmed working for public videos on current yt-dlp (2026.07.04, measured 2026-08-08: metadata extraction succeeds without cookies) — the prior 0% reading was stale, caused by a 2-year-old yt-dlp build on the dev machine masking that production's `--upgrade`-installed yt-dlp already worked. Only yt-dlp metadata extraction was checked, not an end-to-end recipe import. Per-user credential path is still 0%: `/api/v1/facebook/*` returns `501`, and cookies can only be placed in `data/facebook-cookies.txt` by hand. Deliberately left that way until the encrypted per-user path exists — see `TODO.md`
 - Photo import (camera/gallery): 100% ✅ — Phase 3b delivered
 
 ### Recipe Display & Navigation
