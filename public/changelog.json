@@ -1,6 +1,11 @@
 {
-  "version": "1.0.201",
+  "version": "1.0.202",
   "entries": [
+    {
+      "version": "1.0.202",
+      "date": "2026-08-08",
+      "changes": []
+    },
     {
       "version": "1.0.201",
       "date": "2026-08-08",
@@ -160,19 +165,10 @@
       "version": "1.0.173",
       "date": "2026-06-19",
       "changes": []
-    },
-    {
-      "version": "1.0.172",
-      "date": "2026-06-19",
-      "changes": [
-        "härte den Cookidoo-Credential-Store mit RLS, direkten GRANT-Entzügen und Household-FK-Cascade",
-        "snapshotte activeHouseholdId auch für Foto- und Text-Extraktionsjobs, damit asynchrone Imports im korrekten Haushalt landen",
-        "sperre die Haushaltsfreigabe im Settings-Screen sichtbar für Nicht-Owner und liefere die Owner-Berechtigung im Status-API-Response mit"
-      ]
     }
   ],
   "lastUpdated": {
     "date": "2026-08-08",
-    "time": "21:31"
+    "time": "21:33"
   }
 }
