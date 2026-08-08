@@ -18,6 +18,12 @@ const photoDataStore = new Map<string, string>();
 // In-memory store for free text input, keyed by jobId
 const textDataStore = new Map<string, string>();
 
+// Thrown internally to unwind a background job as soon as a cancellation is
+// observed at a stage boundary. Caught quietly in each background function's
+// catch block — the terminal "failed" state was already set by
+// jobManager.cancelJob(), so this is not a real failure to log or translate.
+class JobCancelledError extends Error {}
+
 const app = new Hono();
 
 function getApiKeyFromRequest(c: { req: { header: (name: string) => string | undefined } }, body?: Record<string, unknown>): string | undefined {
@@ -210,7 +216,7 @@ app.delete("/api/v1/extract/react/:jobId", async (c) => {
       }, 400);
     }
 
-    jobManager.failJob(jobId, "Job cancelled by user");
+    jobManager.cancelJob(jobId);
 
     return c.json({
       success: true,
@@ -332,8 +338,10 @@ async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
       status: "running",
     });
 
+    if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
     const recipeData = await extractRecipeFromImage(dataUrl, undefined, { apiKey });
 
+    if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
     jobManager.updateJob(jobId, { progress: 75, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
     const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
 
@@ -343,6 +351,7 @@ async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
       recipeData.imageUrl = dataUrl;
     }
 
+    if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
     jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
     const userId = jobManager.getJob(jobId)?.userId;
     if (!userId) throw new Error("Authenticated job owner is required to save a recipe");
@@ -353,6 +362,9 @@ async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
     jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData, imageSuggestions });
 
   } catch (error) {
+    if (error instanceof JobCancelledError) {
+      return;
+    }
     console.error(`Photo job ${jobId} failed:`, error);
     const { message, hint } = toUserFriendlyError(error);
     jobManager.failJob(jobId, message, hint);
@@ -425,11 +437,14 @@ async function processTextJobInBackground(jobId: string, apiKey?: string) {
     jobManager.startJob(jobId);
     jobManager.updateJob(jobId, { progress: 20, currentStage: "extracting", message: "Rezept wird extrahiert", status: "running" });
 
+    if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
     const recipeData = await extractRecipeFromText(text, undefined, { apiKey });
 
+    if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
     jobManager.updateJob(jobId, { progress: 75, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
     const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
 
+    if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
     jobManager.updateJob(jobId, { progress: 90, currentStage: "exporting", message: "Wird gespeichert", status: "running" });
     const userId = jobManager.getJob(jobId)?.userId;
     if (!userId) throw new Error("Authenticated job owner is required to save a recipe");
@@ -449,6 +464,9 @@ async function processTextJobInBackground(jobId: string, apiKey?: string) {
     });
 
   } catch (error) {
+    if (error instanceof JobCancelledError) {
+      return;
+    }
     console.error(`Text job ${jobId} failed:`, error);
     const { message, hint } = toUserFriendlyError(error);
     jobManager.failJob(jobId, message, hint);
@@ -477,6 +495,8 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
     jobManager.startJob(jobId);
 
     const onEvent = async (event: PipelineEvent) => {
+      if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
+
       const progressMap: Record<string, number> = {
         classifying: 20,
         fetching: 35,
@@ -520,6 +540,9 @@ async function processJobInBackground(jobId: string, userApiKey?: string) {
     }
 
   } catch (error) {
+    if (error instanceof JobCancelledError) {
+      return;
+    }
     console.error(`Background job ${jobId} failed:`, error);
     jobManager.failJob(
       jobId,
