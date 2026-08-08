@@ -26,6 +26,7 @@ export interface ExtractionJob {
   userAgent?: string;
   userId?: string | null;
   activeHouseholdId?: string | null;
+  cancelRequested?: boolean;
 }
 
 export interface JobEvent {
@@ -84,6 +85,7 @@ export class JobManager {
   startJob(jobId: string): boolean {
     const job = this.jobs.get(jobId);
     if (!job) return false;
+    if (job.cancelRequested) return false;
     const now = this.deps.now();
     Object.assign(job, { status: "running", progress: 10, startedAt: now, updatedAt: now });
     return true;
@@ -97,6 +99,7 @@ export class JobManager {
   }): boolean {
     const job = this.jobs.get(jobId);
     if (!job) return false;
+    if (job.cancelRequested) return false;
     if (updates.progress   !== undefined) job.progress     = updates.progress;
     if (updates.currentStage !== undefined) job.currentStage = updates.currentStage;
     if (updates.message    !== undefined) job.message      = updates.message;
@@ -108,6 +111,13 @@ export class JobManager {
   completeJob(jobId: string, result: PipelineResult): boolean {
     const job = this.jobs.get(jobId);
     if (!job) return false;
+    // This guard is the actual fix for the cancel-resurrection bug: cancellation
+    // only takes effect at the next stage boundary, so a background pipeline
+    // that was already past its last check can still finish and call
+    // completeJob() after the job was cancelled. Without this check, that
+    // late completion (and its push notification) would overwrite the
+    // cancelled/failed state the user already saw.
+    if (job.cancelRequested) return false;
     const now = this.deps.now();
     Object.assign(job, { status: "completed", progress: 100, result, completedAt: now, updatedAt: now });
     if (job.userId) {
@@ -132,9 +142,38 @@ export class JobManager {
   failJob(jobId: string, error: string, hint?: string): boolean {
     const job = this.jobs.get(jobId);
     if (!job) return false;
+    if (job.cancelRequested) return false;
     const now = this.deps.now();
     Object.assign(job, { status: "failed", progress: 100, error, hint, completedAt: now, updatedAt: now });
     return true;
+  }
+
+  // State-based cancellation: the pipeline never receives an AbortSignal
+  // (nothing downstream — yt-dlp child processes, the OpenAI SDK client —
+  // consumes one today), so cancellation is enforced here instead, checked
+  // at stage boundaries by the caller. An already-running fetch or LLM call
+  // still runs to completion; cancellation only takes effect at the next
+  // boundary. `cancelRequested` then blocks every other mutator above from
+  // resurrecting the job once that boundary is reached.
+  cancelJob(jobId: string): boolean {
+    const job = this.jobs.get(jobId);
+    if (!job) return false;
+    if (job.status === "completed" || job.status === "failed") return false;
+    const now = this.deps.now();
+    Object.assign(job, {
+      cancelRequested: true,
+      status: "failed",
+      progress: 100,
+      error: "Import vom Nutzer abgebrochen",
+      completedAt: now,
+      updatedAt: now,
+    });
+    return true;
+  }
+
+  isCancelled(jobId: string): boolean {
+    const job = this.jobs.get(jobId);
+    return !!job?.cancelRequested;
   }
 
   getJob(jobId: string): ExtractionJob | null {
