@@ -57,12 +57,13 @@ function normalizeMode(value: string | string[] | undefined): AccountMode {
 }
 
 export default function AccountScreen() {
-  const params = useLocalSearchParams<{ mode?: string; returnTo?: string; authError?: string; confirmationSuccess?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; returnTo?: string; authError?: string; confirmationSuccess?: string; email?: string }>();
   const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
   const initialAuthError = Array.isArray(params.authError) ? params.authError[0] : params.authError;
   const initialConfirmationSuccess = Array.isArray(params.confirmationSuccess) ? params.confirmationSuccess[0] : params.confirmationSuccess;
+  const initialEmail = Array.isArray(params.email) ? params.email[0] : params.email;
   const [mode, setMode] = useState<AccountMode>(() => normalizeMode(params.mode));
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => initialEmail ?? '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [authConfigured, setAuthConfigured] = useState(false);
