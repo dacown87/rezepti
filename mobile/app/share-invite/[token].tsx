@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -11,6 +11,8 @@ import {
 import { getAuthSession } from '@/utils/auth';
 import { buildLoginFirstAccountHref } from '@/utils/login-first-routing';
 import { ApiRequestError } from '@/utils/api';
+
+type SessionState = 'loading' | 'signed-in' | 'signed-out';
 
 function statusText(status: string) {
   if (status === 'accepted') return 'Diese Einladung wurde bereits angenommen.';
@@ -25,17 +27,27 @@ export default function RecipeShareInviteScreen() {
   const inviteQuery = useRecipeShareInvite(token);
   const acceptInvite = useAcceptRecipeShareInvite();
   const [error, setError] = useState<string | null>(null);
+  const [sessionState, setSessionState] = useState<SessionState>('loading');
 
   const returnTo = token ? `/share-invite/${token}` : '/(tabs)';
 
+  useEffect(() => {
+    let cancelled = false;
+    getAuthSession()
+      .then((session) => {
+        if (!cancelled) setSessionState(session ? 'signed-in' : 'signed-out');
+      })
+      .catch(() => {
+        if (!cancelled) setSessionState('signed-out');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const accept = async () => {
-    if (!token || acceptInvite.isPending) return;
+    if (!token || acceptInvite.isPending || sessionState !== 'signed-in') return;
     setError(null);
-    const session = await getAuthSession();
-    if (!session) {
-      router.push(buildLoginFirstAccountHref(returnTo, 'signin'));
-      return;
-    }
 
     try {
       const result = await acceptInvite.mutateAsync(token);
@@ -110,6 +122,37 @@ export default function RecipeShareInviteScreen() {
               <Text className="text-sm text-warm-600 dark:text-warm-300">
                 {statusText(inviteQuery.data.status)}
               </Text>
+            ) : sessionState === 'loading' ? (
+              <View className="items-center py-2" testID="share-invite-session-loading">
+                <ActivityIndicator size="small" color="#C84B31" />
+              </View>
+            ) : sessionState === 'signed-out' ? (
+              <View className="gap-3" testID="share-invite-signed-out">
+                <Text className="text-sm text-warm-600 dark:text-warm-300">
+                  Diese Einladung ist an {inviteQuery.data.recipientEmail} gebunden. Zum Annehmen brauchst du ein
+                  Konto mit genau dieser E-Mail-Adresse.
+                </Text>
+                <View className="flex-row gap-3">
+                  <Pressable
+                    onPress={() => router.push(
+                      buildLoginFirstAccountHref(returnTo, 'signup', inviteQuery.data.recipientEmail),
+                    )}
+                    testID="share-invite-signup-cta"
+                    className="flex-1 flex-row items-center justify-center py-3 rounded-xl bg-primary-500"
+                  >
+                    <Text className="text-white font-semibold">Account erstellen</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push(
+                      buildLoginFirstAccountHref(returnTo, 'signin', inviteQuery.data.recipientEmail),
+                    )}
+                    testID="share-invite-signin-cta"
+                    className="flex-1 flex-row items-center justify-center py-3 rounded-xl bg-primary-500"
+                  >
+                    <Text className="text-white font-semibold">Anmelden</Text>
+                  </Pressable>
+                </View>
+              </View>
             ) : (
               <Pressable
                 onPress={accept}
