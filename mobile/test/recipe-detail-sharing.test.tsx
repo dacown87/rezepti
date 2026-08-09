@@ -243,6 +243,7 @@ describe('RecipeDetailScreen — sharing & favorites CTAs', () => {
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
     render(React.createElement(RecipeDetailScreen));
 
+    await press(await waitFor(() => screen.getByTestId('open-share-modal')));
     await waitFor(() => screen.getByTestId('recipe-share-invite-email'));
     fireEvent.changeText(screen.getByTestId('recipe-share-invite-email'), 'friend@example.com');
     await press(screen.getByTestId('recipe-share-invite-send'));
@@ -266,6 +267,7 @@ describe('RecipeDetailScreen — sharing & favorites CTAs', () => {
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
     render(React.createElement(RecipeDetailScreen));
 
+    await press(await waitFor(() => screen.getByTestId('open-share-modal')));
     await waitFor(() => screen.getByTestId('recipe-share-invite-email'));
     fireEvent.changeText(screen.getByTestId('recipe-share-invite-email'), 'friend@example.com');
     await press(screen.getByTestId('recipe-share-invite-send'));
@@ -286,6 +288,7 @@ describe('RecipeDetailScreen — sharing & favorites CTAs', () => {
     const { default: RecipeDetailScreen } = await import('@/app/recipe/[id]');
     render(React.createElement(RecipeDetailScreen));
 
+    await press(await waitFor(() => screen.getByTestId('open-share-modal')));
     await waitFor(() => screen.getByTestId('recipe-share-invite-email'));
     fireEvent.changeText(screen.getByTestId('recipe-share-invite-email'), 'friend@example.com');
     await press(screen.getByTestId('recipe-share-invite-send'));
