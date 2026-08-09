@@ -54,6 +54,7 @@ function makeFakeRegistration(opts: {
     waiting: opts.waiting ?? null,
     installing: opts.installing ?? null,
     active: null,
+    update: vi.fn().mockResolvedValue(undefined),
     addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type)!.push(listener);
@@ -79,6 +80,40 @@ function makeFakeRegistration(opts: {
     _listeners: Map<string, Array<EventListenerOrEventListenerObject>>;
   };
   return reg;
+}
+
+type FakeDocument = {
+  visibilityState: 'visible' | 'hidden';
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+  _dispatch: (type: string) => void;
+};
+
+function makeFakeDocument(visibilityState: 'visible' | 'hidden' = 'visible'): FakeDocument {
+  const listeners: Map<string, Array<EventListenerOrEventListenerObject>> = new Map();
+  const doc: FakeDocument = {
+    visibilityState,
+    addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type)!.push(listener);
+    }),
+    removeEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+      const arr = listeners.get(type);
+      if (arr) {
+        const idx = arr.indexOf(listener);
+        if (idx !== -1) arr.splice(idx, 1);
+      }
+    }),
+    _dispatch(type: string) {
+      const arr = listeners.get(type) ?? [];
+      const evt = { type } as Event;
+      for (const l of arr) {
+        if (typeof l === 'function') l(evt);
+        else l.handleEvent(evt);
+      }
+    },
+  };
+  return doc;
 }
 
 type FakeSWContainer = {
@@ -125,6 +160,7 @@ function makeFakeSWContainer(reg: ReturnType<typeof makeFakeRegistration>, contr
 
 let originalNavigatorDescriptor: PropertyDescriptor | undefined;
 let originalWindowDescriptor: PropertyDescriptor | undefined;
+let originalDocumentDescriptor: PropertyDescriptor | undefined;
 
 function setNavigator(value: unknown) {
   Object.defineProperty(globalThis, 'navigator', {
@@ -142,9 +178,18 @@ function setWindow(value: unknown) {
   });
 }
 
+function setDocument(value: unknown) {
+  Object.defineProperty(globalThis, 'document', {
+    value,
+    writable: true,
+    configurable: true,
+  });
+}
+
 beforeEach(() => {
   originalNavigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  originalDocumentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
   // Provide a minimal window with location.reload
   setWindow({
     location: { reload: vi.fn() },
@@ -157,6 +202,11 @@ afterEach(() => {
   }
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+  }
+  if (originalDocumentDescriptor) {
+    Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);
+  } else {
+    delete (globalThis as { document?: unknown }).document;
   }
   vi.resetModules();
   vi.clearAllMocks();
@@ -376,5 +426,89 @@ describe('usePwaUpdate', () => {
 
     // reload must NOT have been called
     expect((window.location.reload as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it('proactively calls registration.update() once a registration is found, instead of relying only on the browser implicit check', async () => {
+    const reg = makeFakeRegistration({});
+    const swContainer = makeFakeSWContainer(reg, {} as ServiceWorker);
+
+    setNavigator({ serviceWorker: swContainer });
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    renderHook(() => usePwaUpdate());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(reg.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls registration.update() again when the document becomes visible (installed PWA brought to foreground)', async () => {
+    const reg = makeFakeRegistration({});
+    const swContainer = makeFakeSWContainer(reg, {} as ServiceWorker);
+    setNavigator({ serviceWorker: swContainer });
+
+    const doc = makeFakeDocument('visible');
+    setDocument(doc);
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    renderHook(() => usePwaUpdate());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(reg.update).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      doc._dispatch('visibilitychange');
+    });
+
+    expect(reg.update).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not call registration.update() on visibilitychange while the document is hidden', async () => {
+    const reg = makeFakeRegistration({});
+    const swContainer = makeFakeSWContainer(reg, {} as ServiceWorker);
+    setNavigator({ serviceWorker: swContainer });
+
+    const doc = makeFakeDocument('hidden');
+    setDocument(doc);
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    renderHook(() => usePwaUpdate());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(reg.update).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      doc._dispatch('visibilitychange');
+    });
+
+    expect(reg.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the visibilitychange listener from document on unmount', async () => {
+    const reg = makeFakeRegistration({});
+    const swContainer = makeFakeSWContainer(reg, {} as ServiceWorker);
+    setNavigator({ serviceWorker: swContainer });
+
+    const doc = makeFakeDocument('visible');
+    setDocument(doc);
+
+    const { usePwaUpdate } = await import('@/hooks/usePwaUpdate');
+    const { unmount } = renderHook(() => usePwaUpdate());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    unmount();
+
+    expect(doc.removeEventListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
   });
 });

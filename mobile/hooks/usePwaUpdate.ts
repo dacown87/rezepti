@@ -40,6 +40,20 @@ export function usePwaUpdate(): PwaUpdateState {
 
       // Slow path: new worker arrives after we already have a controller.
       reg.addEventListener('updatefound', handleUpdateFound);
+
+      // Without this, update detection depends entirely on the browser's own
+      // implicit check-on-navigation. An installed/standalone PWA is a
+      // long-lived process the user foregrounds rather than reloads, so it
+      // never re-triggers that implicit check and can run a stale build
+      // indefinitely. Proactively ask right away, then again whenever the
+      // app is brought back to the foreground (see visibilitychange below).
+      void reg.update().catch(() => {});
+    }
+
+    function checkForUpdateIfVisible() {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        registration?.update().catch(() => {});
+      }
     }
 
     function handleUpdateFound() {
@@ -70,6 +84,10 @@ export function usePwaUpdate(): PwaUpdateState {
 
     swContainer.addEventListener('controllerchange', handleControllerChange);
 
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', checkForUpdateIfVisible);
+    }
+
     swContainer
       .getRegistration()
       .then((reg) => {
@@ -85,6 +103,9 @@ export function usePwaUpdate(): PwaUpdateState {
       registration?.removeEventListener('updatefound', handleUpdateFound);
       newWorker?.removeEventListener('statechange', handleStateChange);
       swContainer.removeEventListener('controllerchange', handleControllerChange);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', checkForUpdateIfVisible);
+      }
     };
   }, []);
 
