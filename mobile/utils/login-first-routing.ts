@@ -33,12 +33,18 @@ export function isPublicLoginFirstPath(pathname: string | null | undefined): boo
 export function buildLoginFirstAccountHref(
   returnTo: string | null | undefined,
   mode: 'signin' | 'signup' | 'reset' = 'signin',
+  email?: string | null,
 ): Href {
+  const params: Record<string, string> = {
+    mode,
+    returnTo: normalizeReturnTo(returnTo),
+  };
+  if (email) {
+    params.email = email;
+  }
+
   return {
     pathname: '/account',
-    params: {
-      mode,
-      returnTo: normalizeReturnTo(returnTo),
-    },
+    params,
   };
 }
