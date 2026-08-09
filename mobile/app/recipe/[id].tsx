@@ -10,9 +10,8 @@ import {
   ArrowLeft, Star, Clock, Users, Flame, ExternalLink,
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
   Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode, WifiOff,
-  Heart, FolderPlus, Home, Copy, Lock, Mail, Send,
+  Heart, FolderPlus, Home, Copy, Lock,
 } from 'lucide-react-native';
-import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -23,14 +22,13 @@ import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { parseServingsNumber, scaleIngredient, parseIngredientNumber } from '@/utils/scaling';
 import { StepText } from '@/components/StepText';
 import { addIngredients } from '@/utils/shopping-service';
-import { encodeRecipeToCompactJSON } from '@/utils/recipe-qr';
 import { buildRecipeEditPatchPayload, type RecipeEditDraft } from '@/utils/recipe-mapper';
-import { ApiRequestError, apiFetch, assertApiOk } from '@/utils/api';
+import { ApiRequestError, apiFetch, assertApiOk, type CreatedRecipeShareInvite } from '@/utils/api';
 import { mapProtectedApiError } from '@/utils/protected-access';
 import { useToggleFavorite, useShareRecipe, useCreateRecipeShareInvite } from '@/hooks/useCollections';
 import { AddToCollectionModal } from '@/components/AddToCollectionModal';
+import { RecipeShareModal } from '@/components/RecipeShareModal';
 import { fetchAuthMe } from '@/utils/admin';
-import { shareText, type ShareOutcome } from '@/utils/share';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -279,7 +277,7 @@ export default function RecipeDetailScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [cookMode, setCookMode] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [editingIngredientIdx, setEditingIngredientIdx] = useState<number | null>(null);
   const [editingIngredientValue, setEditingIngredientValue] = useState('');
   const [editDraft, setEditDraft] = useState<RecipeEditDraft | null>(null);
@@ -289,10 +287,6 @@ export default function RecipeDetailScreen() {
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<{ recipeId: number; message: string } | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
-  const [qrShareFeedback, setQrShareFeedback] = useState<'copied' | 'unavailable' | null>(null);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
-  const [inviteError, setInviteError] = useState<string | null>(null);
   const [selectedShareHouseholdId, setSelectedShareHouseholdId] = useState<string | null>(null);
 
   const toggleFavorite = useToggleFavorite();
@@ -470,32 +464,6 @@ export default function RecipeDetailScreen() {
     catch { /* ignore */ }
   };
 
-  // ── QR Share ───────────────────────────────────────────────────────────────
-  const openQrModal = () => { setQrShareFeedback(null); setShowQrModal(true); };
-  const closeQrModal = () => { setQrShareFeedback(null); setShowQrModal(false); };
-
-  const handleShareText = async () => {
-    if (!recipe) return;
-    const ings = parseJSON<string[]>(recipe.ingredients, []);
-    const stps = parseJSON<string[]>(recipe.steps, []);
-    const lines = [`${recipe.emoji ?? '🍽️'} ${recipe.name}`, ''];
-    if (ings.length > 0) {
-      lines.push('Zutaten:');
-      ings.forEach(ing => lines.push(`• ${ing}`));
-      lines.push('');
-    }
-    if (stps.length > 0) {
-      lines.push('Zubereitung:');
-      stps.forEach((step, i) => lines.push(`${i + 1}. ${step}`));
-      lines.push('');
-    }
-    lines.push('Geteilt aus RecipeDeck');
-    const outcome = await shareText({ title: recipe.name, message: lines.join('\n') });
-    // 'shared' and 'dismissed' both mean the share sheet handled it — the user
-    // needs no extra message in either case.
-    setQrShareFeedback(outcome === 'shared' || outcome === 'dismissed' ? null : outcome);
-  };
-
   // ── Favorit toggle ───────────────────────────────────────────────────────
   // Gotcha #1: the detail screen holds local state (not React Query), so the
   // hook's recipeQueryKey invalidation does NOT refresh this view. We update the
@@ -532,55 +500,19 @@ export default function RecipeDetailScreen() {
     }
   };
 
-  const handleCreateShareInvite = async () => {
-    const email = inviteEmail.trim();
-    if (!email || createShareInviteMutation.isPending) return;
-    setInviteError(null);
-    setInviteFeedback(null);
+  // The offline check and the mutation call live here (not in RecipeShareModal)
+  // so the screen keeps owning both, per the share-UX refactor plan; the modal
+  // only owns the invite input and the resulting feedback text.
+  const handleCreateShareInvite = async (email: string): Promise<CreatedRecipeShareInvite> => {
     if (isOffline) {
-      setInviteError('Einladungen können nur online erstellt werden.');
-      return;
+      throw new Error('Einladungen können nur online erstellt werden.');
     }
-
-    // Invite creation and share/copy are two independent outcomes: a failure
-    // in the (best-effort) share step must never be reported as an invite
-    // failure — the invite already exists on the server at that point.
-    let invite: Awaited<ReturnType<typeof createShareInviteMutation.mutateAsync>>;
     try {
-      invite = await createShareInviteMutation.mutateAsync({ id: recipeId, email });
+      return await createShareInviteMutation.mutateAsync({ id: recipeId, email });
     } catch (error) {
-      setInviteError(
+      throw new Error(
         error instanceof ApiRequestError ? error.message : 'Einladung konnte nicht erstellt werden.',
       );
-      return;
-    }
-
-    setInviteEmail('');
-    const url = invite.shareUrl ?? Linking.createURL(`/share-invite/${invite.token}`);
-
-    let shareOutcome: ShareOutcome | null = null;
-    if (invite.delivery?.status !== 'sent') {
-      // shareText never throws — see mobile/utils/share.ts.
-      shareOutcome = await shareText({ title: recipe?.name ?? 'Rezept', message: url });
-    }
-
-    if (invite.delivery?.status === 'sent') {
-      setInviteFeedback('Einladung gesendet. Beim Annehmen entsteht eine private Kopie.');
-      return;
-    }
-
-    const prefix = invite.delivery?.status === 'failed'
-      ? 'Einladung erstellt, E-Mail-Versand fehlgeschlagen.'
-      : 'Einladung erstellt.';
-    if (shareOutcome === 'copied') {
-      setInviteFeedback(`${prefix} Link wurde in die Zwischenablage kopiert.`);
-    } else if (shareOutcome === 'unavailable') {
-      // No share sheet and no clipboard — the only way to hand the recipient
-      // the link is to show it in the feedback text itself (there is no
-      // dedicated "invite link" UI element on this screen to point to).
-      setInviteFeedback(`${prefix} Link zum manuellen Teilen: ${url}`);
-    } else {
-      setInviteFeedback(`${prefix} Link kann manuell geteilt werden.`);
     }
   };
 
@@ -692,18 +624,6 @@ export default function RecipeDetailScreen() {
     return start;
   }) ?? [];
   const scaledServings = Math.round(parseServingsNumber(recipe.servings) * multiplier);
-  const qrData = showQrModal
-    ? encodeRecipeToCompactJSON({
-      name: recipe.name,
-      emoji: recipe.emoji ?? '',
-      ingredients,
-      steps,
-      tags,
-      rating: recipe.rating ?? undefined,
-      servings: recipe.servings ?? undefined,
-      duration: recipe.duration ?? undefined,
-    })
-    : null;
   const shareMemberships = authMeQuery.data?.memberships ?? [];
   const selectedShareHousehold = selectedShareHouseholdId
     ?? authMeQuery.data?.activeHouseholdId
@@ -747,38 +667,12 @@ export default function RecipeDetailScreen() {
         />
       </Modal>
 
-      {/* QR-Teilen-Modal */}
-      <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={closeQrModal}>
-        <View className="flex-1 bg-black/60 items-center justify-center px-8">
-          <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full items-center">
-            <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-1">{recipe.emoji ?? '🍽️'} {recipe.name}</Text>
-            <Text className="text-xs text-warm-500 dark:text-warm-400 mb-5 text-center">QR-Code scannen um das Rezept{'\n'}in RecipeDeck zu importieren</Text>
-            {qrData ? (
-              <QRCodeSVG value={qrData} size={200} color="#111827" backgroundColor="#ffffff" />
-            ) : (
-              <Text className="text-warm-500 dark:text-warm-400 text-sm">Rezept zu groß für QR-Code</Text>
-            )}
-            <View className="flex-row gap-3 mt-6 w-full">
-              <Pressable onPress={handleShareText} className="flex-1 py-3 rounded-xl bg-primary-500 items-center">
-                <Text className="text-white text-sm font-semibold">Teilen</Text>
-              </Pressable>
-              <Pressable onPress={closeQrModal} className="flex-1 py-3 rounded-xl bg-warm-100 dark:bg-espresso-800 items-center">
-                <Text className="text-warm-700 dark:text-warm-200 text-sm font-medium">Schließen</Text>
-              </Pressable>
-            </View>
-            {qrShareFeedback === 'copied' && (
-              <Text className="text-xs text-green-700 mt-3 text-center" testID="qr-share-feedback">
-                Rezept in die Zwischenablage kopiert.
-              </Text>
-            )}
-            {qrShareFeedback === 'unavailable' && (
-              <Text className="text-xs text-red-600 mt-3 text-center" testID="qr-share-feedback">
-                Teilen wird von diesem Browser nicht unterstützt.
-              </Text>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <RecipeShareModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        recipe={recipe}
+        onCreateInvite={handleCreateShareInvite}
+      />
 
       <SafeAreaView className="flex-1 bg-warm-50 dark:bg-espresso-900">
         {/* Header */}
@@ -1018,7 +912,11 @@ export default function RecipeDetailScreen() {
                 <ShoppingCart size={18} color="#C84B31" />
                 <Text className="text-primary-500 text-xs font-medium mt-1">Einkauf</Text>
               </Pressable>
-              <Pressable onPress={openQrModal} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+              <Pressable
+                onPress={() => setShowShareModal(true)}
+                testID="open-share-modal"
+                className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700"
+              >
                 <QrCode size={18} color="#9E8878" />
                 <Text className="text-warm-600 dark:text-warm-300 text-xs font-medium mt-1">Teilen</Text>
               </Pressable>
@@ -1044,42 +942,6 @@ export default function RecipeDetailScreen() {
                 <FolderPlus size={18} color="#C84B31" />
                 <Text className="text-primary-500 text-sm font-medium">Zu Collection hinzufügen</Text>
               </Pressable>
-
-              <View className="rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700 px-3 py-3 gap-2">
-                <View className="flex-row items-center gap-2">
-                  <Mail size={18} color="#C84B31" />
-                  <Text className="text-sm font-medium text-warm-900 dark:text-warm-50">An Person schicken</Text>
-                </View>
-                <View className="flex-row gap-2">
-                  <TextInput
-                    value={inviteEmail}
-                    onChangeText={setInviteEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    placeholder="email@example.com"
-                    placeholderTextColor="#9E8878"
-                    testID="recipe-share-invite-email"
-                    className="flex-1 border border-warm-200 dark:border-warm-700 rounded-xl px-3 py-2.5 text-sm text-warm-900 dark:text-warm-50"
-                  />
-                  <Pressable
-                    onPress={handleCreateShareInvite}
-                    disabled={!inviteEmail.trim() || createShareInviteMutation.isPending}
-                    testID="recipe-share-invite-send"
-                    className={`w-12 items-center justify-center rounded-xl ${inviteEmail.trim() ? 'bg-primary-500' : 'bg-warm-200'}`}
-                  >
-                    {createShareInviteMutation.isPending
-                      ? <ActivityIndicator size="small" color="#fff" />
-                      : <Send size={17} color={inviteEmail.trim() ? '#fff' : '#9E8878'} />}
-                  </Pressable>
-                </View>
-                {inviteError && (
-                  <Text className="text-xs text-red-600" testID="recipe-share-invite-error">{inviteError}</Text>
-                )}
-                {inviteFeedback && (
-                  <Text className="text-xs text-green-700" testID="recipe-share-invite-feedback">{inviteFeedback}</Text>
-                )}
-              </View>
 
               {shareCaps.canShareToHousehold && (
                 <>
