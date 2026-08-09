@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
-  TextInput, Modal, Image, Share,
+  TextInput, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -30,6 +30,7 @@ import { mapProtectedApiError } from '@/utils/protected-access';
 import { useToggleFavorite, useShareRecipe, useCreateRecipeShareInvite } from '@/hooks/useCollections';
 import { AddToCollectionModal } from '@/components/AddToCollectionModal';
 import { fetchAuthMe } from '@/utils/admin';
+import { shareText, type ShareOutcome } from '@/utils/share';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -288,6 +289,7 @@ export default function RecipeDetailScreen() {
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<{ recipeId: number; message: string } | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [qrShareFeedback, setQrShareFeedback] = useState<'copied' | 'unavailable' | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -469,14 +471,29 @@ export default function RecipeDetailScreen() {
   };
 
   // ── QR Share ───────────────────────────────────────────────────────────────
+  const openQrModal = () => { setQrShareFeedback(null); setShowQrModal(true); };
+  const closeQrModal = () => { setQrShareFeedback(null); setShowQrModal(false); };
+
   const handleShareText = async () => {
     if (!recipe) return;
-    try {
-      await Share.share({
-        title: recipe.name,
-        message: `${recipe.emoji ?? '🍽️'} ${recipe.name}\n\nRecipeDeck-Rezept`,
-      });
-    } catch { /* ignore */ }
+    const ings = parseJSON<string[]>(recipe.ingredients, []);
+    const stps = parseJSON<string[]>(recipe.steps, []);
+    const lines = [`${recipe.emoji ?? '🍽️'} ${recipe.name}`, ''];
+    if (ings.length > 0) {
+      lines.push('Zutaten:');
+      ings.forEach(ing => lines.push(`• ${ing}`));
+      lines.push('');
+    }
+    if (stps.length > 0) {
+      lines.push('Zubereitung:');
+      stps.forEach((step, i) => lines.push(`${i + 1}. ${step}`));
+      lines.push('');
+    }
+    lines.push('Geteilt aus RecipeDeck');
+    const outcome = await shareText({ title: recipe.name, message: lines.join('\n') });
+    // 'shared' and 'dismissed' both mean the share sheet handled it — the user
+    // needs no extra message in either case.
+    setQrShareFeedback(outcome === 'shared' || outcome === 'dismissed' ? null : outcome);
   };
 
   // ── Favorit toggle ───────────────────────────────────────────────────────
@@ -524,27 +541,46 @@ export default function RecipeDetailScreen() {
       setInviteError('Einladungen können nur online erstellt werden.');
       return;
     }
+
+    // Invite creation and share/copy are two independent outcomes: a failure
+    // in the (best-effort) share step must never be reported as an invite
+    // failure — the invite already exists on the server at that point.
+    let invite: Awaited<ReturnType<typeof createShareInviteMutation.mutateAsync>>;
     try {
-      const invite = await createShareInviteMutation.mutateAsync({ id: recipeId, email });
-      const url = invite.shareUrl ?? Linking.createURL(`/share-invite/${invite.token}`);
-      if (invite.delivery?.status !== 'sent') {
-        await Share.share({
-          title: recipe?.name ?? 'Rezept',
-          message: url,
-        });
-      }
-      setInviteEmail('');
-      if (invite.delivery?.status === 'sent') {
-        setInviteFeedback('Einladung gesendet. Beim Annehmen entsteht eine private Kopie.');
-      } else if (invite.delivery?.status === 'failed') {
-        setInviteFeedback('Einladung erstellt, E-Mail-Versand fehlgeschlagen. Link kann manuell geteilt werden.');
-      } else {
-        setInviteFeedback('Einladung erstellt. Link kann manuell geteilt werden.');
-      }
+      invite = await createShareInviteMutation.mutateAsync({ id: recipeId, email });
     } catch (error) {
       setInviteError(
         error instanceof ApiRequestError ? error.message : 'Einladung konnte nicht erstellt werden.',
       );
+      return;
+    }
+
+    setInviteEmail('');
+    const url = invite.shareUrl ?? Linking.createURL(`/share-invite/${invite.token}`);
+
+    let shareOutcome: ShareOutcome | null = null;
+    if (invite.delivery?.status !== 'sent') {
+      // shareText never throws — see mobile/utils/share.ts.
+      shareOutcome = await shareText({ title: recipe?.name ?? 'Rezept', message: url });
+    }
+
+    if (invite.delivery?.status === 'sent') {
+      setInviteFeedback('Einladung gesendet. Beim Annehmen entsteht eine private Kopie.');
+      return;
+    }
+
+    const prefix = invite.delivery?.status === 'failed'
+      ? 'Einladung erstellt, E-Mail-Versand fehlgeschlagen.'
+      : 'Einladung erstellt.';
+    if (shareOutcome === 'copied') {
+      setInviteFeedback(`${prefix} Link wurde in die Zwischenablage kopiert.`);
+    } else if (shareOutcome === 'unavailable') {
+      // No share sheet and no clipboard — the only way to hand the recipient
+      // the link is to show it in the feedback text itself (there is no
+      // dedicated "invite link" UI element on this screen to point to).
+      setInviteFeedback(`${prefix} Link zum manuellen Teilen: ${url}`);
+    } else {
+      setInviteFeedback(`${prefix} Link kann manuell geteilt werden.`);
     }
   };
 
@@ -712,7 +748,7 @@ export default function RecipeDetailScreen() {
       </Modal>
 
       {/* QR-Teilen-Modal */}
-      <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>
+      <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={closeQrModal}>
         <View className="flex-1 bg-black/60 items-center justify-center px-8">
           <View className="bg-white dark:bg-espresso-800 rounded-2xl p-6 w-full items-center">
             <Text className="text-lg font-bold text-warm-900 dark:text-warm-50 mb-1">{recipe.emoji ?? '🍽️'} {recipe.name}</Text>
@@ -726,10 +762,20 @@ export default function RecipeDetailScreen() {
               <Pressable onPress={handleShareText} className="flex-1 py-3 rounded-xl bg-primary-500 items-center">
                 <Text className="text-white text-sm font-semibold">Teilen</Text>
               </Pressable>
-              <Pressable onPress={() => setShowQrModal(false)} className="flex-1 py-3 rounded-xl bg-warm-100 dark:bg-espresso-800 items-center">
+              <Pressable onPress={closeQrModal} className="flex-1 py-3 rounded-xl bg-warm-100 dark:bg-espresso-800 items-center">
                 <Text className="text-warm-700 dark:text-warm-200 text-sm font-medium">Schließen</Text>
               </Pressable>
             </View>
+            {qrShareFeedback === 'copied' && (
+              <Text className="text-xs text-green-700 mt-3 text-center" testID="qr-share-feedback">
+                Rezept in die Zwischenablage kopiert.
+              </Text>
+            )}
+            {qrShareFeedback === 'unavailable' && (
+              <Text className="text-xs text-red-600 mt-3 text-center" testID="qr-share-feedback">
+                Teilen wird von diesem Browser nicht unterstützt.
+              </Text>
+            )}
           </View>
         </View>
       </Modal>
@@ -972,7 +1018,7 @@ export default function RecipeDetailScreen() {
                 <ShoppingCart size={18} color="#C84B31" />
                 <Text className="text-primary-500 text-xs font-medium mt-1">Einkauf</Text>
               </Pressable>
-              <Pressable onPress={() => setShowQrModal(true)} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
+              <Pressable onPress={openQrModal} className="flex-1 items-center py-3 rounded-xl bg-white dark:bg-espresso-800 border border-warm-200 dark:border-warm-700">
                 <QrCode size={18} color="#9E8878" />
                 <Text className="text-warm-600 dark:text-warm-300 text-xs font-medium mt-1">Teilen</Text>
               </Pressable>

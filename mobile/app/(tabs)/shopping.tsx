@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, FlatList, Pressable, ActivityIndicator,
-  RefreshControl, TextInput, Share, Modal,
+  RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -17,6 +17,7 @@ import { offlineQueue, sendQueuedMutation } from '@/offline/queue-singleton';
 import { isOnline } from '@/offline/network-status';
 import { isTempId, newTempId } from '@/offline/temp-id';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
+import { shareText } from '@/utils/share';
 
 // Local item type that allows temp string ids for optimistic inserts (K1).
 type LocalShoppingItem = Omit<ShoppingListItem, 'id'> & { id: number | string };
@@ -76,6 +77,10 @@ export default function ShoppingScreen() {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<null | (() => Promise<void>)>(null);
   const [retryingMutation, setRetryingMutation] = useState(false);
+  // Neutral (non-error) feedback for the "Teilen" button — the screen only had
+  // an error-styled banner before, so this is a small addition following the
+  // same layout, just in green instead of red.
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const { pending, syncState, lastDropped, setOnFlushed } = useOfflineQueue();
 
@@ -262,10 +267,16 @@ export default function ShoppingScreen() {
   };
 
   const handleCopy = async () => {
+    setCopyFeedback(null);
     const unchecked = uncheckedItems.map(i => `• ${i.canonical_name}`);
     const checked = checkedItems.map(i => `✓ ${i.canonical_name}`);
     const text = [...unchecked, ...(checked.length ? ['', '--- Erledigt ---', ...checked] : [])].join('\n');
-    try { await Share.share({ message: text }); } catch { /* ignore */ }
+    const outcome = await shareText({ message: text });
+    if (outcome === 'copied') {
+      setCopyFeedback('Einkaufsliste in die Zwischenablage kopiert.');
+    } else if (outcome === 'unavailable') {
+      setCopyFeedback('Teilen wird von diesem Browser nicht unterstützt.');
+    }
   };
 
   const { uncheckedItems, checkedItems, orderedItems } = useMemo(() => {
@@ -357,6 +368,15 @@ export default function ShoppingScreen() {
                 <Text className="text-xs font-medium text-red-700">Schließen</Text>
               </Pressable>
             </View>
+          </View>
+        )}
+
+        {copyFeedback && (
+          <View className="mt-3 rounded-xl border border-green-200 bg-green-50 px-3 py-2 flex-row items-center justify-between">
+            <Text className="text-sm text-green-700 flex-1" testID="shopping-copy-feedback">{copyFeedback}</Text>
+            <Pressable onPress={() => setCopyFeedback(null)} className="ml-2 rounded-lg bg-green-100 px-3 py-1.5">
+              <Text className="text-xs font-medium text-green-700">Schließen</Text>
+            </Pressable>
           </View>
         )}
 
