@@ -228,7 +228,7 @@ Key modules: `mobile/utils/scaling.ts` (`parseServingsNumber`, `scaleIngredient`
 - Recipe cache handler: `mobile/sw/recipe-cache-handler.ts` (StaleWhileRevalidate for GET /api/v1/recipes/*)
 - SW router: `mobile/sw/routing.ts` (navigation vs asset request detection)
 - Install hook: `mobile/hooks/usePwaInstall.ts` (beforeinstallprompt + iOS hint)
-- Update hook: `mobile/hooks/usePwaUpdate.ts` (waiting-worker detection + reload prompt)
+- Update hook: `mobile/hooks/usePwaUpdate.ts` (waiting-worker detection + reload prompt). Used twice since 2026-08-09 (PR #46): once in the Settings update card, once in `mobile/components/PwaUpdateBanner.tsx`, mounted globally in `_layout.tsx` as a sibling of `<Stack>` so an available update is visible from any route, not only Settings. Two independent hook instances by design (idempotent, no shared Context) — revisit as Context only if a third consumer appears. Deliberately **not** gated behind `LOGIN_FIRST_ACCOUNT_GATE_ENABLED` (that condition, used by the nearby bug-report button, would make the banner dead in the active login-first mode)
 - User messages: `mobile/utils/query-client.ts` (SET_USER, CLEAR_USER, SKIP_WAITING posts; per-user query-cache persistence + cold-start restore)
 
 **Build flow:** `npm run build:mobile` runs Expo export, then `postbuild:mobile` hook automatically regenerates `public/sw.js` via `npx tsx scripts/pwa/build-sw.ts`. Manual rebuild: `npx tsx scripts/pwa/build-sw.ts`.
@@ -361,7 +361,7 @@ Legacy code and dead files removed:
 
 ## Roadmap
 
-Planned features and current implementation status (reviewed 2026-08-07, v1.0.196):
+Planned features and current implementation status (reviewed 2026-08-09, v1.0.212):
 
 ### Import & Extraction
 - Websites (general): 80% — works, gaps on uncommon sites
@@ -391,7 +391,7 @@ Planned features and current implementation status (reviewed 2026-08-07, v1.0.19
 ### Community & Social
 - User login (incl. "stay logged in"): 100% ✅ — Supabase Auth, login-first gate, RLS on every user table, `user`/`household` owner model (June 2026)
 - Households (default household on first sign-in, memberships): 100% ✅
-- Recipe invites by email: 100% ✅ code-side — email-bound, only `token_hash` stored, accept creates a private copy. Delivery is live in code but the Brevo secrets are not set in production, so `delivery.status=skipped` and the manual share link is the fallback
+- Recipe invites by email: 100% ✅ — email-bound, only `token_hash` stored, accept creates a private copy. Brevo runtime secrets were set in production 2026-08-08 and a real send was verified delivered 2026-08-09 (real Gmail inbox, DB row confirmed) — delivery is live, the manual share link remains the fallback only when `delivery.status` comes back non-`sent`. The invite input now lives inside the QR/text share modal (`mobile/components/RecipeShareModal.tsx`, PR #47, 2026-08-09) instead of a separate inline block, and the recipient-side invite screen (`mobile/app/share-invite/[token].tsx`) resolves the session on load and offers both "Account erstellen" and "Anmelden" for account-less recipients instead of redirecting straight to sign-in (PR #45, 2026-08-09)
 - Rating system (stars): 100% ✅ — Phase 3a delivered
 - Personal notes: 100% ✅ — Phase 3a delivered
 - Comment function: 0%
