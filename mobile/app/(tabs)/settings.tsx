@@ -663,6 +663,47 @@ export default function SettingsScreen() {
           <Text className="text-warm-500 dark:text-warm-400 mt-1">API-Keys, Server & Integrationen</Text>
         </View>
 
+        {/* ── PWA Install / Update ── */}
+        {(canInstall || showIOSHint || updateReady) && (
+          <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
+            <View className="flex-row items-center mb-3">
+              <Text className="text-lg mr-1">📲</Text>
+              <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">App</Text>
+            </View>
+
+            {updateReady && (
+              <Pressable
+                onPress={applyUpdate}
+                className="flex-row items-center bg-blue-50 dark:bg-espresso-700 border border-blue-200 dark:border-warm-600 rounded-xl px-4 py-3 mb-3"
+              >
+                <Text className="text-sm font-semibold text-blue-700 dark:text-blue-300 flex-1">
+                  Neue Version verfügbar — jetzt anwenden
+                </Text>
+              </Pressable>
+            )}
+
+            {canInstall && (
+              <Pressable
+                onPress={install}
+                className="flex-row items-center justify-center bg-primary-500 rounded-xl px-4 py-3 mb-2"
+              >
+                <Text className="text-sm font-semibold text-white">App installieren</Text>
+              </Pressable>
+            )}
+
+            {showIOSHint && (
+              <View className="bg-warm-50 dark:bg-espresso-700 border border-warm-200 dark:border-warm-600 rounded-xl px-4 py-3">
+                <Text className="text-sm font-semibold text-warm-800 dark:text-warm-100 mb-1">
+                  Zum Home-Bildschirm hinzufügen
+                </Text>
+                <Text className="text-xs text-warm-500 dark:text-warm-400">
+                  Tippe auf das Teilen-Symbol (↑) und dann auf „Zum Home-Bildschirm".
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {authAppRole === 'admin' && (
           <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
             <View className="flex-row items-center mb-2">
@@ -1159,47 +1200,6 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
-
-        {/* ── PWA Install / Update ── */}
-        {(canInstall || showIOSHint || updateReady) && (
-          <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
-            <View className="flex-row items-center mb-3">
-              <Text className="text-lg mr-1">📲</Text>
-              <Text className="text-base font-semibold text-warm-800 dark:text-warm-100 ml-1">App</Text>
-            </View>
-
-            {updateReady && (
-              <TouchableOpacity
-                onPress={applyUpdate}
-                className="flex-row items-center bg-blue-50 dark:bg-espresso-700 border border-blue-200 dark:border-warm-600 rounded-xl px-4 py-3 mb-3"
-              >
-                <Text className="text-sm font-semibold text-blue-700 dark:text-blue-300 flex-1">
-                  Neue Version verfügbar — jetzt anwenden
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {canInstall && (
-              <TouchableOpacity
-                onPress={install}
-                className="flex-row items-center justify-center bg-primary-500 rounded-xl px-4 py-3 mb-2"
-              >
-                <Text className="text-sm font-semibold text-white">App installieren</Text>
-              </TouchableOpacity>
-            )}
-
-            {showIOSHint && (
-              <View className="bg-warm-50 dark:bg-espresso-700 border border-warm-200 dark:border-warm-600 rounded-xl px-4 py-3">
-                <Text className="text-sm font-semibold text-warm-800 dark:text-warm-100 mb-1">
-                  Zum Home-Bildschirm hinzufügen
-                </Text>
-                <Text className="text-xs text-warm-500 dark:text-warm-400">
-                  Tippe auf das Teilen-Symbol (↑) und dann auf „Zum Home-Bildschirm".
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
 
         {/* ── Push-Benachrichtigungen ── */}
         <View className="bg-white dark:bg-espresso-800 rounded-2xl shadow-sm border border-warm-200 dark:border-warm-700 p-5 mb-4">
