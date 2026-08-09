@@ -10,6 +10,7 @@ import { Bug } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { BugReportHeaderAction } from '@/components/BugReportHeaderAction';
+import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { useThemeInit } from '@/utils/use-theme';
 import {
   queryClient,
@@ -295,6 +296,8 @@ function RootLayoutNav() {
           <Stack.Screen name="+not-found" />
         </Stack>
         )}
+
+        <PwaUpdateBanner />
 
         {!LOGIN_FIRST_ACCOUNT_GATE_ENABLED && authConfigured ? (
           <Pressable
