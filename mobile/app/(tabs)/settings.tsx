@@ -19,6 +19,7 @@ import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCirc
 import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';
 import { fetchAuthMe } from '@/utils/admin';
+import { fetchRecipes } from '@/utils/api';
 import MyBugReportsSection from '@/components/settings/MyBugReportsSection';
 import {
   deleteCookidooHouseholdShare,
@@ -360,14 +361,10 @@ export default function SettingsScreen() {
       // Ignore
     }
 
-    // Recipe count from server health endpoint
+    // Recipe count (own + household recipes, same scope as the recipe list)
     try {
-      const base = await getServerUrl();
-      const res = await fetch(`${base}/api/v1/health`);
-      if (res.ok) {
-        const data = await res.json();
-        setRecipeCount(data.recipeCount ?? 0);
-      }
+      const recipes = await fetchRecipes();
+      setRecipeCount(recipes.length);
     } catch {
       setRecipeCount(null);
     }

@@ -7,7 +7,7 @@ const dbMocks = vi.hoisted(() => ({
   saveRecipeToReactDb: vi.fn(),
   updateRecipeInReactDb: vi.fn(),
   deleteRecipeFromReactDb: vi.fn(),
-  getRecipeCount: vi.fn(),
+  checkDbConnection: vi.fn(),
   searchRecipesByIngredientsAdvanced: vi.fn(),
   loadUserAuthorization: vi.fn(),
 }))

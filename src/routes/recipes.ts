@@ -5,7 +5,7 @@ import {
   saveRecipeToReactDb,
   updateRecipeInReactDb,
   deleteRecipeFromReactDb,
-  getRecipeCount,
+  checkDbConnection,
   searchRecipesByIngredientsAdvanced,
 } from "../db-react.js";
 import {
@@ -207,11 +207,10 @@ app.delete("/api/v1/recipes/:id", requireUserAuth(), async (c) => {
 // Health check
 app.get("/api/v1/health", async (c) => {
   try {
-    const recipeCount = await getRecipeCount();
+    await checkDbConnection();
     return c.json({
       server: true,
       database: "supabase",
-      recipeCount,
       status: "healthy"
     });
   } catch (error) {

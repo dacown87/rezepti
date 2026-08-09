@@ -459,10 +459,9 @@ export async function recipeBelongsToHousehold(recipeId: number, householdId: st
   return rows.length > 0;
 }
 
-export async function getRecipeCount(): Promise<number> {
+export async function checkDbConnection(): Promise<void> {
   const db = getDb();
-  const rows = await db.select({ id: recipes.id }).from(recipes);
-  return rows.length;
+  await db.execute(sql`select 1`);
 }
 
 // ── Collections / Favorites / Sharing ──────────────────────────────────────────
