@@ -7,7 +7,7 @@ Behebt zwei Symptome, die beim Account-Erstellen auftraten:
 
 Beides wird automatisiert über die Supabase **Management API** gesetzt — Workflow
 [.github/workflows/supabase-auth-config.yml](../.github/workflows/supabase-auth-config.yml).
-Projekt-Ref: `zdiqtnljdxuhinqzgcnd`. Produktions-URL: `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`
+Projekt-Ref: `zdiqtnljdxuhinqzgcnd`. Produktions-URL: `https://www.recipedeckapp.de` (seit 2026-09-27; die alte Northflank-Adresse `https://p01--rezepti-app--2s7hvlwm5zc5.code.run` steht fuer die Uebergangszeit noch in der Redirect-Liste)
 
 ---
 
@@ -25,7 +25,9 @@ Sind diese gesetzt, aktiviert der Workflow Custom SMTP; sonst bleibt der Supabas
 
 Fuer Brevo lauten die Werte: `SMTP_HOST=smtp-relay.brevo.com`,
 `SMTP_PORT=587`, `SMTP_USER=<Brevo SMTP Login>`, `SMTP_PASS=<Brevo SMTP Key>`,
-`SMTP_SENDER_NAME=RecipeDeck` und `SMTP_ADMIN_EMAIL=recipedeckapp@gmail.com`.
+`SMTP_SENDER_NAME=RecipeDeck` und `SMTP_ADMIN_EMAIL=noreply@recipedeckapp.de`.
+Der Workflow setzt ausserdem `rate_limit_email_sent=30` (Supabase-Default nach
+SMTP-Aktivierung: 2/h).
 Der SMTP Key ist ein separater Brevo-Schluessel; der Invite-API-Key gehoert
 nicht in `SMTP_PASS`.
 
@@ -46,8 +48,10 @@ Redirect-Allowlist** — Supabase verwirft ihn und fällt auf die Site URL (= lo
 
 | Feld | Wert |
 |------|------|
-| **Site URL** | `https://p01--rezepti-app--2s7hvlwm5zc5.code.run` |
-| **Redirect URLs** (Allowlist, je eine Zeile) | `https://p01--rezepti-app--2s7hvlwm5zc5.code.run/**` |
+| **Site URL** | `https://www.recipedeckapp.de` |
+| **Redirect URLs** (Allowlist, je eine Zeile) | `https://www.recipedeckapp.de/**` |
+| | `https://recipedeckapp.de/**` (Apex, leitet auf `www` um) |
+| | `https://p01--rezepti-app--2s7hvlwm5zc5.code.run/**` (alte Adresse, nur fuer die Uebergangszeit) |
 | | `recipedeck://**` (native App / Expo-Scheme) |
 | | `http://localhost:3000/**` (nur falls lokale Dev-Logins gebraucht werden) |
 | | `http://localhost:8081/**` (Expo-Web-Dev, optional) |
@@ -79,9 +83,9 @@ Der generische Absender + „powered by Supabase" kommt vom **Supabase-Default-S
 lässt sich der Absender nicht ändern (und es gilt ein striktes Rate-Limit). Für einen eigenen Absender:
 
 Dashboard → **Project Settings → Authentication → SMTP Settings** → **Enable Custom SMTP** und die Brevo-SMTP-Daten eintragen. Danach:
-- **Sender email**: `recipedeckapp@gmail.com`
+- **Sender email**: `noreply@recipedeckapp.de`
 - **Sender name**: `RecipeDeck`
-- `recipedeckapp@gmail.com` ist in Brevo bereits als Absenderadresse verifiziert. Eine eigene Maildomain besitzt das Projekt nicht, SPF/DKIM auf `gmail.com` sind daher weder moeglich noch noetig — Brevo signiert mit seiner eigenen Sendedomain.
+- Die Domain `recipedeckapp.de` ist seit 2026-09-27 in Brevo authentifiziert (DKIM `brevo1/2._domainkey`, SPF `include:spf.brevo.com`, DMARC `p=none`; Records bei Cloudflare). Details: [domain-mail-infra-runbook.md](domain-mail-infra-runbook.md).
 
 Ohne Custom SMTP bleiben Absender und „powered by"-Footer der Supabase-Standard.
 

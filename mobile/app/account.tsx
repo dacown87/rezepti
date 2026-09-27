@@ -38,13 +38,21 @@ type WorkspaceState =
   | { kind: 'ready'; data: AccountBootstrapResponse }
   | { kind: 'error'; message: string };
 
+// Must match `password_min_length` in .github/workflows/supabase-auth-config.yml.
+// Supabase only enforces it when a password is set, so older shorter passwords
+// still sign in.
+const MIN_PASSWORD_LENGTH = 8;
+
 function translateAuthError(message: string): string {
   const map: Record<string, string> = {
     'Invalid login credentials': 'Ungültige Anmeldedaten',
     'Email not confirmed': 'E-Mail noch nicht bestätigt',
     'User already registered': 'Diese E-Mail-Adresse ist bereits registriert',
-    'Password should be at least 6 characters': 'Das Passwort muss mindestens 6 Zeichen lang sein',
   };
+  const minLength = /^Password should be at least (\d+) characters/.exec(message);
+  if (minLength) {
+    return `Das Passwort muss mindestens ${minLength[1]} Zeichen lang sein`;
+  }
   return map[message] ?? message;
 }
 
@@ -221,6 +229,10 @@ export default function AccountScreen() {
       setInlineError('Bitte E-Mail und Passwort eingeben.');
       return;
     }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setInlineError(`Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`);
+      return;
+    }
     if (password !== confirmPassword) {
       setInlineError('Die Passwörter stimmen nicht überein.');
       return;
@@ -301,6 +313,10 @@ export default function AccountScreen() {
   const handleUpdatePassword = async () => {
     if (!password.trim()) {
       setInlineError('Bitte gib ein neues Passwort ein.');
+      return;
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setInlineError(`Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`);
       return;
     }
     if (password !== confirmPassword) {
@@ -520,7 +536,13 @@ export default function AccountScreen() {
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder={mode === 'update-password' ? 'Neues Passwort' : 'Passwort'}
+                placeholder={
+                  mode === 'update-password'
+                    ? `Neues Passwort (mind. ${MIN_PASSWORD_LENGTH} Zeichen)`
+                    : mode === 'signup'
+                      ? `Passwort (mind. ${MIN_PASSWORD_LENGTH} Zeichen)`
+                      : 'Passwort'
+                }
                 placeholderTextColor="#9E8878"
                 secureTextEntry
                 className="mb-3 rounded-xl border border-warm-200 bg-warm-50 px-4 py-3 text-warm-900 dark:border-warm-700 dark:bg-espresso-900 dark:text-warm-50"

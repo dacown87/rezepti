@@ -11,7 +11,7 @@ Die Repo-Doku speichert bewusst keine Zugangsdaten. Reusable QA-Accounts duerfen
 ## Voraussetzungen
 
 - Production-Web-App:
-  `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`
+  `https://www.recipedeckapp.de`
 - Repo-`.env` enthaelt funktionierende Werte fuer:
   - `SUPABASE_URL`
   - `SUPABASE_ANON_KEY`

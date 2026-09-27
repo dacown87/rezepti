@@ -92,6 +92,25 @@ hardening decision before revoking grants or adding policies.
 | `think_ab_results` | experiment/evaluation data | owner TBD | classify owner, then revoke or policy | final preflight shows current grants |
 | `timeline_entries` | knowledge/page data | owner TBD | classify owner, then revoke or policy | final preflight shows current grants |
 
+## Multi-User Backend Tables (Nachtrag 2026-09-27)
+
+Seit Mai hinzugekommen und im Production-Advisor als `rls_enabled_no_policy`
+gemeldet (56 Tabellen gesamt). Alle sieben sind backend-only: der Server
+verbindet als `postgres` und umgeht RLS, die Mobile-App liest sie nie ueber die
+Data API. RLS ohne Policy ist hier also bewusst ein Deny-all fuer die Data API.
+Grants am 2026-09-27 in Production gegen `information_schema.role_table_grants`
+geprueft.
+
+| Table | Classification | Access role | Action | Verification |
+|---|---|---|---|---|
+| `bug_report_submission_rate_limits` | backend-only rate-limit state | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260620091042_bug_reports.sql` |
+| `byok_validation_policies` | backend-only admin config | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260619133000_byok_validation_policy_admin.sql` |
+| `cookidoo_credentials` | backend-only secret table (encrypted at rest) | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260619113000_harden_cookidoo_credentials_store.sql` |
+| `recipe_collection_items` | backend-only now, future Data API | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260623100100_recipe_collection_items.sql` |
+| `recipe_collections` | backend-only now, future Data API | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260623100000_recipe_collections.sql` |
+| `recipe_share_invites` | backend-only, token hashes | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260707141913_recipe_share_invites.sql` |
+| `user_default_households` | backend-only bootstrap mapping | direct DB backend role | no policy; default grants (incl. `TRUNCATE`) revoked | `20260927140100_revoke_user_default_households_data_api_grants.sql` |
+
 ## Follow-Ups
 
 - Run Supabase Security Advisor again and archive the new export under
