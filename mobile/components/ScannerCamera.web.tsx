@@ -1,7 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useCameraPermissions } from 'expo-camera'
-import jsQR from 'jsqr'
+import type jsQRFn from 'jsqr'
+
+// jsQR (~130 KB raw / ~47 KB gzip) is only the fallback for browsers without
+// BarcodeDetector, so it is loaded on first use instead of sitting in the
+// entry chunk that every route downloads.
+let jsQRModule: typeof jsQRFn | null = null
+let jsQRLoading: Promise<void> | null = null
+function loadJsQR(): typeof jsQRFn | null {
+  if (jsQRModule) return jsQRModule
+  if (!jsQRLoading) {
+    jsQRLoading = import('jsqr')
+      .then((mod) => { jsQRModule = mod.default })
+      .catch(() => { jsQRLoading = null })
+  }
+  return null
+}
 
 interface ScannerCameraProps {
   onScan: (value: string) => void
@@ -105,7 +120,8 @@ export default function ScannerCamera({ onScan, onClose }: ScannerCameraProps) {
       if (!mounted) return
       const video = videoRef.current
       const canvas = canvasRef.current
-      if (!video || !canvas || video.readyState < video.HAVE_ENOUGH_DATA) {
+      const jsQR = loadJsQR()
+      if (!jsQR || !video || !canvas || video.readyState < video.HAVE_ENOUGH_DATA) {
         rafRef.current = requestAnimationFrame(scanWithJsQR)
         return
       }
