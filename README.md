@@ -2,7 +2,7 @@
 
 Rezepte aus URLs extrahieren — YouTube, Instagram, TikTok, Webseiten, Cookidoo — ins Deutsche übersetzen, speichern und verwalten.
 
-**Production:** https://p01--rezepti-app--2s7hvlwm5zc5.code.run
+**Production:** https://www.recipedeckapp.de
 
 ---
 
