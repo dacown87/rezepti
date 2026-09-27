@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CheckCircle2, LogIn, LogOut, Mail, RefreshCcw, UserPlus } from 'lucide-react-native';
 
+import { LegalLinks } from '@/components/LegalPage';
 import { bootstrapAccount, type AccountBootstrapResponse } from '@/utils/account-bootstrap';
 import {
   getAuthSession,
@@ -592,6 +593,7 @@ export default function AccountScreen() {
             ) : null}
           </View>
         )}
+        <LegalLinks />
       </ScrollView>
     </SafeAreaView>
   );
