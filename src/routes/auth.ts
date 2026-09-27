@@ -17,6 +17,9 @@ app.get("/api/v1/auth/me", requireUserAuth(), async (c) => {
   });
 });
 
+// Log lines carry only a UUID prefix: enough to correlate, not the full id.
+const shortId = (id: string | null | undefined) => (id ? id.slice(0, 8) : null);
+
 app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
   const authUserId = () => {
     try {
@@ -28,7 +31,7 @@ app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
 
   try {
     const auth = getUserAuth(c);
-    console.info("auth.bootstrap.start", { userId: auth.userId });
+    console.info("auth.bootstrap.start", { userId: shortId(auth.userId) });
 
     const profile = await ensureUserProfile(auth.userId, auth.email);
     const workspace = await ensureDefaultHouseholdForUser(auth.userId);
@@ -48,9 +51,9 @@ app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
     const result = profile.created || workspace.created ? "created" : "existing";
 
     console.info("auth.bootstrap.success", {
-      userId: auth.userId,
+      userId: shortId(auth.userId),
       result,
-      householdId: status.workspace.id,
+      householdId: shortId(status.workspace.id),
     });
 
     return c.json({
@@ -60,7 +63,7 @@ app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
   } catch (error) {
     if (error instanceof AuthFlowError) {
       console.error("auth.bootstrap.failure", {
-        userId: authUserId(),
+        userId: shortId(authUserId()),
         code: error.code,
         message: error.message,
       });
@@ -68,7 +71,7 @@ app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
     }
 
     console.error("auth.bootstrap.failure", {
-      userId: authUserId(),
+      userId: shortId(authUserId()),
       error,
     });
 

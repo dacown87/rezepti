@@ -31,6 +31,10 @@ jobs:
       # Supabase keeps 2 auth mails/hour until this is raised; only allowed with
       # custom SMTP. Shares the Brevo free-plan budget (300/day) with invite mails.
       AUTH_EMAIL_RATE_LIMIT_PER_HOUR: "30"
+      # Leaked-password protection (HIBP) needs Supabase Pro; on the free plan a
+      # longer minimum is the substitute. Keep in sync with MIN_PASSWORD_LENGTH
+      # in mobile/app/account.tsx. Only enforced when a password is set.
+      PASSWORD_MIN_LENGTH: "8"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -62,13 +66,15 @@ jobs:
             --arg cc "$confirm_html" \
             --arg rs "$RECOVERY_SUBJECT" \
             --arg rc "$recovery_html" \
+            --argjson pml "$PASSWORD_MIN_LENGTH" \
             '{
               site_url: $site,
               uri_allow_list: $allow,
               mailer_subjects_confirmation: $cs,
               mailer_templates_confirmation_content: $cc,
               mailer_subjects_recovery: $rs,
-              mailer_templates_recovery_content: $rc
+              mailer_templates_recovery_content: $rc,
+              password_min_length: $pml
             }')
 
           # SMTP nur setzen, wenn Host-Secret vorhanden ist -- sonst bestehende
@@ -112,4 +118,4 @@ jobs:
           fi
 
           echo "Supabase auth config updated (HTTP $http_code)."
-          echo "site_url + uri_allow_list + confirmation/recovery templates applied."
+          echo "site_url + uri_allow_list + confirmation/recovery templates + password_min_length applied."

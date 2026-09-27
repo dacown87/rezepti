@@ -194,7 +194,7 @@ describe('account entry and auth flows', () => {
 
     await press(lastByText('Account erstellen'));
     fireEvent.changeText(screen.getByPlaceholderText('E-Mail'), 'patrick@example.com');
-    fireEvent.changeText(screen.getByPlaceholderText('Passwort'), 'secret123');
+    fireEvent.changeText(screen.getByPlaceholderText('Passwort (mind. 8 Zeichen)'), 'secret123');
     fireEvent.changeText(screen.getByPlaceholderText('Passwort bestätigen'), 'secret123');
 
     await press(lastByText('Account erstellen'));
@@ -213,6 +213,23 @@ describe('account entry and auth flows', () => {
       mode: 'signup',
       returnTo: '/(tabs)/shopping',
     });
+  });
+
+  it('rejects signup passwords shorter than 8 characters before calling Supabase', async () => {
+    state.params = { returnTo: '/(tabs)/shopping' };
+
+    const { default: AccountScreen } = await import('@/app/account');
+    render(React.createElement(AccountScreen));
+
+    await press(lastByText('Account erstellen'));
+    fireEvent.changeText(screen.getByPlaceholderText('E-Mail'), 'patrick@example.com');
+    fireEvent.changeText(screen.getByPlaceholderText('Passwort (mind. 8 Zeichen)'), 'short12');
+    fireEvent.changeText(screen.getByPlaceholderText('Passwort bestätigen'), 'short12');
+
+    await press(lastByText('Account erstellen'));
+
+    expect(screen.getByText('Das Passwort muss mindestens 8 Zeichen lang sein.')).toBeTruthy();
+    expect(state.signUpWithPassword).not.toHaveBeenCalled();
   });
 
   it('requests a password reset from the account screen', async () => {
