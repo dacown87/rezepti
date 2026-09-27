@@ -27,7 +27,7 @@ export async function configureVapid(): Promise<boolean> {
   if (configured) return true;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT ?? 'mailto:admin@rezepti.app';
+  const subject = process.env.VAPID_SUBJECT ?? 'mailto:admin@recipedeckapp.de';
   if (!pub || !priv) {
     if (!warnedNoVapid) {
       warnedNoVapid = true;

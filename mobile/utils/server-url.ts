@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-export const PRODUCTION_URL = 'https://p01--rezepti-app--2s7hvlwm5zc5.code.run';
+export const PRODUCTION_URL = 'https://www.recipedeckapp.de';
 export const SERVER_URL_KEY = 'recipedeck_server_url';
 
 export async function getServerUrl(): Promise<string> {

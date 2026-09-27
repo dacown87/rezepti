@@ -18,6 +18,9 @@ app.use(compress());
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:8081",
+  "https://www.recipedeckapp.de",
+  "https://recipedeckapp.de",
+  // Legacy Northflank origin — keep until clients have moved to the custom domain
   "https://p01--rezepti-app--2s7hvlwm5zc5.code.run",
 ];
 app.use("/api/*", cors({
