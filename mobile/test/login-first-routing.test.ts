@@ -25,6 +25,8 @@ describe('login-first routing helpers', () => {
   it('recognizes public login-first paths', () => {
     expect(isPublicLoginFirstPath('/account')).toBe(true);
     expect(isPublicLoginFirstPath('/+not-found')).toBe(true);
+    expect(isPublicLoginFirstPath('/impressum')).toBe(true);
+    expect(isPublicLoginFirstPath('/datenschutz')).toBe(true);
     expect(isPublicLoginFirstPath('/recipe/42')).toBe(false);
   });
 

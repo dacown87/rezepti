@@ -293,6 +293,8 @@ function RootLayoutNav() {
           <Stack.Screen name="share-invite/[token]" options={{ headerShown: false }} />
           <Stack.Screen name="collections" options={{ headerShown: false }} />
           <Stack.Screen name="collection/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="impressum" options={{ headerShown: false }} />
+          <Stack.Screen name="datenschutz" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         )}
