@@ -223,7 +223,8 @@ app.get("/api/v1/health", async (c) => {
       server: true,
       database: "supabase",
       status: "unhealthy",
-      error: error instanceof Error ? error.message : "Unknown error"
+      // Public endpoint: keep driver details (hosts, pooler names) in the server log only.
+      error: "database_unreachable"
     }, 500);
   }
 });
