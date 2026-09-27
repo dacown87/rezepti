@@ -94,6 +94,10 @@ function gzipCached(filePath, body) {
   return data;
 }
 
+export function isLighthouseWarmupEnabled(env = process.env) {
+  return env.PERF_LIGHTHOUSE_WARMUP !== '0';
+}
+
 async function exists(filePath) {
   try {
     await access(filePath, fsConstants.F_OK);
@@ -414,7 +418,7 @@ function reportBasename(route, viewportId) {
   return path.join(OUT_DIR, `${safeRoute}-${viewportId}`);
 }
 
-async function runLighthouse(url, route, viewport, throttlingMethod, logBuffer) {
+async function runLighthouse(url, route, viewport, throttlingMethod, logBuffer, { outputBase: outputBaseOverride } = {}) {
   const launch = await resolveLighthouseLaunch();
   if (!launch) {
     logBuffer.push(logLine('WARN: Lighthouse CLI not found. Skipping Lighthouse (warn-only).'));
@@ -422,7 +426,7 @@ async function runLighthouse(url, route, viewport, throttlingMethod, logBuffer) 
     return { ok: false, skipped: true, reason: 'missing-lighthouse-cli', route, viewport: viewport.id, throttlingMethod };
   }
 
-  const outputBase = reportBasename(route, viewport.id);
+  const outputBase = outputBaseOverride || reportBasename(route, viewport.id);
   const chromePath = await detectChromeCommand();
   if (!chromePath) {
     logBuffer.push(logLine('WARN: Chrome/Chromium executable not found. Skipping Lighthouse (warn-only).'));
@@ -644,6 +648,19 @@ async function main() {
         throttlingMethod: LIGHTHOUSE_THROTTLING,
       });
     }
+  }
+
+  if (uniqueAuditedRoutes.length > 0 && isLighthouseWarmupEnabled()) {
+    // Discarded warm-up pass. On a fresh CI runner the first Lighthouse run pays
+    // for cold OS/Chrome caches (bootup ~3.3 s vs ~1.4 s for every later run),
+    // which always landed on `/` @ mobile, the first and budget-relevant sample.
+    const target = uniqueAuditedRoutes[0];
+    const viewport = VIEWPORTS[0];
+    logBuffer.push(logLine(`Warm-up Lighthouse run (discarded): ${target} @ ${viewport.id}`));
+    const warmup = await runLighthouse(`${baseUrl}${target}`, target, viewport, LIGHTHOUSE_THROTTLING, logBuffer, {
+      outputBase: path.join(OUT_DIR, 'warmup'),
+    });
+    if (!warmup.ok) logBuffer.push(logLine(`WARN: warm-up run did not complete (${warmup.reason}); continuing.`));
   }
 
   for (const target of uniqueAuditedRoutes) {

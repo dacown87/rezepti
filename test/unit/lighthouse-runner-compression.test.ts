@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldGzipResponse } from '../../scripts/performance/lighthouse-runner.mjs';
+import { isLighthouseWarmupEnabled, shouldGzipResponse } from '../../scripts/performance/lighthouse-runner.mjs';
 
 // The audit server must mirror production's `hono/compress` behaviour, otherwise
 // Lighthouse's simulated throttling replays uncompressed JS transfer sizes and
@@ -22,5 +22,13 @@ describe('lighthouse runner static server compression', () => {
   it('skips binary types and tiny payloads like hono/compress', () => {
     expect(shouldGzipResponse('gzip', 'image/png', 50_000)).toBe(false);
     expect(shouldGzipResponse('gzip', js, 512)).toBe(false);
+  });
+});
+
+describe('lighthouse runner warm-up', () => {
+  it('runs the discarded warm-up pass unless explicitly disabled', () => {
+    expect(isLighthouseWarmupEnabled({})).toBe(true);
+    expect(isLighthouseWarmupEnabled({ PERF_LIGHTHOUSE_WARMUP: '1' })).toBe(true);
+    expect(isLighthouseWarmupEnabled({ PERF_LIGHTHOUSE_WARMUP: '0' })).toBe(false);
   });
 });
