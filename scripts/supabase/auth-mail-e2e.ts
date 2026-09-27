@@ -15,8 +15,11 @@
 // Guard: pass --confirm=rezepti-production (or AUTH_MAIL_E2E_CONFIRM).
 //
 //   npm run supabase:auth-mail-e2e -- --confirm=rezepti-production [--keep | --cleanup]
+//   npm run supabase:auth-mail-e2e -- --confirm=rezepti-production --brevo=<email>
+//     (only step 3, e.g. for a user kept with --keep)
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
+import { setDefaultResultOrder } from "node:dns";
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 
@@ -31,6 +34,11 @@ function required(name: string): string {
   if (!value) throw new Error(`${name} is not set`);
   return value;
 }
+
+// The Brevo API only accepts allowlisted IPs, and the allowlist holds IPv4
+// addresses only; on a dual-stack connection fetch would otherwise go out via
+// IPv6 and get a 401 "unrecognised IP address".
+setDefaultResultOrder("ipv4first");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -90,6 +98,13 @@ async function main() {
   const supabaseUrl = required("SUPABASE_URL");
   if (!supabaseUrl.includes(PROJECT_REF)) throw new Error(`SUPABASE_URL is not project ${PROJECT_REF}`);
   const databaseUrl = required("DATABASE_URL");
+
+  const brevoOnly = process.argv.find((arg) => arg.startsWith("--brevo="))?.slice("--brevo=".length);
+  if (brevoOnly) {
+    console.log(`Brevo events for ${brevoOnly}:`);
+    for (const line of await fetchBrevoEvents(required("BREVO_API_KEY"), brevoOnly)) console.log(`   ${line}`);
+    return;
+  }
 
   if (process.argv.includes("--cleanup")) {
     console.log(`Deleted ${await deleteE2eUsers(databaseUrl)} e2e user(s).`);
