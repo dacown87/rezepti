@@ -8,8 +8,14 @@ import type { Context } from "hono";
 import { config } from "./config.js";
 import reactApi from "./api-react.js";
 import { jobManager, startJobCleanupTimer } from "./job-manager.js";
+import { handleAppError, requestLogger } from "./middleware/request-logger.js";
 
 export const app = new Hono();
+
+// Access log for /api/* (method, redacted path, status, duration) and a
+// stderr-logging error handler for anything a route did not catch.
+app.use(requestLogger());
+app.onError(handleAppError);
 
 // Canonical host: the apex domain serves the same app, but sessions, offline
 // caches and PWA installs are per origin, so send everything to www instead.
@@ -170,6 +176,8 @@ app.get("*", (c) => {
 if (!process.env.VITEST) {
   const port = config.port;
   console.log(`Rezepti läuft auf http://localhost:${port}`);
+  // Deliberate stderr line: confirms the platform log pipeline captures stderr.
+  console.error("[startup] stderr capture check (not an error)");
   serve({ fetch: app.fetch, port });
   startJobCleanupTimer(jobManager, config.jobs.cleanupDays, 60 * 60 * 1000);
 }
