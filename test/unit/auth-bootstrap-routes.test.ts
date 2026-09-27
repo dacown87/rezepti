@@ -73,10 +73,21 @@ describe('auth bootstrap route', () => {
       warnings: [],
     })
 
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
     const res = await authRouter.request('/api/v1/auth/bootstrap', {
       method: 'POST',
       headers: { Authorization: 'Bearer valid-token' },
     })
+
+    // Log lines carry only UUID prefixes, never the full ids.
+    expect(info).toHaveBeenCalledWith('auth.bootstrap.start', { userId: '00000000' })
+    expect(info).toHaveBeenCalledWith('auth.bootstrap.success', {
+      userId: '00000000',
+      result: 'created',
+      householdId: '10000000',
+    })
+    expect(JSON.stringify(info.mock.calls)).not.toContain('0000-0000-0000')
+    info.mockRestore()
 
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({
