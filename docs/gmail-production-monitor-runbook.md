@@ -60,6 +60,40 @@ RECIPE_INVITE_EMAIL_REPLY_TO=recipedeckapp@gmail.com
 
 No OAuth JSON path or token-cache file is configured in Northflank.
 
+### Current setup (since 2026-09-27)
+
+The probe runs as its **own Northflank cron job** `gmail-brevo-probe` in project
+`rezepti`, not inside the web service. Its runtime environment holds exactly the
+ten variables above; the web service `rezepti-app` environment was not touched
+(an update there replaces the whole environment).
+
+| Setting | Value |
+|---|---|
+| Image | `dacown/rezepti:latest` (same as the web service) |
+| Command | `node dist/gmail-brevo-probe.js` |
+| Plan | `nf-compute-10` |
+| Schedule | `0 7 * * *` (UTC), `concurrencyPolicy: forbid`, `backoffLimit: 0` |
+| Deadline | `activeDeadlineSeconds: 1500` (probe waits up to 15 min) |
+
+Manual run: `POST /v1/projects/rezepti/jobs/gmail-brevo-probe/runs`; status via
+`GET …/runs/{runId}`. To change one variable, read the job's environment first
+and write back the complete set, as with the web service.
+
+**Refresh token lifetime:** while the Google OAuth app is still in *Testing*,
+the refresh token expires after 7 days and the job then fails with
+`invalid_grant`. Publishing the app *In production* needs the privacy policy URL
+`https://www.recipedeckapp.de/datenschutz` (Google Auth Platform → Branding).
+After publishing, run `npm run gmail:authorize` once more and replace only
+`GMAIL_OAUTH_REFRESH_TOKEN` in the job.
+
+**Status 2026-09-27 — job created but suspended:** the first manual run failed
+with Brevo `401 unrecognised IP address 34.91.8.145`. The job's egress IP
+differs from the web service's, and the Brevo API only accepts allowlisted IPs.
+Gmail was never reached. Before enabling the schedule, decide one of:
+allowlist the job's egress IP in Brevo (Northflank egress IPs are not
+guaranteed to be stable), a Northflank static egress IP, or running the probe
+where the allowlisted IP already applies.
+
 ## 4. Commands
 
 After the production image is deployed, a one-off Northflank job can run:
