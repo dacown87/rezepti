@@ -9,7 +9,7 @@
 
 ## Stack
 
-Expo ~56.0.19 · React Native 0.85.3 · React 19.2.3 · Expo Router ~56.2.18 ·
+Expo ~57.0.25 · React Native 0.86.3 · React 19.2.3 · Expo Router ~57.0.23 ·
 NativeWind 4 on Tailwind 3.4 · TanStack Query 5 · Supabase JS 2
 
 `mobile/` is its **own npm package** with its own `package.json`, `tsconfig.json`
