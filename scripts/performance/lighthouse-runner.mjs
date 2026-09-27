@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 const PUBLIC_DIR = path.resolve('public');
 const PERF_OUT_DIR = path.resolve('artifacts/performance');
@@ -60,6 +61,37 @@ function contentType(filePath) {
   if (filePath.endsWith('.ico')) return 'image/x-icon';
   if (filePath.endsWith('.woff2')) return 'font/woff2';
   return 'application/octet-stream';
+}
+
+// Production serves every response through `hono/compress` (src/index.ts),
+// which gzips text payloads >= 1 KiB when the client accepts it. The audit
+// server must do the same: Lighthouse's simulated throttling (Lantern) replays
+// the observed transfer sizes over a ~1.6 Mbps link, so serving the 4.7 MB
+// entry chunk uncompressed inflated simulated LCP/TTI to ~25 s even though
+// production only transfers ~0.9 MB for the same file.
+const COMPRESSIBLE_CONTENT_TYPE = /^(text\/|application\/(javascript|json|manifest\+json)|image\/svg\+xml)/;
+const COMPRESSION_THRESHOLD_BYTES = 1024;
+const gzipCache = new Map();
+
+export function shouldGzipResponse(acceptEncoding, type, byteLength) {
+  if (byteLength < COMPRESSION_THRESHOLD_BYTES) return false;
+  if (!COMPRESSIBLE_CONTENT_TYPE.test(type)) return false;
+  return String(acceptEncoding || '')
+    .split(',')
+    .map((token) => token.trim().toLowerCase().split(';').map((part) => part.trim()))
+    .some(([coding, ...params]) => {
+      if (coding !== 'gzip' && coding !== '*') return false;
+      const q = params.find((param) => param.startsWith('q='));
+      return q === undefined || Number(q.slice(2)) > 0;
+    });
+}
+
+function gzipCached(filePath, body) {
+  const cached = gzipCache.get(filePath);
+  if (cached && cached.source === body.length) return cached.data;
+  const data = gzipSync(body);
+  gzipCache.set(filePath, { source: body.length, data });
+  return data;
 }
 
 async function exists(filePath) {
@@ -302,7 +334,19 @@ async function startStaticServer() {
         return;
       }
       const body = await readFile(target.filePath);
-      res.writeHead(200, { 'content-type': contentType(target.filePath) });
+      const type = contentType(target.filePath);
+      if (shouldGzipResponse(req.headers['accept-encoding'], type, body.length)) {
+        const gzipped = gzipCached(target.filePath, body);
+        res.writeHead(200, {
+          'content-type': type,
+          'content-encoding': 'gzip',
+          'content-length': gzipped.length,
+          vary: 'Accept-Encoding',
+        });
+        res.end(gzipped);
+        return;
+      }
+      res.writeHead(200, { 'content-type': type, vary: 'Accept-Encoding' });
       res.end(body);
     } catch {
       res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
