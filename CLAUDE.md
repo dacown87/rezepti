@@ -62,7 +62,7 @@ Die drei Services binden alle Port 3000 — es kann immer nur einer laufen.
 
 ## Production
 
-**URL:** https://www.recipedeckapp.de (seit 2026-09-27; die Northflank-Adresse https://p01--rezepti-app--2s7hvlwm5zc5.code.run bleibt parallel erreichbar). Domain bei INWX, DNS-Zone dort; `recipedeckapp.de` ohne `www` leitet nur per HTTP weiter (INWX-Weiterleitung kann kein HTTPS)
+**URL:** https://www.recipedeckapp.de (seit 2026-09-27; die Northflank-Adresse https://p01--rezepti-app--2s7hvlwm5zc5.code.run bleibt parallel erreichbar). Registrar INWX, DNS bei Cloudflare (Free, Nameserver `casey`/`daphne.ns.cloudflare.com`, alle Records ohne Proxy); `recipedeckapp.de` und `www` zeigen beide per CNAME (Apex flattened) auf Northflank und haben eigene Zertifikate
 
 **Deployment:** GitHub Actions → Docker Hub (`dacown/rezepti:latest`) → Northflank (automatic redeploy)
 
