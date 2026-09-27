@@ -60,7 +60,7 @@ Kritischer Pfad ist **Mailversand produktiv schalten** (Slice 1 des Sharing-Foll
 Zusammengefasst aus Domain-Umzug, SMTP-/Push-Umbau und Log-Durchsicht (Details zu den Log-Befunden unter Punkt 9). Zugangsdaten, API-Aufrufe und Stolpersteine: [docs/domain-mail-infra-runbook.md](/home/patrick/Projekte/rezepti/docs/domain-mail-infra-runbook.md).
 
 **Pruefen / manuell testen**
-- [ ] **Supabase-Konto-Mail end-to-end:** einmal Registrierung oder „Passwort vergessen“ mit einem Testkonto ausloesen; Mail muss von `noreply@recipedeckapp.de` kommen, Link auf `www.recipedeckapp.de` zeigen; in den Supabase-`auth_logs` den Versand pruefen. Bisher ist nur der direkte SMTP-Test gelaufen.
+- [x] **Supabase-Konto-Mail end-to-end** — bestanden 2026-09-27 mit `npm run supabase:auth-mail-e2e -- --confirm=rezepti-production --keep` (Testkonto `recipedeckapp+e2e-202609271414@gmail.com`): Signup `200`, Auth-Log `user_confirmation_requested`, Brevo `requests` → `delivered` von `noreply@recipedeckapp.de`, Mail im Postfach angekommen, Link-Klick → `/verify` `303` auf `www.recipedeckapp.de/account`, `email_confirmed_at` gesetzt. Testkonto samt Haushalt danach entfernt. Urspruenglicher Eintrag: einmal Registrierung oder „Passwort vergessen“ mit einem Testkonto ausloesen; Mail muss von `noreply@recipedeckapp.de` kommen, Link auf `www.recipedeckapp.de` zeigen; in den Supabase-`auth_logs` den Versand pruefen. Bisher ist nur der direkte SMTP-Test gelaufen.
 - [ ] **Web-Push end-to-end:** auf `www.recipedeckapp.de` in den Einstellungen Push einschalten, einen Import abschliessen → Benachrichtigung „Rezept fertig“ muss kommen. Push war vorher nie aktiv, der echte Pfad ist ungetestet.
 - [ ] **DMARC-Berichte beobachten** und nach einigen Wochen ohne Auffaelligkeiten `p=none` → `p=quarantine` (Cloudflare-TXT `_dmarc`).
 
@@ -150,7 +150,7 @@ Arbeitsbasis ist geklaert: PR #2 `Multi-user login first slice` und PR #5 `Compl
 - [ ] **Multi-Workspace-Wechsel** — Wechsel zwischen mehreren Workspaces auf Basis der Default-Workspace-Invariante planen.
 - [ ] **OAuth / Magic Link** — Zusätzliche Auth-Modi mit Supabase-Konfig, Redirects, Deep Links und Tests als eigenen Slice planen.
 - [x] **Recipe Sharing / Copy / Collections — erster Slice** — Als eigene Ownership-/UX-Arbeit geplant und ueber PR #28 umgesetzt; Invite-Sharing, Multi-Household-Zielwahl und erweiterte Collection-Funktionen bleiben getrennte Folge-Slices.
-- [ ] **Account-Loeschung und Recovery-Haertung** — Account-Loeschung, Rate-Limit-UX, Support-/Auditpfad und Recovery-Polish nach minimalem Passwort-Reset planen.
+- [ ] **Account-Loeschung und Recovery-Haertung** — Befund vom 2026-09-27: `DELETE FROM auth.users` allein hinterlaesst Waisen, weil `households.created_by` `ON DELETE SET NULL` ist und `user_default_households` gar keinen FK auf `auth.users` hat; die Loeschung muss Default-Mapping und nur noch vom Nutzer belegte Haushalte (inkl. deren Shopping/Planner/Collections) mitnehmen. Vorlage: `deleteE2eUsers` in `scripts/supabase/auth-mail-e2e.ts`. — Account-Loeschung, Rate-Limit-UX, Support-/Auditpfad und Recovery-Polish nach minimalem Passwort-Reset planen.
 
 ## Aktive Backlog / Watchlist
 
