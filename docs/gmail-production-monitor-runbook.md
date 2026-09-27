@@ -54,7 +54,7 @@ For the self-sending, controlled end-to-end probe also set:
 GMAIL_BREVO_PROBE_ENABLED=true
 RECIPE_INVITE_EMAIL_PROVIDER=brevo
 BREVO_API_KEY
-RECIPE_INVITE_EMAIL_FROM=RecipeDeck <recipedeckapp@gmail.com>
+RECIPE_INVITE_EMAIL_FROM=RecipeDeck <einladung@recipedeckapp.de>
 RECIPE_INVITE_EMAIL_REPLY_TO=recipedeckapp@gmail.com
 ```
 
