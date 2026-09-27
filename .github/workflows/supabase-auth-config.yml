@@ -28,6 +28,9 @@ jobs:
       URI_ALLOW_LIST: https://www.recipedeckapp.de/**,https://recipedeckapp.de/**,https://p01--rezepti-app--2s7hvlwm5zc5.code.run/**,recipedeck://**
       CONFIRM_SUBJECT: "Bestätige deine E-Mail für RecipeDeck"
       RECOVERY_SUBJECT: "RecipeDeck — Passwort zurücksetzen"
+      # Supabase keeps 2 auth mails/hour until this is raised; only allowed with
+      # custom SMTP. Shares the Brevo free-plan budget (300/day) with invite mails.
+      AUTH_EMAIL_RATE_LIMIT_PER_HOUR: "30"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -79,6 +82,7 @@ jobs:
               --arg pw "${SMTP_PASS:-}" \
               --arg sn "${SMTP_SENDER_NAME:-RecipeDeck}" \
               --arg ae "${SMTP_ADMIN_EMAIL:-}" \
+              --argjson rl "$AUTH_EMAIL_RATE_LIMIT_PER_HOUR" \
               '. + {
                 external_email_enabled: true,
                 smtp_host: $h,
@@ -86,7 +90,8 @@ jobs:
                 smtp_user: $u,
                 smtp_pass: $pw,
                 smtp_sender_name: $sn,
-                smtp_admin_email: $ae
+                smtp_admin_email: $ae,
+                rate_limit_email_sent: $rl
               }')
           else
             echo "No SMTP_HOST secret -> leaving SMTP/sender as-is (Supabase default)."
