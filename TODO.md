@@ -88,6 +88,7 @@ Zusammengefasst aus Domain-Umzug, SMTP-/Push-Umbau und Log-Durchsicht (Details z
 
 **Aufraeumen / Konten**
 - [ ] **Cloudflare-Token auf Minimalrechte pruefen:** noetig sind nur *Zone → Zone → Edit* und *Zone → DNS → Edit*; die Account-weiten *Registrar Domains Admin*-Rechte wieder entfernen.
+- [ ] **Brevo-IP-Freigabe fuer den Probe-Job ueberarbeiten, sobald die App in Produktion geht** — Seit 2026-09-27 steht die Northflank-Egress-IP `34.91.8.145` des Cron-Jobs `gmail-brevo-probe` als Uebergangsloesung in der Brevo-Allowlist. Northflank garantiert diese IP nicht; bei einem Wechsel scheitert die Probe mit `401 unrecognised IP address`. Beim Schritt in den oeffentlichen Produktionsbetrieb entscheiden: feste Egress-IP bei Northflank (kostenpflichtig) oder die Allowlist gezielt auf die tatsaechlich genutzten Egress-IPs von Web-Service und Job pruefen und dokumentieren. Zusammen damit die Home-IPs (IPv4 und den am 2026-09-27 eingetragenen IPv6-Eintrag) entfernen.
 - [ ] **Brevo aufraeumen:** den alten, nie authentifizierten Domain-Eintrag `recipedeck.app` (fremde Domain) loeschen; die IPv4-Freigabe fuer den Heimanschluss in der Brevo-IP-Allowlist entfernen, sobald sie nicht mehr gebraucht wird.
 - [ ] **Alte INWX-Zone:** ist seit dem Nameserver-Wechsel wirkungslos; optional leeren, damit niemand dort versehentlich Records pflegt.
 - [ ] **Gmail-Monitor aktivieren** (Punkt 3 oben): `npm run gmail:authorize`, Refresh-Token als Northflank-Secret, eine manuelle Probe, dann Cron.
