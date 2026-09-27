@@ -73,7 +73,8 @@
     "docker:shell": "docker compose exec rezepti /bin/sh",
     "docker:shell:prod": "docker compose --profile react-prod exec rezepti-react-prod /bin/sh",
     "docker:health": "curl -s http://localhost:3000/api/v1/health",
-    "docker:backup": "mkdir -p backups && tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/"
+    "docker:backup": "mkdir -p backups && tar -czf backups/rezepti-$(date +%Y%m%d).tar.gz data/",
+    "supabase:auth-mail-e2e": "tsx scripts/supabase/auth-mail-e2e.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.4",
