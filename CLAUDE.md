@@ -202,7 +202,7 @@ Routes (`mobile/app/`, Expo Router):
 |------|---------|
 | `(tabs)/index.tsx` | Recipe list, search, ingredient search, category filter |
 | `(tabs)/extract.tsx` | URL / free-text / photo import with job polling |
-| `(tabs)/scanner.tsx` | QR scanner + generator (BarcodeDetector, `jsQR` fallback) |
+| `(tabs)/scanner.tsx` | QR scanner + generator (BarcodeDetector, `jsQR` fallback — lazy per `import()` beim ersten Scan-Frame nachgeladen, nicht im Entry-Chunk; PR #66) |
 | `(tabs)/planner.tsx` | 7-day meal planner with drag & drop |
 | `(tabs)/shopping.tsx` | Shopping list |
 | `(tabs)/settings.tsx` | BYOK, Cookidoo, push opt-in, app status |
@@ -423,9 +423,9 @@ Planned features and current implementation status (reviewed 2026-08-09, v1.0.21
 - `npm test -- --run --exclude="test/e2e/**"` — run only unit tests
 - `npm test` — all tests (E2E tests fail if server not running)
 
-**Test Status (2026-08-07, lokal gemessen):**
-- Root Unit (`--exclude test/e2e/**`): 626 bestanden, 28 uebersprungen (57 Dateien)
-- Mobile Unit: 389 bestanden (51 Dateien)
+**Test Status (2026-09-27, lokal gemessen, Expo SDK 57):**
+- Root Unit (`--exclude test/e2e/**`): 728 bestanden, 28 uebersprungen (65 Dateien, davon 1 uebersprungen)
+- Mobile Unit (`mobile:release-gate`, Coverage-Lauf): 420 bestanden (57 Dateien)
 - Der uebersprungene `static-assets.test.ts`-Fall („serves an existing Expo hashed logo asset") braucht ein vorheriges `npm run build:mobile` — siehe `public/`-Abschnitt
 - Mobile RNTL guard: `npm run test:mobile:rntl-guard` blockiert neue direkte `react-test-renderer`-Imports
 - E2E contract gate: CI startet echten Server und fuehrt `npm run test:e2e:contract` aus
