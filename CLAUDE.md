@@ -62,7 +62,7 @@ Die drei Services binden alle Port 3000 — es kann immer nur einer laufen.
 
 ## Production
 
-**URL:** https://www.recipedeckapp.de (seit 2026-09-27; die Northflank-Adresse https://p01--rezepti-app--2s7hvlwm5zc5.code.run bleibt parallel erreichbar). Domain bei INWX, DNS-Zone dort; `recipedeckapp.de` ohne `www` leitet nur per HTTP weiter (INWX-Weiterleitung kann kein HTTPS)
+**URL:** https://www.recipedeckapp.de (seit 2026-09-27; die Northflank-Adresse https://p01--rezepti-app--2s7hvlwm5zc5.code.run bleibt parallel erreichbar). Registrar INWX, DNS bei Cloudflare (Free, Nameserver `casey`/`daphne.ns.cloudflare.com`, alle Records ohne Proxy); `recipedeckapp.de` und `www` zeigen beide per CNAME (Apex flattened) auf Northflank und haben eigene Zertifikate; der Server leitet den Apex per Host-Middleware in `src/index.ts` auf `www` um (`301` fuer GET/HEAD, `308` sonst, Pfad und Query bleiben)
 
 **Deployment:** GitHub Actions → Docker Hub (`dacown/rezepti:latest`) → Northflank (automatic redeploy)
 
@@ -131,7 +131,8 @@ The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA 
 | `/api/v1/extract/photo` | POST | Start photo extraction job (multipart, polling), `requireUserAuth`; `429` when the server-wide or per-user concurrency limit is reached (checked before the upload is read into memory) |
 | `/api/v1/extract/jobs` | GET | List recent jobs for the authenticated user, `requireUserAuth` |
 | `/api/v1/keys/validate` | POST | Validate BYOK API key, `requireUserAuth` |
-| `/api/v1/health` | GET | Server + DB status, open by design |
+| `/api/v1/health` | GET | Server + DB status (readiness), open by design |
+| `/api/v1/health/live` | GET | Liveness only, no DB access — for container restart probes, open by design |
 | `/api/v1/images/search` | GET | Search recipe image suggestions, `requireUserAuth` |
 | `/api/v1/cookidoo/status` | GET | Cookidoo connection status, `requireUserAuth` |
 | `/api/v1/cookidoo/credentials` | POST/DELETE | Store/remove the caller's private Cookidoo credentials, `requireUserAuth` |
@@ -171,6 +172,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | Pinterest / Facebook routes | Server | disabled | `requireUserAuth` + 501 | — | — | low | — |
 | `/api/v1/proxy/image` | Server | open-by-design | none | public | — | low | SSRF-guarded, needed for PDF export |
 | `/api/v1/health` | Server | open-by-design | none | public | — | low | — |
+| `/api/v1/health/live` | Server | open-by-design | none | public | — | low | returns a static payload, never touches the DB |
 | `ingredient_dictionary` GET | Server | global read-only | none | public | — | low | intentional public read |
 | `ingredient_dictionary/match` GET | Server | global read-only | none | public | — | low | intentional public read |
 | `ingredient_dictionary` POST | Server | admin-only global mutation | `requireAuth` + admin gate | — | admin only | medium | unauth + non-admin contract tests present |

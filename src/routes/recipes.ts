@@ -204,7 +204,11 @@ app.delete("/api/v1/recipes/:id", requireUserAuth(), async (c) => {
   }
 });
 
-// Health check
+// Liveness: process is up and serving requests. Deliberately does not touch the
+// database, so a paused Supabase project cannot trigger a restart loop.
+app.get("/api/v1/health/live", (c) => c.json({ server: true, status: "alive" }));
+
+// Health check (readiness: includes the database)
 app.get("/api/v1/health", async (c) => {
   try {
     await checkDbConnection();

@@ -11,6 +11,21 @@ import { jobManager, startJobCleanupTimer } from "./job-manager.js";
 
 export const app = new Hono();
 
+// Canonical host: the apex domain serves the same app, but sessions, offline
+// caches and PWA installs are per origin, so send everything to www instead.
+// Done here rather than at Cloudflare because the DNS records stay unproxied
+// (Northflank issues the certificates).
+const APEX_HOST = "recipedeckapp.de";
+const CANONICAL_ORIGIN = "https://www.recipedeckapp.de";
+app.use(async (c, next) => {
+  const host = (c.req.header("host") ?? "").split(":")[0].toLowerCase();
+  if (host !== APEX_HOST) return next();
+  const url = new URL(c.req.url);
+  // 308 keeps method and body for non-GET API calls; 301 for everything else.
+  const status = c.req.method === "GET" || c.req.method === "HEAD" ? 301 : 308;
+  return c.redirect(`${CANONICAL_ORIGIN}${url.pathname}${url.search}`, status);
+});
+
 // Gzip/Brotli compression for all responses
 app.use(compress());
 
