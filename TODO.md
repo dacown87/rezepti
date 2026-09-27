@@ -1,10 +1,10 @@
 # TODO
 
-Stand: 2026-08-08
+Stand: 2026-09-27
 
 Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigte Details stehen in [docs/todo-history.md](/home/patrick/Projekte/rezepti/docs/todo-history.md). Der aktuelle Betriebscheck fuer GitHub CI, Supabase und Northflank steht in [docs/2026-06-06-ci-supabase-northflank-check.md](/home/patrick/Projekte/rezepti/docs/2026-06-06-ci-supabase-northflank-check.md).
 
-## Naechste Schritte (Stand 2026-08-07)
+## Naechste Schritte (Stand 2026-09-27)
 
 Kurzfassung fuer den Wiedereinstieg — hier zuerst lesen, nicht erst die Slice-Plaene durchsuchen.
 
@@ -40,6 +40,40 @@ Kritischer Pfad ist **Mailversand produktiv schalten** (Slice 1 des Sharing-Foll
    - [x] **LOW — `/api/v1/health` gab bei `500` die rohe DB-Fehlermeldung oeffentlich zurueck** — jetzt generisch `database_unreachable`, Details nur im Server-Log.
    - [ ] **LOW — `auth.bootstrap.*` loggt volle User-/Household-UUIDs** — kuerzen oder hashen.
    - Info: ein Scanner (ASN M247, RO) fragt alle 10 min `GET /rest/v1/` ab und bekommt `401` — harmlos, Data API bleibt zu.
+
+### Stand 2026-09-27 — eigene Domain `recipedeckapp.de`
+
+- **Web:** `https://www.recipedeckapp.de` und `https://recipedeckapp.de` zeigen beide auf Northflank (Port `p01`, Zertifikate automatisch, gueltig bis 2026-12-26). Registrar ist INWX (API-Unterzugang `recipedeck-dns`, `~/.config/inwx.env`).
+- **DNS liegt seit 2026-09-27 bei Cloudflare** (Free-Plan, Zone `e741d60c8b9d24e73dcd1f3a4065ade7`, Nameserver `casey`/`daphne.ns.cloudflare.com`, Token in `.env` als `CLOUDFLARE_API_TOKEN`). Alle Records **ohne** Cloudflare-Proxy, sonst scheitern Northflank-Zertifikat und Routing. Der Apex ist ein CNAME auf Northflank, den Cloudflare flacht. Vor dem Nameserver-Wechsel wurden alle Records gegen INWX verglichen. Die alte INWX-Zone ist jetzt wirkungslos; DNS-Aenderungen nur noch bei Cloudflare.
+- **Apex → `www`:** Host-Middleware in `src/index.ts` leitet `recipedeckapp.de` auf `https://www.recipedeckapp.de` um (`301` GET/HEAD, `308` fuer andere Methoden), Pfad und Query bleiben erhalten. Bewusst im Server statt als Cloudflare-Redirect-Rule, weil die Records unproxied bleiben muessen.
+- **Mail:** `recipedeckapp.de` ist in Brevo authentifiziert (DKIM `brevo1/2._domainkey`, Brevo-Code, SPF `include:spf.brevo.com`, DMARC `p=none`). Northflank: `RECIPE_INVITE_EMAIL_FROM=RecipeDeck <einladung@recipedeckapp.de>`, `RECIPE_INVITE_BASE_URL=https://www.recipedeckapp.de`; Reply-To bleibt Gmail. DMARC nach ein paar Wochen sauberer Berichte auf `p=quarantine` anheben.
+- **GitHub-Secret** `NORTHFLANK_HEALTHCHECK_URL` zeigt auf `https://www.recipedeckapp.de/api/v1/health`. Supabase `site_url` ist `https://www.recipedeckapp.de`, die Redirect-Liste enthaelt www, Apex, code.run und `recipedeck://` (Workflow nach Merge von #49 gelaufen).
+- **Web-Push war in Production nie aktiv — behoben 2026-09-27, seit Deploy `25cdd40` live (Key im Bundle verifiziert).** Es gab weder `VAPID_*` in Northflank noch das GitHub-Secret `EXPO_PUBLIC_VAPID_PUBLIC_KEY`, und `docker-publish.yml` reichte den Build-Arg nicht durch. Neues Schluesselpaar (lokale Sicherung `~/.config/recipedeck-vapid.env`), Northflank-Variablen, GitHub-Secret und Build-Arg gesetzt. Schluessel nicht rotieren, sonst verfallen alle Abos.
+- **Supabase-Auth-SMTP ueber Brevo seit 2026-09-27:** GitHub-Secrets `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`, `SMTP_USER=b25ff3001@smtp-brevo.com`, `SMTP_PASS` (eigener Brevo-SMTP-Key), `SMTP_SENDER_NAME=RecipeDeck`, `SMTP_ADMIN_EMAIL=noreply@recipedeckapp.de`. SMTP-Testversand kam an. `rate_limit_email_sent=30` seit PR #53 (vorher 2/h). Brevo-Free-Plan: 300 Mails/Tag fuer Invites und Auth zusammen.
+- **CI: `mobile-release-gate` rot seit mindestens 2026-09-25 (auch auf `main`)** — die Patch-Versionen sind seit PR #52 korrigiert; offen ist nur noch der Expo-Doctor-Check *Hermes V1 regressions* (siehe offene Punkte).
+- **Nutzer auf der alten Adresse:** Session, Offline-Cache, Push-Abo und PWA-Installation sind origin-gebunden und ziehen nicht mit um.
+
+#### Offene Punkte (Stand 2026-09-27)
+
+Zusammengefasst aus Domain-Umzug, SMTP-/Push-Umbau und Log-Durchsicht (Details zu den Log-Befunden unter Punkt 9).
+
+**Pruefen / manuell testen**
+- [ ] **Supabase-Konto-Mail end-to-end:** einmal Registrierung oder „Passwort vergessen“ mit einem Testkonto ausloesen; Mail muss von `noreply@recipedeckapp.de` kommen, Link auf `www.recipedeckapp.de` zeigen; in den Supabase-`auth_logs` den Versand pruefen. Bisher ist nur der direkte SMTP-Test gelaufen.
+- [ ] **Web-Push end-to-end:** auf `www.recipedeckapp.de` in den Einstellungen Push einschalten, einen Import abschliessen → Benachrichtigung „Rezept fertig“ muss kommen. Push war vorher nie aktiv, der echte Pfad ist ungetestet.
+- [ ] **DMARC-Berichte beobachten** und nach einigen Wochen ohne Auffaelligkeiten `p=none` → `p=quarantine` (Cloudflare-TXT `_dmarc`).
+
+**Code / Infrastruktur**
+- [ ] **Expo SDK 57 upgraden** — einziger verbleibender Grund fuer rotes `mobile-release-gate`: Expo Doctor meldet eine bekannte Hermes-V1-Speicher-Regression (Hermes 250829098.0.10), behoben erst ab Expo SDK 57 / `expo@57.0.9` / React Native 0.86.2. Betrifft nur die nativen Apps, nicht den Web-Build. Eigener PR; danach kompletter `npm run mobile:release-gate`, Web-Build und moeglichst ein nativer Testbuild. **Vor dem Start mit dem Nutzer abstimmen.**
+- [ ] **Alte Northflank-Adresse abloesen:** `https://p01--rezepti-app--2s7hvlwm5zc5.code.run` steht noch in CORS (`src/index.ts`) und in der Supabase-Redirect-Liste (`supabase-auth-config.yml`). Nach einer Uebergangszeit per Host-Middleware auf `www` umleiten (wie beim Apex) und aus beiden Listen entfernen. Achtung: Nutzer auf code.run verlieren dabei Session, Offline-Cache, Push-Abo und PWA-Installation.
+- [ ] **Doku mit alter URL nachziehen:** `README.md`, `docs/supabase-auth-email-runbook.md`, `docs/sharing-favorites-collections-smoke-runbook.md`, `docs/bug-reporting-smoke-runbook.md`, `docs/TEST_STATUS.md` und `docs/gmail-production-monitor-runbook.md` (Absender) nennen noch code.run bzw. den Gmail-Absender. Historische Plan-/Protokoll-Dateien unveraendert lassen.
+- [ ] **PWA-Manifest `id` setzen** (`"id": "/"` in `mobile/public/manifest.webmanifest`), damit Installationen kuenftig stabil bleiben.
+- [ ] Schema-Drift `search_path`, Request-Logging, neue Advisor-Hinweise, HIBP und UUIDs in Logs — siehe Punkt 9.
+
+**Aufraeumen / Konten**
+- [ ] **Cloudflare-Token auf Minimalrechte pruefen:** noetig sind nur *Zone → Zone → Edit* und *Zone → DNS → Edit*; die Account-weiten *Registrar Domains Admin*-Rechte wieder entfernen.
+- [ ] **Brevo aufraeumen:** den alten, nie authentifizierten Domain-Eintrag `recipedeck.app` (fremde Domain) loeschen; die IPv4-Freigabe fuer den Heimanschluss in der Brevo-IP-Allowlist entfernen, sobald sie nicht mehr gebraucht wird.
+- [ ] **Alte INWX-Zone:** ist seit dem Nameserver-Wechsel wirkungslos; optional leeren, damit niemand dort versehentlich Records pflegt.
+- [ ] **Gmail-Monitor aktivieren** (Punkt 3 oben): `npm run gmail:authorize`, Refresh-Token als Northflank-Secret, eine manuelle Probe, dann Cron.
 
 ## Aktueller Stand
 
