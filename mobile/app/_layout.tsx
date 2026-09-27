@@ -27,6 +27,7 @@ import {
   isPublicLoginFirstPath,
   LOGIN_FIRST_ACCOUNT_GATE_ENABLED,
 } from '@/utils/login-first-routing';
+import { hideStaticAppShell } from '@/utils/static-app-shell';
 import '../global.css';
 
 export { ErrorBoundary } from 'expo-router';
@@ -199,6 +200,11 @@ function RootLayoutNav() {
 
     router.replace(buildLoginFirstAccountHref(pathname));
   }, [authState, pathname, router, sessionRestoring]);
+
+  useEffect(() => {
+    // The real UI is about to paint: retire the static pre-hydration shell.
+    if (!sessionRestoring) hideStaticAppShell();
+  }, [sessionRestoring]);
 
   useEffect(() => {
     return registerBugReportModalController((intent) => {

@@ -1,6 +1,6 @@
 # Strict Probe Runbook
 
-Stand: 2026-05-13
+Stand: 2026-09-27
 
 ## Ziel
 
@@ -12,6 +12,15 @@ Aktuelle Policy (seit 2026-05-13, nach 2 gruenen Probe-Runs):
 - `push` und `pull_request` bleiben **warn**
 - `workflow_dispatch` ist wahlweise `warn` (default) oder `strict`
 - Freigabe fuer Ad-hoc-Probe-Run weiterhin nur bei `artifacts/performance/observation.json -> strictProbeEligible=true`
+
+## Rebaseline 2026-09-27 (Paket 5b, Expo SDK 57)
+
+- Die Messserie lief ausschliesslich in CI: 10 sequenzielle `workflow_dispatch`-Laeufe mit `perf_enforcement=warn` auf `chore/perf-nightly-rebaseline` (`36330938173` … `36333787988`). Sequenziell, weil jeder Lauf den History-Cache des Branches (`performance-history-v5-<ref_name>-…`) weiterschreibt. Bei parallelen Laeufen gehen Eintraege verloren.
+- **Lokal kein `perf:stability:seed` mehr:** Die 10er-Serie mit je einem Chrome hat einen Rechner mit 15 GB RAM zum Absturz gebracht. Lokal hoechstens einen einzelnen Lighthouse-Lauf.
+- Danach `perf:budget:suggest` auf der heruntergeladenen `history.json`, im Scratch-Verzeichnis ausgefuehrt: `artifacts/performance/history.json` dort ablegen und das Script von dort starten. Welche Werte uebernommen wurden und warum: `throttling-analysis.md`.
+- Offline-Gegenprobe vor dem Push: CI-Artefakte plus neue `baseline.json` in ein Scratch-Verzeichnis kopieren, `/home/runner/work/rezepti/rezepti/` in `summary.json`/`bundle-report.json` auf den lokalen Pfad umschreiben, dann `PERF_ENFORCEMENT_LEVEL=strict node scripts/performance/validate-status.mjs`.
+- Strict-Nachweis: Lauf `36334210057` (Commit `b2d6687`), alle Jobs gruen, `ready=true`, `classification=passed`, keine Findings.
+- Hinweis: Viele Dispatches kurz hintereinander lassen `supabase-rls-smoke` am Registry-Pull-Limit scheitern (`toomanyrequests: Data limit exceeded`). Das ist Infrastruktur, kein Befund.
 
 ## Aktueller Status
 

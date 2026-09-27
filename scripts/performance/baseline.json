@@ -1,21 +1,33 @@
 {
-  "generatedAt": "2026-05-12T06:22:57.561Z",
+  "generatedAt": "2026-09-27T17:05:00.000Z",
   "bundle": {
     "limits": {
       "maxFiles": 70,
-      "maxJsBytes": 5550000,
-      "maxGzipJsBytes": 1140411,
+      "maxJsBytes": 5920000,
+      "maxGzipJsBytes": 1225000,
       "maxCssBytes": 30000,
-      "maxLargestJsAssetBytes": 4620000
+      "maxLargestJsAssetBytes": 4950000
     }
   },
   "lighthouse": {
     "methods": {
       "simulate": {
         "mobile-375x812": {
-          "/":         { "lcpMs": 1200, "cls": 0.02, "jsExecutionMs": 2295 },
-          "/shopping": { "lcpMs": 1100, "cls": 0.02, "jsExecutionMs": 2042 },
-          "/recipe/1": { "lcpMs": 1300, "cls": 0.02, "jsExecutionMs": 2372 }
+          "/": {
+            "lcpMs": 999,
+            "cls": 0.02,
+            "jsExecutionMs": 3250
+          },
+          "/shopping": {
+            "lcpMs": 995,
+            "cls": 0.02,
+            "jsExecutionMs": 3250
+          },
+          "/recipe/1": {
+            "lcpMs": 1001,
+            "cls": 0.02,
+            "jsExecutionMs": 3250
+          }
         }
       }
     }
@@ -29,6 +41,11 @@
     "Bundle maxGzipJsBytes keeps the historical p95-based ceiling; raw JS ceilings were tightened again after the Auth/Workspace web export changed the stable entry size in June 2026.",
     "The / route had one cold-run LCP outlier at 22378ms; the 24616ms suggestion was not adopted because warm runs cluster near 903ms.",
     "jsExecutionMs uses Lighthouse bootup-time when available and is persisted into history for future method-aware comparisons.",
-    "Plan target: lcpMs <= 3000 for /, 3200 for /shopping, 3400 for /recipe/1 (see Phase 3 acceptance criteria)."
+    "Plan target: lcpMs <= 3000 for /, 3200 for /shopping, 3400 for /recipe/1 (see Phase 3 acceptance criteria).",
+    "2026-09-27 rebaseline (package 5b, Expo SDK 57): derived with perf:budget:suggest from 10 sequential CI warn runs 36330938173..36333787988 (simulate, mobile-375x812, audit server gzips like production, discarded Lighthouse warm-up run).",
+    "Bundle limits are the measured SDK-57 export plus ~3% (jsBytes 5744683, gzipJsBytes p95 1191752, largest 4807957). The suggester's p95*1.1 (6319151 / 1310927 / 5288753) was not adopted: bundle sizes are deterministic per commit, so 10% would hide ~575 KB of growth.",
+    "lcpMs follows the suggester (p95*1.1): simulated LCP is shell-bound at 902-910 ms with <1% spread. cls stays at 0.02 because the suggested 0 would fail on any sub-pixel shift.",
+    "jsExecutionMs is measured bootup-time on shared CI runners, not simulated, and spread 1209-2954 ms across identical code on all three routes. All routes use the worst-route suggestion (3250 = /recipe/1 p95 2954 * 1.1).",
+    "Tighten again once the entry chunk shrinks: lucide-react-native currently bundles all 1721 icons (~1.2 MB raw / ~133 KB gzip) for 73 used icons; jsQR lazy-load (PR #66) moves ~128 KB raw out of the entry chunk."
   ]
 }
