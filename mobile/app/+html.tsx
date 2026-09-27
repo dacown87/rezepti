@@ -60,7 +60,9 @@ const swRegistrationScript: string =
   navigator.serviceWorker.register('/sw.js').then(function() {
     navigator.serviceWorker.getRegistrations().then(function(regs) {
       regs.forEach(function(r) {
-        if (!r.scriptURL.endsWith('/sw.js')) r.unregister();
+        // A registration has no scriptURL of its own; it lives on its workers.
+        var w = r.active || r.waiting || r.installing;
+        if (w && !w.scriptURL.endsWith('/sw.js')) r.unregister();
       });
     });
   });
