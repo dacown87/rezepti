@@ -1,6 +1,11 @@
 {
-  "version": "1.0.223",
+  "version": "1.0.224",
   "entries": [
+    {
+      "version": "1.0.224",
+      "date": "2026-09-27",
+      "changes": []
+    },
     {
       "version": "1.0.223",
       "date": "2026-09-27",
@@ -150,15 +155,10 @@
       "changes": [
         "complete recipe sharing followup slices"
       ]
-    },
-    {
-      "version": "1.0.194",
-      "date": "2026-07-08",
-      "changes": []
     }
   ],
   "lastUpdated": {
     "date": "2026-09-27",
-    "time": "17:44"
+    "time": "20:13"
   }
 }
