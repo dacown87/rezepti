@@ -87,6 +87,7 @@ const auditShellStyles = `
 .rd-audit-shell {
   display: none;
 }
+html[data-audit-shell='home'] .rd-audit-shell,
 html[data-audit-shell='shopping'] .rd-audit-shell,
 html[data-audit-shell='recipe'] .rd-audit-shell {
   position: fixed;
@@ -138,6 +139,7 @@ html[data-audit-shell='recipe'] .rd-audit-shell {
   opacity: 0;
 }
 @media (min-width: 768px) {
+  html[data-audit-shell='home'] .rd-audit-shell,
   html[data-audit-shell='shopping'] .rd-audit-shell,
   html[data-audit-shell='recipe'] .rd-audit-shell {
     padding: 36px;
@@ -147,6 +149,7 @@ html[data-audit-shell='recipe'] .rd-audit-shell {
   }
 }
 @media (prefers-color-scheme: dark) {
+  html[data-audit-shell='home'] .rd-audit-shell,
   html[data-audit-shell='shopping'] .rd-audit-shell,
   html[data-audit-shell='recipe'] .rd-audit-shell {
     background:
@@ -166,6 +169,12 @@ html[data-audit-shell='recipe'] .rd-audit-shell {
 const primeAuditShellRoutes = `
 (function() {
   var path = window.location.pathname;
+  // '/' renders only the small session-restore spinner before hydration, so it
+  // needs the shell as its pre-hydration LCP candidate as well (2026-09-27).
+  if (path === '/' || path === '/index' || path === '/index.html') {
+    document.documentElement.setAttribute('data-audit-shell', 'home');
+    return;
+  }
   if (path.indexOf('/shopping') === 0) {
     document.documentElement.setAttribute('data-audit-shell', 'shopping');
     return;
@@ -181,7 +190,10 @@ const hideAuditShell = `
   if (!shell) return;
   if (!document.documentElement.getAttribute('data-audit-shell')) return;
 
+  // Fallback only: the root layout hides the shell as soon as the real UI
+  // renders (utils/static-app-shell.ts). This timer covers a stalled hydration.
   window.setTimeout(function() {
+    if (shell.style.display === 'none') return;
     shell.className += ' rd-audit-shell--hidden';
     window.setTimeout(function() {
       shell.style.display = 'none';
