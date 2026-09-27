@@ -24,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PROJECT_REF: zdiqtnljdxuhinqzgcnd
-      SITE_URL: https://p01--rezepti-app--2s7hvlwm5zc5.code.run
-      URI_ALLOW_LIST: https://p01--rezepti-app--2s7hvlwm5zc5.code.run/**,recipedeck://**
+      SITE_URL: https://www.recipedeckapp.de
+      URI_ALLOW_LIST: https://www.recipedeckapp.de/**,https://recipedeckapp.de/**,https://p01--rezepti-app--2s7hvlwm5zc5.code.run/**,recipedeck://**
       CONFIRM_SUBJECT: "Bestätige deine E-Mail für RecipeDeck"
       RECOVERY_SUBJECT: "RecipeDeck — Passwort zurücksetzen"
     steps:

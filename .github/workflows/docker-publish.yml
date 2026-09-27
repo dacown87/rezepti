@@ -43,6 +43,7 @@ jobs:
             EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
             EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
             EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE=${{ secrets.EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE }}
+            EXPO_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.EXPO_PUBLIC_VAPID_PUBLIC_KEY }}
 
       - name: Deploy to Northflank
         env:

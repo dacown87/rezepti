@@ -106,7 +106,7 @@ function readConfig(): SmokeConfig {
       "RECIPE_INVITE_SMOKE_API_BASE_URL",
       "PRODUCTION_API_BASE_URL",
       "BASE_URL",
-    ) ?? "https://p01--rezepti-app--2s7hvlwm5zc5.code.run",
+    ) ?? "https://www.recipedeckapp.de",
     sourceUrl: `https://production-smoke.example.test/recipe-invites/${runId}`,
   };
 }
