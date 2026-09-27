@@ -1,6 +1,11 @@
 {
-  "version": "1.0.222",
+  "version": "1.0.223",
   "entries": [
+    {
+      "version": "1.0.223",
+      "date": "2026-09-27",
+      "changes": []
+    },
     {
       "version": "1.0.222",
       "date": "2026-09-27",
@@ -150,17 +155,10 @@
       "version": "1.0.194",
       "date": "2026-07-08",
       "changes": []
-    },
-    {
-      "version": "1.0.193",
-      "date": "2026-07-08",
-      "changes": [
-        "add recipe invites and household list copies"
-      ]
     }
   ],
   "lastUpdated": {
     "date": "2026-09-27",
-    "time": "17:16"
+    "time": "17:44"
   }
 }
