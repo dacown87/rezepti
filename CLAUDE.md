@@ -66,6 +66,8 @@ Die drei Services binden alle Port 3000 — es kann immer nur einer laufen.
 
 **Deployment:** GitHub Actions → Docker Hub (`dacown/rezepti:latest`) → Northflank (automatic redeploy)
 
+**Betrieb (Domain, DNS, Mail, Push, Health-Checks, Logs):** `docs/domain-mail-infra-runbook.md` — wo welche Zugangsdaten liegen (lokal `~/.config/*.env`, Repo-`.env`, GitHub-Secrets, Northflank-Env), wie INWX/Cloudflare/Brevo/Northflank/Supabase per API angesprochen werden und welche Stolpersteine es gibt (Northflank-Env-Update ersetzt die komplette Environment, Brevo-IP-Allowlist, `SMTP_HOST` zuletzt setzen)
+
 ## Architecture
 
 **Request flow:** HTTP request → Pipeline → Classifier → Fetcher → Processor → Supabase PostgreSQL save
@@ -329,6 +331,7 @@ Host github.com
 - **Autoplan-Review:** `~/.claude/plans/joyful-kindling-anchor.md` — Vollständiger Projektstand-Review (2026-04-09) mit offenen Punkten
 - **Codemaps:** `docs/CODEMAPS/` — Index, Architecture, Backend, Database, Fetchers, Frontend (nachgezogen 2026-08-07). Ausführlichere, verlinkte Fassung im Vault unter `Projekte/RecipeDeck/Codemaps/`.
 - **ADRs:** Obsidian Vault → `Projekte/RecipeDeck/Entscheidungen.md` — Architektur-Entscheidungen inkl. Begründung und Konsequenzen
+- **Betriebs-Runbook Domain/DNS/Mail/Push:** `docs/domain-mail-infra-runbook.md` — Zugangsdaten-Orte, API-Aufrufe, Stolpersteine (Stand 2026-09-27)
 - **Project Learnings:** `docs/PROJECT_LEARNINGS.md` — Aggregierte Pitfalls/Operationals aus gstack-Sessions. Bei neuen Aufgaben hier zuerst nachsehen, ob ein bekannter Stolperstein dokumentiert ist. Updates ueber `/learn` (zeigt aktuelle) — neue Eintraege werden automatisch von `/review`, `/ship`, `/investigate` etc. ergaenzt.
 - **RNTL Migration Inventory:** `docs/testing/rntl-migration-phase-0-inventory.md` — aktueller Mobile-Test-Migrationsstand, Real-RNTL-Runtime-Fix, abgebauter `UNSAFE_queryAllByType`-Rest und verbleibende Warnklassen.
 - **RNTL Authoring Checklist:** `docs/testing/rntl-migration-authoring-checklist.md` — Regeln fuer neue Mobile-Tests nach Entfernung des Compat-Layers.

@@ -8,6 +8,8 @@ Diese Datei ist die kurze, aktive Arbeitsliste fuer Mensch und KI. Alte erledigt
 
 Kurzfassung fuer den Wiedereinstieg — hier zuerst lesen, nicht erst die Slice-Plaene durchsuchen.
 
+**Domain, DNS, Mail, Push, Northflank- und Supabase-APIs:** Wo welche Zugangsdaten liegen und wie man die Dienste per API anfasst, steht im [docs/domain-mail-infra-runbook.md](/home/patrick/Projekte/rezepti/docs/domain-mail-infra-runbook.md). Die offenen Punkte dazu stehen unten unter „Offene Punkte (Stand 2026-09-27)“.
+
 ### Stand 2026-08-08 — Job-Robustheit und Connector-Slices sind ausgeliefert
 
 Sieben PRs sind an diesem Tag auf `main` gelandet und deployed (`v1.0.205`): #33 (Client-Fehleranzeige, terminaler 404, Poll-Obergrenze), #34 (Concurrency-Limits 6 global / 3 pro Nutzer, stuendliches Cleanup), #39 (Cancel stoppt die Pipeline; ersetzt das automatisch geschlossene #35), #36 (yt-dlp 2026.07.04, getierter Health-Check, Nightly-Job), #37 (Credential-Verschluesselung AES-256-GCM), #38 (Plan-Korrekturen) und #40 (Invite-Smoke-Sichtbarkeit).
@@ -55,7 +57,7 @@ Kritischer Pfad ist **Mailversand produktiv schalten** (Slice 1 des Sharing-Foll
 
 #### Offene Punkte (Stand 2026-09-27)
 
-Zusammengefasst aus Domain-Umzug, SMTP-/Push-Umbau und Log-Durchsicht (Details zu den Log-Befunden unter Punkt 9).
+Zusammengefasst aus Domain-Umzug, SMTP-/Push-Umbau und Log-Durchsicht (Details zu den Log-Befunden unter Punkt 9). Zugangsdaten, API-Aufrufe und Stolpersteine: [docs/domain-mail-infra-runbook.md](/home/patrick/Projekte/rezepti/docs/domain-mail-infra-runbook.md).
 
 **Pruefen / manuell testen**
 - [ ] **Supabase-Konto-Mail end-to-end:** einmal Registrierung oder „Passwort vergessen“ mit einem Testkonto ausloesen; Mail muss von `noreply@recipedeckapp.de` kommen, Link auf `www.recipedeckapp.de` zeigen; in den Supabase-`auth_logs` den Versand pruefen. Bisher ist nur der direkte SMTP-Test gelaufen.
