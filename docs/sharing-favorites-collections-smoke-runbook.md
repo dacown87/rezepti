@@ -22,7 +22,7 @@ in Supabase bestehen bleiben; Passwort/Secrets gehoeren nicht in Git.
 ## Voraussetzungen
 
 - Production-Web-App (nach Merge/Deploy):
-  `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`
+  `https://www.recipedeckapp.de`
   oder lokaler Server (`npm run dev`) fuer Pre-Merge-Smoke
 - Repo-`.env` enthaelt funktionierende Werte fuer `SUPABASE_URL`,
   `SUPABASE_ANON_KEY`, `DATABASE_URL`
@@ -113,9 +113,11 @@ Voraussetzungen fuer den Staging-Smoke:
   Browser oder Web-Build.
 - Fuer Production liest das Skript bevorzugt `PRODUCTION_*`-Variablen und faellt
   auf `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SECRET_KEY` bzw.
-  `DATABASE_URL` zurueck. Der Production-Lauf trifft standardmaessig die
-  deployte API `https://p01--rezepti-app--2s7hvlwm5zc5.code.run`; abweichende
-  Ziele koennen per `RECIPE_INVITE_SMOKE_API_BASE_URL` gesetzt werden.
+  `DATABASE_URL` zurueck. Ohne `RECIPE_INVITE_SMOKE_API_BASE_URL` (bzw.
+  `PRODUCTION_API_BASE_URL`) laeuft die API **in-process mit dem lokalen Build
+  und der lokalen Umgebung** — der deployte Server wird dann nicht angefasst.
+  Fuer einen echten Production-Lauf die Variable auf
+  `https://www.recipedeckapp.de` setzen.
 - Production laeuft nur mit explizitem
   `RECIPE_INVITE_SMOKE_CONFIRM=rezepti-production`.
 

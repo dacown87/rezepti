@@ -326,7 +326,7 @@ Host github.com
 **Wo steht die Wahrheit?** Für den Tagesbetrieb `TODO.md` **in diesem Repo**. Für Routen, Owner und Boundaries das „Route Auth Inventory" oben. Für Strategie und Historie der Obsidian-Phasenplan.
 
 - **TODO (operativ, maßgeblich):** `TODO.md` — ganz oben „Naechste Schritte" mit aktueller Reihenfolge und Runbook-Links
-- **Master Plan (Strategie/Historie):** Obsidian Vault → `Projekte/RecipeDeck/Phasenplan.md` — oben der Plan von März 2026 (teils überholt), unten die Konsolidierung bis 2026-08-07. **Keine** operative Arbeitsliste.
+- **Master Plan (Archiv):** Obsidian Vault → `Projekte/RecipeDeck/Phasenplan.md` — oben der Plan von März 2026 (teils überholt), unten die Konsolidierung bis 2026-08-07. Wird nicht mehr fortgeschrieben; **keine** operative Arbeitsliste. Bei Widerspruch gilt `TODO.md`.
 - **Legacy Plan:** `docs/superpowers/plans/2026-03-26-master-phasenplan.md` — Veraltet, nur als Archiv. Nicht mehr maßgeblich.
 - **Autoplan-Review:** `~/.claude/plans/joyful-kindling-anchor.md` — Vollständiger Projektstand-Review (2026-04-09) mit offenen Punkten
 - **Codemaps:** `docs/CODEMAPS/` — Index, Architecture, Backend, Database, Fetchers, Frontend (nachgezogen 2026-08-07). Ausführlichere, verlinkte Fassung im Vault unter `Projekte/RecipeDeck/Codemaps/`.
