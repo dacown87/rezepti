@@ -44,7 +44,9 @@ Bundle (Expo SDK 57 export, deterministic per commit): `jsBytes 5,744,683`, `gzi
 Cheap entry-chunk savings, not part of this rebaseline (tighten the bundle budgets again when they land):
 
 - **`lucide-react-native` bundles all 1,721 icons** (~1.2 MB raw / ~133 KB gzip of the 4.8 MB entry chunk) while the app imports 73. Metro does not tree-shake the barrel import and the package `exports` map blocks per-icon deep imports, so this needs Expo tree shaking or an import rewrite. Largest single saving.
-- **jsQR** (~130 KB raw / ~47 KB gzip) is only the fallback for browsers without `BarcodeDetector`: lazy-loaded in PR #66, entry chunk `4,695.3 kB -> 4,567.7 kB` in CI. Total `jsBytes` stays the same because the code only moves to its own chunk.
+- **jsQR** (~130 KB raw / ~47 KB gzip) is only the fallback for browsers without `BarcodeDetector`: lazy-loaded in PR #66 (merged 2026-09-27, `f918065`), entry chunk `4,695.3 kB -> 4,567.9 kB` raw / `887.4 -> 844.7 kB` gzip in CI run `36339843014`. Total `jsBytes` stays the same because the code only moves to its own chunk.
+
+Merged to `main` 2026-09-27: PR #67 (`a2729df`, measurement fixes plus this rebaseline) and PR #66 (`f918065`). Strict proof before the merge: run `36334210057`.
 
 ## Decision
 
