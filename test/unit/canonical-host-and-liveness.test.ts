@@ -22,8 +22,17 @@ describe("canonical host redirect", () => {
     expect(response.headers.get("location")).toBe("https://www.recipedeckapp.de/api/v1/recipes");
   });
 
+  it("redirects the legacy Northflank host to www as well", async () => {
+    const response = await app.request("/recipe/42?tab=steps", {
+      headers: { host: "p01--rezepti-app--2s7hvlwm5zc5.code.run" },
+    });
+
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("https://www.recipedeckapp.de/recipe/42?tab=steps");
+  });
+
   it("leaves www and other hosts alone", async () => {
-    for (const host of ["www.recipedeckapp.de", "p01--rezepti-app--2s7hvlwm5zc5.code.run", "localhost:3000"]) {
+    for (const host of ["www.recipedeckapp.de", "localhost:3000"]) {
       const response = await app.request("/assets/not-the-logo.missing.js", { headers: { host } });
       expect(response.status, host).toBe(404);
     }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { RefreshCw, X } from 'lucide-react-native';
+import { RefreshCw, X } from '@/components/icons';
 import { usePwaUpdate } from '@/hooks/usePwaUpdate';
 
 /**

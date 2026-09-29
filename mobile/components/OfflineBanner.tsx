@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Platform, Animated, Pressable } from 'react-native';
-import { WifiOff, LogIn, RefreshCw, Check } from 'lucide-react-native';
+import { WifiOff, LogIn, RefreshCw, Check } from '@/components/icons';
 
 function useIsOnline() {
   const [isOnline, setIsOnline] = useState(true);

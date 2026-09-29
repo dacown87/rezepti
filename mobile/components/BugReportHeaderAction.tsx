@@ -1,5 +1,5 @@
 import { Pressable, Text } from 'react-native';
-import { Bug } from 'lucide-react-native';
+import { Bug } from '@/components/icons';
 
 export function BugReportHeaderAction({ onPress }: { onPress: () => void }) {
   return (

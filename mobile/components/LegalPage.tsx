@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft } from '@/components/icons';
 
 import { LEGAL_LAST_UPDATED, LEGAL_PLACEHOLDERS_OPEN } from '@/utils/legal-operator';
 

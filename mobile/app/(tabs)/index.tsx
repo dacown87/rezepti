@@ -10,7 +10,7 @@ import {
   Search, X, ChefHat, Clock, Star, Plus,
   LayoutGrid, List, Tag, FileText, Refrigerator, QrCode,
   Heart, FolderOpen, Home, Lock,
-} from 'lucide-react-native';
+} from '@/components/icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Recipe } from '@/db/schema';

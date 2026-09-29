@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { Mail, Send } from 'lucide-react-native';
+import { Mail, Send } from '@/components/icons';
 import QRCodeSVG from 'react-native-qrcode-svg';
 import * as Linking from 'expo-linking';
 

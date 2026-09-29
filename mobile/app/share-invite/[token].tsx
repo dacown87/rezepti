@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { ArrowLeft, Check, Mail, X } from 'lucide-react-native';
+import { ArrowLeft, Check, Mail, X } from '@/components/icons';
 
 import {
   useAcceptRecipeShareInvite,

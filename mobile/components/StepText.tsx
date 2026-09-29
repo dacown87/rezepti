@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { RotateCcw, RotateCw, Thermometer, Wind } from 'lucide-react-native';
+import { RotateCcw, RotateCw, Thermometer, Wind } from '@/components/icons';
 
 // Known Cookidoo Unicode symbols and their replacements
 const COOKIDOO_SYMBOLS: { chars: string[]; label: string; icon: 'ccw' | 'cw' | 'temp' | 'steam' }[] = [

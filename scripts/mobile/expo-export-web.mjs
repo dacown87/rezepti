@@ -95,7 +95,19 @@ export async function runExpoExportWeb({
   const logWriter = createWriteStream(logFile, { flags: 'a' });
   const child = spawnImpl('npx', ['expo', 'export', '--platform', 'web', '--output-dir', outputDir], {
     cwd,
-    env: { ...env, CI: env.CI || '1' },
+    env: {
+      ...env,
+      CI: env.CI || '1',
+      // Expo's experimental graph optimization + tree shaking. Without them the
+      // web export keeps every icon of the lucide-react-native barrel (~1.2 MB
+      // raw) in the entry chunk even though the app only renders 73 icons.
+      // EXPO_UNSTABLE_TREE_SHAKING is only honoured once
+      // EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH is on, which is why both are pinned
+      // here: the Docker build, CI and local `npm run build:mobile` must produce
+      // the same bundle. Set either variable to a falsy value to opt out.
+      EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH: env.EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH || '1',
+      EXPO_UNSTABLE_TREE_SHAKING: env.EXPO_UNSTABLE_TREE_SHAKING || '1',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 

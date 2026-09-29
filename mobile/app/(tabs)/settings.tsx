@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User, Shield } from 'lucide-react-native';
+import { Eye, EyeOff, Key, Server, Info, Trash2, Save, ScrollText, Map, HelpCircle, X, ExternalLink, Sun, Moon, User, Shield } from '@/components/icons';
 import { LegalLinks } from '@/components/LegalPage';
 import { useTheme } from '@/utils/use-theme';
 import { getAuthSession, getSupabaseClient } from '@/utils/auth';

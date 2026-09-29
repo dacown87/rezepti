@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable, Modal, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { X, Plus, Check, FolderPlus, Star } from 'lucide-react-native';
+import { X, Plus, Check, FolderPlus, Star } from '@/components/icons';
 
 import {
   useCollections,

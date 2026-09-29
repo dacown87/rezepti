@@ -4,6 +4,10 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
+// Keep ESM import/export statements intact so Metro can drop unused exports
+// (tree shaking) instead of translating every module to CommonJS up front.
+config.transformer.experimentalImportSupport = true;
+
 // jspdf's package.json `main` points to jspdf.node.min.js which contains
 // AMD require(["html2canvas"]) that Metro's transformer can't parse.
 // Force Metro to always use the ES module build instead.

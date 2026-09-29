@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { Bug } from "lucide-react-native";
+import { Bug } from "@/components/icons";
 import { fetchMyBugReports, getBugReportStatusLabel, type BugReportListItem } from "@/utils/bug-reporting";
 
 interface MyBugReportsSectionProps {

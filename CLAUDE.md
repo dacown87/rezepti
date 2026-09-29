@@ -15,7 +15,7 @@ Multi-user since June 2026: Supabase Auth with a login-first gate, Row Level Sec
 - `npm run dev` — Start dev server with hot reload (tsx watch)
 - `npm start` — Start production server
 - `npm run dev:mobile` — API server + Expo web dev server
-- `npm run build:mobile` — Export Expo web app into `public/`
+- `npm run build:mobile` — Export Expo web app into `public/`; goes through `scripts/mobile/expo-export-web.mjs`, which pins Expo's experimental `EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH` + `EXPO_UNSTABLE_TREE_SHAKING` (that combination is what keeps the unused lucide icons out of the entry chunk)
 - `npm run build:mobile:docker` — Expo web export command ohne Git-Abhaengigkeit
 - `npm run mobile:typecheck` — Mobile TypeScript check
 - `npm run test:mobile` — Mobile Vitest suite
@@ -62,7 +62,7 @@ Die drei Services binden alle Port 3000 — es kann immer nur einer laufen.
 
 ## Production
 
-**URL:** https://www.recipedeckapp.de (seit 2026-09-27; die Northflank-Adresse https://p01--rezepti-app--2s7hvlwm5zc5.code.run bleibt parallel erreichbar). Registrar INWX, DNS bei Cloudflare (Free, Nameserver `casey`/`daphne.ns.cloudflare.com`, alle Records ohne Proxy); `recipedeckapp.de` und `www` zeigen beide per CNAME (Apex flattened) auf Northflank und haben eigene Zertifikate; der Server leitet den Apex per Host-Middleware in `src/index.ts` auf `www` um (`301` fuer GET/HEAD, `308` sonst, Pfad und Query bleiben)
+**URL:** https://www.recipedeckapp.de (seit 2026-09-27). Registrar INWX, DNS bei Cloudflare (Free, Nameserver `casey`/`daphne.ns.cloudflare.com`, alle Records ohne Proxy); `recipedeckapp.de` und `www` zeigen beide per CNAME (Apex flattened) auf Northflank und haben eigene Zertifikate; der Server leitet den Apex und die fruehere Northflank-Adresse `p01--rezepti-app--2s7hvlwm5zc5.code.run` per Host-Middleware in `src/index.ts` auf `www` um (`301` fuer GET/HEAD, `308` sonst, Pfad und Query bleiben)
 
 **Deployment:** GitHub Actions → Docker Hub (`dacown/rezepti:latest`) → Northflank (automatic redeploy)
 

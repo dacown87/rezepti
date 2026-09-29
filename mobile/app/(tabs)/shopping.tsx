@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { ShoppingCart, Trash2, Check, X, Share2, Plus } from 'lucide-react-native';
+import { ShoppingCart, Trash2, Check, X, Share2, Plus } from '@/components/icons';
 
 import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
 import { OfflineBanner } from '@/components/OfflineBanner';

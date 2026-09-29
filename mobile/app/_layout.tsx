@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, Pressable } from 'react-native';
 import 'react-native-reanimated';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { Bug } from 'lucide-react-native';
+import { Bug } from '@/components/icons';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { BugReportHeaderAction } from '@/components/BugReportHeaderAction';

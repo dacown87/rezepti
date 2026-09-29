@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode, ShoppingCart } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar, X, Search, BookOpen, QrCode, ShoppingCart } from '@/components/icons';
 import { router } from 'expo-router';
 import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
 import ScannerCamera from '@/components/ScannerCamera';

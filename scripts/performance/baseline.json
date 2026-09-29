@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-27T17:05:00.000Z",
+  "generatedAt": "2026-09-29T17:48:00.000Z",
   "bundle": {
     "limits": {
       "maxFiles": 70,
-      "maxJsBytes": 5920000,
-      "maxGzipJsBytes": 1225000,
+      "maxJsBytes": 5050000,
+      "maxGzipJsBytes": 1110000,
       "maxCssBytes": 30000,
-      "maxLargestJsAssetBytes": 4950000
+      "maxLargestJsAssetBytes": 4100000
     }
   },
   "lighthouse": {
@@ -46,6 +46,8 @@
     "Bundle limits are the measured SDK-57 export plus ~3% (jsBytes 5744683, gzipJsBytes p95 1191752, largest 4807957). The suggester's p95*1.1 (6319151 / 1310927 / 5288753) was not adopted: bundle sizes are deterministic per commit, so 10% would hide ~575 KB of growth.",
     "lcpMs follows the suggester (p95*1.1): simulated LCP is shell-bound at 902-910 ms with <1% spread. cls stays at 0.02 because the suggested 0 would fail on any sub-pixel shift.",
     "jsExecutionMs is measured bootup-time on shared CI runners, not simulated, and spread 1209-2954 ms across identical code on all three routes. All routes use the worst-route suggestion (3250 = /recipe/1 p95 2954 * 1.1).",
-    "Tighten again once the entry chunk shrinks: lucide-react-native currently bundles all 1721 icons (~1.2 MB raw / ~133 KB gzip) for 73 used icons; jsQR lazy-load (PR #66) moves ~128 KB raw out of the entry chunk."
+    "Tighten again once the entry chunk shrinks: lucide-react-native used to bundle all 1721 icons (~1.2 MB raw / ~133 KB gzip) for 73 used icons; jsQR lazy-load (PR #66) moved ~128 KB raw out of the entry chunk.",
+    "2026-09-29 rebaseline (package 6, lucide tree shaking): the entry chunk dropped from 4807423 to 2015231 bytes raw (gzip 859065 -> 504241) after components/icons.tsx plus EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH/EXPO_UNSTABLE_TREE_SHAKING in scripts/mobile/expo-export-web.mjs. Measured with npm run build:mobile on this commit: jsBytes 3075351, gzipJsBytes 830637, largestJsAssetBytes 2015231, cssBytes 22979, files 34.",
+    "The 2026-09-29 bundle limits are the values agreed in the cleanup plan. They carry more headroom than the ~3 % convention implies (largestJsAssetBytes 4100000 vs 2015231 measured), because the tree shaking saved ~2.8 MB raw instead of the assumed ~0.8 MB; a follow-up rebaseline to ~+3 % of the measured export is possible but deliberately left to the CI measurement series."
   ]
 }
