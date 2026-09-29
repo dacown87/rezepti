@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Shield, ChevronRight, Bug, KeyRound } from 'lucide-react-native';
+import { Shield, ChevronRight, Bug, KeyRound } from '@/components/icons';
 import { fetchAuthMe, type AuthMeResponse } from '@/utils/admin';
 import { ApiRequestError } from '@/utils/api';
 

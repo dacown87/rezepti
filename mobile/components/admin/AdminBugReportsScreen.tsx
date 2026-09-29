@@ -7,7 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Bug } from "lucide-react-native";
+import { Bug } from "@/components/icons";
 import { fetchAuthMe } from "@/utils/admin";
 import {
   fetchAdminBugReportDetail,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, Image, Pressable, ActivityIndicator, TextInput as RNTextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckCircle, Search } from 'lucide-react-native';
+import { CheckCircle, Search } from '@/components/icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getServerUrl } from '@/utils/server-url';
 

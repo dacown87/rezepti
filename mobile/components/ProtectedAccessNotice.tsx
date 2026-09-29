@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { LogIn, RefreshCcw } from 'lucide-react-native';
+import { LogIn, RefreshCcw } from '@/components/icons';
 import type { ProtectedAccessState } from '@/utils/protected-access';
 
 export function ProtectedAccessNotice({

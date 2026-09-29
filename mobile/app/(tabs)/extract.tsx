@@ -17,7 +17,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X, UtensilsCrossed, Copy, Type } from 'lucide-react-native';
+import { Globe, Camera, ImagePlus, CheckCircle, AlertCircle, X, UtensilsCrossed, Copy, Type } from '@/components/icons';
 import { ImagePickerModal } from '@/components/ImagePickerModal';
 import { compressIfNeeded } from '@/utils/image-compress';
 

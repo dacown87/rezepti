@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, CheckCircle2, LogIn, LogOut, Mail, RefreshCcw, UserPlus } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle2, LogIn, LogOut, Mail, RefreshCcw, UserPlus } from '@/components/icons';
 
 import { LegalLinks } from '@/components/LegalPage';
 import { bootstrapAccount, type AccountBootstrapResponse } from '@/utils/account-bootstrap';

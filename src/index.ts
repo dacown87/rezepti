@@ -17,15 +17,17 @@ export const app = new Hono();
 app.use(requestLogger());
 app.onError(handleAppError);
 
-// Canonical host: the apex domain serves the same app, but sessions, offline
-// caches and PWA installs are per origin, so send everything to www instead.
-// Done here rather than at Cloudflare because the DNS records stay unproxied
-// (Northflank issues the certificates).
+// Canonical host: the apex domain and the legacy Northflank address
+// (p01--rezepti-app--2s7hvlwm5zc5.code.run) serve the same app, but sessions,
+// offline caches and PWA installs are per origin, so send everything to www
+// instead. Done here rather than at Cloudflare because the DNS records stay
+// unproxied (Northflank issues the certificates).
 const APEX_HOST = "recipedeckapp.de";
+const LEGACY_NORTHFLANK_HOST = "p01--rezepti-app--2s7hvlwm5zc5.code.run";
 const CANONICAL_ORIGIN = "https://www.recipedeckapp.de";
 app.use(async (c, next) => {
   const host = (c.req.header("host") ?? "").split(":")[0].toLowerCase();
-  if (host !== APEX_HOST) return next();
+  if (host !== APEX_HOST && host !== LEGACY_NORTHFLANK_HOST) return next();
   const url = new URL(c.req.url);
   // 308 keeps method and body for non-GET API calls; 301 for everything else.
   const status = c.req.method === "GET" || c.req.method === "HEAD" ? 301 : 308;
@@ -41,8 +43,6 @@ const ALLOWED_ORIGINS = [
   "http://localhost:8081",
   "https://www.recipedeckapp.de",
   "https://recipedeckapp.de",
-  // Legacy Northflank origin — keep until clients have moved to the custom domain
-  "https://p01--rezepti-app--2s7hvlwm5zc5.code.run",
 ];
 app.use("/api/*", cors({
   origin: (origin) => ALLOWED_ORIGINS.includes(origin ?? "") ? origin : null,

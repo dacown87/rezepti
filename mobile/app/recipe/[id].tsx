@@ -11,7 +11,7 @@ import {
   Edit, Save, X, Trash2, UtensilsCrossed, ChevronLeft, ChevronRight,
   Download, Plus, Minus, Pencil, RotateCcw, CheckSquare, Square, ShoppingCart, QrCode, WifiOff,
   Heart, FolderPlus, Home, Copy, Lock,
-} from 'lucide-react-native';
+} from '@/components/icons';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

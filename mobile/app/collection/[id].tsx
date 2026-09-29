@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { ArrowLeft, FolderOpen, Trash2, CheckSquare, Square, Copy } from 'lucide-react-native';
+import { ArrowLeft, FolderOpen, Trash2, CheckSquare, Square, Copy } from '@/components/icons';
 
 import {
   useCollectionItems,

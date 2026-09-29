@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Tabs, router, usePathname } from 'expo-router';
 import { View, Text, Image, Pressable, Platform } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
-import { BookOpen, Plus, Calendar, Settings, ShoppingCart, UserRound } from 'lucide-react-native';
+import { BookOpen, Plus, Calendar, Settings, ShoppingCart, UserRound } from '@/components/icons';
 
 import { BugReportHeaderAction } from '@/components/BugReportHeaderAction';
 import Colors from '@/constants/Colors';

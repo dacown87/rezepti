@@ -43,7 +43,7 @@ Bundle (Expo SDK 57 export, deterministic per commit): `jsBytes 5,744,683`, `gzi
 
 Cheap entry-chunk savings, not part of this rebaseline (tighten the bundle budgets again when they land):
 
-- **`lucide-react-native` bundles all 1,721 icons** (~1.2 MB raw / ~133 KB gzip of the 4.8 MB entry chunk) while the app imports 73. Metro does not tree-shake the barrel import and the package `exports` map blocks per-icon deep imports, so this needs Expo tree shaking or an import rewrite. Largest single saving.
+- **`lucide-react-native` bundled all 1,721 icons** (~1.2 MB raw / ~133 KB gzip of the 4.8 MB entry chunk) while the app imports 73. Metro does not tree-shake a plain package-root import and the package `exports` map blocks per-icon deep imports. **Fixed 2026-09-29**: `mobile/components/icons.tsx` re-exports exactly the 73 used icons and all consumers import from `@/components/icons`; the web export now runs with `EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH` + `EXPO_UNSTABLE_TREE_SHAKING` (pinned in `scripts/mobile/expo-export-web.mjs`) and `transformer.experimentalImportSupport` (`mobile/metro.config.js`). Entry chunk `4,807,423 -> 2,015,231` bytes raw / `859,065 -> 504,241` gzip. See the 2026-09-29 section below.
 - **jsQR** (~130 KB raw / ~47 KB gzip) is only the fallback for browsers without `BarcodeDetector`: lazy-loaded in PR #66 (merged 2026-09-27, `f918065`), entry chunk `4,695.3 kB -> 4,567.9 kB` raw / `887.4 -> 844.7 kB` gzip in CI run `36339843014`. Total `jsBytes` stays the same because the code only moves to its own chunk.
 
 Merged to `main` 2026-09-27: PR #67 (`a2729df`, measurement fixes plus this rebaseline) and PR #66 (`f918065`). Strict proof before the merge: run `36334210057`.
@@ -140,3 +140,27 @@ The 2026-05-12 suggestion window was complete (`10/10`, first run `2026-05-12T06
 Current policy after that finding: scheduled CI stays in `warn` mode while the sharpened budgets prove themselves; `strict` is reserved for explicit manual probe dispatches after the observation gate turns green. The cold-run artifact is handled operationally by a discarded warm-up Lighthouse run before the measured seed window, not by loosening the route budget. The first such probe dispatch (run `25742783313`) was executed and passed green on 2026-05-12; the `consecutiveGreenRuns` counter is back at `0` after that probe, so any further strict probe needs a fresh 5-run observation window.
 
 Die operative Freigabe- und Run-Checkliste steht in `docs/performance/strict-probe-runbook.md`.
+
+## 2026-09-29 — Lucide-Tree-Shaking und Bundle-Rebaseline (Paket 6)
+
+Die oben angekuendigte Entry-Chunk-Einsparung ist umgesetzt. Der Hebel ist nicht der Barrel allein, sondern der Web-Export mit Expos experimenteller Graph-Optimierung:
+
+- `mobile/components/icons.tsx` re-exportiert die 73 genutzten Icons; alle 26 Konsumenten in `mobile/app` und `mobile/components` importieren aus `@/components/icons` statt aus dem Paket-Root. Allein aendert das am Bundle nichts (gemessen: 4,684,127 Bytes, praktisch unveraendert).
+- `scripts/mobile/expo-export-web.mjs` setzt `EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH=1` und `EXPO_UNSTABLE_TREE_SHAKING=1`. Beide Wege — Docker (`Dockerfile`) und CI (`performance-audit`, `mobile-release-gate`) — laufen durch dieses Skript, damit die Bundles identisch sind. Tree Shaking greift nur mit beiden Variablen; ohne `EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH` bricht der Export mit `CommandError: EXPO_UNSTABLE_TREE_SHAKING requires EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH to be enabled.` ab.
+- `mobile/metro.config.js` setzt `transformer.experimentalImportSupport = true`; ohne das brechen die Graph-Optimierungen (`Experimental graph optimizations only work with experimentalImportSupport enabled.`).
+
+Messung mit `npm run build:mobile` + `npm run perf:bundle` (2026-09-29, lokal):
+
+| Signal | Entry-Chunk vorher (2026-09-27) | nachher | neues Budget |
+|---|---|---|---|
+| `largestJsAssetBytes` (Entry, roh) | 4,807,423 | **2,015,231** | 4,100,000 |
+| Entry, gzip | 859,065 | **504,241** | — |
+| `jsBytes` | — | **3,075,351** | 5,050,000 |
+| `gzipJsBytes` | — | **830,637** | 1,110,000 |
+| `cssBytes` | — | 22,979 | 30,000 |
+| `files` | — | 34 | 70 |
+
+`Banana`, `AArrowDown` und `Rocket` kommen im Entry-Chunk nicht mehr vor, die 73 genutzten Icons sind enthalten. Verifikation: `npx tsc --noEmit`, `npm test -- --run --exclude=test/e2e` (729 Tests), `npm run mobile:typecheck`, `npm run test:mobile` (420 Tests), `npm run mobile:build:web`, `npm run perf:bundle`, `npm run perf:validate` (warn-only) und `npm run lint:dead:ci` gruen.
+
+Risiko/Follow-up: Tree Shaking ist ein experimenteller Expo-Pfad; der Nightly-`performance-audit` bleibt die Absicherung. Die neuen Budgets liegen deutlich ueber dem Messwert (der Slice spart ~2,8 MB roh statt der angenommenen ~0,8 MB), ein zweites Verschaerfen auf ~+3 % des Messwerts ist offen.
+
