@@ -221,7 +221,20 @@ jobs:
               continue
             fi
 
-            docker pull "$mirror"
+            for attempt in 1 2 3; do
+              if docker pull "$mirror"; then
+                break
+              fi
+
+              if [ "$attempt" -eq 3 ]; then
+                echo "::warning::Prefetch failed for $mirror after 3 attempts; continuing, 'supabase start' will pull it later."
+                continue 2
+              fi
+
+              echo "Prefetch attempt $attempt for $mirror failed; retrying in $((attempt * 10))s"
+              sleep $((attempt * 10))
+            done
+
             docker tag "$mirror" "$target"
           done
 

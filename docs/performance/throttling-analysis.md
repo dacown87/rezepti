@@ -162,5 +162,17 @@ Messung mit `npm run build:mobile` + `npm run perf:bundle` (2026-09-29, lokal):
 
 `Banana`, `AArrowDown` und `Rocket` kommen im Entry-Chunk nicht mehr vor, die 73 genutzten Icons sind enthalten. Verifikation: `npx tsc --noEmit`, `npm test -- --run --exclude=test/e2e` (729 Tests), `npm run mobile:typecheck`, `npm run test:mobile` (420 Tests), `npm run mobile:build:web`, `npm run perf:bundle`, `npm run perf:validate` (warn-only) und `npm run lint:dead:ci` gruen.
 
-Risiko/Follow-up: Tree Shaking ist ein experimenteller Expo-Pfad; der Nightly-`performance-audit` bleibt die Absicherung. Die neuen Budgets liegen deutlich ueber dem Messwert (der Slice spart ~2,8 MB roh statt der angenommenen ~0,8 MB), ein zweites Verschaerfen auf ~+3 % des Messwerts ist offen.
+Risiko/Follow-up: Tree Shaking ist ein experimenteller Expo-Pfad; der Nightly-`performance-audit` bleibt die Absicherung. Die neuen Budgets lagen zunaechst deutlich ueber dem Messwert (der Slice spart ~2,8 MB roh statt der angenommenen ~0,8 MB); das zweite Verschaerfen auf ~+3 % des Messwerts ist am 2026-10-01 erfolgt (siehe unten).
+
+### 2026-10-01: zweites Verschaerfen der Bundle-Budgets (Paket 7)
+
+Nach dem Lucide-Slice trugen die Budgets mehr Headroom als die ~+3 %-Konvention aus 5b. Am 2026-10-01 wurden sie auf Messwert × ~1,03 gesenkt:
+
+| Signal | Budget bis 2026-09-29 | Gemessen (Lucide-Export) | Budget ab 2026-10-01 |
+|---|---|---|---|
+| `largestJsAssetBytes` | 4,100,000 | 2,015,231 | **2,080,000** |
+| `jsBytes` | 5,050,000 | 3,075,351 | **3,170,000** |
+| `gzipJsBytes` | 1,110,000 | 830,637 | **856,000** |
+
+`cssBytes` (30,000) und `files` (70) bleiben unveraendert, weil kein neuer Messwert vorliegt und sie nicht am Lucide-Hebel haengen. Geplant in [2026-10-01-ci-budget-doku-nachzug-plan.md](Projekte/RecipeDeck/Plaene/2026-10-01-ci-budget-doku-nachzug-plan.md).
 
