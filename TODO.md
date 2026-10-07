@@ -14,6 +14,26 @@ Alle offenen Punkte dieser Datei sind hier in Pakete gebuendelt. Jedes Paket ist
 
 **Erledigt 2026-10-07 — Account-Loeschung + Recovery-Haertung (PR #74, #76).** *(Urspruenglicher Eintrag, Scope-Details siehe unten; „Danach“ gilt weiter fuer den Rest der Liste:)* Der erste funktionale Slice nach der CI-/Doku-Reihe: Konten sauber inkl. Haushalten/Shopping/Planner/Collections loeschen und den Recovery-Pfad haerten. Beschlossen am 2026-09-30 als naechster Kandidat. Vollstaendiger Scope, Reihenfolge und Akzeptanzkriterien: siehe Eintrag „Account-Loeschung und Recovery-Haertung" unter *Spaeter* (Detailplan zuerst im Vault, dann Umsetzung; ein Paket = ein PR). Vorbedingung: rechtliche Frage „Selbstloeschung nach Art. 17" (siehe Recherche-Eintrag) klaeren, aber nicht blockierend.
 
+**Reihenfolge bis zum oeffentlichen Start (festgelegt 2026-10-07).** Paketkuerzel: A Backups, B Kostenschutz (beide im [Vor-Start-Plan](/home/patrick/Projekte/rezepti/docs/superpowers/plans/2026-10-07-vor-start-backups-kostenschutz-recht-plan.md)), L Loeschpfad-Migration, S SSRF, R Rechtstexte, DM Datenminimierung, G Go-Live-Betrieb, N nativer Testbuild — Links in den Eintraegen darunter.
+
+*1. Plaene erstellen/ausarbeiten (in dieser Reihenfolge):*
+1. **S** Detailplan — Sicherheitsluecke, der Bild-Proxy ist heute ohne Login erreichbar; blockiert DM-3.
+2. **L** Detailplan — blockiert A, B und DM-1; dabei A und B im Vor-Start-Plan auf die Code-Schritte kuerzen (Schema geht nach L).
+3. **G** Detailplan — klein; G1 laeuft frueh zusammen mit R-D4a.
+4. **N** Detailplan — unabhaengig, klein; liefert den Geraetetest fuer die Test-Session.
+5. Erst nach dem Start: **W** (W1 → W2), dann **O**. Trigger-basiert, nicht vorab planen: CI1, CI2, Job-Persistenz/Facebook, Pinterest.
+R und DM liegen bereits als Detailplan vor; A und B sind im Vor-Start-Plan schon ausreichend detailliert.
+
+*2. Abarbeiten (nach Freigabe):*
+- **Sofort und parallel, ohne Code (Betreiber):** AVV bei Northflank anfordern (laengste Vorlaufzeit), Angaben fuer `legal-operator.ts` (R-E1/E2/E5), DM-Entscheidungen 1+2, Bildbestand messen (DM B1), DPAs ablegen, Groq ZDR, Cobalt pruefen, R2 + `age` vorbereiten; Test-Session Block 1+2. Claude: VVT-Entwurf (R-D2).
+- **Schritt 1:** S (Sicherheit zuerst) · G1 + R-D4a (Konten-/DNS-Sitzung).
+- **Schritt 2:** L (eine Migration fuer A/B/DM-1).
+- **Schritt 3:** DM-1 + DM-1b (legt den gemeinsamen Aufraeum-Timer an) → B → A (braucht R2; Backup muss vor dem Bild-Backfill laufen).
+- **Schritt 4:** DM-2 (EXIF) → DM-3 + Backfill (braucht S, Messung B1, laufendes Backup) → DM-3b.
+- **Schritt 5:** R-D4b (Kontaktformular) → R-D3a (Texte, sobald Betreiber-Daten da sind; kann auch frueher, parallel zu Schritt 2–4) → R-D9 (Nutzungsbedingungen).
+- **Schritt 6:** R-D3b (Text-Nachzug, braucht Northflank-AVV, A, DM, ZDR) → Gegenlesen lassen → G2 (Brevo-Allowlist, Gmail-Monitor, DMARC) → **Registrierung oeffnen**.
+- **Jederzeit daneben:** N bauen + Test-Session Block 3.
+
 **Vor dem oeffentlichen Start (gebuendelt 2026-10-07).** Die App ist fuer die Oeffentlichkeit geplant; diese Punkte standen bisher verstreut oder gar nicht hier. Keiner blockiert die Account-Loeschung, aber alle zusammen entscheiden, wann die Registrierung offen sein darf:
 - [x] **Account-Loeschung** — gemergt 2026-10-07 (PR #74, `e6a85d8`); Migration `20261007120000` in Production angewendet und read-only verifiziert (Funktion nur fuer `postgres` ausfuehrbar, FK auf `recipe_collections.household_id`, `bug_reports.user_id` nullable, verwaiste Sammlung entfernt). **Offen: der manuelle Staging-Durchlauf** (siehe *Pruefen / manuell testen*) — wird nachgeholt, nicht mehr blockierend.
 - [ ] **Rechtliche Platzhalter fuellen** — `mobile/utils/legal-operator.ts` (Name, Anschrift, Aufsichtsbehoerde); `/impressum` und `/datenschutz` zeigen bis dahin einen Platzhalter-Hinweis. Haengt an der Recherche „rechtliche Pflichten fuer Impressum und Datenschutz" unter *Spaeter*.

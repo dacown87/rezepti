@@ -24,6 +24,9 @@ Drei Pakete aendern dieselbe Stelle: `private.delete_user_account` (Migration `2
 
 Die Folge-PRs setzen nur noch Code auf das fertige Schema; keiner fasst die Loeschfunktion erneut an.
 
+## Gemeinsamer Aufraeum-Timer (zweite Buendelung, 2026-10-07)
+Vier Pakete brauchen eine taegliche Loeschung alter Zeilen: Loesch-Protokoll aelter als 35 Tage (A), alte Quota-Tage (B), Fehlerberichte nach Frist (DM-1), abgelaufene Einladungen (DM-1b). Statt vier Timern **ein** Modul `src/retention.ts` mit einem taeglichen Lauf und einer Liste von Aufraeum-Schritten (Muster `startJobCleanupTimer`). Der erste Folge-PR nach L (voraussichtlich DM-1) legt es an; A und B haengen nur ihren Schritt an.
+
 ## Reihenfolge
 Paket L → danach A, B und DM-1 in beliebiger Reihenfolge (parallel moeglich). DM-2/DM-3 (Bilder) haengen nicht an L: `private.recipe_images` kaskadiert ueber `recipes`, die Loeschfunktion bleibt unberuehrt.
 

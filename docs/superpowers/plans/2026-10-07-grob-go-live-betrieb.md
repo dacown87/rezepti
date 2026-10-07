@@ -15,6 +15,10 @@ Diese Punkte sind einzeln klein, wurden aber alle bewusst „bis zum Produktions
 5. **Cloudflare-Token** auf *Zone → Zone → Edit* + *Zone → DNS → Edit* reduzieren (Registrar-Rechte entfernen).
 6. **Alte INWX-Zone** leeren.
 
+## Aufteilung in zwei Sitzungen (zweite Buendelung, 2026-10-07)
+- **G1 — Konten-Sitzung, frueh:** zusammen mit [Paket R](2026-10-07-paket-r-rechtstexte-detailplan.md) **D4a** (Kontaktadresse, MX/SPF bei Cloudflare): Brevo-Domain `recipedeck.app` loeschen (2), INWX-Zone leeren (6), danach Cloudflare-Token reduzieren (5). Alles DNS/Konten, keine Abhaengigkeit vom Start.
+- **G2 — zum Produktionsstart:** Brevo-IP-Allowlist (1), Gmail-Monitor (3), DMARC `quarantine` (4, fruehestens ca. 4 Wochen nach G1).
+
 ## Reihenfolge und Abhaengigkeiten
 - **Nach Paket R, Schritt D4a** (Kontaktadresse/Email Routing): D4a fuegt MX- und SPF-Eintraege hinzu. DMARC erst verschaerfen, wenn der zusammengefuehrte SPF-Eintrag laeuft und die Berichte danach sauber sind.
 - **Nach Paket R, Schritt D3a** (finale `/datenschutz`): Voraussetzung fuer die Google-OAuth-Freigabe des Gmail-Monitors.
