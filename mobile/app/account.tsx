@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, CheckCircle2, LogIn, LogOut, Mail, RefreshCcw, UserPlus } from '@/components/icons';
 
+import { DeleteAccountSection } from '@/components/DeleteAccountSection';
 import { LegalLinks } from '@/components/LegalPage';
 import { bootstrapAccount, type AccountBootstrapResponse } from '@/utils/account-bootstrap';
 import {
@@ -357,6 +358,16 @@ export default function AccountScreen() {
     }
   };
 
+  const handleAccountDeleted = () => {
+    setSessionEmail(null);
+    setWorkspaceState({ kind: 'idle' });
+    setPassword('');
+    setConfirmPassword('');
+    setInlineError(null);
+    setMode('signin');
+    setInlineInfo('Dein Konto und alle zugehörigen Daten wurden gelöscht.');
+  };
+
   const handlePrimaryNavigation = () => {
     if (!LOGIN_FIRST_ACCOUNT_GATE_ENABLED) {
       router.back();
@@ -498,6 +509,7 @@ export default function AccountScreen() {
               {busy ? <ActivityIndicator size="small" color="#8B7355" /> : <LogOut size={16} color="#8B7355" />}
               <Text className="ml-2 font-semibold text-warm-700 dark:text-warm-200">Abmelden</Text>
             </Pressable>
+            {sessionEmail ? <DeleteAccountSection email={sessionEmail} onDeleted={handleAccountDeleted} /> : null}
           </View>
         ) : (
           <View className="rounded-2xl border border-warm-200 bg-white p-5 dark:border-warm-700 dark:bg-espresso-800">

@@ -72,3 +72,49 @@ describe('MutationQueue', () => {
     expect(summary).toEqual({ sent: 0, dropped: 0, remaining: 0 });
   });
 });
+
+describe('MutationQueue user scoping', () => {
+  it('stamps enqueued mutations with the resolved user', async () => {
+    const store = makeStore();
+    const queue = new MutationQueue(store, async () => 'user-a');
+    await queue.enqueue(makeMutation());
+    expect((await queue.list())[0].userId).toBe('user-a');
+  });
+
+  it('drops mutations of another user on flush without sending them', async () => {
+    const store = makeStore();
+    store.items = [
+      makeMutation({ opId: 'a', userId: 'user-a' }),
+      makeMutation({ opId: 'b', userId: 'user-b' }),
+    ];
+    const queue = new MutationQueue(store, async () => 'user-b');
+    const sentIds: string[] = [];
+    const summary = await queue.flush(async (m) => { sentIds.push(m.opId); return 'ok'; });
+    expect(sentIds).toEqual(['b']);
+    expect(summary).toEqual({ sent: 1, dropped: 1, remaining: 0 });
+  });
+
+  it('keeps everything while nobody is signed in', async () => {
+    const store = makeStore();
+    store.items = [makeMutation({ userId: 'user-a' })];
+    const queue = new MutationQueue(store, async () => null);
+    const summary = await queue.flush(async () => 'ok');
+    expect(summary).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+  });
+
+  it('still sends legacy entries without a userId', async () => {
+    const store = makeStore();
+    store.items = [makeMutation({ opId: 'legacy' })];
+    const queue = new MutationQueue(store, async () => 'user-a');
+    const summary = await queue.flush(async () => 'ok');
+    expect(summary.sent).toBe(1);
+  });
+
+  it('clear() empties the queue', async () => {
+    const store = makeStore();
+    const queue = new MutationQueue(store, async () => 'user-a');
+    await queue.enqueue(makeMutation());
+    await queue.clear();
+    expect(await queue.size()).toBe(0);
+  });
+});

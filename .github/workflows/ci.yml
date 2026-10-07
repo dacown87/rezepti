@@ -274,6 +274,9 @@ jobs:
       - name: Run Supabase RLS smoke
         run: npm run supabase:rls-smoke
 
+      - name: Run account deletion smoke
+        run: npm run supabase:account-deletion-smoke
+
       - name: Dump Supabase diagnostics
         if: failure()
         run: |

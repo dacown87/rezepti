@@ -12,6 +12,6 @@ export const LEGAL_OPERATOR = {
   supervisoryAuthority: '[Landesdatenschutzbehörde des Bundeslandes des Betreibers]',
 } as const;
 
-export const LEGAL_LAST_UPDATED = '27. September 2026';
+export const LEGAL_LAST_UPDATED = '7. Oktober 2026';
 
 export const LEGAL_PLACEHOLDERS_OPEN = Object.values(LEGAL_OPERATOR).some((value) => value.startsWith('['));

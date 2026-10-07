@@ -1735,7 +1735,7 @@ export interface BugReportListItem {
 }
 
 export interface BugReportDetail extends BugReportListItem {
-  userId: string;
+  userId: string | null; // null once the author deleted their account (report is anonymised)
   householdId: string | null;
   metadata: Record<string, unknown>;
   adminNotes: string | null;
@@ -2805,4 +2805,42 @@ export async function deletePushSubscriptionByEndpoint(userId: string, endpoint:
 export async function deletePushSubscriptionById(id: number): Promise<void> {
   const db = getDb();
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, id));
+}
+
+// ── Account deletion ───────────────────────────────────────────────────────────
+
+export type DeleteUserAccountResult =
+  | { ok: true; counts: Record<string, number> }
+  | { ok: false; reason: "household_has_other_members" | "user_not_found" };
+
+// private.delete_user_account raises with these SQLSTATEs (see migration
+// 20261007120000). Drizzle wraps driver errors, so look through `cause`.
+function findPgErrorCode(error: unknown): string | null {
+  for (let current: unknown = error, depth = 0; current && typeof current === "object" && depth < 4; depth++) {
+    const code = "code" in current ? String((current as { code?: unknown }).code ?? "") : "";
+    if (code === "RD409" || code === "RD404") return code;
+    current = "cause" in current ? (current as { cause?: unknown }).cause : null;
+  }
+  return null;
+}
+
+/**
+ * Deletes the account and every row that belongs to it in one transaction
+ * (bug reports are anonymised, not deleted). Refuses with
+ * `household_has_other_members` while the user shares a household.
+ */
+export async function deleteUserAccount(userId: string): Promise<DeleteUserAccountResult> {
+  const db = getDb();
+  try {
+    const res = await db.execute(sql`select private.delete_user_account(${userId}::uuid) as result`);
+    const rows = (Array.isArray(res) ? res : (res as { rows?: unknown[] }).rows ?? []) as Array<{ result?: unknown }>;
+    const raw = rows[0]?.result;
+    const counts = (typeof raw === "string" ? JSON.parse(raw) : raw ?? {}) as Record<string, number>;
+    return { ok: true, counts };
+  } catch (error) {
+    const code = findPgErrorCode(error);
+    if (code === "RD409") return { ok: false, reason: "household_has_other_members" };
+    if (code === "RD404") return { ok: false, reason: "user_not_found" };
+    throw error;
+  }
 }

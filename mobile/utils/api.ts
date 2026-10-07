@@ -252,6 +252,12 @@ export async function patchRecipe(id: number, fields: Record<string, unknown>): 
   await assertApiOk(res, `PATCH fehlgeschlagen (${res.status})`);
 }
 
+/** Deletes the signed-in account and all of its data. Resolves on 204; 409 when the household has other members. */
+export async function deleteAccount(): Promise<void> {
+  const res = await apiFetch('/api/v1/auth/account', { method: 'DELETE' });
+  await assertApiOk(res, `Konto konnte nicht gelöscht werden (${res.status})`);
+}
+
 export async function deleteRecipe(id: number): Promise<void> {
   const res = await apiFetch(`/api/v1/recipes/${id}`, { method: 'DELETE' });
   await assertApiOk(res, `DELETE fehlgeschlagen (${res.status})`);

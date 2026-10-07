@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { AuthFlowError, authErrorPayload, authErrorResponse, getUserAuth, requireUserAuth } from "../auth.js";
-import { ensureDefaultHouseholdForUser, ensureUserProfile, getAccountBootstrapStatus } from "../db-react.js";
+import { deleteUserAccount, ensureDefaultHouseholdForUser, ensureUserProfile, getAccountBootstrapStatus } from "../db-react.js";
+import { jobManager } from "../job-manager.js";
 
 const app = new Hono();
 
@@ -85,6 +86,43 @@ app.post("/api/v1/auth/bootstrap", requireUserAuth(), async (c) => {
       ),
       500,
     );
+  }
+});
+
+// Self-service account deletion. The caller's JWT is the credential; the client
+// additionally asks for the password and a typed confirmation before calling.
+app.delete("/api/v1/auth/account", requireUserAuth(), async (c) => {
+  const auth = getUserAuth(c);
+  try {
+    // Stop running imports first so a finishing job does not save into an
+    // account that is about to disappear (the FKs would reject it anyway).
+    for (const job of jobManager.getActiveJobs()) {
+      if (job.userId === auth.userId) jobManager.cancelJob(job.id);
+    }
+
+    const result = await deleteUserAccount(auth.userId);
+    if (!result.ok) {
+      console.warn("auth.account.delete.refused", { userId: shortId(auth.userId), reason: result.reason });
+      if (result.reason === "household_has_other_members") {
+        return c.json(
+          {
+            error: {
+              code: "household_has_other_members",
+              message: "Dein Haushalt hat weitere Mitglieder. Das Konto kann erst gelöscht werden, wenn du allein im Haushalt bist.",
+            },
+          },
+          409,
+        );
+      }
+      return c.json({ error: { code: "user_not_found", message: "Konto nicht gefunden." } }, 404);
+    }
+
+    // No email in the log: the purpose for holding it ends with the deletion.
+    console.info("auth.account.deleted", { userId: shortId(auth.userId), counts: result.counts });
+    return c.body(null, 204);
+  } catch (error) {
+    console.error("auth.account.delete.failure", { userId: shortId(auth.userId), error });
+    return c.json({ error: { code: "account_delete_failed", message: "Konto konnte nicht gelöscht werden. Bitte versuche es erneut." } }, 500);
   }
 });
 
