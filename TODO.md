@@ -197,6 +197,7 @@ Nicht mehr massgeblich — die aktuelle Reihenfolge steht oben unter „Reihenfo
   3. **UX:** Bestaetigungsdialog, Rate-Limit-/Fehler-UX, Recovery-Polish nach minimalem Passwort-Reset.
   4. **Tests/Nachweis:** Unit-/DB-Test, dass nach der Loeschung keine Waisen bleiben; lokaler Supabase-RLS-Smoke, `npx tsc --noEmit`.
   Abhaengigkeit: rechtliche Frage „Selbstloeschung Pflicht nach Art. 17?" (Recherche-Eintrag unten) klaeren, aber nicht blockierend.
+  **Detailplan mit Review steht (2026-10-07):** `Vault/Projekte/RecipeDeck/Plaene/2026-10-07-account-loeschung-plan.md`. Gegenueber dem Scope oben: etwa zehn Tabellen ohne Fremdschluessel muessen explizit geloescht werden (u. a. `cookidoo_credentials` mit verschluesseltem Passwort, `recipe_collections`, Invites, Push); Loeschung ueber eine SQL-Funktion `private.delete_user_account` in einer Transaktion; Haushalt mit weiteren Mitgliedern → `409`; **Bug-Reports werden anonymisiert, nicht geloescht** (Entscheidung Nutzer 2026-10-07); der Bug, dass die Offline-Warteschlange nicht an einen Nutzer gebunden ist, wird mit behoben. **Recovery-Haertung ist ausgegliedert** in einen eigenen kleinen PR danach (Reset-E2E in Production, vermutlich tote `PASSWORD_RECOVERY`-Listener).
 
 ## Aktive Backlog / Watchlist
 
