@@ -258,3 +258,81 @@ describe('registerAuthRedirectObserver — onLinkError callback', () => {
     expect(onConfirmationSuccess).not.toHaveBeenCalled();
   });
 });
+
+describe('registerAuthRedirectObserver — password recovery links', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.stubEnv('EXPO_PUBLIC_SUPABASE_URL', 'https://test.supabase.co');
+    vi.stubEnv('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'test-anon-key');
+    Object.defineProperty(globalThis, 'window', { value: {}, configurable: true, writable: true });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  async function observe(url: string) {
+    const setSession = vi.fn().mockResolvedValue({ error: null });
+    vi.doMock('@supabase/supabase-js', () => ({
+      createClient: vi.fn(() => ({
+        auth: {
+          onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+          setSession,
+        },
+      })),
+    }));
+    vi.doMock('expo-linking', () => ({
+      getInitialURL: vi.fn().mockResolvedValue(url),
+      addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+      createURL: vi.fn((p: string) => `recipedeck://${p.replace(/^\//, '')}`),
+    }));
+    vi.doMock('@/utils/auth-storage', () => ({
+      authStorage: {
+        getItem: vi.fn(async () => null),
+        setItem: vi.fn(async () => undefined),
+        removeItem: vi.fn(async () => undefined),
+      },
+    }));
+
+    const { registerAuthRedirectObserver } = await import('@/utils/auth');
+    const onPasswordRecovery = vi.fn();
+    const onConfirmationSuccess = vi.fn();
+    const cleanup = registerAuthRedirectObserver({ onPasswordRecovery, onConfirmationSuccess });
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    cleanup();
+    return { setSession, onPasswordRecovery, onConfirmationSuccess };
+  }
+
+  it('treats a link with mode=update-password as password recovery', async () => {
+    const { setSession, onPasswordRecovery, onConfirmationSuccess } = await observe(
+      'https://www.recipedeckapp.de/account?mode=update-password#access_token=a&refresh_token=b&type=recovery',
+    );
+
+    expect(setSession).toHaveBeenCalledWith({ access_token: 'a', refresh_token: 'b' });
+    expect(onPasswordRecovery).toHaveBeenCalledWith(expect.objectContaining({ mode: 'update-password' }));
+    expect(onConfirmationSuccess).not.toHaveBeenCalled();
+  });
+
+  it('still recognises recovery when the mode parameter was lost on the way', async () => {
+    // Supabase falls back to the bare site URL when the redirect URL is not on
+    // its allow list; only the type=recovery fragment survives.
+    const { onPasswordRecovery, onConfirmationSuccess } = await observe(
+      'https://www.recipedeckapp.de/#access_token=a&refresh_token=b&type=recovery',
+    );
+
+    expect(onPasswordRecovery).toHaveBeenCalledWith(expect.objectContaining({ mode: 'update-password' }));
+    expect(onConfirmationSuccess).not.toHaveBeenCalled();
+  });
+
+  it('does not mistake a signup confirmation for recovery', async () => {
+    const { onPasswordRecovery, onConfirmationSuccess } = await observe(
+      'https://www.recipedeckapp.de/account#access_token=a&refresh_token=b&type=signup',
+    );
+
+    expect(onConfirmationSuccess).toHaveBeenCalledTimes(1);
+    expect(onPasswordRecovery).not.toHaveBeenCalled();
+  });
+});
