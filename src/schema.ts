@@ -243,7 +243,7 @@ export const bugReports = pgTable("bug_reports", {
   reportType: text("report_type").notNull(),
   status: text("status").notNull(),
   description: text("description").notNull(),
-  userId: uuid("user_id").notNull(),
+  userId: uuid("user_id"),
   householdId: uuid("household_id"),
   route: text("route"),
   sourceArea: text("source_area").notNull(),

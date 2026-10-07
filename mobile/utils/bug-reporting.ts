@@ -22,7 +22,7 @@ export interface BugReportListItem {
 }
 
 export interface BugReportDetail extends BugReportListItem {
-  userId: string;
+  userId: string | null;
   householdId: string | null;
   metadata: Record<string, unknown>;
   adminNotes: string | null;
