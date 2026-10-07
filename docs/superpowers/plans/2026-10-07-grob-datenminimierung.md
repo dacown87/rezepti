@@ -1,6 +1,6 @@
 # Grobplan: Datenminimierung (Paket DM)
 
-> **Status: GROBPLAN — muss vor der Umsetzung ausgearbeitet werden** (Scope, Reihenfolge, Akzeptanzkriterien, Tests). Kein Code, bevor der Detailplan steht und freigegeben ist.
+> **Status: GROBPLAN — ausgearbeitet im [Detailplan Paket DM](2026-10-07-paket-dm-datenminimierung-detailplan.md) (wartet auf Freigabe).** Kein Code, bevor der Detailplan freigegeben ist.
 
 Stand: 2026-10-07. Bezug: [TODO.md](../../../TODO.md) → „Vor dem oeffentlichen Start"; [Vor-Start-Plan](2026-10-07-vor-start-backups-kostenschutz-recht-plan.md) Abschnitt D (D6, D7, D8). Befunde: [Rechtsrecherche](../../legal/2026-10-impressum-datenschutz-recherche.md) Abschnitte 6, 7, 9.6 und [Faktencheck](../../legal/faktencheck/verify-3-dsgvo.md).
 

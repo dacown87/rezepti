@@ -1,6 +1,6 @@
 # Grobplan: Rechtstexte und Kontakt (Paket R)
 
-> **Status: GROBPLAN — muss vor der Umsetzung ausgearbeitet werden** (Scope, Reihenfolge, Akzeptanzkriterien, Tests). Kein Code, bevor der Detailplan steht und freigegeben ist.
+> **Status: GROBPLAN — ausgearbeitet im [Detailplan Paket R](2026-10-07-paket-r-rechtstexte-detailplan.md) (wartet auf Freigabe).** Kein Code, bevor der Detailplan freigegeben ist.
 
 Stand: 2026-10-07. Bezug: [TODO.md](../../../TODO.md) → „Vor dem oeffentlichen Start" → Betreiber-Schritte aus der Rechtsrecherche; [Vor-Start-Plan](2026-10-07-vor-start-backups-kostenschutz-recht-plan.md) Abschnitt D (D2, D3, D4, D9). Fachliche Grundlage: [Rechtsrecherche](../../legal/2026-10-impressum-datenschutz-recherche.md) (keine Rechtsberatung).
 
