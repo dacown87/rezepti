@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.235] – 2026-10-07
+
+- Account-Loeschung (Self-Service) inkl. Offline-Queue-Fix (#74)
+
 ## [1.0.234] – 2026-10-07
 
 
