@@ -8,6 +8,12 @@ export interface QueuedMutation {
   body?: unknown;
   createdAt: number;
   attempts: number;
+  /**
+   * Supabase user that queued the mutation. Flush discards entries stamped for a
+   * different user so account A's offline writes are never sent with B's session.
+   * Absent on entries queued by older app versions (sent as before).
+   */
+  userId?: string;
 }
 
 /** Result of attempting to send one queued mutation. */

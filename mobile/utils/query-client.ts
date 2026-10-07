@@ -208,6 +208,10 @@ export async function watchAuthQueryCache(): Promise<() => void> {
       // Hot switch: user logged out or switched to a different account.
       void queryClient.clear();
       void AsyncStorage.removeItem(prevKey);
+      // Offline writes queued by the previous user must not reach the next session.
+      void import('@/offline/queue-singleton')
+        .then((m) => m.offlineQueue.clear())
+        .catch(() => {});
     }
 
     activeAuthUserId = nextUserId;

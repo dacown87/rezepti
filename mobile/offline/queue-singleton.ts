@@ -2,8 +2,17 @@ import { MutationQueue, type FlushSummary } from './mutation-queue';
 import { createIdbQueueStore } from './idb-store';
 import { classifyResponse, classifyError, type QueuedMutation } from './types';
 import { apiFetch } from '@/utils/api';
+import { getAuthSession } from '@/utils/auth';
 
-export const offlineQueue = new MutationQueue(createIdbQueueStore());
+async function currentUserId(): Promise<string | null> {
+  try {
+    return (await getAuthSession())?.user.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export const offlineQueue = new MutationQueue(createIdbQueueStore(), currentUserId);
 
 export async function sendQueuedMutation(m: QueuedMutation): Promise<Response> {
   const init: RequestInit = { method: m.method };
