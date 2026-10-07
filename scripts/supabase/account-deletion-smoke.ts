@@ -280,10 +280,12 @@ async function main() {
     for (const userId of createdUserIds) {
       await sql`select private.delete_user_account(${userId}::uuid)`.catch(() => {});
     }
-    await sql`delete from public.households where name in ('shared', 'shared-d') and not exists (select 1 from public.household_memberships m where m.household_id = households.id)`.catch(() => {});
     for (const userId of createdUserIds) {
       await admin.auth.admin.deleteUser(userId).catch(() => {});
     }
+    // The shared household survives its members (refusal case); once the users are
+    // gone their memberships cascade, so it can be removed afterwards.
+    await sql`delete from public.households h where h.name in ('shared', 'shared-d') and not exists (select 1 from public.household_memberships m where m.household_id = h.id)`.catch(() => {});
     await sql.end();
   }
 }
