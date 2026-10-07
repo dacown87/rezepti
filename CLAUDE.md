@@ -149,6 +149,7 @@ The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA 
 | `/api/v1/dictionary/match` | GET | Match ingredient against dictionary (open, global read-only) |
 | `/api/v1/planner` | GET/POST/DELETE | Meal planner CRUD, `requireAuth` (household-scoped) |
 | `/api/v1/auth/bootstrap` | POST | Bootstrap user account after first sign-in, `requireUserAuth` |
+| `/api/v1/auth/account` | DELETE | Delete the caller's account and all their data (`private.delete_user_account`, one transaction); bug reports are anonymised; `409 household_has_other_members` while the household has other members; cancels the caller's running import jobs first, `requireUserAuth` |
 | `/api/v1/bug-reports` | POST | Submit a report incl. `lastFailureSnapshot`, `requireUserAuth` (5 per 60 min) |
 | `/api/v1/bug-reports/me` | GET | The caller's own reports, `requireUserAuth` |
 | `/api/v1/admin/bug-reports` | GET | All reports, admin only — otherwise `403 admin_required` |
@@ -167,6 +168,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `share-invites/:token` preview | Server | token-scoped | **none — the token is the credential** | anyone holding the token | — | medium | only `token_hash` is stored. Preview returns `status`, `recipeName`, `senderEmail`, `recipientEmail`, `expiresAt` — **two email addresses**, no recipe body. Do not widen this payload |
 | `planner` / `shopping` | Server + RLS | household-scoped | `requireAuth` | household | household | low | — |
 | `auth/bootstrap` | Server + DB | user-scoped bootstrap with household side-effect | `requireUserAuth` | caller | caller | low | — |
+| `auth/account` DELETE | Server + DB | user-scoped destructive | `requireUserAuth` (client re-checks the password and a typed confirmation) | — | caller | medium | irreversible; deletion runs in `private.delete_user_account`, not callable by `anon`/`authenticated`. About ten tables hold a user id **without** a foreign key — a new user-id column must be added to that function **and** to `COVERED_USER_COLUMNS` in `scripts/supabase/account-deletion-smoke.ts`, which fails CI otherwise |
 | extraction jobs create/list | Server | user-scoped | `requireUserAuth` | user | user | low | the three POST entry points return `429` (`scope: "server"` or `"user"`) once `config.jobs.maxConcurrent` / `maxConcurrentPerUser` active jobs are reached |
 | extraction job poll/cancel | Server | user-scoped | inline ownership check | owner | owner | medium | middleware-free by design; cancel is state-based (`cancelJob`/`cancelRequested`), not signal-based |
 | `cookidoo/credentials` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | resolved scope (`user > household`) | private row by caller; household share by active-household owner only | low | implemented 2026-06-15; legacy disk singleton removed. `password`/`session_cookies` are AES-256-GCM encrypted at rest via `src/credential-crypto.ts` (`email`/`session_user_agent` stay plaintext) |

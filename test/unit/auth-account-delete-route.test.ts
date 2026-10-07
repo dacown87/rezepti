@@ -90,7 +90,7 @@ describe('DELETE /api/v1/auth/account', () => {
     const res = await call()
 
     expect(res.status).toBe(409)
-    await expect(res.json()).resolves.toMatchObject({ code: 'household_has_other_members' })
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'household_has_other_members' } })
   })
 
   it('answers 404 when the user no longer exists', async () => {

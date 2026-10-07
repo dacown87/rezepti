@@ -98,7 +98,11 @@ export default function DatenschutzScreen() {
       <LegalText>
         Wir speichern deine Daten, solange dein Konto besteht. Laufende Import-Aufträge werden nach spätestens sieben
         Tagen gelöscht. Protokolle unserer Dienstleister werden nach deren Fristen gelöscht, in der Regel nach wenigen
-        Tagen. Eine Löschung deines Kontos kannst du derzeit per E-Mail an {LEGAL_OPERATOR.email} anfordern.
+        Tagen. Dein Konto kannst du jederzeit selbst löschen: in der App unter „Account“ → „Konto löschen“. Dabei werden
+        deine Rezepte, Sammlungen, die Einkaufsliste, der Wochenplaner, die Cookidoo-Verbindung, Benachrichtigungs-Abos und
+        offene Einladungen unwiderruflich entfernt. Von dir gesendete Fehlerberichte bleiben ohne Bezug zu deinem Konto
+        erhalten. Solange du dir einen Haushalt mit weiteren Mitgliedern teilst, ist die Selbstlöschung nicht möglich;
+        schreib uns dann an {LEGAL_OPERATOR.email}.
       </LegalText>
 
       <LegalHeading>12. Deine Rechte</LegalHeading>

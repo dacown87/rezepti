@@ -106,13 +106,15 @@ app.delete("/api/v1/auth/account", requireUserAuth(), async (c) => {
       if (result.reason === "household_has_other_members") {
         return c.json(
           {
-            code: "household_has_other_members",
-            error: "Dein Haushalt hat weitere Mitglieder. Das Konto kann erst gelöscht werden, wenn du allein im Haushalt bist.",
+            error: {
+              code: "household_has_other_members",
+              message: "Dein Haushalt hat weitere Mitglieder. Das Konto kann erst gelöscht werden, wenn du allein im Haushalt bist.",
+            },
           },
           409,
         );
       }
-      return c.json({ code: "user_not_found", error: "Konto nicht gefunden." }, 404);
+      return c.json({ error: { code: "user_not_found", message: "Konto nicht gefunden." } }, 404);
     }
 
     // No email in the log: the purpose for holding it ends with the deletion.
@@ -120,7 +122,7 @@ app.delete("/api/v1/auth/account", requireUserAuth(), async (c) => {
     return c.body(null, 204);
   } catch (error) {
     console.error("auth.account.delete.failure", { userId: shortId(auth.userId), error });
-    return c.json({ code: "account_delete_failed", error: "Konto konnte nicht gelöscht werden. Bitte versuche es erneut." }, 500);
+    return c.json({ error: { code: "account_delete_failed", message: "Konto konnte nicht gelöscht werden. Bitte versuche es erneut." } }, 500);
   }
 });
 

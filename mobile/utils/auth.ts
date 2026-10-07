@@ -323,6 +323,18 @@ export async function signOut(): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Ends the session on this device only. Used after account deletion, when the
+ * server-side session no longer exists and a global sign-out would be refused.
+ */
+export async function signOutLocal(): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const { error } = await client.auth.signOut({ scope: 'local' });
+  if (error) throw error;
+}
+
 export async function getAuthHeaders(headers?: HeadersInit): Promise<HeadersInit | undefined> {
   const accessToken = await getAuthAccessToken();
   if (!accessToken) {

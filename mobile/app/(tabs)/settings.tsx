@@ -35,8 +35,8 @@ import { usePwaUpdate } from '@/hooks/usePwaUpdate';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { LOGIN_FIRST_ACCOUNT_GATE_ENABLED } from '@/utils/login-first-routing';
+import { SECURE_KEY_GROQ } from '@/utils/byok-storage';
 
-const SECURE_KEY_GROQ = 'groq_key';
 const STORAGE_KEY_FB_TOS = 'facebook_tos_accepted';
 
 // ── Roadmap data ──────────────────────────────────────────────────────────────

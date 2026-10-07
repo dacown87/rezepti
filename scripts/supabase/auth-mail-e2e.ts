@@ -45,33 +45,19 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function deleteE2eUsers(databaseUrl: string, onlyEmail?: string): Promise<number> {
   const sql = postgres(databaseUrl, { ssl: "require", prepare: false, max: 1 });
   try {
-    // Only ever touches addresses this script generates. Deleting the auth user
-    // alone is not enough once the account was confirmed and the app ran the
-    // bootstrap: households.created_by is ON DELETE SET NULL and
-    // user_default_households has no FK to auth.users, so both would be left
-    // behind as orphans.
-    return await sql.begin(async (tx) => {
-      const users = onlyEmail
-        ? await tx`select id from auth.users where email = ${onlyEmail} and email like ${E2E_PREFIX + "%"}`
-        : await tx`select id from auth.users where email like ${E2E_PREFIX + "%@" + MAILBOX_DOMAIN}`;
-      const userIds = users.map((row) => row.id as string);
-      if (userIds.length === 0) return 0;
+    // Only ever touches addresses this script generates. The removal itself is
+    // private.delete_user_account (migration 20261007120000): the same function
+    // the app's "Konto loeschen" uses, so there is a single deletion path.
+    const users = onlyEmail
+      ? await sql`select id from auth.users where email = ${onlyEmail} and email like ${E2E_PREFIX + "%"}`
+      : await sql`select id from auth.users where email like ${E2E_PREFIX + "%@" + MAILBOX_DOMAIN}`;
 
-      const households = await tx`select id from public.households where created_by = any(${userIds})`;
-      const householdIds = households.map((row) => row.id as string);
-
-      await tx`delete from public.user_default_households where user_id = any(${userIds})`;
-      await tx`delete from auth.users where id = any(${userIds})`;
-      if (householdIds.length > 0) {
-        // Memberships cascade with the user; keep any household someone else joined.
-        await tx`
-          delete from public.households h
-          where h.id = any(${householdIds})
-            and not exists (select 1 from public.household_memberships m where m.household_id = h.id)
-        `;
-      }
-      return userIds.length;
-    });
+    let deleted = 0;
+    for (const row of users) {
+      await sql`select private.delete_user_account(${row.id as string}::uuid)`;
+      deleted += 1;
+    }
+    return deleted;
   } finally {
     await sql.end();
   }

@@ -49,6 +49,9 @@ vi.mock('@/utils/account-bootstrap', () => ({
   bootstrapAccount: state.bootstrapAccount,
 }));
 
+// Account deletion has its own test (delete-account-section.test.tsx); keep its API/SecureStore imports out of here.
+vi.mock('@/components/DeleteAccountSection', () => ({ DeleteAccountSection: () => null }));
+
 vi.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => React.createElement('SafeAreaView', {}, children),
 }));
