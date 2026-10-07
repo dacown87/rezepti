@@ -34,7 +34,7 @@ Aufbewahrung ist auch eine **DSGVO-Frage**: geloeschte Konten (Art. 17) leben bi
    - Plausibilitaetscheck: Dump-Groesse > Mindestwert, sonst Lauf rot.
 2. **Rotation** per R2-Lifecycle-Regel (Objekte unter `daily/` nach 14 Tagen loeschen, `weekly/` nach 35 Tagen) statt eigener Loesch-Logik.
 3. **Restore-Runbook `docs/db-backup-restore-runbook.md`:** Download, `age -d -i key.txt`, `pg_restore --clean --if-exists` gegen **Staging** (nie direkt Production), danach Smoke (`/api/v1/health`, Login mit Testkonto, Rezeptanzahl).
-   - **Loesch-Nachlauf:** Nach einem Restore muessen Konten, die nach dem Backup-Zeitpunkt geloescht wurden, erneut geloescht werden. Dafuer ein Protokoll geloeschter User-IDs (nur gehashte ID + Zeitpunkt, im `private`-Schema, 35 Tage) in `private.delete_user_account` mitschreiben und im Runbook einen Schritt „Loeschungen seit Backup-Zeitpunkt nachziehen" aufnehmen. Neue Tabelle → Account-Deletion-Smoke beachten.
+   - **Loesch-Nachlauf:** Nach einem Restore muessen Konten, die nach dem Backup-Zeitpunkt geloescht wurden, erneut geloescht werden. Dafuer ein Protokoll geloeschter User-IDs (nur gehashte ID + Zeitpunkt, im `private`-Schema, 35 Tage) in `private.delete_user_account` mitschreiben und im Runbook einen Schritt „Loeschungen seit Backup-Zeitpunkt nachziehen" aufnehmen. Neue Tabelle → Account-Deletion-Smoke beachten. **Schema-Teil gebuendelt in [Paket L](2026-10-07-grob-loeschpfad-migration.md).**
 4. **Restore-Test einmal real gegen `rezepti-staging`** durchspielen und im Runbook mit Datum protokollieren. Staging darf dabei ueberschrieben werden (Betreiber, 2026-10-07).
 5. `TODO.md` + `CLAUDE.md` (Production-Abschnitt) nachziehen.
 
@@ -58,7 +58,7 @@ Aufbewahrung ist auch eine **DSGVO-Frage**: geloeschte Konten (Art. 17) leben bi
 
 ### Umsetzung
 1. **Migration** `import_quota_usage(user_id uuid, day date, count int, primary key(user_id, day))`, RLS an, keine Policies (Backend-only, wie `bug_report_submission_rate_limits`). Global-Zaehler als Zeile mit fester Sentinel-ID oder eigene Tabelle.
-   - **Pflicht laut CLAUDE.md:** neue User-ID-Spalte in `private.delete_user_account` **und** in `COVERED_USER_COLUMNS` (`scripts/supabase/account-deletion-smoke.ts`) aufnehmen, sonst CI rot. Eintrag in der RLS-no-policy-Klassifizierung ergaenzen.
+   - **Pflicht laut CLAUDE.md:** neue User-ID-Spalte in `private.delete_user_account` **und** in `COVERED_USER_COLUMNS` (`scripts/supabase/account-deletion-smoke.ts`) aufnehmen, sonst CI rot. Eintrag in der RLS-no-policy-Klassifizierung ergaenzen. **Migration und Loeschfunktion gebuendelt in [Paket L](2026-10-07-grob-loeschpfad-migration.md);** dieser PR bringt dann nur noch Schritte 2–7.
 2. **`src/db-react.ts`:** `consumeImportQuota(userId, { perUser, global })` als atomares `INSERT … ON CONFLICT DO UPDATE SET count = count + 1 … RETURNING count` mit Bedingung, damit parallele Requests das Limit nicht ueberholen. Muster: bestehender Bug-Report-Rate-Limiter (`db-react.ts:2184`). Alte Tage beim Cleanup-Timer mit loeschen.
 3. **`src/config.ts`:** zwei neue Knobs mit Defaults; `0` = aus.
 4. **`src/routes/extraction.ts`:** in allen drei POST-Einstiegen **nach** BYOK-Erkennung und Concurrency-Check: nur wenn kein BYOK-Key → Kontingent pruefen. Antwort `429` mit `scope: "daily_user"` bzw. `"daily_server"`, `limit`, `resetAt` und deutscher Meldung inkl. Hinweis auf eigenen Groq-Key. Beim Photo-Import vor dem Einlesen des Uploads (wie der Concurrency-Check).
@@ -114,7 +114,7 @@ Konkrete Textaenderungen mit Zeilenbezug fuer `legal-operator.ts`, `impressum.ts
 
 ## D — Folgepakete aus der Recherche (neu)
 
-Nicht Teil der urspruenglichen drei Punkte, aber vor der oeffentlichen Registrierung noetig oder dringend empfohlen. Je ein eigener PR bzw. Betreiber-Schritt.
+Nicht Teil der urspruenglichen drei Punkte, aber vor der oeffentlichen Registrierung noetig oder dringend empfohlen. Je ein eigener PR bzw. Betreiber-Schritt. Gebuendelt in [Paket R – Rechtstexte und Kontakt](2026-10-07-grob-rechtstexte-und-kontakt.md) (D2, D3, D4, D9; [Detailplan](2026-10-07-paket-r-rechtstexte-detailplan.md)) und [Paket DM – Datenminimierung](2026-10-07-grob-datenminimierung.md) (D6, D7, D8; [Detailplan](2026-10-07-paket-dm-datenminimierung-detailplan.md)).
 
 | # | Paket | Wer | Prioritaet |
 |---|---|---|---|

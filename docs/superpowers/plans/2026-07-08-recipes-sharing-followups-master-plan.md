@@ -2,6 +2,7 @@
 
 Stand: 2026-07-08
 Status: Staging-Migration und API-/RLS-Smoke gruen, vor Production-Rollout
+Status (geprueft 2026-10-07): **ausgeliefert** — alle fuenf Slices samt Migrationen sind auf `main`, Invite-Mailversand seit 2026-08-09 live. Einziger Rest: lokaler PWA-Off-/Online-Smoke (Slice 5), gefuehrt in TODO und in [docs/testing/manuelle-test-session.md](../../testing/manuelle-test-session.md). Nur noch Archiv.
 
 Vorgaenger:
 

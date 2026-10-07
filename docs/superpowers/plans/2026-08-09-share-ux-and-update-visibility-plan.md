@@ -1,6 +1,6 @@
 # Plan: Teilen-UX und Update-Sichtbarkeit
 
-**Stand:** 2026-08-09 · **Status:** ENTWURF
+**Stand:** 2026-08-09 · **Status:** UMGESETZT (geprueft 2026-10-07) — Slice C = PR #45, Slice A = PR #46, Slice B = PR #47, alle auf `main`. Nur noch Archiv.
 
 Drei Punkte aus der Nutzung am 2026-08-09, nachdem der Mailversand erstmals
 nachweislich funktioniert hat. Alle drei sind klein; einer davon behebt einen
