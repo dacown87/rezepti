@@ -114,7 +114,7 @@ Konkrete Textaenderungen mit Zeilenbezug fuer `legal-operator.ts`, `impressum.ts
 
 ## D — Folgepakete aus der Recherche (neu)
 
-Nicht Teil der urspruenglichen drei Punkte, aber vor der oeffentlichen Registrierung noetig oder dringend empfohlen. Je ein eigener PR bzw. Betreiber-Schritt.
+Nicht Teil der urspruenglichen drei Punkte, aber vor der oeffentlichen Registrierung noetig oder dringend empfohlen. Je ein eigener PR bzw. Betreiber-Schritt. Gebuendelt in [Paket R – Rechtstexte und Kontakt](2026-10-07-grob-rechtstexte-und-kontakt.md) (D2, D3, D4, D9) und [Paket DM – Datenminimierung](2026-10-07-grob-datenminimierung.md) (D6, D7, D8).
 
 | # | Paket | Wer | Prioritaet |
 |---|---|---|---|
