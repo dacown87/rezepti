@@ -274,6 +274,12 @@ export function registerAuthRedirectObserver(options?: {
       }
 
       lastRedirect = readAuthRedirectOptions(url);
+      // Supabase appends type=recovery to password-reset links. Trust it in
+      // addition to our own mode parameter, which is lost when the redirect URL
+      // is not on the allow list and Supabase falls back to the bare site URL.
+      if (collectUrlParams(url).get('type') === 'recovery') {
+        lastRedirect = { ...lastRedirect, mode: 'update-password' };
+      }
       if (lastRedirect.mode === 'update-password') {
         options?.onPasswordRecovery?.(lastRedirect);
       } else if (lastRedirect.mode === 'signin' || lastRedirect.mode === 'signup' || lastRedirect.mode === undefined) {
