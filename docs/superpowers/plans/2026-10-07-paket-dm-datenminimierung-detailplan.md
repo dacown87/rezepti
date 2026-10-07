@@ -15,6 +15,8 @@ Rahmen (CLAUDE.md, verbindlich): Production-Migrationen **nur** ueber den Workfl
 | **DM-3 = D7** | Rezeptbilder selbst speichern und ausliefern, Bestandsmigration | D6 (`sharp`, Bildmodul) | L |
 | DM-3b | Abschluss D7: CHECK-Constraint, Proxy-Allowlist, Altroute entfernen | Backfill auf Production abgeschlossen | S |
 
+**Buendelung (2026-10-07):** Der Migrationsteil von DM-1 (Schritt 1 + 2 + Smoke) wird zusammen mit A und B in [Paket L](2026-10-07-grob-loeschpfad-migration.md) umgesetzt; DM-1 bringt danach nur Timer, Admin-Loeschung und Client-Aenderung. Der SSRF-Guard aus DM-3 Schritt A3 entsteht vorher in [Paket S](2026-10-07-grob-ssrf-haertung.md); `safeFetchImage` baut darauf auf.
+
 Begruendung: D8 ist reines SQL plus ein kleiner Timer und schliesst die konkreteste Luecke (Text in der Datenschutzerklaerung verspricht heute mehr, als der Code tut). D6 bringt die Bildverarbeitung, die D7 fuer Komprimierung und EXIF-Freiheit aller gespeicherten Bilder braucht.
 
 ---
