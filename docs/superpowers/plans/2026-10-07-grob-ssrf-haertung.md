@@ -1,6 +1,6 @@
 # Grobplan: SSRF-Haertung ausgehender Abrufe (Paket S)
 
-> **Status: GROBPLAN — muss vor der Umsetzung ausgearbeitet werden** (Befund im Code bestaetigen, Guard-Design, Tests). Kein Code, bevor der Detailplan steht und freigegeben ist.
+> **Status: GROBPLAN — ausgearbeitet im [Detailplan](2026-10-09-paket-s-ssrf-haertung-detailplan.md) (2026-10-09, wartet auf Freigabe).** Kein Code, bevor der Detailplan freigegeben ist.
 
 Stand: 2026-10-07. Herkunft: Nebenbefunde beim Ausarbeiten von [Detailplan DM](2026-10-07-paket-dm-datenminimierung-detailplan.md) (DM-3, Ist-Zustand Proxy und „Nicht Teil dieses Pakets"). Bezug: [TODO.md](../../../TODO.md) → „Nebenbefunde aus den Detailplaenen".
 
@@ -12,7 +12,7 @@ Stand: 2026-10-07. Herkunft: Nebenbefunde beim Ausarbeiten von [Detailplan DM](2
 
 ## Grober Umfang
 1. Zentrales Modul `src/utils/safe-fetch.ts` (Grundlage fuer das in DM-3 geplante `safeFetchImage`): nur `http(s)`, DNS-Aufloesung und Pruefung **jeder** Adresse (`isPublicAddress`: private, Loopback, Link-local, CGNAT, `0.0.0.0/8`, Multicast, IPv6-ULA/Link-local, IPv4-mapped), `redirect: "manual"` mit max. N Hops und Pruefung jedes Ziels, Timeout, Groessenlimit per Stream. Optional DNS-Rebinding-Schutz per undici-`Agent` mit eigenem `lookup`.
-2. Proxy `/proxy/image` darauf umstellen (sofort, unabhaengig von DM-3); spaeter Host-Allowlist (DM-3b).
+2. Proxy `/proxy/image` darauf umstellen (sofort, unabhaengig von DM-3); Host-Allowlist entfaellt (DM-3b ist mit DM-3-light gestrichen, der PDF-Export braucht beliebige Hosts); der SSRF-Guard ist die Schutzmassnahme.
 3. Import-Einstieg: URL vor Jobstart pruefen (`400` mit deutscher Meldung); alle Fetcher mit Nutzer-URL auf `safeFetch` umstellen.
 4. Tests: private IPs, Hostname → private IP (gemockter `lookup`), Redirect auf privat, Redirect-Limit, Groessenabbruch; Route-Test fuer Import mit interner URL.
 5. Doku: CLAUDE.md (Route Auth Inventory: Proxy-Zeile praezisieren, Import-Zeile), `PROJECT_LEARNINGS`.

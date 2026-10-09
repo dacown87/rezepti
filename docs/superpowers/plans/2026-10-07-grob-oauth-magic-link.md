@@ -20,4 +20,4 @@ Zusaetzliche Anmeldewege neben E-Mail + Passwort, ohne die bestehende Login-firs
 - Loeschbestaetigung ohne Passwort (z. B. Re-Login oder E-Mail-Code)?
 
 ## Abhaengigkeiten
-Paket R (Datenschutztext; OAuth-Konten haben keinen Signup-Schritt und muessen das Nutzungsbedingungen-Gate aus [Paket R D9](2026-10-07-paket-r-rechtstexte-detailplan.md) nutzen); nativer Build (Paket N) fuer Deep-Link-Tests.
+Paket R (Datenschutztext; seit 2026-10-09 gibt es **kein** Nutzungsbedingungen-Gate mehr, [D9-light](2026-10-07-paket-r-rechtstexte-detailplan.md) ist nur eine statische Seite; OAuth-Konten brauchen dafuer nichts); nativer Build (Paket N) fuer Deep-Link-Tests.

@@ -1,6 +1,6 @@
 # Grobplan: Go-Live-Betrieb (Paket G — Betreiber-Schritte zum Produktionsstart)
 
-> **Status: GROBPLAN — muss vor der Umsetzung ausgearbeitet werden** (Reihenfolge, genaue API-Aufrufe, Pruefschritte). Ueberwiegend Betreiber-Schritte in Dashboards/APIs, kaum Code.
+> **Status: GROBPLAN — ausgearbeitet im [Detailplan](2026-10-09-paket-g-go-live-betrieb-detailplan.md) (2026-10-09, wartet auf Freigabe).** Kein Code, bevor der Detailplan freigegeben ist.
 
 Stand: 2026-10-07. Bezug: [TODO.md](../../../TODO.md) → „Offene Punkte (Stand 2026-09-29)" → *Aufraeumen / Konten* und *Pruefen / manuell testen* (DMARC) sowie Punkt 7 (Gmail-Monitor). Werkzeug und Stolpersteine: [domain-mail-infra-runbook.md](../../domain-mail-infra-runbook.md), [gmail-production-monitor-runbook.md](../../gmail-production-monitor-runbook.md).
 

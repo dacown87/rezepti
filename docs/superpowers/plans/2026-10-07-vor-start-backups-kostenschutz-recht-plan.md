@@ -2,6 +2,8 @@
 
 Stand: 2026-10-07. Bezug: `TODO.md` → „Vor dem oeffentlichen Start". Rahmen: Supabase bleibt **Free** (keine Projekt-Backups, keine PITR), Repo ist **oeffentlich**.
 
+> **Aenderungen 2026-10-09 (Betreiber):** Projekt ist unentgeltlich, werbefrei, Open Source (AGPL-3.0). Dadurch: **D4b (Kontaktformular) entfaellt, D9 nur noch als statische Seite ohne Zustimmungs-Gate (D9-light), D7 nur noch als Offenlegung (DM-3-light)**; Details in den Paket-Plaenen R und DM. **A bleibt schlank** (siehe dort). Feste Regel: keine Monetarisierung (Werbung, Bezahl-Tier, Spenden mit Gegenleistung), sonst Wiedervorlage der gestrichenen Teile.
+
 Drei unabhaengige Pakete, je ein PR. Reihenfolge: **A Backups → B Kostenschutz → C Recht**. C (Recherche) ist **erledigt**; die Ergebnisse sind in A eingearbeitet und haben die Folgepakete in **D** ergeben.
 
 ---
@@ -25,6 +27,8 @@ Aufbewahrung ist auch eine **DSGVO-Frage**: geloeschte Konten (Art. 17) leben bi
 
 **Hinweis Ausfuehrungsort:** Die Recherche empfiehlt Northflank statt GitHub. Northflank hat aber selbst noch keinen AVV (siehe C) — der muss ohnehin beschafft werden. Bei Northflank wird Schritt 1 unten ein Cron-Job mit kleinem eigenen Image (`postgres:<major>`-Client + `age` + S3-Client) statt eines Workflows; Secrets dann als Northflank-Job-Variablen (Achtung: Env-Update ersetzt die komplette Environment, siehe Runbook).
 
+**Schlank-Prinzip (2026-10-09):** nur das Noetige. Ein Job, ein Ziel (R2), eine Rotation (14 taeglich + 4 woechentlich, Hoechstfrist 35 Tage, genau so in der Datenschutzerklaerung), ein einmaliger realer Restore-Test. Keine eigene Loesch-Logik fuer Backups (R2-Lifecycle), kein zweites Backup-Ziel, keine Monitoring-Infrastruktur ueber den roten Cron-Lauf hinaus. Die read-only Rolle ist **optional** (Verbesserung, kein Muss). Der Loesch-Nachlauf nach Restore bleibt, weil die Recherche (EDPB-CEF-Bericht 2025) ihn verlangt; er ist ein Protokoll plus ein Runbook-Schritt, kein Dienst.
+
 ### Umsetzung
 1. **Workflow `.github/workflows/db-backup.yml`** — `schedule` taeglich ~03:30 UTC + `workflow_dispatch`, `permissions: {}`.
    - `pg_dump` in der Major-Version des Supabase-Postgres (vorher `select version()` pruefen; Postgres-Client aus dem offiziellen apt-Repo bzw. `postgres:<major>`-Container).
@@ -34,7 +38,8 @@ Aufbewahrung ist auch eine **DSGVO-Frage**: geloeschte Konten (Art. 17) leben bi
    - Plausibilitaetscheck: Dump-Groesse > Mindestwert, sonst Lauf rot.
 2. **Rotation** per R2-Lifecycle-Regel (Objekte unter `daily/` nach 14 Tagen loeschen, `weekly/` nach 35 Tagen) statt eigener Loesch-Logik.
 3. **Restore-Runbook `docs/db-backup-restore-runbook.md`:** Download, `age -d -i key.txt`, `pg_restore --clean --if-exists` gegen **Staging** (nie direkt Production), danach Smoke (`/api/v1/health`, Login mit Testkonto, Rezeptanzahl).
-   - **Loesch-Nachlauf:** Nach einem Restore muessen Konten, die nach dem Backup-Zeitpunkt geloescht wurden, erneut geloescht werden. Dafuer ein Protokoll geloeschter User-IDs (nur gehashte ID + Zeitpunkt, im `private`-Schema, 35 Tage) in `private.delete_user_account` mitschreiben und im Runbook einen Schritt „Loeschungen seit Backup-Zeitpunkt nachziehen" aufnehmen. Neue Tabelle → Account-Deletion-Smoke beachten. **Schema-Teil gebuendelt in [Paket L](2026-10-07-grob-loeschpfad-migration.md).**
+   - **Korrektur 2026-10-09 (siehe [Paket L](2026-10-09-paket-l-loeschpfad-migration-detailplan.md), Abschnitt 0):** Ein Protokoll nur in der DB geht beim Restore mit verloren. Deshalb zusaetzlich eine `stdout`-Zeile `[account-deleted] hash=… at=…` (Northflank-Logs) und HMAC-Hash mit offline gesichertem Pepper.
+   - **Loesch-Nachlauf:** Nach einem Restore muessen Konten, die nach dem Backup-Zeitpunkt geloescht wurden, erneut geloescht werden. Dafuer ein Protokoll geloeschter User-IDs (nur gehashte ID + Zeitpunkt, im `private`-Schema, 35 Tage) in `private.delete_user_account` mitschreiben und im Runbook einen Schritt „Loeschungen seit Backup-Zeitpunkt nachziehen" aufnehmen. Neue Tabelle → Account-Deletion-Smoke beachten. **Schema-Teil gebuendelt in [Paket L](2026-10-09-paket-l-loeschpfad-migration-detailplan.md).**
 4. **Restore-Test einmal real gegen `rezepti-staging`** durchspielen und im Runbook mit Datum protokollieren. Staging darf dabei ueberschrieben werden (Betreiber, 2026-10-07).
 5. `TODO.md` + `CLAUDE.md` (Production-Abschnitt) nachziehen.
 
@@ -121,12 +126,12 @@ Nicht Teil der urspruenglichen drei Punkte, aber vor der oeffentlichen Registrie
 | D1 | **AVV Northflank anfordern**, alle uebrigen DPAs als PDF ablegen (ausserhalb des oeffentlichen Repos) | Betreiber | P1 |
 | D2 | **Verzeichnis von Verarbeitungstaetigkeiten** (Art. 30) als internes Dokument — Claude kann eine Vorlage aus der Recherche erstellen | Claude + Betreiber | P1 |
 | D3 | **Text-PR Impressum/Datenschutz** nach Abschnitt 11 der Recherche (nachdem der Betreiber `legal-operator.ts` gefuellt hat); inkl. Backups 35 Tage, Groq-SCC, Supabase Pte. Ltd., Art. 21 separat, Aufsichtsbehoerde | Claude, Daten vom Betreiber | P1 |
-| D4 | **Zweiter Kontaktweg + Kontaktadresse** `kontakt@recipedeckapp.de` statt Gmail (Brevo/Cloudflare-Mail-Routing) | Betreiber + Claude | P1/P2 |
+| D4 | **Kontaktadresse** `kontakt@recipedeckapp.de` statt Gmail (Cloudflare-Mail-Routing). **Zweiter Kontaktweg/Formular entfaellt (2026-10-09)** | Betreiber | P2 |
 | D5 | **Groq Zero Data Retention** in der Console einschalten | Betreiber | P2 |
 | D6 | **EXIF-Daten** aus Foto-Uploads serverseitig entfernen, bevor sie an Groq gehen und gespeichert werden (Web/PWA behaelt EXIF sicher, nativ nur zufaellig nicht) | Claude | P2 |
-| D7 | **Fremdbilder nicht mehr hotlinken** — serverseitig speichern (passt zur 250-KB-Kompressionsregel) oder ueber den bestehenden Proxy laden; sonst in der Erklaerung offenlegen | Claude | P2 |
+| D7 | **Fremdbilder: in der Erklaerung offenlegen (entschieden 2026-10-09)**; kein Speichern, kein Proxy (Vollvariante im Archiv des DM-Plans) | Claude (Text) | P2 |
 | D8 | **Bug-Reports nach Kontoloeschung vollstaendig anonymisieren** (`metadata_json`: `activeHouseholdId`, `userAgent`, `lastFailureSnapshot` mit `submittedUrl`/`errorMessage`/`jobId`; Spalte `route`) + feste Loeschfrist | Claude | P2 |
-| D9 | **Nutzungsbedingungen** (Mindestalter 16, unentgeltlich ohne Verfuegbarkeitszusage, Haftung § 309 Nr. 7 BGB, Inhalte/Urheberrecht, Meldeweg) + Zustimmung beim Signup | Claude-Entwurf, Betreiber prueft | P2 |
+| D9 | **Nutzungsbedingungen als kurze statische Seite** (Mindestalter 16, unentgeltlich ohne Verfuegbarkeitszusage, Haftung § 309 Nr. 7 BGB, Inhalte/Urheberrecht, Meldeweg), **ohne Zustimmungs-Gate** (2026-10-09) | Claude-Entwurf, Betreiber prueft | P3 |
 
 ---
 

@@ -9,14 +9,13 @@ Impressum, Datenschutzerklaerung und Nutzungsbedingungen sind vollstaendig und k
 
 ## Grober Umfang
 1. **D2 Verzeichnis von Verarbeitungstaetigkeiten (Art. 30)** — internes Dokument, **nicht** im oeffentlichen Repo; Entwurf aus Recherche Abschnitt 2/10, Betreiber prueft.
-2. **D4 Kontakt** — Kontaktadresse auf eigener Domain (z. B. `kontakt@recipedeckapp.de`, Cloudflare Email Routing o. ae.) und zweiter Kontaktweg (oeffentliches Formular ohne Login oder Telefonnummer).
+2. **D4 Kontakt** — nur Kontaktadresse auf eigener Domain (z. B. `kontakt@recipedeckapp.de`, Cloudflare Email Routing o. ae.). **Zweiter Kontaktweg/Formular entfaellt (2026-10-09).**
 3. **D3 Text-PR** — `mobile/utils/legal-operator.ts` (Daten vom Betreiber), `mobile/app/impressum.tsx`, `mobile/app/datenschutz.tsx` gemaess Recherche Abschnitt 11; Platzierung der Links nicht nur unter Einstellungen.
-4. **D9 Nutzungsbedingungen** — neue Seite (Mindestalter 16, unentgeltlich ohne Verfuegbarkeitszusage, Haftung § 309 Nr. 7 BGB, Inhalte/Urheberrecht, Meldeweg) und Zustimmung beim Signup.
+4. **D9-light Nutzungsbedingungen** — kurze statische Seite (Mindestalter 16, unentgeltlich ohne Verfuegbarkeitszusage, Haftung § 309 Nr. 7 BGB, Inhalte/Urheberrecht, Meldeweg), nur Hinweis mit Link im Signup, **kein Zustimmungs-Gate, keine Migration** (2026-10-09).
+6. **Lizenz** — AGPL-3.0, siehe Detailplan Abschnitt 8. **Monetarisierungs-Grenze** als feste Regel, siehe Detailplan Abschnitt 0a.
 5. Gegenlesen durch Dritte (Betreiber).
 
 ## Offene Fragen (fuer den Detailplan)
-- Formular: eigener Endpoint (Spam-Schutz, Rate-Limit, Brevo-Versand) oder Telefonnummer?
-- Zustimmung zu Nutzungsbedingungen: Checkbox beim Signup, Speicherung von Version + Zeitpunkt? Bestandskonten?
 - Wo liegt das VVT (Vault, privates Repo)?
 - Reihenfolge: haengt an den Betreiber-Daten (Anschrift, Bundesland, Region Northflank, Brevo-Vertragspartner).
 

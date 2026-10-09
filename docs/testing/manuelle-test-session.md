@@ -23,4 +23,4 @@ Stand: 2026-10-07. Alle Tests, die sich nicht per Skript oder CI pruefen lassen,
 - [ ] **Geraetetest Android** — Smoke-Liste aus [Paket N](../superpowers/plans/2026-10-07-grob-nativer-testbuild.md).
 
 ## Spaeter dazukommende Tests (aus den Paketen)
-Beim Abschluss der jeweiligen Pakete hier ergaenzen, z. B. Kontaktformular anonym absenden (R/D4b), Nutzungsbedingungen-Gate mit Bestandskonto (R/D9), EXIF-Pruefung eines gespeicherten Fotos mit `exiftool` und Netzwerk-Tab ohne Fremd-Hosts (DM-2/DM-3), `429` nach dem 16. Import (B).
+Beim Abschluss der jeweiligen Pakete hier ergaenzen, z. B. `/nutzungsbedingungen` anonym erreichbar und Hinweis im Signup sichtbar (R/D9-light), EXIF-Pruefung eines gespeicherten Fotos mit `exiftool` (DM-2), Foto-Rezept-Thumbnail in der Liste (DM-3-light), `429` nach dem 16. Import (B). Entfallen seit 2026-10-09: Kontaktformular, Nutzungsbedingungen-Gate, Netzwerk-Tab ohne Fremd-Hosts.

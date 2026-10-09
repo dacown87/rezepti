@@ -1,6 +1,6 @@
 # Grobplan: Nativer Testbuild nach Expo SDK 57 (Paket N)
 
-> **Status: GROBPLAN — muss vor der Umsetzung ausgearbeitet werden** (Profil, Plattform, Testliste, Akzeptanzkriterien). Nichts bauen, bevor der Detailplan steht und freigegeben ist.
+> **Status: GROBPLAN — ausgearbeitet im [Detailplan](2026-10-09-paket-n-nativer-testbuild-detailplan.md) (2026-10-09, wartet auf Freigabe).** Kein Code, bevor der Detailplan freigegeben ist.
 
 Stand: 2026-10-07. Bezug: [TODO.md](../../../TODO.md) → „Vor dem oeffentlichen Start" → „Nativer Testbuild nach Expo SDK 57".
 

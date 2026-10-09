@@ -1,8 +1,10 @@
-# Detailplan: Datenminimierung (Paket DM — D6, D7, D8)
+# Detailplan: Datenminimierung (Paket DM — D6, D7-light, D8)
 
 > **Status: Detailplan — wartet auf Freigabe.** Kein Code, bevor der Betreiber die Entscheidungen am Ende bestaetigt hat.
 
 Stand: 2026-10-07. Grobplan: [2026-10-07-grob-datenminimierung.md](2026-10-07-grob-datenminimierung.md). Bezug: [TODO.md](../../../TODO.md) → „Vor dem oeffentlichen Start" (Code-/Textarbeit aus der Rechtsrecherche, „Loeschfrist fuer Fehlerberichte festlegen"); [Vor-Start-Plan](2026-10-07-vor-start-backups-kostenschutz-recht-plan.md) Abschnitt D; [Detailplan Paket R](2026-10-07-paket-r-rechtstexte-detailplan.md) (uebernimmt die Textbausteine). Befunde: [Rechtsrecherche](../../legal/2026-10-impressum-datenschutz-recherche.md) Abschnitte 6, 7, 9.6, 11.3; [Faktencheck](../../legal/faktencheck/verify-3-dsgvo.md) D1–D4, E8, F9.
+
+> **Umfang reduziert am 2026-10-09 (Entscheidung Betreiber):** **DM-3 (Bilder selbst speichern) ist abgespeckt zu „DM-3-light: offenlegen statt proxyen“.** Keine Tabelle `private.recipe_images`, kein Backfill, keine Token-URLs, kein DM-3b. Die Vollvariante steht unverändert im Archiv am Ende dieses Plans und wird nur bei einem Trigger wieder aufgenommen (siehe dort). DM-1 (D8) und DM-2 (D6, EXIF) bleiben unverändert.
 
 Rahmen (CLAUDE.md, verbindlich): Production-Migrationen **nur** ueber den Workflow *Apply Supabase Migrations*; jede neue User-ID-Spalte in `private.delete_user_account` **und** `COVERED_USER_COLUMNS` (`scripts/supabase/account-deletion-smoke.ts:130`); Rezeptbilder **max. 250 KB**; keine schweren lokalen Laeufe (Messserien/Backfills nicht auf dem Entwicklerrechner).
 
@@ -12,8 +14,8 @@ Rahmen (CLAUDE.md, verbindlich): Production-Migrationen **nur** ueber den Workfl
 |---|---|---|---|
 | **DM-1 = D8** | Fehlerberichte bei Kontoloeschung bereinigen + Loeschfrist (+ abgelaufene Einladungen, siehe DM-1b) | keine (parallel zu D6 moeglich) | M |
 | **DM-2 = D6** | EXIF/GPS aus Foto-Uploads entfernen, `sharp` einfuehren | keine | S–M |
-| **DM-3 = D7** | Rezeptbilder selbst speichern und ausliefern, Bestandsmigration | D6 (`sharp`, Bildmodul) | L |
-| DM-3b | Abschluss D7: CHECK-Constraint, Proxy-Allowlist, Altroute entfernen | Backfill auf Production abgeschlossen | S |
+| **DM-3-light = D7** | Fremdbilder in der Datenschutzerklärung offenlegen; Foto-Thumbnail-Bug prüfen/beheben; `PATCH imageUrl` validieren | keine (Text in Paket R D3a) | S |
+| ~~DM-3 (Vollvariante)~~ / ~~DM-3b~~ | Bilder selbst speichern, Backfill, Constraint | **entfallen** (2026-10-09), Archiv am Ende | – |
 
 **Buendelung (2026-10-07):** Der Migrationsteil von DM-1 (Schritt 1 + 2 + Smoke) wird zusammen mit A und B in [Paket L](2026-10-07-grob-loeschpfad-migration.md) umgesetzt; DM-1 bringt danach nur Timer, Admin-Loeschung und Client-Aenderung. Der SSRF-Guard aus DM-3 Schritt A3 entsteht vorher in [Paket S](2026-10-07-grob-ssrf-haertung.md); `safeFetchImage` baut darauf auf.
 
@@ -149,7 +151,29 @@ Befund aus dem [Detailplan R](2026-10-07-paket-r-rechtstexte-detailplan.md): `sr
 
 ---
 
-## DM-3 — D7 Keine Hotlinks auf Fremdbilder
+## DM-3-light — D7 Fremdbilder offenlegen statt proxyen
+
+**Entscheidung 2026-10-09:** Rezeptbilder werden weiter direkt von der Quellseite geladen (Hotlink). Dabei erhält der Fremdserver die IP-Adresse der Nutzerin bzw. des Nutzers. Das wird in der Datenschutzerklärung offengelegt, statt es technisch zu verhindern. **Restrisiko:** Die Recherche stuft Hotlinking als „besser vermeiden“ ein; die Rechtslage ist umstritten (Recherche 2.3, 7; LG München I, 3 O 17493/20, Google Fonts). Ein Betreiber ohne Gewinnabsicht und ohne Werbung ist ein unwahrscheinliches Abmahnziel, ausgeschlossen ist es nicht. Beim Gegenlesen (Paket R, Abschnitt 6) ausdrücklich bestätigen lassen.
+
+**Was bleibt (klein):**
+1. **Text in Paket R (D3a):** Satz in `datenschutz.tsx` (Wortlaut siehe R 4.3, Zeile „Fremdbilder“): Rezeptbilder (auch Chefkoch-Bildvorschläge) werden direkt vom Server der Quellseite geladen, dieser erhält deine IP-Adresse; Rechtsgrundlage lit. f; Widerspruch nach Art. 21. Wirkt sofort, kein Code.
+2. **Foto-Thumbnail-Bug prüfen** (Ist-Zustand unten): Listen-Vorschaubilder von Foto-Rezepten laden vermutlich nicht (`/api/v1/recipes/:id/image` verlangt Bearer-Header → 401). Auf Staging verifizieren ([Test-Session](../../testing/manuelle-test-session.md)). Das ist ein **Funktionsfehler, kein Datenschutzthema**; Behebung nur, wenn bestätigt, als kleiner eigener Fix (z. B. Bild als Blob mit `apiFetch` laden oder, falls nötig, data:-URLs für die Liste vermeiden). Nicht Teil dieses Pakets, bis bestätigt.
+3. **`PATCH /api/v1/recipes/:id` validiert `imageUrl` nicht** (nimmt beliebige Strings, `recipes.ts:173-188` → `db-react.ts:414`): auf `https://`-URL oder `data:image/…` beschränken (Zod). Klein, unabhängig, kann mit DM-2 mitlaufen.
+4. **Proxy `/api/v1/proxy/image`:** bleibt für den PDF-Export (beliebige Hosts) und wird nur durch Paket S (SSRF-Guard) gehärtet. **Keine Host-Allowlist**, weil der PDF-Export Alt-URLs beliebiger Quellseiten braucht.
+5. **Unverändert:** 250-KB-Regel gilt weiter für Foto-Uploads und data:-URLs (Kompression im Client bzw. DM-2); Fremdbilder werden nie gespeichert, nur verlinkt.
+
+**Doku-Nachzug:** nur der Text in R (D3a); `CLAUDE.md` bleibt unverändert.
+
+**Akzeptanz:** Die Datenschutzerklärung nennt den Hotlink samt Rechtsgrundlage und Widerspruch. Der Thumbnail-Bug ist auf Staging bestätigt oder ausgeschlossen. `PATCH imageUrl` lehnt Nicht-URLs ab (Test).
+**Aufwand:** S.
+
+**Wiedervorlage der Vollvariante (Trigger):** Schreiben einer Aufsichtsbehörde oder Abmahnung zum Hotlink; Monetarisierung (Paket R, 0a); Einführung von Cloudflare R2 für Bilder aus anderen Gründen; wenn abgelaufene CDN-Links (Instagram/Facebook) die Bildqualität im Alltag stören (dann aus Produktgründen).
+
+---
+
+## Archiv — DM-3 Vollvariante (nur bei Trigger)
+
+### Archiv DM-3 — D7 Keine Hotlinks auf Fremdbilder
 
 ### Ist-Zustand
 - Schema: `recipes.image_url text` (`src/schema.ts:9`; `supabase/migrations/20260605120000_recipes_ownership_core.sql:17`). Inhalt: Fremd-URL **oder** data:-URL (Foto-Fallback).
@@ -306,12 +330,14 @@ Empfehlung: DB-Variante hinter einer kleinen Schnittstelle (`RecipeImageStore` m
 |---|---|---|---|
 | 1 | **Loeschfrist Fehlerberichte** | **12 Monate ab Eingang**, unabhaengig vom Status (eine Regel, leicht zu beschreiben, harte Obergrenze) | 6 Monate nach Erledigung + max. 12 Monate; kuerzer (6 Monate ab Eingang) |
 | 2 | **Fehlerberichte bei Kontoloeschung** | **Whitelist-Anonymisierung**, Text bleibt (Fehleranalyse bleibt moeglich) | Berichte ganz loeschen (einfachster DSE-Satz, kehrt Entscheidung aus `20261007120000` um) |
-| 3 | **Bildspeicherort** | **DB-Tabelle `private.recipe_images`** hinter austauschbarer Schnittstelle; Umzug auf R2 ab ca. 200 MB Bilddaten | sofort Cloudflare R2 (EU) — sinnvoll, wenn die Messung (B1) schon heute > 1 500 Bilder zeigt; Supabase Storage nicht empfohlen |
-| 4 | **Nicht mehr ladbare Bestandsbilder** | **auf NULL setzen** (Emoji-Fallback; meist ohnehin tote CDN-Links) | Fremd-URL behalten und in der DSE offenlegen (widerspricht dem Ziel) |
-| 5 | **Wo laeuft der Backfill** | **Northflank-Einmal-Job** aus dem Production-Image, Staging zuerst | lokal mit Production-`DATABASE_URL` (Zugangsdaten lokal, Rechner und Heimnetz-IP im Spiel — nicht empfohlen) |
-| 6 | **Bestandsmessung (B1)** | Betreiber fuehrt die zwei read-only Abfragen vor Freigabe von DM-3 im SQL-Editor aus und traegt die Zahlen hier nach | Claude fuehrt sie per vorhandener Staging/Prod-Verbindung aus, falls freigegeben |
-| 7 | **Bild-URLs ohne Anmeldung** (Token-URL) | **ja** — einzige Variante, die mit `<Image>`, PDF und nativ ohne Umbau funktioniert | Bearer-Auth mit Blob-Fetch im Client (deutlich mehr Code, schlechteres Caching) |
-| 8 | **Chefkoch-Bildvorschlaege** | **ueber den Proxy mit Host-Allowlist** laden | direkt laden und in der DSE offenlegen |
+| 3 | ~~**Bildspeicherort**~~ — *entfällt (DM-3-light)* | **DB-Tabelle `private.recipe_images`** hinter austauschbarer Schnittstelle; Umzug auf R2 ab ca. 200 MB Bilddaten | sofort Cloudflare R2 (EU) — sinnvoll, wenn die Messung (B1) schon heute > 1 500 Bilder zeigt; Supabase Storage nicht empfohlen |
+| 4 | ~~**Nicht mehr ladbare Bestandsbilder**~~ — *entfällt* | **auf NULL setzen** (Emoji-Fallback; meist ohnehin tote CDN-Links) | Fremd-URL behalten und in der DSE offenlegen (widerspricht dem Ziel) |
+| 5 | ~~**Wo laeuft der Backfill**~~ — *entfällt* | **Northflank-Einmal-Job** aus dem Production-Image, Staging zuerst | lokal mit Production-`DATABASE_URL` (Zugangsdaten lokal, Rechner und Heimnetz-IP im Spiel — nicht empfohlen) |
+| 6 | ~~**Bestandsmessung (B1)**~~ — *entfällt* | Betreiber fuehrt die zwei read-only Abfragen vor Freigabe von DM-3 im SQL-Editor aus und traegt die Zahlen hier nach | Claude fuehrt sie per vorhandener Staging/Prod-Verbindung aus, falls freigegeben |
+| 7 | ~~**Bild-URLs ohne Anmeldung** (Token-URL)~~ — *entfällt* | **ja** — einzige Variante, die mit `<Image>`, PDF und nativ ohne Umbau funktioniert | Bearer-Auth mit Blob-Fetch im Client (deutlich mehr Code, schlechteres Caching) |
+| 8 | **Chefkoch-Bildvorschlaege** — *neu (2026-10-09): direkt laden und in der DSE offenlegen* | **ueber den Proxy mit Host-Allowlist** laden | direkt laden und in der DSE offenlegen |
 | 9 | **Abgelaufene Einladungen** (DM-1b, aus Paket R) | mit in DM-1 aufnehmen, Frist ca. 30 Tage nach Ablauf/Annahme | eigener kleiner PR |
 
 Nach Freigabe: Entscheidungen in diesen Plan eintragen, TODO.md-Verweis auf diesen Detailplan pruefen, dann DM-1 (D8) beginnen.
+
+**Stand 2026-10-09:** Entscheidungen 3–7 entfallen mit DM-3-light; Nr. 8 ist jetzt „direkt laden und offenlegen“ (die Proxy-Variante gehört zur Vollvariante im Archiv). Offen bleiben 1, 2 und 9.
