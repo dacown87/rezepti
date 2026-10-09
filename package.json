@@ -1,5 +1,6 @@
 {
   "name": "rezepti",
+  "license": "AGPL-3.0-or-later",
   "version": "1.0.240",
   "description": "Rezept-Extraktor mit SQLite-Export",
   "type": "module",

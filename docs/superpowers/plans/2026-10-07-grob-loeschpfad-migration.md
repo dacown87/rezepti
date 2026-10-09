@@ -1,6 +1,6 @@
 # Grobplan: Gemeinsame Loeschpfad-Migration (Paket L — Buendel aus A, B, DM-1)
 
-> **Status: GROBPLAN — muss vor der Umsetzung ausgearbeitet werden** (genaue Migration, Smoke-Erweiterung, Reihenfolge der Folge-PRs). Kein Code, bevor die Entscheidungen der Quellpakete feststehen und dieser Plan freigegeben ist.
+> **Status: GROBPLAN — ausgearbeitet im [Detailplan](2026-10-09-paket-l-loeschpfad-migration-detailplan.md) (2026-10-09, wartet auf Freigabe).** Kein Code, bevor der Detailplan freigegeben ist.
 
 Stand: 2026-10-07. Bezug: [TODO.md](../../../TODO.md) → „Vor dem oeffentlichen Start"; Quellpakete: [Vor-Start-Plan](2026-10-07-vor-start-backups-kostenschutz-recht-plan.md) Abschnitt **A** Schritt 3 (Loesch-Protokoll) und Abschnitt **B** Schritt 1 (`import_quota_usage`), [Detailplan DM](2026-10-07-paket-dm-datenminimierung-detailplan.md) **DM-1** Schritt 1 (Fehlerberichte anonymisieren).
 

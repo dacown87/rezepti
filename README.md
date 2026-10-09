@@ -22,6 +22,14 @@ Rezepte aus URLs extrahieren — YouTube, Instagram, TikTok, Webseiten, Cookidoo
 
 ---
 
+## Lizenz
+
+Der Quellcode steht unter der [GNU Affero General Public License v3.0 oder später](LICENSE) (AGPL-3.0-or-later). Der Name „RecipeDeck“ und das Logo sind **nicht** mitlizenziert.
+
+Die Instanz unter https://www.recipedeckapp.de ist ein unentgeltlicher, nicht kommerzieller Best-Effort-Dienst ohne Verfügbarkeitszusage. Du kannst RecipeDeck auch selbst hosten (siehe unten).
+
+---
+
 ## Voraussetzungen
 
 - [Docker](https://docs.docker.com/get-docker/) & Docker Compose

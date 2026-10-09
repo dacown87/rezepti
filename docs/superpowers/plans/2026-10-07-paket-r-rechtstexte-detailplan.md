@@ -1,8 +1,14 @@
-# Detailplan: Rechtstexte und Kontakt (Paket R: D2, D4, D3, D9)
+# Detailplan: Rechtstexte und Kontakt (Paket R: D2, D4a, D3, D9-light)
 
 > **Status: Detailplan — wartet auf Freigabe.** Kein Code und keine Texte im Repo ändern, bevor der Betreiber diesen Plan freigegeben hat.
 
 Stand: 2026-10-07. Bezug: [Grobplan Paket R](2026-10-07-grob-rechtstexte-und-kontakt.md) · [TODO.md](../../../TODO.md) („Vor dem oeffentlichen Start“) · [Vor-Start-Plan](2026-10-07-vor-start-backups-kostenschutz-recht-plan.md) Abschnitt D · Fachgrundlage: [Rechtsrecherche](../../legal/2026-10-impressum-datenschutz-recherche.md) mit [Faktencheck](../../legal/faktencheck/). **Keine Rechtsberatung.** Alle Rechtsaussagen in diesem Plan stammen aus der Recherche (Abschnittsnummern in Klammern). Was dort nicht steht, ist als „Gegenlesen“ markiert und keine Rechtsaussage.
+
+> **Umfang reduziert am 2026-10-09 (Entscheidung Betreiber):** Das Projekt ist unentgeltlich, werbefrei und Open Source (AGPL-3.0, siehe Abschnitt 8). Darauf gestützt (Recherche 1.1, 9.3, 9.5):
+> - **D4b Kontaktformular entfällt.** Nur die E-Mail-Adresse bleibt (D4a). Ein zweiter Kontaktweg ist nur Pflicht, wenn § 5 DDG greift, und das ist ohne Monetarisierung unwahrscheinlich.
+> - **D9 ist abgespeckt** auf eine kurze statische Seite `/nutzungsbedingungen`. **Keine Migration, kein Zustimmungs-Gate, keine Checkbox.** Im Signup nur ein Hinweis mit Link.
+> - **Monetarisierungs-Grenze** (Abschnitt 0a) ist ab jetzt eine feste Regel: Sie trägt die Annahme „§ 5 DDG, DSA und BFSG greifen wahrscheinlich nicht“.
+> - Die ursprünglichen Fassungen von D4b und D9 stehen als Archiv am Dokumentende (Abschnitt 9), falls ein Trigger eintritt.
 
 ---
 
@@ -12,17 +18,29 @@ Stand: 2026-10-07. Bezug: [Grobplan Paket R](2026-10-07-grob-rechtstexte-und-kon
 |---|---|---|---|---|
 | 1 | **D2** VVT-Entwurf | Betreiber-Schritt (Claude schreibt den Entwurf außerhalb des Repos) | nichts | M |
 | 2 | **D4a** Kontaktadresse `kontakt@recipedeckapp.de` | Betreiber-Schritt (DNS/Postfach) | Betreiber-Entscheidung E3 | S |
-| 3 | **D4b** Kontaktformular | PR | D4a (Empfängeradresse) | M |
+| 3 | ~~**D4b** Kontaktformular~~ | **entfällt** (2026-10-09), siehe Abschnitt 0a und 9 | – | – |
 | 4 | **D3a** Text-PR, sofort belegbare Teile | PR | Betreiber-Daten (E1, E2, E5), D4 | M |
-| 5 | **D9** Nutzungsbedingungen + Zustimmung | PR (Migration) | D3a (Anbieterangaben, Kontakt, Meldeweg), Betreiber-Entscheidungen E7–E9 | L |
+| 5 | **D9-light** Nutzungsbedingungen als statische Seite | PR (nur Text + Link, keine Migration) | D3a (Anbieterangaben, Kontakt, Meldeweg) | S |
 | 6 | **D3b** Text-Nachzug | PR | D1 Northflank-AVV, Paket A live, Paket DM (D6/D7/D8), D5 ZDR | S |
-| 7 | Gegenlesen durch Dritte | Betreiber | D3b + D9 | – |
+| 7 | Gegenlesen durch Dritte | Betreiber | D3b + D9-light | – |
 
 **Warum diese Reihenfolge:**
 - **D2 zuerst:** keine Abhängigkeiten. Das VVT ist die Liste aller Verarbeitungen mit Zweck, Rechtsgrundlage, Empfängern und Fristen (Recherche 2.3, 10). Die Datenschutzerklärung (D3) bildet genau diese Liste ab. Lücken im VVT, etwa fehlende Löschfristen, zeigen früh, welche Platzhalter D3 noch haben wird.
 - **D4 vor D3:** `legal-operator.ts` braucht die endgültige Kontaktadresse und das Feld für den zweiten Kontaktweg (Recherche 11.1, Z. 10 und „neu“). Der Text-PR soll diese Werte nicht zweimal anfassen.
 - **D3 in zwei Stufen:** Die Datenschutzerklärung darf nichts behaupten, was noch nicht stimmt. Die Recherche sagt das ausdrücklich: Northflank-AVV „erst schreiben, wenn der AVV vorliegt“, EXIF-Satz „erst nach technischer Umsetzung“ (11.3). D3a korrigiert alles, was heute belegt ist. D3b zieht nach, sobald A, DM und D1 erledigt sind.
-- **D9 zuletzt:** Die Nutzungsbedingungen verweisen auf Anbieter, Kontakt, Meldeweg und Datenschutzerklärung. Die Zustimmungslogik (Migration, Gate) ist die einzige Schemaänderung im Paket und sollte in einem eigenen, isolierten PR landen.
+- **D9-light zuletzt:** Die Nutzungsbedingungen verweisen auf Anbieter, Kontakt, Meldeweg und Datenschutzerklärung. Es gibt keine Schemaänderung mehr im Paket.
+
+---
+
+## 0a. Monetarisierungs-Grenze (feste Regel seit 2026-10-09)
+
+Die Annahmen dieses Plans stützen sich darauf, dass RecipeDeck **nicht kommerziell** betrieben wird (Recherche 1.1: OLG Hamburg / Gesetzesbegründung; 9.3 DSA; 9.5 BFSG). Das gilt nur, solange **alle** drei Punkte stimmen:
+
+- keine Werbung und keine Affiliate-Links,
+- kein Bezahl-Tier und keine kostenpflichtigen Funktionen,
+- keine Spenden **mit Gegenleistung** (z. B. Extra-Funktionen für Spender).
+
+**Folge, wenn einer davon eintritt:** § 5 DDG greift sicher, der DSA ist wahrscheinlich anwendbar, und die vorsorglich gestrichenen Teile (zweiter Kontaktweg, Meldeverfahren, ggf. Zustimmungsnachweis) müssen vor dem Start der Monetarisierung wieder aufgenommen werden (Archiv in Abschnitt 9). Die Regel steht auch in `CLAUDE.md` und `TODO.md`, damit sie bei Feature-Entscheidungen auffällt. Reine Spenden ohne Gegenleistung gelten nach Recherche-Linie als unkritisch, sind aber beim Gegenlesen (Abschnitt 6) ausdrücklich zu bestätigen.
 
 ---
 
@@ -73,7 +91,7 @@ Stand: 2026-10-07. Bezug: [Grobplan Paket R](2026-10-07-grob-rechtstexte-und-kon
 
 | # | Verarbeitung | Rechtsgrundlage (2.3) | Empfänger | Frist (Stand) |
 |---|---|---|---|---|
-| 1 | Nutzerkonto, Login, Sitzung, Passwort-/Bestätigungsmails; künftig Zustimmung zu den Nutzungsbedingungen (D9) | lit. b | Supabase (Pte. Ltd., SCC), Brevo (SMTP) | bis Kontolöschung; Auth-Logs nach Anbieterfrist [offen, im Dashboard prüfen] |
+| 1 | Nutzerkonto, Login, Sitzung, Passwort-/Bestätigungsmails | lit. b | Supabase (Pte. Ltd., SCC), Brevo (SMTP) | bis Kontolöschung; Auth-Logs nach Anbieterfrist [offen, im Dashboard prüfen] |
 | 2 | Inhalte: Rezepte, Notizen, Bewertungen, Favoriten, Sammlungen, Planer, Einkaufsliste, Haushalt | lit. b | Supabase, Northflank | bis Kontolöschung; Haushaltsinhalte siehe Recherche 6 |
 | 3 | KI-Import (URL, Text, Foto, Audio; yt-dlp-Abruf; Job-Daten mit User-Agent/URL im RAM) | lit. b (h. M.) | Groq UK Ltd. (SCC, USA), ggf. Cobalt [Betreiber prüfen] | Jobs ≤ 7 Tage RAM (Recherche 9.6); Groq standardmäßig keine Speicherung, ≤ 30 Tage anlassbezogen, mit ZDR keine (D5). **TIA Groq** als Anhang (Recherche 4.2) |
 | 4 | Bildvorschläge (Rezeptname an Chefkoch) | lit. b | Chefkoch | keine Speicherung beim Empfänger bekannt |
@@ -106,9 +124,9 @@ Stand: 2026-10-07. Bezug: [Grobplan Paket R](2026-10-07-grob-rechtstexte-und-kon
 
 ---
 
-## 3. D4 — Kontaktadresse auf eigener Domain + zweiter Kontaktweg
+## 3. D4 — Kontaktadresse auf eigener Domain (zweiter Kontaktweg entfällt)
 
-**Rechtlicher Rahmen (Recherche 1.4, 0 P1 Nr. 2, P2 Nr. 11):** Ein zweiter schneller Kontaktweg ist nur Pflicht, wenn § 5 DDG greift. Das ist umstritten, wird aber vorsorglich empfohlen. Ein Kontaktformular genügt (EuGH C-298/07), ersetzt aber laut Schwenke nicht die E-Mail. „Problem melden“ setzt einen Login voraus und reicht deshalb nicht. Für Consumer-Gmail gibt es keinen AVV. Empfohlen wird ein Postfach auf eigener Domain bei einem EU-Anbieter mit AVV; ob das nötig ist, ist umstritten (Recherche 3).
+**Rechtlicher Rahmen (Recherche 1.4, 0 P1 Nr. 2, P2 Nr. 11):** Ein zweiter schneller Kontaktweg ist nur Pflicht, wenn § 5 DDG greift. Das ist umstritten; **entschieden 2026-10-09: nicht vorsorglich umsetzen**, solange die Monetarisierungs-Grenze (0a) hält. Die Impressums-Pflicht nach § 18 MStV (Name, Anschrift) bleibt davon unberührt; Schwenke: bei komplett nicht kommerziellen Angeboten ist nach § 18 MStV nicht einmal eine E-Mail-Adresse Pflicht. Wir geben sie trotzdem an (nötig für Meldeweg, Betroffenenrechte, Einladungs-Mails). Ein Kontaktformular genügt (EuGH C-298/07), ersetzt aber laut Schwenke nicht die E-Mail. „Problem melden“ setzt einen Login voraus und reicht deshalb nicht. Für Consumer-Gmail gibt es keinen AVV. Empfohlen wird ein Postfach auf eigener Domain bei einem EU-Anbieter mit AVV; ob das nötig ist, ist umstritten (Recherche 3).
 
 ### D4a — Kontaktadresse (Betreiber-Schritt)
 
@@ -136,7 +154,217 @@ Brevo ist im aktuellen Setup nur Versender (Runbook Z. 12–13, 125–138) und k
 **Akzeptanz:** Eine Mail an `kontakt@recipedeckapp.de` kommt an. SPF ist ein einziger gültiger Record. Brevo-Mails bestehen weiter SPF und DKIM. Das Runbook ist aktualisiert.
 **Risiken:** Ein doppelter SPF-Record bricht die Zustellung aller Brevo-Mails → Schritt 3 ist Pflicht. DMARC steht auf `p=none`; eine geplante Verschärfung (Runbook Z. 73) erst danach angehen.
 
-### D4b — Öffentliches Kontaktformular (PR)
+### D4b — Kontaktformular: **entfällt** (2026-10-09)
+Kein Endpoint `/api/v1/contact`, keine Seite `/kontakt`, kein Feld `contactFormPath`, keine neuen Northflank-Variablen. Der Plan steht im Archiv (Abschnitt 9). Wiedervorlage bei: Monetarisierung (0a), Aufforderung einer Behörde oder Anwaltskanzlei, oder wenn die Kontaktadresse nachweislich nicht ausreicht (z. B. unbeantwortete Mails durch Spamfilter).
+
+**Aufwand:** D4a S, D4b entfällt.
+
+---
+
+## 4. D3 — Text-PR Impressum und Datenschutzerklärung
+
+**Voraussetzung:** Der Betreiber füllt `legal-operator.ts` (E1, E2, E5). Danach wird `LEGAL_PLACEHOLDERS_OPEN` automatisch `false` und der Entwurfshinweis verschwindet.
+
+**Legende Abhängigkeiten:**
+- **[sofort]** heute belegt
+- **[Betr]** Betreiber-Daten
+- **[D4]** Kontakt
+- **[D1]** Northflank-AVV/Region
+- **[D5]** Groq ZDR
+- **[A]** Backups live
+- **[DM6/7/8]** Paket Datenminimierung
+- **[B]** Importkontingent live
+- **[Cob]** Cobalt-Status geklärt
+
+Regel: Ein Satz kommt erst in den Text, wenn seine Voraussetzung erfüllt ist. Für jede Zeile mit offener Voraussetzung gibt es **D3b** (Nachzug).
+
+### 4.1 `mobile/utils/legal-operator.ts` (Recherche 11.1)
+| Zeile | Änderung | Abh. |
+|---|---|---|
+| 1 | Kommentar → „§ 18 Abs. 1 MStV, vorsorglich § 5 DDG“ | sofort |
+| 6–8 | echte Angaben; optionales Feld `careOf` (nur bei schriftlicher Zustellvollmacht, Recherche 1.3) | Betr |
+| 10 | `kontakt@recipedeckapp.de` | D4 |
+| 12 | konkrete Behörde mit Anschrift/URL (Recherche 8; bei Bayern BayLDA inkl. Postanschrift Postfach 1349, 91504 Ansbach) | Betr |
+| 15 | `LEGAL_LAST_UPDATED` neu setzen | sofort |
+| 17 | `LEGAL_PLACEHOLDERS_OPEN` so umbauen, dass optionale bzw. leere Felder nicht abstürzen (z. B. nur über Pflichtfelder iterieren oder `typeof v === 'string' && v.startsWith('[')`) | sofort |
+
+### 4.2 `mobile/app/impressum.tsx` (Recherche 11.2)
+| Zeile | Änderung | Abh. |
+|---|---|---|
+| 7 | „Angaben gemäß § 18 Abs. 1 MStV und § 5 DDG“ (oder neutral „Anbieter“; Entscheidung E10) | sofort |
+| 8–16 | c/o-Zeile, wenn `careOf` gesetzt ist | Betr |
+| 21–25 | Verbraucherstreitbeilegung optional entfernen (keine Pflicht, unschädlich); **keinen** OS-Plattform-Link einfügen | sofort (E10) |
+| 27–32 | umformulieren zu „Inhalte von Nutzerinnen und Nutzern / Meldung rechtswidriger Inhalte“ mit E-Mail und Verfahrenssatz (Art. 6, 16 DSA; Anwendbarkeit umstritten, Recherche 9.3) | sofort |
+| Ende | **Satz „nicht kommerzielles Open-Source-Projekt“ + Link zu Quellcode und Lizenz (AGPL-3.0)** (Recherche 1.1; stützt die Linie aus 0a) | sofort (E10, jetzt verbindlich) |
+| Platzierung | Links **nicht nur unter Einstellungen** (siehe 4.4) | sofort |
+
+### 4.3 `mobile/app/datenschutz.tsx` (Recherche 11.3, ergänzt um Abhängigkeiten)
+| Zeile(n) | Änderung (Kurzform, Wortlaut siehe Recherche 11.3) | Abh. |
+|---|---|---|
+| 9–14 | c/o-Zeile; optional Satz „kein DSB benannt“ | Betr |
+| 16–21 | „nicht kommerzielles Open-Source-Projekt“; „keine automatisierte Entscheidung/Profiling (Art. 22)“ | sofort |
+| 25 | „kryptografischer Hash, nie im Klartext“ | sofort |
+| 25–27 | Pflicht zur Bereitstellung (Art. 13 Abs. 2 lit. e); „Mindestalter 16 Jahre“ | sofort (Altersangabe mit D9 abstimmen) |
+| 29–32 | Supabase Pte. Ltd., Singapur; EU-Region Irland; DPA als Teil der AGB; SCC (Art. 46 Abs. 2 lit. c) | Betr (Dashboard-Dokumente, TIA-Importeur, Region bestätigen; Recherche 12 Nr. 7–8) |
+| 34–40 | Rezeptbilder/Foto; Fehlerberichte mit technischen Angaben, lit. f, **Speicherdauer**; eigene Kopie bei Einladungsempfängern | Frist: DM8/Betr; Rest sofort |
+| neu nach 40 | Fremdbilder: IP an Quell-Websites. **Entfällt, wenn D7 umgesetzt ist** | DM7 (solange D7 fehlt: Satz rein) |
+| 44 | Northflank Ltd., London, Region, Angemessenheitsbeschluss UK, AVV | **D1** (bis dahin Z. 44 unverändert lassen) |
+| 45–48 | IP kurzzeitig im RAM (Facebook-Import, **Kontaktformular**, ggf. Importkontingent); konkrete Logfristen der Anbieter | sofort; Fristen Betr; Kontingent B |
+| 52–54 | Groq: Vertragspartner Groq UK Limited, Verarbeitung auch USA, lit. b | sofort |
+| 54 | Groq-Speicherung: Variante mit ZDR oder Standardvariante (≤ 30 Tage anlassbezogen) | D5 (bis dahin Standardvariante) |
+| 55 | SCC statt Platzhalter; „nicht DPF-zertifiziert“ | sofort |
+| 55–56 | „EXIF entfernen wir …“ | **DM6** (vorher nicht schreiben) |
+| 58–61 | BYOK: eigenes Groq-Konto, Groq-Bedingungen | sofort |
+| 62–65 | Chefkoch: Bilder direkt geladen → IP an Chefkoch | sofort; nach DM7 anpassen |
+| neu (§ 6) | Cobalt nennen, falls aktiv | Cob |
+| 69–71 | Cookidoo: lit. b; Vorwerk eigener Verantwortlicher; „AES-256-GCM“ | sofort |
+| 76–78 | Brevo-Vertragspartner; Speicherorte FR/BE; US-Unterauftragsverarbeiter DPF/SCC; Rechtsgrundlagen; Speicherdauer der Einladung | Vertragspartner: Betr. **Speicherdauer: Löschpfad für abgelaufene Einladungen fehlt** → Frist erst nennen, wenn umgesetzt (Vorschlag: als D8-Ergänzung in Paket DM) |
+| 76–78 (Mail) | **Art.-14-Hinweis in der Einladungs-Mail** mit Link zur Erklärung → `src/mail.ts:63-85` (Text und HTML) + `test/unit/mail.test.ts` | sofort |
+| 83–85 | Push: Payload verschlüsselt; Dienste ggf. USA; Speicherdauer der Push-Adresse | sofort |
+| 91–94 | Speicherungen aufzählen; „§ 25 Abs. 2 Nr. 2 TDDDG“; Zeilenumbruch glätten; Offline-Cache beim Abmelden löschen | sofort |
+| neu | Abschnitt „Datensicherung“ (Formulierung aus Recherche 5) | **A** (nicht vorher) |
+| neu | Abschnitt „Kontakt per E-Mail“: Zweck, lit. b/f (Recherche 2.3, Zeile E-Mail-Kontakt), Speicherdauer, Postfach-Anbieter (bei Gmail: Google Ireland / Google LLC, DPF) | D4 + Betr (Frist) |
+| neu | Abschnitt „Empfänger und Drittlandübermittlung“ (Kurzfassung Recherche 10) | sofort; Northflank-Zeile D1 |
+| neu (Fremdbilder) | Satz zu direkt geladenen Rezeptbildern, siehe [DM-3-light](2026-10-07-paket-dm-datenminimierung-detailplan.md): „Rezeptbilder werden direkt vom Server der Quellseite geladen; dabei erhält dieser deine IP-Adresse.“ Rechtsgrundlage lit. f, Hinweis auf Widerspruch (Art. 21) | sofort |
+| neu | Importkontingent (Zähler pro Tag) | **B** |
+| 100–101 | konkrete Höchstfristen der Anbieter | Betr |
+| 103–104 | Fehlerberichte: „ohne Verknüpfung … bis zu [X Monate]“, keine Anonymität versprechen | **DM8** + Betr (Frist) |
+| 104–105 | „innerhalb eines Monats“; Kopien bei anderen bleiben bestehen | sofort |
+| neu (§ 11) | Backup-Satz „bis zu 35 Tage“ | **A** |
+| 109–118 | Art. 21 als eigener, hervorgehobener Absatz (Art. 21 Abs. 4); Datenübertragbarkeit „auf Anfrage maschinenlesbar“ | sofort |
+| 120–121 | „Zuständig ist: …“ | Betr |
+| Ende | „Stand“ ist bereits über `LegalPage` vorhanden; Satz zu Änderungen der Erklärung | sofort |
+
+### 4.4 Platzierung der Links (Recherche 11.2 „Platzierung“)
+**Optionen:**
+- (a) Footer-Zeile mit `LegalLinks` unter der Rezeptliste `(tabs)/index.tsx`
+- (b) Header-Eintrag oder Menü für Angemeldete in `(tabs)/_layout.tsx:75-87`
+- (c) zusätzlich auf `share-invite/[token].tsx` (anonyme Empfänger)
+
+Login-Seite (`account.tsx:630`) und Einstellungen bleiben.
+
+**Empfehlung: (a) + (c).** Das bringt wenig UI-Risiko, und die Links sind ohne Untermenü erreichbar. `LegalLinks` bekommt zusätzlich „Nutzungsbedingungen“ (D9-light).
+
+**Achtung:** Die Rezeptliste und `/` hängen an der statischen App-Shell (CLAUDE.md, Phase 4c). Nach der Änderung Bundle und LCP in CI messen und den LCP nicht verschieben (Footer am Listenende, nicht im Above-the-fold-Bereich).
+
+### 4.5 Tests und Doku (D3a)
+- `mobile/test/legal-pages.test.tsx`:
+  - Erwartungen anpassen: Z. 38 Überschrift, Z. 39 E-Mail; der Platzhalter-Test Z. 34–41 wird nach dem Befüllen zu „kein Entwurfshinweis“.
+  - Neue Fälle:
+    - Art. 21 als eigener Absatz
+    - c/o-Zeile nur bei gesetztem `careOf`
+    - Satz „nicht kommerzielles Open-Source-Projekt“ mit Lizenz-Link auf dem Impressum
+    - `LEGAL_PLACEHOLDERS_OPEN` mit optionalen Feldern
+- `mobile/test/root-layout-login-first.test.tsx:98`: Mock an die echte Liste angleichen.
+- `test/unit/mail.test.ts`: Art.-14-Hinweis in Text und HTML.
+- `npm run test:mobile:rntl-guard`; `mobile:release-gate` und `perf:bundle` in CI.
+- CLAUDE.md:
+  - Login-first-Abschnitt korrigieren
+  - Routes-Tabelle (`impressum`, `datenschutz`, später `nutzungsbedingungen`)
+  - Unsplash → Chefkoch (Recherche 3)
+- TODO.md: Haken bei „Rechtliche Platzhalter fuellen“ (nach Betreiber-Daten).
+
+**Akzeptanz D3a:** Keine eckigen Klammern mehr. Jede Zeile aus 4.1–4.3 mit Status [sofort], [Betr] oder [D4] ist umgesetzt. Kein Satz behauptet etwas, dessen Voraussetzung noch fehlt (Review gegen die Spalte „Abh.“). Die Links sind für Angemeldete ohne Einstellungen erreichbar. CI ist grün.
+**Akzeptanz D3b:** Die Zeilen [D1], [D5], [A], [DM6/7/8], [B] und [Cob] sind nachgezogen, `LEGAL_LAST_UPDATED` ist aktualisiert, das VVT ist abgeglichen.
+**Risiken:**
+- Text und Technik laufen auseinander → jede DM-, A- oder B-PR bekommt einen Checklistenpunkt „Datenschutztext/VVT“.
+- Es gibt nur ein `LEGAL_LAST_UPDATED` für alle Seiten → beim Anlegen von `/nutzungsbedingungen` pro Seite trennen (siehe 5).
+
+**Betreiber-Daten:** E1, E2, E5, Brevo-Vertragspartner, Supabase-Dashboard-Dokumente, Logfristen, Cobalt, Frist für Fehlerberichte.
+**Aufwand:** D3a M, D3b S.
+
+---
+
+## 5. D9-light — Nutzungsbedingungen als statische Seite
+
+**Entscheidung 2026-10-09:** Nutzungsbedingungen sind nicht vorgeschrieben (Recherche 9.1), ein Zustimmungsnachweis ist ohne Entgelt und ohne Vertragsrisiko entbehrlich. Es gibt deshalb **keine Migration, keine `user_profiles`-Spalten, kein `POST /auth/terms`, kein Gate, keine Checkbox, keine Versionskonstante**. Die Bestandskonten-Frage entfällt.
+
+**Inhalte (nur aus der Recherche, bewusst kurz):**
+1. unentgeltlicher Dienst, keine Verfügbarkeitszusage, Recht zur Einstellung (9.1 Nr. 4)
+2. Mindestalter 16 (9.4; betrifft die Push-Einwilligung nach Art. 8 DSGVO)
+3. Haftung **nur** im Rahmen von § 309 Nr. 7 BGB: keine Begrenzung bei Leben, Körper, Gesundheit und bei grober Fahrlässigkeit (Faktencheck verify-3 F1)
+4. Nutzerpflichten: keine rechtswidrigen Inhalte, Urheberrecht, Import nur zum privaten Gebrauch (9.2)
+5. Meldeadresse für rechtswidrige Inhalte (die Kontakt-E-Mail), ein Satz zum Verfahren (9.3, Anwendbarkeit umstritten, kostet nichts)
+6. BYOK: Groq-Konto und -Bedingungen des Nutzers, Groq Acceptable Use Policy (9.1)
+7. Hinweis auf AGPL-3.0: Die Lizenz betrifft den Code, nicht den Betrieb des Dienstes (9.1)
+
+Alles darüber hinaus (anwendbares Recht, Änderungsklausel) → **Gegenlesen**, keine eigene Rechtsaussage.
+
+### Schritte (ein kleiner PR, zusammen mit oder nach D3a)
+1. `mobile/app/nutzungsbedingungen.tsx` mit `LegalPage`-Rahmen.
+2. Öffentlich erreichbar: `isPublicLoginFirstPath` (`mobile/utils/login-first-routing.ts:27-33`), `Stack.Screen` in `_layout.tsx`, Eintrag in `LegalLinks` (`LegalPage.tsx:69-80`).
+3. Signup (`account.tsx`, Signup-Modus): ein Hinweistext unter dem Formular, **ohne** Pflicht-Checkbox: „Mit der Registrierung gelten die [Nutzungsbedingungen]. Du musst mindestens 16 Jahre alt sein. Hinweise zur Datenverarbeitung: [Datenschutzerklärung].“ Das ist nur ein Hinweis mit Link, die Datenschutzerklärung ist keine Einwilligung (Recherche 2.3, lit. b).
+4. `LegalPage` bekommt ein optionales `lastUpdated`, damit die Seiten getrennt datiert werden.
+5. Tests: Seiten-Render (`mobile/test/legal-pages.test.tsx` erweitern), `login-first-routing.test.ts` um `/nutzungsbedingungen`, Signup-Hinweis sichtbar (`account-entry-and-auth.test.tsx`); danach `npm run test:mobile:rntl-guard`.
+6. Doku: CLAUDE.md (Routes-Tabelle, Login-first-Abschnitt), TODO.
+
+**Akzeptanz:** `/nutzungsbedingungen` ist anonym erreichbar, der Signup zeigt den Hinweis, kein Schema ändert sich, CI ist grün.
+**Risiko:** Ohne Zustimmungsnachweis lässt sich die Geltung der Bedingungen im Streitfall schwerer belegen. Bei einem unentgeltlichen, nicht kommerziellen Dienst ist das ein akzeptiertes Restrisiko (Betreiberentscheidung); Wiedervorlage über Abschnitt 9.
+**Aufwand:** S.
+
+---
+
+## 6. Betreiber-Entscheidungen (mit Empfehlung)
+
+| # | Frage | Empfehlung |
+|---|---|---|
+| E1 | Privatanschrift oder c/o mit **schriftlicher** Zustellvollmacht (Recherche 1.3) | Privatanschrift, solange kein Service mit Zustellvollmacht vorliegt; ein reiner Postweiterleitungsdienst reicht nicht |
+| E2 | Daten für `legal-operator.ts` liefern (Name, Anschrift, Bundesland) | – (Voraussetzung für D3a) |
+| E3 | Kontaktadresse: EU-Postfach mit AVV (B), Cloudflare Routing → Gmail (A) oder Gmail behalten (C) | **B**; ersatzweise A mit offengelegtem Gmail |
+| E4 | Zweiter Kontaktweg: Formular oder Telefon | **entfällt** (2026-10-09), nur E-Mail; Wiedervorlage über 0a |
+| E5 | Aufsichtsbehörde (folgt aus dem Bundesland) | nach Recherche 8 |
+| E6 | Limits Kontaktformular | **entfällt** (kein Formular) |
+| E7 | Speicherung der Zustimmung | **entfällt** (kein Nachweis, 2026-10-09) |
+| E8 | Bestandskonten | **entfällt** (kein Gate) |
+| E9 | Zustimmung erzwingen | **entfällt**; nur Hinweis mit Link im Signup |
+| E10 | Impressum: VSBG-Satz entfernen? Hinweis „nicht kommerzielles Open-Source-Projekt“ aufnehmen? Überschrift „§ 18 MStV und § 5 DDG“ oder neutral? | Satz entfernen; Hinweis **aufnehmen (verbindlich, 2026-10-09)**; Überschrift mit beiden Normen |
+| E11 | Ablageort VVT und DPAs | **Vault** `Projekte/RecipeDeck/Recht/` (Backup des Vaults sicherstellen) |
+| E12 | Fristen: Kontakt-Mails, Fehlerberichte (D8), Logfristen der Anbieter | vom Betreiber festlegen; ohne Frist bleibt die Zeile in D3 offen |
+| E13 | Platzierung der Rechtslinks für Angemeldete | Footer unter der Rezeptliste + Share-Invite-Seite |
+| E14 | D3 in zwei Stufen (D3a jetzt, D3b nach A/DM/D1) | **ja** |
+| E15 | Löschpfad für abgelaufene Einladungen (Befund) | als Ergänzung zu D8 in Paket DM aufnehmen |
+
+| E16 | Monetarisierungs-Grenze (0a) und Lizenz (Abschnitt 8) | **beschlossen 2026-10-09**; beim Gegenlesen ausdrücklich bestätigen lassen, dass Spenden ohne Gegenleistung unkritisch sind |
+
+**Gegenlesen (Recherche 12 Nr. 18):** erst nach D3b und D9-light an eine fachkundige Stelle geben, damit ein vollständiger Stand geprüft wird. Dabei ausdrücklich fragen: (1) trägt die Annahme „§ 5 DDG greift nicht“, (2) genügt die Hotlink-Offenlegung (DM-3-light), (3) ist der Verzicht auf den Zustimmungsnachweis vertretbar.
+
+---
+
+## 7. Nebenbefunde (nicht Teil von R, aber beim Prüfen aufgefallen)
+1. CLAUDE.md sagt, im Login-first-Modus sei nur `/account` erreichbar. Laut Code sind auch `/impressum`, `/datenschutz`, `/+not-found` und `/share-invite/*` öffentlich (`mobile/utils/login-first-routing.ts:27-33`). → Korrektur in D3a.
+2. `mobile/test/root-layout-login-first.test.tsx:98` bildet `isPublicLoginFirstPath` enger nach als der echte Code. → Korrektur in D3a.
+3. Abgelaufene Rezept-Einladungen (inkl. Empfänger-E-Mail) werden nicht gelöscht (`src/db-react.ts:1396`). → E15, Paket DM.
+4. Der Bootstrap läuft nur im Account-Screen (`account.tsx:190`), nicht bei jedem App-Start. → mit dem Wegfall des Gates nicht mehr relevant für R; nur beachten, falls D9 später doch ein Gate bekommt (Archiv).
+
+## Kritische Dateien für die Umsetzung
+- `mobile/utils/legal-operator.ts`
+- `mobile/app/datenschutz.tsx`, `mobile/app/impressum.tsx`
+- `mobile/app/account.tsx` (Signup-Hinweis), `mobile/app/_layout.tsx`, `mobile/utils/login-first-routing.ts`, `mobile/app/nutzungsbedingungen.tsx` (neu)
+- `src/mail.ts` (Art.-14-Hinweis in der Einladungs-Mail); DNS-Schritte für D4a in `docs/domain-mail-infra-runbook.md`
+
+---
+
+## 8. Lizenz (neu, 2026-10-09)
+
+Das Repo ist öffentlich, hat aber weder `LICENSE` noch ein `license`-Feld in den `package.json`; rechtlich gilt damit „alle Rechte vorbehalten“. Beschlossen: **AGPL-3.0-or-later** (Netzwerk-Klausel passt zu einem gehosteten Dienst; verhindert geschlossene gehostete Forks). Eine Lizenz **mindert keine Betreiberpflichten** (Recherche 9.1: Lizenz-Disclaimer ≠ Haftungsausschluss für den Dienst); sie ist Voraussetzung dafür, dass andere den Code legal nutzen und selbst hosten dürfen.
+
+Umfang (kleiner PR, unabhängig von D3):
+1. `LICENSE` (offizieller AGPL-3.0-Text, unverändert).
+2. `package.json` und `mobile/package.json`: `"license": "AGPL-3.0-or-later"`.
+3. `README.md`: Abschnitt „Lizenz“ mit zwei Sätzen: Code unter AGPL-3.0; **Name „RecipeDeck“ und Logo sind nicht mitlizenziert**. Zweiter Satz: Die Instanz `www.recipedeckapp.de` ist ein unentgeltlicher Best-Effort-Dienst ohne Verfügbarkeitszusage; Selbst-Hosting ist möglich.
+4. Vorab `npx license-checker --production --summary` (Root und `mobile/`): kein Paket mit einer zu AGPL-3.0 unverträglichen Lizenz (z. B. proprietäre oder „non-commercial“-Lizenzen). Fonts, Icons und Bildassets einzeln prüfen (`Logo.png` ausnehmen).
+5. Impressum (4.2, Zeile „Ende“) verlinkt den Quellcode und die Lizenz.
+6. Hinweis: Ein großer Teil des Codes ist KI-generiert (CLAUDE.md, „Origin“). Die urheberrechtliche Lage ist unklar; für die Lizenzierung genügt es, dass der Betreiber die Rechte hält, die er hat. Keine Contributor-Vereinbarung nötig, solange keine fremden PRs gemergt werden; bei der ersten externen Contribution `CONTRIBUTING.md` mit DCO-Hinweis ergänzen.
+
+**Aufwand:** S. **Entscheidung offen:** AGPL-3.0 (empfohlen) oder MIT, falls bewusst keine Copyleft-Wirkung gewünscht ist.
+
+---
+
+## 9. Archiv — ursprüngliche Fassungen (nur bei Trigger wieder aufnehmen)
+
+**Trigger:** Monetarisierung (0a), Behörden- oder Anwaltsschreiben, Plattform-/Store-Vorgaben, die ein Formular bzw. Zustimmung verlangen, oder Gegenlesen mit anderem Ergebnis.
+
+### Archiv D4b — Öffentliches Kontaktformular (PR)
 
 **Optionen zweiter Kontaktweg:**
 
@@ -197,125 +425,7 @@ Brevo ist im aktuellen Setup nur Versender (Runbook Z. 12–13, 125–138) und k
 **Betreiber-Daten:** E3 (Postfach), E4 (Formular oder Telefon), Limits (E6).
 **Aufwand:** D4a S, D4b M.
 
----
-
-## 4. D3 — Text-PR Impressum und Datenschutzerklärung
-
-**Voraussetzung:** Der Betreiber füllt `legal-operator.ts` (E1, E2, E5). Danach wird `LEGAL_PLACEHOLDERS_OPEN` automatisch `false` und der Entwurfshinweis verschwindet.
-
-**Legende Abhängigkeiten:**
-- **[sofort]** heute belegt
-- **[Betr]** Betreiber-Daten
-- **[D4]** Kontakt
-- **[D1]** Northflank-AVV/Region
-- **[D5]** Groq ZDR
-- **[A]** Backups live
-- **[DM6/7/8]** Paket Datenminimierung
-- **[B]** Importkontingent live
-- **[Cob]** Cobalt-Status geklärt
-
-Regel: Ein Satz kommt erst in den Text, wenn seine Voraussetzung erfüllt ist. Für jede Zeile mit offener Voraussetzung gibt es **D3b** (Nachzug).
-
-### 4.1 `mobile/utils/legal-operator.ts` (Recherche 11.1)
-| Zeile | Änderung | Abh. |
-|---|---|---|
-| 1 | Kommentar → „§ 18 Abs. 1 MStV, vorsorglich § 5 DDG“ | sofort |
-| 6–8 | echte Angaben; optionales Feld `careOf` (nur bei schriftlicher Zustellvollmacht, Recherche 1.3) | Betr |
-| 10 | `kontakt@recipedeckapp.de` | D4 |
-| neu | `contactFormPath: '/kontakt'` (oder `phone`) | D4 |
-| 12 | konkrete Behörde mit Anschrift/URL (Recherche 8; bei Bayern BayLDA inkl. Postanschrift Postfach 1349, 91504 Ansbach) | Betr |
-| 15 | `LEGAL_LAST_UPDATED` neu setzen | sofort |
-| 17 | `LEGAL_PLACEHOLDERS_OPEN` so umbauen, dass optionale bzw. leere Felder nicht abstürzen (z. B. nur über Pflichtfelder iterieren oder `typeof v === 'string' && v.startsWith('[')`) | sofort |
-
-### 4.2 `mobile/app/impressum.tsx` (Recherche 11.2)
-| Zeile | Änderung | Abh. |
-|---|---|---|
-| 7 | „Angaben gemäß § 18 Abs. 1 MStV und § 5 DDG“ (oder neutral „Anbieter“; Entscheidung E10) | sofort |
-| 8–16 | c/o-Zeile, wenn `careOf` gesetzt ist | Betr |
-| 18–19 | zweiter Kontaktweg: Link „Kontaktformular“ → `/kontakt` | D4 |
-| 21–25 | Verbraucherstreitbeilegung optional entfernen (keine Pflicht, unschädlich); **keinen** OS-Plattform-Link einfügen | sofort (E10) |
-| 27–32 | umformulieren zu „Inhalte von Nutzerinnen und Nutzern / Meldung rechtswidriger Inhalte“ mit E-Mail und Verfahrenssatz (Art. 6, 16 DSA; Anwendbarkeit umstritten, Recherche 9.3) | sofort |
-| Ende | optional: „nicht kommerzielles Open-Source-Projekt“ + Link zum Quellcode und Lizenz (Recherche 1.1) | sofort (E10) |
-| Platzierung | Links **nicht nur unter Einstellungen** (siehe 4.4) | sofort |
-
-### 4.3 `mobile/app/datenschutz.tsx` (Recherche 11.3, ergänzt um Abhängigkeiten)
-| Zeile(n) | Änderung (Kurzform, Wortlaut siehe Recherche 11.3) | Abh. |
-|---|---|---|
-| 9–14 | c/o-Zeile; optional Satz „kein DSB benannt“ | Betr |
-| 16–21 | „nicht kommerzielles Open-Source-Projekt“; „keine automatisierte Entscheidung/Profiling (Art. 22)“ | sofort |
-| 25 | „kryptografischer Hash, nie im Klartext“ | sofort |
-| 25–27 | Pflicht zur Bereitstellung (Art. 13 Abs. 2 lit. e); „Mindestalter 16 Jahre“ | sofort (Altersangabe mit D9 abstimmen) |
-| 29–32 | Supabase Pte. Ltd., Singapur; EU-Region Irland; DPA als Teil der AGB; SCC (Art. 46 Abs. 2 lit. c) | Betr (Dashboard-Dokumente, TIA-Importeur, Region bestätigen; Recherche 12 Nr. 7–8) |
-| 34–40 | Rezeptbilder/Foto; Fehlerberichte mit technischen Angaben, lit. f, **Speicherdauer**; eigene Kopie bei Einladungsempfängern | Frist: DM8/Betr; Rest sofort |
-| neu nach 40 | Fremdbilder: IP an Quell-Websites. **Entfällt, wenn D7 umgesetzt ist** | DM7 (solange D7 fehlt: Satz rein) |
-| 44 | Northflank Ltd., London, Region, Angemessenheitsbeschluss UK, AVV | **D1** (bis dahin Z. 44 unverändert lassen) |
-| 45–48 | IP kurzzeitig im RAM (Facebook-Import, **Kontaktformular**, ggf. Importkontingent); konkrete Logfristen der Anbieter | sofort; Fristen Betr; Kontingent B |
-| 52–54 | Groq: Vertragspartner Groq UK Limited, Verarbeitung auch USA, lit. b | sofort |
-| 54 | Groq-Speicherung: Variante mit ZDR oder Standardvariante (≤ 30 Tage anlassbezogen) | D5 (bis dahin Standardvariante) |
-| 55 | SCC statt Platzhalter; „nicht DPF-zertifiziert“ | sofort |
-| 55–56 | „EXIF entfernen wir …“ | **DM6** (vorher nicht schreiben) |
-| 58–61 | BYOK: eigenes Groq-Konto, Groq-Bedingungen | sofort |
-| 62–65 | Chefkoch: Bilder direkt geladen → IP an Chefkoch | sofort; nach DM7 anpassen |
-| neu (§ 6) | Cobalt nennen, falls aktiv | Cob |
-| 69–71 | Cookidoo: lit. b; Vorwerk eigener Verantwortlicher; „AES-256-GCM“ | sofort |
-| 76–78 | Brevo-Vertragspartner; Speicherorte FR/BE; US-Unterauftragsverarbeiter DPF/SCC; Rechtsgrundlagen; Speicherdauer der Einladung | Vertragspartner: Betr. **Speicherdauer: Löschpfad für abgelaufene Einladungen fehlt** → Frist erst nennen, wenn umgesetzt (Vorschlag: als D8-Ergänzung in Paket DM) |
-| 76–78 (Mail) | **Art.-14-Hinweis in der Einladungs-Mail** mit Link zur Erklärung → `src/mail.ts:63-85` (Text und HTML) + `test/unit/mail.test.ts` | sofort |
-| 83–85 | Push: Payload verschlüsselt; Dienste ggf. USA; Speicherdauer der Push-Adresse | sofort |
-| 91–94 | Speicherungen aufzählen; „§ 25 Abs. 2 Nr. 2 TDDDG“; Zeilenumbruch glätten; Offline-Cache beim Abmelden löschen | sofort |
-| neu | Abschnitt „Datensicherung“ (Formulierung aus Recherche 5) | **A** (nicht vorher) |
-| neu | Abschnitt „Kontakt per E-Mail **und Kontaktformular**“: Zweck, lit. b/f (Recherche 2.3, Zeile E-Mail-Kontakt; die Übertragung auf das Formular beim Gegenlesen bestätigen), Speicherdauer, Postfach-Anbieter (bei Gmail: Google Ireland / Google LLC, DPF), Brevo als Versandweg des Formulars | D4 + Betr (Frist) |
-| neu | Abschnitt „Empfänger und Drittlandübermittlung“ (Kurzfassung Recherche 10) | sofort; Northflank-Zeile D1 |
-| neu | Satz zur Speicherung der Zustimmung zu den Nutzungsbedingungen (Fassung + Zeitpunkt) | **D9** (Rechtsgrundlage beim Gegenlesen festlegen) |
-| neu | Importkontingent (Zähler pro Tag) | **B** |
-| 100–101 | konkrete Höchstfristen der Anbieter | Betr |
-| 103–104 | Fehlerberichte: „ohne Verknüpfung … bis zu [X Monate]“, keine Anonymität versprechen | **DM8** + Betr (Frist) |
-| 104–105 | „innerhalb eines Monats“; Kopien bei anderen bleiben bestehen | sofort |
-| neu (§ 11) | Backup-Satz „bis zu 35 Tage“ | **A** |
-| 109–118 | Art. 21 als eigener, hervorgehobener Absatz (Art. 21 Abs. 4); Datenübertragbarkeit „auf Anfrage maschinenlesbar“ | sofort |
-| 120–121 | „Zuständig ist: …“ | Betr |
-| Ende | „Stand“ ist bereits über `LegalPage` vorhanden; Satz zu Änderungen der Erklärung | sofort |
-
-### 4.4 Platzierung der Links (Recherche 11.2 „Platzierung“)
-**Optionen:**
-- (a) Footer-Zeile mit `LegalLinks` unter der Rezeptliste `(tabs)/index.tsx`
-- (b) Header-Eintrag oder Menü für Angemeldete in `(tabs)/_layout.tsx:75-87`
-- (c) zusätzlich auf `share-invite/[token].tsx` (anonyme Empfänger)
-
-Login-Seite (`account.tsx:630`) und Einstellungen bleiben.
-
-**Empfehlung: (a) + (c).** Das bringt wenig UI-Risiko, und die Links sind ohne Untermenü erreichbar. `LegalLinks` bekommt zusätzlich „Kontakt“ (D4) und „Nutzungsbedingungen“ (D9).
-
-**Achtung:** Die Rezeptliste und `/` hängen an der statischen App-Shell (CLAUDE.md, Phase 4c). Nach der Änderung Bundle und LCP in CI messen und den LCP nicht verschieben (Footer am Listenende, nicht im Above-the-fold-Bereich).
-
-### 4.5 Tests und Doku (D3a)
-- `mobile/test/legal-pages.test.tsx`:
-  - Erwartungen anpassen: Z. 38 Überschrift, Z. 39 E-Mail; der Platzhalter-Test Z. 34–41 wird nach dem Befüllen zu „kein Entwurfshinweis“.
-  - Neue Fälle:
-    - Art. 21 als eigener Absatz
-    - c/o-Zeile nur bei gesetztem `careOf`
-    - Link zum Kontaktformular auf dem Impressum
-    - `LEGAL_PLACEHOLDERS_OPEN` mit optionalen Feldern
-- `mobile/test/root-layout-login-first.test.tsx:98`: Mock an die echte Liste angleichen.
-- `test/unit/mail.test.ts`: Art.-14-Hinweis in Text und HTML.
-- `npm run test:mobile:rntl-guard`; `mobile:release-gate` und `perf:bundle` in CI.
-- CLAUDE.md:
-  - Login-first-Abschnitt korrigieren
-  - Routes-Tabelle (`impressum`, `datenschutz`, `kontakt`, später `nutzungsbedingungen`)
-  - Unsplash → Chefkoch (Recherche 3)
-- TODO.md: Haken bei „Rechtliche Platzhalter fuellen“ (nach Betreiber-Daten).
-
-**Akzeptanz D3a:** Keine eckigen Klammern mehr. Jede Zeile aus 4.1–4.3 mit Status [sofort], [Betr] oder [D4] ist umgesetzt. Kein Satz behauptet etwas, dessen Voraussetzung noch fehlt (Review gegen die Spalte „Abh.“). Die Links sind für Angemeldete ohne Einstellungen erreichbar. CI ist grün.
-**Akzeptanz D3b:** Die Zeilen [D1], [D5], [A], [DM6/7/8], [B] und [Cob] sind nachgezogen, `LEGAL_LAST_UPDATED` ist aktualisiert, das VVT ist abgeglichen.
-**Risiken:**
-- Text und Technik laufen auseinander → jede DM-, A- oder B-PR bekommt einen Checklistenpunkt „Datenschutztext/VVT“.
-- Es gibt nur ein `LEGAL_LAST_UPDATED` für alle Seiten → mit D9 pro Seite trennen (siehe 5).
-
-**Betreiber-Daten:** E1, E2, E5, Brevo-Vertragspartner, Supabase-Dashboard-Dokumente, Logfristen, Cobalt, Frist für Fehlerberichte.
-**Aufwand:** D3a M, D3b S.
-
----
-
-## 5. D9 — Nutzungsbedingungen mit Zustimmung beim Signup
+### Archiv D9 — Nutzungsbedingungen mit Zustimmung beim Signup
 
 **Rechtlicher Rahmen (Recherche 9.1–9.4):** Nutzungsbedingungen sind nicht vorgeschrieben, aber empfohlen.
 
@@ -401,41 +511,3 @@ Nach dem Deploy sehen alle bestehenden Konten das Gate einmal. Wer nicht zustimm
 **Betreiber-Daten:** Anbieterangaben (aus D3), Prüfung und Freigabe des Textes, E7–E9.
 **Aufwand:** L (Text M, Mechanik M–L).
 
----
-
-## 6. Betreiber-Entscheidungen (mit Empfehlung)
-
-| # | Frage | Empfehlung |
-|---|---|---|
-| E1 | Privatanschrift oder c/o mit **schriftlicher** Zustellvollmacht (Recherche 1.3) | Privatanschrift, solange kein Service mit Zustellvollmacht vorliegt; ein reiner Postweiterleitungsdienst reicht nicht |
-| E2 | Daten für `legal-operator.ts` liefern (Name, Anschrift, Bundesland) | – (Voraussetzung für D3a) |
-| E3 | Kontaktadresse: EU-Postfach mit AVV (B), Cloudflare Routing → Gmail (A) oder Gmail behalten (C) | **B**; ersatzweise A mit offengelegtem Gmail |
-| E4 | Zweiter Kontaktweg: Formular oder Telefon | **Formular** `/kontakt` |
-| E5 | Aufsichtsbehörde (folgt aus dem Bundesland) | nach Recherche 8 |
-| E6 | Limits Kontaktformular | 3/Stunde pro IP, 20/Tag global, Turnstile erst bei Missbrauch |
-| E7 | Speicherung der Zustimmung: Spalten an `user_profiles` oder Historien-Tabelle | **Spalten** (Option A) |
-| E8 | Bestandskonten: einmal zustimmen lassen oder pauschal übernehmen | **einmal zustimmen lassen** |
-| E9 | Zustimmung nur im Client erzwingen (Gate) oder zusätzlich serverseitig (409) | **v1 nur Gate**, Server speichert den Nachweis |
-| E10 | Impressum: VSBG-Satz entfernen? Hinweis „nicht kommerzielles Open-Source-Projekt“ aufnehmen? Überschrift „§ 18 MStV und § 5 DDG“ oder neutral? | Satz entfernen; Hinweis aufnehmen (stützt die Linie aus Recherche 1.1); Überschrift mit beiden Normen |
-| E11 | Ablageort VVT und DPAs | **Vault** `Projekte/RecipeDeck/Recht/` (Backup des Vaults sicherstellen) |
-| E12 | Fristen: Kontakt-Mails, Fehlerberichte (D8), Logfristen der Anbieter | vom Betreiber festlegen; ohne Frist bleibt die Zeile in D3 offen |
-| E13 | Platzierung der Rechtslinks für Angemeldete | Footer unter der Rezeptliste + Share-Invite-Seite |
-| E14 | D3 in zwei Stufen (D3a jetzt, D3b nach A/DM/D1) | **ja** |
-| E15 | Löschpfad für abgelaufene Einladungen (Befund) | als Ergänzung zu D8 in Paket DM aufnehmen |
-
-**Gegenlesen (Recherche 12 Nr. 18):** erst nach D3b und D9 an eine fachkundige Stelle geben, damit ein vollständiger Stand geprüft wird.
-
----
-
-## 7. Nebenbefunde (nicht Teil von R, aber beim Prüfen aufgefallen)
-1. CLAUDE.md sagt, im Login-first-Modus sei nur `/account` erreichbar. Laut Code sind auch `/impressum`, `/datenschutz`, `/+not-found` und `/share-invite/*` öffentlich (`mobile/utils/login-first-routing.ts:27-33`). → Korrektur in D3a.
-2. `mobile/test/root-layout-login-first.test.tsx:98` bildet `isPublicLoginFirstPath` enger nach als der echte Code. → Korrektur in D3a.
-3. Abgelaufene Rezept-Einladungen (inkl. Empfänger-E-Mail) werden nicht gelöscht (`src/db-react.ts:1396`). → E15, Paket DM.
-4. Der Bootstrap läuft nur im Account-Screen (`account.tsx:190`), nicht bei jedem App-Start. → Gate in D9 braucht eigenen Check über `/auth/me`.
-
-## Kritische Dateien für die Umsetzung
-- `mobile/utils/legal-operator.ts`
-- `mobile/app/datenschutz.tsx`, `mobile/app/impressum.tsx`
-- `mobile/app/account.tsx`, `mobile/utils/auth.ts`, `mobile/app/_layout.tsx`, `mobile/utils/login-first-routing.ts`
-- `src/routes/auth.ts`, `src/auth.ts`, `src/db-react.ts`, `src/schema.ts`, `scripts/supabase/account-deletion-smoke.ts`
-- `src/mail.ts` (+ neu `src/routes/contact.ts`, Mount in `src/api-react.ts`; DNS-Schritte in `docs/domain-mail-infra-runbook.md`)

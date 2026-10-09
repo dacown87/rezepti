@@ -9,7 +9,7 @@ Weniger personenbezogene Daten verarbeiten und weitergeben, damit die Datenschut
 
 ## Grober Umfang (drei Teilpakete, evtl. drei PRs)
 1. **D6 EXIF entfernen** — Foto-Uploads (`POST /api/v1/extract/photo`, `src/routes/extraction.ts`) serverseitig von EXIF/GPS befreien, bevor sie an Groq gehen oder als Rezeptbild gespeichert werden. Web/PWA behaelt EXIF heute sicher.
-2. **D7 Keine Hotlinks auf Fremdbilder** — Rezeptbilder werden im Browser direkt von Fremdservern geladen (`src/db-react.ts` liefert Fremd-URLs unveraendert). Optionen: beim Import herunterladen und selbst ausliefern (passt zur 250-KB-Regel) oder ueber den bestehenden Proxy (`/api/v1/proxy/image`) laden. Bestandsrezepte migrieren.
+2. **D7 Fremdbilder — entschieden 2026-10-09: offenlegen statt proxyen/speichern (DM-3-light).** Urspruengliche Optionen: Rezeptbilder werden im Browser direkt von Fremdservern geladen (`src/db-react.ts` liefert Fremd-URLs unveraendert). Optionen: beim Import herunterladen und selbst ausliefern (passt zur 250-KB-Regel) oder ueber den bestehenden Proxy (`/api/v1/proxy/image`) laden. Bestandsrezepte migrieren.
 3. **D8 Fehlerberichte anonymisieren** — bei Kontoloeschung auch `metadata_json` (`activeHouseholdId`, `userAgent`, `lastFailureSnapshot` mit `submittedUrl`/`errorMessage`/`jobId`) und Spalte `route` bereinigen (heute nur `user_id`/`household_id` auf NULL, Migration `20261007120000`); feste Loeschfrist fuer Fehlerberichte (Frist legt der Betreiber fest).
 
 ## Offene Fragen (fuer den Detailplan)

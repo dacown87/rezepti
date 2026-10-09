@@ -8,6 +8,8 @@ RecipeDeck is a TypeScript web service that extracts recipes from URLs (YouTube,
 
 The product is called **RecipeDeck**; the repository, Docker image and Northflank service are still named `rezepti`. Both names refer to the same thing.
 
+**Nicht kommerziell, Open Source (Betreiberentscheidung 2026-10-09):** Code unter AGPL-3.0-or-later (`LICENSE`; Name und Logo nicht mitlizenziert). Das Projekt ist unentgeltlich, werbefrei und ohne Bezahl-Tier. **Keine Monetarisierung einfuehren** (Werbung, Affiliate-Links, Bezahl-Funktionen, Spenden mit Gegenleistung), ohne vorher mit dem Betreiber die Rechtstexte neu zu bewerten: Die Entscheidung, auf Kontaktformular, Zustimmungs-Gate und Bild-Proxy zu verzichten, stuetzt sich darauf, dass § 5 DDG, DSA und BFSG wahrscheinlich nicht greifen. Details und Archiv der gestrichenen Teile: `docs/superpowers/plans/2026-10-07-paket-r-rechtstexte-detailplan.md` (Abschnitt 0a).
+
 Multi-user since June 2026: Supabase Auth with a login-first gate, Row Level Security on every user table, and an explicit owner model (`user` **or** `household`) on every user-owned row.
 
 ## Commands
