@@ -80,13 +80,19 @@ export default function DatenschutzScreen() {
         Rechtsgrundlage ist die Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO). Groq speichert Anfragen standardmäßig
         nicht dauerhaft; nur zur Fehleranalyse oder bei Verdacht auf Missbrauch können Anfragen bis zu 30 Tage
         protokolliert werden. Grundlage der Übermittlung sind EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c
-        DSGVO); Groq ist nicht unter dem EU-US Data Privacy Framework zertifiziert. Lade deshalb keine Fotos hoch,
-        auf denen Personen oder persönliche Informationen zu sehen sind.
+        DSGVO); Groq ist nicht unter dem EU-US Data Privacy Framework zertifiziert. Standortdaten (EXIF) entfernen wir
+        vor der Übermittlung. Lade deshalb keine Fotos hoch, auf denen Personen oder persönliche Informationen zu
+        sehen sind.
       </LegalText>
       <LegalText>
         Verwendest du einen eigenen Groq-API-Schlüssel, wird er nur auf deinem Gerät gespeichert und mit der jeweiligen
         Anfrage an unseren Server gesendet, dort aber nicht gespeichert. Für die Nutzung deines eigenen Schlüssels
         gelten die Bedingungen und die Acceptable Use Policy von Groq.
+      </LegalText>
+      <LegalText>
+        Importe über unseren Server-Schlüssel begrenzen wir auf ein Tageskontingent; dafür speichern wir kurzzeitig
+        einen Tageszähler pro Nutzer und einen globalen Zähler. Verwendest du einen eigenen Groq-Schlüssel (BYOK),
+        gilt diese Begrenzung nicht.
       </LegalText>
       <LegalText>
         Für Bildvorschläge sendet unser Server den Rezeptnamen an die Rezeptsuche von Chefkoch. Dabei werden keine
@@ -130,19 +136,31 @@ export default function DatenschutzScreen() {
         wird beim Abmelden gelöscht.
       </LegalText>
 
-      <LegalHeading>11. Speicherdauer</LegalHeading>
+      <LegalHeading>11. Datensicherung</LegalHeading>
       <LegalText>
-        Wir speichern deine Daten, solange dein Konto besteht. Laufende Import-Aufträge werden nach spätestens sieben
-        Tagen gelöscht. Protokolle unserer Dienstleister werden nach deren Fristen gelöscht. Dein Konto kannst du
-        jederzeit selbst löschen: in der App unter „Account“ → „Konto löschen“. Dabei werden deine Rezepte,
-        Sammlungen, die Einkaufsliste, der Wochenplaner, die Cookidoo-Verbindung, Benachrichtigungs-Abos und offene
-        Einladungen unwiderruflich entfernt. Kopien, die andere Nutzerinnen und Nutzer bereits erhalten haben (z. B.
-        geteilte Rezepte), bleiben bestehen. Von dir gesendete Fehlerberichte bleiben ohne Bezug zu deinem Konto
-        erhalten. Solange du dir einen Haushalt mit weiteren Mitgliedern teilst, ist die Selbstlöschung nicht möglich;
-        schreib uns dann an {LEGAL_OPERATOR.email}.
+        Zum Schutz vor Datenverlust erstellen wir täglich verschlüsselte Sicherungskopien der Datenbank. Sie werden
+        bei Cloudflare in einem Speicher mit Standort in der EU abgelegt, sind nur mit einem offline verwahrten
+        Schlüssel lesbar und werden automatisch nach spätestens 35 Tagen gelöscht. Löschst du dein Konto, sind deine
+        Daten deshalb noch bis zu 35 Tage in diesen Sicherungen enthalten. Sie werden in dieser Zeit nicht verwendet.
+        Müssten wir eine Sicherung zurückspielen, löschen wir deine Daten dabei erneut. Rechtsgrundlage ist unser
+        berechtigtes Interesse an einem sicheren, wiederherstellbaren Betrieb (Art. 6 Abs. 1 lit. f DSGVO, Art. 32
+        DSGVO).
       </LegalText>
 
-      <LegalHeading>12. Deine Rechte</LegalHeading>
+      <LegalHeading>12. Speicherdauer</LegalHeading>
+      <LegalText>
+        Wir speichern deine Daten, solange dein Konto besteht. Laufende Import-Aufträge werden nach spätestens sieben
+        Tagen gelöscht. Protokolle unserer Dienstleister werden nach deren Fristen gelöscht. In Sicherungskopien sind
+        deine Daten noch bis zu 35 Tage enthalten (siehe Datensicherung). Dein Konto kannst du jederzeit selbst
+        löschen: in der App unter „Account“ → „Konto löschen“. Dabei werden deine Rezepte, Sammlungen, die
+        Einkaufsliste, der Wochenplaner, die Cookidoo-Verbindung, Benachrichtigungs-Abos und offene Einladungen
+        unwiderruflich entfernt. Kopien, die andere Nutzerinnen und Nutzer bereits erhalten haben (z. B. geteilte
+        Rezepte), bleiben bestehen. Von dir gesendete Fehlerberichte bleiben ohne Verknüpfung mit deinem Konto bis zu
+        12 Monate erhalten. Solange du dir einen Haushalt mit weiteren Mitgliedern teilst, ist die Selbstlöschung
+        nicht möglich; schreib uns dann an {LEGAL_OPERATOR.email}.
+      </LegalText>
+
+      <LegalHeading>13. Deine Rechte</LegalHeading>
       <LegalList
         items={[
           'Auskunft über deine gespeicherten Daten (Art. 15 DSGVO)',
@@ -158,7 +176,7 @@ export default function DatenschutzScreen() {
         beschweren. Zuständig ist: {LEGAL_OPERATOR.supervisoryAuthority}.
       </LegalText>
 
-      <LegalHeading>13. Widerspruchsrecht (Art. 21 DSGVO)</LegalHeading>
+      <LegalHeading>14. Widerspruchsrecht (Art. 21 DSGVO)</LegalHeading>
       <LegalText>
         Du hast das Recht, aus Gründen, die sich aus deiner besonderen Situation ergeben, jederzeit gegen die
         Verarbeitung dich betreffender personenbezogener Daten zu widersprechen, die auf Grundlage von Art. 6 Abs. 1
@@ -167,7 +185,7 @@ export default function DatenschutzScreen() {
         oder die Verarbeitung dient der Geltendmachung, Ausübung oder Verteidigung von Rechtsansprüchen.
       </LegalText>
 
-      <LegalHeading>14. Kontakt per E-Mail</LegalHeading>
+      <LegalHeading>15. Kontakt per E-Mail</LegalHeading>
       <LegalText>
         Wenn du uns unter {LEGAL_OPERATOR.email} kontaktierst, verarbeiten wir deine E-Mail-Adresse und die Inhalte
         deiner Nachricht zur Beantwortung deiner Anfrage. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (bei
@@ -177,17 +195,18 @@ export default function DatenschutzScreen() {
         Grundlage des EU-US Data Privacy Framework.
       </LegalText>
 
-      <LegalHeading>15. Empfänger und Drittlandübermittlung</LegalHeading>
+      <LegalHeading>16. Empfänger und Drittlandübermittlung</LegalHeading>
       <LegalText>
         Wir übermitteln personenbezogene Daten an folgende Empfänger: Supabase Pte. Ltd. (Singapur, EU-Region Irland)
         auf Grundlage der Standardvertragsklauseln; Groq UK Limited (Großbritannien, Verarbeitung auch in den USA) auf
         Grundlage der Standardvertragsklauseln; Brevo Inc. (USA, Speicherorte Frankreich und Belgien) auf Grundlage
         des EU-US Data Privacy Framework bzw. der Standardvertragsklauseln; Google Ireland Ltd. bzw. Google LLC (USA)
-        für das E-Mail-Postfach auf Grundlage des EU-US Data Privacy Framework. Beim direkten Laden von Rezeptbildern
-        erhält außerdem die jeweilige Quell-Website bzw. deren CDN deine IP-Adresse.
+        für das E-Mail-Postfach auf Grundlage des EU-US Data Privacy Framework; Cloudflare für die Datensicherung in
+        einem Speicher mit Standort in der EU. Beim direkten Laden von Rezeptbildern erhält außerdem die jeweilige
+        Quell-Website bzw. deren CDN deine IP-Adresse.
       </LegalText>
 
-      <LegalHeading>16. Änderungen dieser Datenschutzerklärung</LegalHeading>
+      <LegalHeading>17. Änderungen dieser Datenschutzerklärung</LegalHeading>
       <LegalText>
         Wir passen diese Erklärung an, wenn sich unsere Verarbeitung oder die Rechtslage ändert. Die jeweils aktuelle
         Fassung findest du in der App.

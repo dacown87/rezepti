@@ -57,9 +57,10 @@ describe('legal pages', () => {
       '1. Verantwortlicher',
       '6. Rezept-Import mit KI',
       '8. E-Mails',
-      '12. Deine Rechte',
-      '13. Widerspruchsrecht (Art. 21 DSGVO)',
-      '15. Empfänger und Drittlandübermittlung',
+      '11. Datensicherung',
+      '13. Deine Rechte',
+      '14. Widerspruchsrecht (Art. 21 DSGVO)',
+      '16. Empfänger und Drittlandübermittlung',
     ]) {
       expect(screen.getByText(heading)).toBeTruthy();
     }
