@@ -60,8 +60,17 @@ function parseMailbox(value: string): Mailbox {
   return { email: trimmed };
 }
 
+function buildPrivacyPolicyUrl(shareUrl: string) {
+  try {
+    return new URL("/datenschutz", new URL(shareUrl).origin).toString();
+  } catch {
+    return "https://www.recipedeckapp.de/datenschutz";
+  }
+}
+
 function buildRecipeInviteText(input: RecipeInviteEmailInput) {
   const sender = input.senderEmail ? `${input.senderEmail} hat` : "Jemand hat";
+  const privacyUrl = buildPrivacyPolicyUrl(input.shareUrl);
   return [
     `${sender} ein Rezept mit dir geteilt: ${input.recipeName}`,
     "",
@@ -69,6 +78,9 @@ function buildRecipeInviteText(input: RecipeInviteEmailInput) {
     input.shareUrl,
     "",
     "Beim Annehmen entsteht eine private Kopie in deinem RecipeDeck-Konto.",
+    "",
+    "Datenschutz: Deine E-Mail-Adresse wurde uns von der einladenden Person uebermittelt und wird nur fuer diese Rezept-Einladung verarbeitet. Weitere Informationen findest du in unserer Datenschutzerklaerung:",
+    privacyUrl,
   ].join("\n");
 }
 
@@ -76,11 +88,13 @@ function buildRecipeInviteHtml(input: RecipeInviteEmailInput) {
   const sender = input.senderEmail ? `${input.senderEmail} hat` : "Jemand hat";
   const escapedRecipeName = escapeHtml(input.recipeName);
   const escapedShareUrl = escapeHtml(input.shareUrl);
+  const escapedPrivacyUrl = escapeHtml(buildPrivacyPolicyUrl(input.shareUrl));
   return [
     `<p>${escapeHtml(sender)} ein Rezept mit dir geteilt: <strong>${escapedRecipeName}</strong></p>`,
     `<p>Oeffne den Link, melde dich mit dieser E-Mail-Adresse an und nimm die Einladung an.</p>`,
     `<p><a href="${escapedShareUrl}">Rezept-Einladung oeffnen</a></p>`,
     `<p>Beim Annehmen entsteht eine private Kopie in deinem RecipeDeck-Konto.</p>`,
+    `<p>Datenschutz: Deine E-Mail-Adresse wurde uns von der einladenden Person uebermittelt und wird nur fuer diese Rezept-Einladung verarbeitet. Weitere Informationen findest du in unserer <a href="${escapedPrivacyUrl}">Datenschutzerklaerung</a>.</p>`,
   ].join("");
 }
 

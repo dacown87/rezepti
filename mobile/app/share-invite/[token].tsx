@@ -11,6 +11,7 @@ import {
 import { getAuthSession } from '@/utils/auth';
 import { buildLoginFirstAccountHref } from '@/utils/login-first-routing';
 import { ApiRequestError } from '@/utils/api';
+import { LegalLinks } from '@/components/LegalPage';
 
 type SessionState = 'loading' | 'signed-in' | 'signed-out';
 
@@ -172,6 +173,8 @@ export default function RecipeShareInviteScreen() {
             )}
           </View>
         )}
+
+        <LegalLinks />
       </View>
     </SafeAreaView>
   );

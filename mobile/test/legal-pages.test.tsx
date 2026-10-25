@@ -12,6 +12,9 @@ const state = vi.hoisted(() => ({
     back: vi.fn(),
     canGoBack: vi.fn(),
   },
+  linking: {
+    openURL: vi.fn(),
+  },
 }));
 
 vi.mock('expo-router', () => ({ router: state.router }));
@@ -22,7 +25,13 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('react-native', () => {
   const wrap = (type: string) => ({ children, ...props }: Record<string, unknown>) =>
     React.createElement(type, props, children as React.ReactNode);
-  return { View: wrap('View'), Text: wrap('Text'), Pressable: wrap('Pressable'), ScrollView: wrap('ScrollView') };
+  return {
+    View: wrap('View'),
+    Text: wrap('Text'),
+    Pressable: wrap('Pressable'),
+    ScrollView: wrap('ScrollView'),
+    Linking: state.linking,
+  };
 });
 
 describe('legal pages', () => {
@@ -31,20 +40,27 @@ describe('legal pages', () => {
     state.router.canGoBack.mockImplementation(() => state.canGoBack);
   });
 
-  it('renders the Impressum with operator contact and the draft notice while placeholders are open', async () => {
+  it('renders the Impressum with the operator contact and no draft notice', async () => {
     const { default: ImpressumScreen } = await import('@/app/impressum');
     render(React.createElement(ImpressumScreen));
 
-    expect(screen.getByText('Angaben gemäß § 5 DDG')).toBeTruthy();
-    expect(screen.getByText('E-Mail: recipedeckapp@gmail.com')).toBeTruthy();
-    expect(screen.getByText(/Entwurf: Einige Angaben zum Betreiber fehlen noch/)).toBeTruthy();
+    expect(screen.getByText('Angaben gemäß § 18 Abs. 1 MStV und § 5 DDG')).toBeTruthy();
+    expect(screen.getByText('E-Mail: kontakt@recipedeckapp.de')).toBeTruthy();
+    expect(screen.queryByText(/Entwurf: Einige Angaben zum Betreiber fehlen noch/)).toBeNull();
   });
 
   it('renders the privacy policy sections for every processor', async () => {
     const { default: DatenschutzScreen } = await import('@/app/datenschutz');
     render(React.createElement(DatenschutzScreen));
 
-    for (const heading of ['1. Verantwortlicher', '6. Rezept-Import mit KI', '8. E-Mails', '12. Deine Rechte']) {
+    for (const heading of [
+      '1. Verantwortlicher',
+      '6. Rezept-Import mit KI',
+      '8. E-Mails',
+      '12. Deine Rechte',
+      '13. Widerspruchsrecht (Art. 21 DSGVO)',
+      '15. Empfänger und Drittlandübermittlung',
+    ]) {
       expect(screen.getByText(heading)).toBeTruthy();
     }
     expect(screen.getAllByText(/Groq/).length).toBeGreaterThan(0);
@@ -70,5 +86,32 @@ describe('legal pages', () => {
 
     expect(state.router.push).toHaveBeenCalledWith('/impressum');
     expect(state.router.push).toHaveBeenCalledWith('/datenschutz');
+  });
+
+  it('states the non-commercial open-source nature and links the source code', async () => {
+    const { default: ImpressumScreen } = await import('@/app/impressum');
+    render(React.createElement(ImpressumScreen));
+
+    expect(screen.getByText(/nicht kommerzielles Open-Source-Projekt/)).toBeTruthy();
+    expect(screen.getByText(/AGPL-3.0-or-later/)).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Quellcode auf GitHub öffnen'));
+    expect(state.linking.openURL).toHaveBeenCalledWith('https://github.com/dacown87/rezepti');
+  });
+
+  it('shows no c/o line when the operator has no careOf set', async () => {
+    const { default: ImpressumScreen } = await import('@/app/impressum');
+    render(React.createElement(ImpressumScreen));
+
+    expect(screen.queryByText(/c\/o/)).toBeNull();
+  });
+});
+
+describe('legal placeholders', () => {
+  it('treats optional and non-string fields as not open', async () => {
+    const { hasOpenPlaceholders } = await import('@/utils/legal-operator');
+
+    expect(hasOpenPlaceholders(['Patrick Hofmann', undefined, null, 42])).toBe(false);
+    expect(hasOpenPlaceholders(['[Vor- und Nachname]'])).toBe(true);
   });
 });

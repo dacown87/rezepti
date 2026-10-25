@@ -50,12 +50,19 @@ describe('sendRecipeInviteEmail', () => {
     expect(url).toBe('https://api.brevo.com/v3/smtp/email')
     expect(init.method).toBe('POST')
     expect((init.headers as Record<string, string>)['api-key']).toBe('xkeysib_test')
-    expect(JSON.parse(init.body as string)).toMatchObject({
+    const body = JSON.parse(init.body as string)
+    expect(body).toMatchObject({
       sender: { name: 'RecipeDeck', email: 'recipedeckapp@gmail.com' },
       to: [{ email: 'friend@example.com' }],
       replyTo: { email: 'support@example.com' },
       subject: 'Rezept-Einladung: Pasta',
     })
+    // Art. 14 DSGVO: the invited person must be informed about the processing
+    // of their email address, with a link to the privacy policy.
+    expect(body.textContent).toContain('Datenschutz: Deine E-Mail-Adresse wurde uns von der einladenden Person')
+    expect(body.textContent).toContain('https://app.test/datenschutz')
+    expect(body.htmlContent).toContain('Datenschutzerklaerung')
+    expect(body.htmlContent).toContain('href="https://app.test/datenschutz"')
   })
 
   it('normalizes provider rejection into a failed delivery result', async () => {

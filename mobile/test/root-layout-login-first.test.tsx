@@ -95,7 +95,12 @@ vi.mock('@/utils/auth', () => ({
 
 vi.mock('@/utils/login-first-routing', () => ({
   LOGIN_FIRST_ACCOUNT_GATE_ENABLED: true,
-  isPublicLoginFirstPath: (pathname: string | null | undefined) => pathname === '/account' || pathname === '/+not-found',
+  isPublicLoginFirstPath: (pathname: string | null | undefined) =>
+    pathname === '/account'
+    || pathname === '/impressum'
+    || pathname === '/datenschutz'
+    || pathname === '/+not-found'
+    || pathname?.startsWith('/share-invite/') === true,
   buildLoginFirstAccountHref: (returnTo: string | null | undefined) => ({
     pathname: '/account',
     params: {

@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Recipe } from '@/db/schema';
 import { ApiRequestError, apiFetch, assertApiOk, type ApiRecipe } from '@/utils/api';
 import { ProtectedAccessNotice } from '@/components/ProtectedAccessNotice';
+import { LegalLinks } from '@/components/LegalPage';
 import { useRecipes } from '@/hooks/useRecipes';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { mapProtectedApiError } from '@/utils/protected-access';
@@ -548,6 +549,7 @@ export default function RecipeListScreen() {
           columnWrapperStyle={{ gap: 0 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search="" />}
+          ListFooterComponent={<LegalLinks />}
           initialNumToRender={8}
           windowSize={5}
         />
@@ -562,6 +564,7 @@ export default function RecipeListScreen() {
           columnWrapperStyle={{ gap: 0 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search={search} />}
+          ListFooterComponent={<LegalLinks />}
           initialNumToRender={10}
           maxToRenderPerBatch={8}
           windowSize={7}
@@ -576,6 +579,7 @@ export default function RecipeListScreen() {
           contentContainerStyle={{ padding: 16, paddingTop: 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C84B31" />}
           ListEmptyComponent={<EmptyState search={search} />}
+          ListFooterComponent={<LegalLinks />}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
