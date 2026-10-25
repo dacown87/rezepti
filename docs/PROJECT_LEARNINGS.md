@@ -93,6 +93,11 @@ Die knip-Kategorie *unused exports* misst **Export-Oberflaeche**, nicht toten Co
 
 ### Web Scraping & Fetcher
 
+#### user-urls-never-raw-to-fetch-or-ytdlp (10/10, 2026-10-25)
+
+Vom Nutzer gelieferte URLs duerfen **nie** roh an `fetch` oder `yt-dlp` — sonst SSRF (Bild-Proxy war ohne Login erreichbar, der Classifier traf `http://10.0.0.5/?u=instagram.com/`, und `fetch` folgte Weiterleitungen ungeprueft). Fix: `src/utils/safe-fetch.ts` (`safeFetch`/`assertSafeUrl`/`validateImportUrl`) fuer alle Nutzer-URL-Abrufe (undici-Agent mit Connect-Time-DNS-Lookup, Ports 80/443, Redirect-/Groessen-/Timeout-Limit), `classifyURL` auf `new URL(url).hostname` verankert, und jeder `yt-dlp`-Aufruf bekommt `--` vor der URL. Interne Ziele (`CF_SCRAPER_URL`, Cobalt-API, Supabase/Brevo/Groq) laufen bewusst nicht durch den Guard.
+*Files:* `src/utils/safe-fetch.ts`, `src/utils/ip-guard.ts`, `src/classifier.ts`, `src/routes/extraction.ts`, `src/fetchers/*`
+
 #### yt-dlp-output-template-id (10/10, 2026-05-01)
 
 yt-dlp mit Template `foo_%(id)s.%(ext)s` schreibt `foo_<id>.info.json` (nicht `foo_info.json`) und `foo_<id>.description` (nicht `foo_description.txt`). Immer `readdir()` + find-by-extension statt hardcoded Pfade.

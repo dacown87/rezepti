@@ -104,4 +104,24 @@ describe('classifier', () => {
       expect(result.type).toBe('tiktok')
     })
   })
+
+  describe('SSRF hostname anchoring', () => {
+    it('classifies a private IP that merely mentions instagram.com as web', () => {
+      expect(classifyURL('http://10.0.0.5/?u=instagram.com/').type).toBe('web')
+    })
+
+    it('classifies a metadata address that mentions instagram.com as web', () => {
+      expect(classifyURL('http://169.254.169.254/?x=instagram.com/').type).toBe('web')
+    })
+
+    it('classifies a hostname mentioning a platform in a query string as web', () => {
+      expect(classifyURL('https://example.com/?redirect=https://youtube.com/watch?v=x').type).toBe('web')
+    })
+
+    it('keeps short-link variants on the platform', () => {
+      expect(classifyURL('https://pin.it/abc123').type).toBe('pinterest')
+      expect(classifyURL('https://fb.watch/abc123').type).toBe('facebook')
+      expect(classifyURL('https://m.youtube.com/watch?v=abc').type).toBe('youtube')
+    })
+  })
 })

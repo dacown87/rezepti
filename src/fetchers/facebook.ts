@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
+import { safeFetch } from "../utils/safe-fetch.js";
 import { fetchWithCobalt, downloadFirstCobaltMedia } from "./cobalt.js";
 
 const execFileAsync = promisify(execFile);
@@ -89,7 +90,7 @@ async function downloadWithYtDlp(
     args.push("--cookies", COOKIE_PATH);
   }
 
-  args.push(url);
+  args.push("--", url);
 
   await execFileAsync("yt-dlp", args, { timeout: 120_000 });
 
@@ -211,12 +212,16 @@ async function fetchFacebookVideo(
 }
 
 async function fetchFacebookOGFallback(url: string): Promise<ContentBundle> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  const response = await safeFetch(
+    url,
+    {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
     },
-  });
+    { maxBytes: 3 * 1024 * 1024 },
+  );
 
   if (!response.ok) {
     throw new Error(`Facebook-Seite konnte nicht geladen werden: ${response.status}`);

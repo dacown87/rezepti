@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../../types.js";
 import { config } from "../../config.js";
+import { safeFetch } from "../../utils/safe-fetch.js";
 import {
   extractJsonLdRecipes,
   extractMicrodataRecipe,
@@ -14,14 +15,17 @@ import {
 // ─── fetchWeb ─────────────────────────────────────────────────────────────────
 
 export async function fetchWeb(url: string): Promise<ContentBundle> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml",
+  const response = await safeFetch(
+    url,
+    {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
     },
-    redirect: "follow",
-  });
+    { maxBytes: 3 * 1024 * 1024 },
+  );
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} beim Abrufen von ${url}`);

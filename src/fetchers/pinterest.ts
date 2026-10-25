@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
+import { safeFetch } from "../utils/safe-fetch.js";
 import { fetchWeb } from "./web.js";
 
 const execFileAsync = promisify(execFile);
@@ -74,14 +75,17 @@ function getRandomUserAgent(): string {
 }
 
 async function fetchHTMLWithUserAgent(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": getRandomUserAgent(),
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+  const response = await safeFetch(
+    url,
+    {
+      headers: {
+        "User-Agent": getRandomUserAgent(),
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+      },
     },
-    redirect: "follow",
-  });
+    { maxBytes: 3 * 1024 * 1024 },
+  );
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} beim Abrufen von ${url}`);
@@ -275,6 +279,7 @@ async function downloadWithYtDlp(
       "--skip-download",
       "-o",
       join(tempDir, "pinterest_%(id)s.%(ext)s"),
+      "--",
       url,
     ]);
 

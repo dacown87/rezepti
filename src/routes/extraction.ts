@@ -9,6 +9,7 @@ import { classifyURL } from "../classifier.js";
 import { saveRecipeToReactDb } from "../db-react.js";
 import type { PipelineEvent } from "../types.js";
 import { searchRecipeImages } from "../utils/image-search.js";
+import { SsrfBlockedError, validateImportUrl } from "../utils/safe-fetch.js";
 import { AuthFlowError, authErrorResponse, getUserAuth, requireUserAuth, resolveUserAuthContext } from "../auth.js";
 import type { ExtractionJob } from "../job-manager.js";
 import { ByokValidationFailure, enforceByokValidation } from "../byok-policy.js";
@@ -98,10 +99,15 @@ app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
       return c.json({ error: "URL is required" }, 400);
     }
 
+    // SSRF guard: reject non-public/internal targets before the classifier or
+    // any job is created. The block reason stays out of the response.
     try {
-      new URL(url);
-    } catch {
-      return c.json({ error: "Invalid URL format" }, 400);
+      validateImportUrl(url);
+    } catch (error) {
+      if (error instanceof SsrfBlockedError) {
+        return c.json({ error: "Diese Adresse kann nicht importiert werden." }, 400);
+      }
+      throw error;
     }
 
     // Facebook rate limit check

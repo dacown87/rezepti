@@ -266,7 +266,7 @@ describe('URL extraction route', () => {
     })
     expect(res.status).toBe(400)
     const body = await res.json()
-    expect(body.error).toMatch(/Invalid URL/i)
+    expect(body.error).toMatch(/kann nicht importiert werden/i)
   })
 
   it('returns 409 when URL is already being processed', async () => {

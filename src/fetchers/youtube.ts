@@ -19,6 +19,7 @@ export async function fetchYouTube(
   const { stdout: infoJson } = await execFileAsync("yt-dlp", [
     "--dump-json",
     "--no-download",
+    "--",
     url,
   ], { timeout: 30_000 });
 
@@ -37,6 +38,7 @@ export async function fetchYouTube(
       "--sub-format", "vtt",
       "--skip-download",
       "-o", join(tempDir, "subs"),
+      "--",
       url,
     ], { timeout: 30_000 });
 
@@ -60,6 +62,7 @@ export async function fetchYouTube(
         "-x",
         "--audio-format", "m4a",
         "-o", outPath,
+        "--",
         url,
       ], { timeout: 120_000 });
 

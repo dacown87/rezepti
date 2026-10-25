@@ -3,6 +3,7 @@ import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { join } from "node:path";
 import { config } from "../config.js";
+import { safeFetch } from "../utils/safe-fetch.js";
 
 interface CobaltPickerItem {
   type: "photo" | "video" | "gif";
@@ -101,10 +102,11 @@ async function downloadCobaltMedia(
   filename: string
 ): Promise<string | undefined> {
   try {
-    const response = await fetch(mediaUrl, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      signal: AbortSignal.timeout(60_000),
-    });
+    const response = await safeFetch(
+      mediaUrl,
+      { headers: { "User-Agent": "Mozilla/5.0" } },
+      { timeoutMs: 60_000, maxBytes: Number.POSITIVE_INFINITY },
+    );
     if (!response.ok || !response.body) return undefined;
     const filePath = join(tempDir, filename);
     await pipeline(

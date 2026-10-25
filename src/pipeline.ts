@@ -1,4 +1,5 @@
 import { classifyURL } from "./classifier.js";
+import { SsrfBlockedError } from "./utils/safe-fetch.js";
 import { fetchWeb } from "./fetchers/web.js";
 import { fetchYouTube } from "./fetchers/youtube.js";
 import { fetchInstagram } from "./fetchers/instagram.js";
@@ -327,6 +328,13 @@ function extractErrorMessage(error: unknown): string {
 }
 
 export function toUserFriendlyError(error: unknown): UserFriendlyError {
+  // SSRF guard: neutral message, never the target address or block reason.
+  if (error instanceof SsrfBlockedError) {
+    return {
+      message: "Diese Adresse kann nicht importiert werden.",
+    };
+  }
+
   const raw = extractErrorMessage(error);
 
   // Groq / OpenAI rate limit (DX-4)

@@ -127,6 +127,16 @@ export function assertSafeUrl(input: URL | string): URL {
   return url;
 }
 
+/**
+ * Entry-point validation for user-supplied import URLs. Throws
+ * {@link SsrfBlockedError} for anything unsafe; callers map that to a generic
+ * `400` without leaking the reason. Runs before the classifier and before any
+ * job is created, so a blocked URL never reaches `fetch` or `yt-dlp`.
+ */
+export function validateImportUrl(input: URL | string): URL {
+  return assertSafeUrl(input);
+}
+
 function extractSsrfError(error: unknown): SsrfBlockedError | null {
   if (error instanceof SsrfBlockedError) return error;
   if (error instanceof Error && error.cause instanceof SsrfBlockedError) {

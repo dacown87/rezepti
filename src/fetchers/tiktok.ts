@@ -67,7 +67,7 @@ async function fetchTikTokWithRegion(
     args.push("--proxy", proxyUrl);
   }
 
-  args.push(url);
+  args.push("--", url);
 
   await execFileAsync("yt-dlp", args, { timeout: 120_000 });
 

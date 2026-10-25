@@ -9,6 +9,7 @@ import {
   type CookidooResolvedCredential,
 } from "../db-react.js";
 import type { ContentBundle, SchemaOrgRecipe } from "../types.js";
+import { safeFetch } from "../utils/safe-fetch.js";
 
 // CF Clearance Scraper service (Docker, port 3001)
 const CF_SCRAPER_URL = process.env.CF_SCRAPER_URL || "http://localhost:3001";
@@ -266,18 +267,21 @@ async function fetchAuthenticated(url: string, credentials: CookidooResolvedCred
     .filter(Boolean)
     .join("; ");
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": session.userAgent,
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "de-DE,de;q=0.9",
-      "Cookie": mergedCookies,
-      "sec-fetch-dest": "document",
-      "sec-fetch-mode": "navigate",
-      "sec-fetch-site": "none",
+  const response = await safeFetch(
+    url,
+    {
+      headers: {
+        "User-Agent": session.userAgent,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9",
+        "Cookie": mergedCookies,
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "none",
+      },
     },
-    redirect: "follow",
-  });
+    { maxBytes: 3 * 1024 * 1024 },
+  );
 
   if ((response.status === 401 || response.status === 403) && retry) {
     await clearSession(credentials);
@@ -525,13 +529,16 @@ export async function fetchCookidoo(url: string, auth?: CookidooAuthContext): Pr
     html = await response.text();
   } else {
     // Unauthenticated fallback: schema.org data only (no steps)
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
+    const response = await safeFetch(
+      url,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml",
+        },
       },
-      redirect: "follow",
-    });
+      { maxBytes: 3 * 1024 * 1024 },
+    );
     if (!response.ok) throw new Error(`HTTP ${response.status} beim Abrufen von ${url}`);
     html = await response.text();
   }

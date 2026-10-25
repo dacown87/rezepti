@@ -124,14 +124,18 @@ Extraction priority: schema.org JSON-LD → LLM text → Whisper audio → visio
 
 **Location:** `src/classifier.ts` (29 lines)
 
-`classifyURL(rawUrl)` → `{ url, type }`. **Regex order matters**:
+`classifyURL(rawUrl)` → `{ url, type }`. **Hostname-anchored** — the type is
+read from `new URL(url).hostname` (lowercased, `www.`/`m.` stripped), never from
+substring regexes, so `http://10.0.0.5/?u=instagram.com/` classifies as `web`
+and never reaches a platform fetcher (or `yt-dlp`):
 
 ```
 youtube · instagram · tiktok · cookidoo · chefkoch · pinterest · facebook → else "web"
 ```
 
 Chefkoch only matches `chefkoch.de/rezepte/…`; other Chefkoch pages go through
-the generic web fetcher. An invalid URL throws `Ungültige URL: …`.
+the generic web fetcher. An invalid URL throws `Ungültige URL: …`. Only
+platform-host URLs reach `yt-dlp`; every call passes `--` before the URL.
 
 ## Job Manager
 
@@ -207,6 +211,8 @@ overwrite the server key. Models come from `config.groq`.
 | `mail.ts` | 141 | `sendRecipeInviteEmail` — the **only** provider boundary (Brevo) |
 | `gmail-monitor.ts` | — | Delivery monitor for the operator mailbox; fail-closed on 0 or >1 hits. **No HTTP endpoint** |
 | `utils/image-search.ts` | — | `searchRecipeImages` |
+| `utils/safe-fetch.ts` | — | `safeFetch`, `assertSafeUrl`, `validateImportUrl`, `SsrfBlockedError` — SSRF guard for all user-influenced fetches (undici connect-time DNS lookup, ports 80/443, redirect/size/timeout limits) |
+| `utils/ip-guard.ts` | — | `isPublicAddress` — private/link-local/CGNAT/multicast/reserved + IPv4-mapped/NAT64/IPv4-compatible IPv6 |
 | `middleware/facebook-rate-limit.ts` | — | 1 request/minute on the Facebook path |
 
 ## Configuration

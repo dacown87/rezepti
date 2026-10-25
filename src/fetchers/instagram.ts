@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import * as cheerio from "cheerio";
 import type { ContentBundle } from "../types.js";
+import { safeFetch } from "../utils/safe-fetch.js";
 import { fetchWithCobalt, downloadFirstCobaltMedia } from "./cobalt.js";
 
 const execFileAsync = promisify(execFile);
@@ -51,6 +52,7 @@ async function downloadWithYtDlp(
     "--restrict-filenames",
     "-o", outTemplate,
     ...options,
+    "--",
     url,
   ], { timeout: 120_000 });
 
@@ -136,9 +138,10 @@ async function fetchInstagramWebScraping(url: string): Promise<ContentBundle> {
   // 1. Embed-URL — öffentlich zugänglich, zeigt volle Caption
   if (shortcode) {
     try {
-      const embedRes = await fetch(
+      const embedRes = await safeFetch(
         `https://www.instagram.com/${shortcodeKind}/${shortcode}/embed/captioned/`,
-        { headers: INSTAGRAM_HEADERS }
+        { headers: INSTAGRAM_HEADERS },
+        { maxBytes: 3 * 1024 * 1024 },
       );
       if (embedRes.ok) {
         const embedHtml = await embedRes.text();
@@ -181,7 +184,7 @@ async function fetchInstagramWebScraping(url: string): Promise<ContentBundle> {
 
   // 2. Hauptseite für OG-Tags + eingebettetes JSON
   try {
-    const response = await fetch(url, { headers: INSTAGRAM_HEADERS });
+    const response = await safeFetch(url, { headers: INSTAGRAM_HEADERS }, { maxBytes: 3 * 1024 * 1024 });
     if (response.ok) {
       const html = await response.text();
       const $ = cheerio.load(html);
