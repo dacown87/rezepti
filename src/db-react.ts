@@ -25,6 +25,7 @@ import type { BugReportRow } from "./schema.js";
 import type { RecipeData } from "./types.js";
 import { isSimilar } from "./ingredient-dictionary.js";
 import { decryptCredential, encryptCredential } from "./credential-crypto.js";
+import { computeDeletionLogHash } from "./deletion-log.js";
 import {
   CATEGORY_KEYWORDS,
   detectCategory,
@@ -2831,16 +2832,33 @@ function findPgErrorCode(error: unknown): string | null {
  */
 export async function deleteUserAccount(userId: string): Promise<DeleteUserAccountResult> {
   const db = getDb();
+  const userHash = computeDeletionLogHash(userId);
   try {
-    const res = await db.execute(sql`select private.delete_user_account(${userId}::uuid) as result`);
+    const res = userHash
+      ? await db.execute(sql`select private.delete_user_account(${userId}::uuid, ${userHash}) as result`)
+      : await db.execute(sql`select private.delete_user_account(${userId}::uuid) as result`);
     const rows = (Array.isArray(res) ? res : (res as { rows?: unknown[] }).rows ?? []) as Array<{ result?: unknown }>;
     const raw = rows[0]?.result;
     const counts = (typeof raw === "string" ? JSON.parse(raw) : raw ?? {}) as Record<string, number>;
+    logAccountDeletion(userHash);
     return { ok: true, counts };
   } catch (error) {
     const code = findPgErrorCode(error);
     if (code === "RD409") return { ok: false, reason: "household_has_other_members" };
     if (code === "RD404") return { ok: false, reason: "user_not_found" };
     throw error;
+  }
+}
+
+// Two-track deletion log: the DB row is written inside the function; this line
+// on stdout survives the loss of the database (Northflank runtime logs are kept
+// outside the DB). The hash is HMAC(user_id, pepper) — no personal data.
+function logAccountDeletion(userHash: string | null): void {
+  if (userHash) {
+    console.log(`[account-deleted] hash=${userHash} at=${new Date().toISOString()}`);
+  } else {
+    console.warn(
+      "[account-deleted] DELETION_LOG_PEPPER not set — account deleted, but no deletion-log row/hash was written.",
+    );
   }
 }

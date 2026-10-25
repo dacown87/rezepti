@@ -120,8 +120,28 @@ async function seedFullUser(sql: Sql, user: { id: string; email: string }, other
             values (${otherRecipe.id}, ${other.id}, 'accepted@example.test', ${"accepted-" + tag + runId}, 'accepted', ${user.id}, now(), ${expires})`;
 
   const [report] = await sql<{ id: string }[]>`
-    insert into public.bug_reports (id, report_type, status, description, user_id, household_id, source_area)
-    values (gen_random_uuid(), 'general', 'new', ${tag + " bug"}, ${user.id}, ${householdId}, 'global_button') returning id`;
+    insert into public.bug_reports (id, report_type, status, description, user_id, household_id, source_area, route, metadata_json)
+    values (gen_random_uuid(), 'general', 'new', ${tag + " bug"}, ${user.id}, ${householdId}, 'global_button', '/extract', ${JSON.stringify({
+      appVersion: '1.0.0',
+      platform: 'web',
+      importMode: 'url',
+      jobStatus: 'failed',
+      currentStage: 'fetching',
+      errorHint: 'bot-protection',
+      qualityWarnings: ['Keine Zutaten erkannt'],
+      userAgent: 'Mozilla/5.0 (leak-me)',
+      osVersion: 'Linux x86_64',
+      activeHouseholdId: householdId,
+      lastFailureSnapshot: {
+        submittedUrl: 'https://example.com/secret-recipe',
+        mode: 'url',
+        jobId: 'leak-me-job',
+        errorMessage: 'HTTP 403',
+        timestamp: '2026-10-10T00:00:00Z',
+      },
+    })}::jsonb) returning id`;
+
+  await sql`insert into public.import_quota_usage (user_id, day, count) values (${user.id}, current_date, 1)`;
 
   return { householdId, reportId: report.id, otherRecipeId: otherRecipe.id };
 }
@@ -136,6 +156,7 @@ const COVERED_USER_COLUMNS = new Set([
   "cookidoo_credentials.user_id",
   "household_memberships.user_id",
   "households.created_by",
+  "import_quota_usage.user_id",
   "meal_plan.user_id",
   "push_subscriptions.user_id",
   "recipe_collection_items.created_by",
@@ -192,6 +213,7 @@ async function snapshot(sql: Sql, userId: string, householdId: string) {
       (select count(*) from public.recipe_collections where owner_user_id = ${userId} or household_id = ${householdId})::int as collections,
       (select count(*) from public.cookidoo_credentials where user_id = ${userId} or household_id = ${householdId})::int as cookidoo,
       (select count(*) from public.push_subscriptions where user_id = ${userId})::int as push,
+      (select count(*) from public.import_quota_usage where user_id = ${userId})::int as quota,
       (select count(*) from public.shopping_list where household_id = ${householdId})::int as shopping,
       (select count(*) from public.households where id = ${householdId})::int as households`;
   return row;
@@ -237,7 +259,8 @@ async function main() {
     assert(stillThere.u === 1 && stillThere.h === 1, "The refused deletion still removed data.");
 
     // 2. Deletion of A leaves nothing behind.
-    const [{ result }] = await sql`select private.delete_user_account(${a.id}::uuid) as result`;
+    const aHash = "0000000000000000000000000000000000000000000000000000000000000000";
+    const [{ result }] = await sql`select private.delete_user_account(${a.id}::uuid, ${aHash}) as result`;
     const leftovers = [
       ...(await countReferences(sql, columns, a.id)),
       ...(await householdLeftovers(sql, seededA.householdId)),
@@ -248,9 +271,32 @@ async function main() {
     if (invitesByEmail.n > 0) leftovers.push("recipe_share_invites.recipient_email");
     assert(leftovers.length === 0, `Rows left after deleting user A: ${leftovers.join(", ")}`);
 
-    const [report] = await sql`select user_id, household_id, description from public.bug_reports where id = ${seededA.reportId}`;
+    const [aQuota] = await sql`select count(*)::int as n from public.import_quota_usage where user_id = ${a.id}`;
+    assert(aQuota.n === 0, "User A's import quota usage survived deletion.");
+
+    // Exactly one deletion-log row for A carrying the passed hash, never the plaintext id.
+    const [logRow] = await sql`select count(*)::int as n from private.deleted_accounts_log where user_hash = ${aHash}`;
+    assert(logRow.n === 1, "Deletion log does not contain exactly one row with the passed hash.");
+    const [plaintextUuid] = await sql`select count(*)::int as n from private.deleted_accounts_log where user_hash = ${a.id}`;
+    assert(plaintextUuid.n === 0, "Deletion log contains the plaintext user id.");
+
+    const [report] = await sql<{
+      user_id: string | null;
+      household_id: string | null;
+      description: string;
+      route: string | null;
+      anonymised_at: string | null;
+      metadata_json: Record<string, unknown> | null;
+    }[]>`select user_id, household_id, description, route, anonymised_at, metadata_json from public.bug_reports where id = ${seededA.reportId}`;
     assert(report && report.user_id === null && report.household_id === null, "Bug report was not anonymised (or was deleted).");
     assert(report.description === "a bug", "Bug report content must be kept unchanged.");
+    assert(report.route === null, "Bug report route was not cleared on anonymisation.");
+    assert(report.anonymised_at !== null, "Bug report anonymised_at was not set.");
+    assert(report.metadata_json?.appVersion === "1.0.0", "Bug report metadata lost the appVersion whitelist key.");
+    assert(report.metadata_json?.snapshotMode === "url", "Bug report metadata lost the snapshotMode whitelist key.");
+    assert(report.metadata_json?.userAgent === undefined, "Bug report metadata kept userAgent.");
+    assert(report.metadata_json?.activeHouseholdId === undefined, "Bug report metadata kept activeHouseholdId.");
+    assert(report.metadata_json?.lastFailureSnapshot === undefined, "Bug report metadata kept lastFailureSnapshot.");
 
     // 3. Everything of user B is untouched.
     const afterB = await snapshot(sql, b.id, seededB.householdId);
@@ -258,6 +304,11 @@ async function main() {
     const [bInvites] = await sql`select count(*)::int as n from public.recipe_share_invites where sender_user_id = ${b.id}`;
     // B's own invite stays; the two B sent to A went with A (addressed to / accepted by A).
     assert(bInvites.n === 1, `Expected exactly B's own sent invite to remain, found ${bInvites.n}.`);
+
+    // 3b. Deletion without a hash (NULL parameter) still works and writes no log row.
+    await sql`select private.delete_user_account(${b.id}::uuid)`;
+    const [logCount] = await sql`select count(*)::int as n from private.deleted_accounts_log`;
+    assert(logCount.n === 1, "Deleting without a hash wrote an unexpected deletion-log row.");
 
     // 4. Idempotence of the contract: a second call reports user_not_found.
     let notFound = false;

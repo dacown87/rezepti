@@ -110,6 +110,10 @@ geprueft.
 | `recipe_collections` | backend-only now, future Data API | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260623100000_recipe_collections.sql` |
 | `recipe_share_invites` | backend-only, token hashes | direct DB backend role | no policy; no `anon`/`authenticated` grants | revoked in `20260707141913_recipe_share_invites.sql` |
 | `user_default_households` | backend-only bootstrap mapping | direct DB backend role | no policy; default grants (incl. `TRUNCATE`) revoked | `20260927140100_revoke_user_default_households_data_api_grants.sql` |
+| `import_quota_usage` | backend-only per-user counter | direct DB backend role | no policy; no `anon`/`authenticated` grants | `20261010090000_deletion_path_bundle.sql` |
+| `import_quota_global` | backend-only global counter | direct DB backend role | no policy; no `anon`/`authenticated` grants | `20261010090000_deletion_path_bundle.sql` |
+
+`private.deleted_accounts_log` (deletion log, `20261010090000_deletion_path_bundle.sql`) liegt im Schema `private` und ist ueber die Data API nicht erreichbar.
 
 ## Follow-Ups
 

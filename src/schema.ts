@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, integer, text, boolean, timestamp, uuid, unique, primaryKey, index, uniqueIndex, check, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, timestamp, uuid, date, unique, primaryKey, index, uniqueIndex, check, jsonb } from "drizzle-orm/pg-core";
 
 export const recipes = pgTable("recipes", {
   id:          serial("id").primaryKey(),
@@ -252,6 +252,7 @@ export const bugReports = pgTable("bug_reports", {
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  anonymisedAt: timestamp("anonymised_at", { withTimezone: true }),
 }, (t) => [
   check("bug_reports_report_type_check", sql`${t.reportType} IN ('general', 'import_failure')`),
   check("bug_reports_status_check", sql`${t.status} IN ('new', 'triaging', 'in_progress', 'resolved', 'closed')`),
@@ -336,3 +337,21 @@ export const byokValidationPolicies = pgTable("byok_validation_policies", {
   index("byok_validation_policies_updated_by_idx").on(t.updatedByUserId),
 ]);
 export type ByokValidationPolicyRow = typeof byokValidationPolicies.$inferSelect;
+
+// Import quota counters (backend-only, RLS without policies).
+export const importQuotaUsage = pgTable("import_quota_usage", {
+  userId: uuid("user_id").notNull(),
+  day: date("day").notNull(),
+  count: integer("count").notNull().default(0),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.day], name: "import_quota_usage_pkey" }),
+]);
+export type ImportQuotaUsageRow = typeof importQuotaUsage.$inferSelect;
+export type NewImportQuotaUsageRow = typeof importQuotaUsage.$inferInsert;
+
+export const importQuotaGlobal = pgTable("import_quota_global", {
+  day: date("day").primaryKey(),
+  count: integer("count").notNull().default(0),
+});
+export type ImportQuotaGlobalRow = typeof importQuotaGlobal.$inferSelect;
+export type NewImportQuotaGlobalRow = typeof importQuotaGlobal.$inferInsert;
