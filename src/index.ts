@@ -8,6 +8,7 @@ import type { Context } from "hono";
 import { config } from "./config.js";
 import reactApi from "./api-react.js";
 import { jobManager, startJobCleanupTimer } from "./job-manager.js";
+import { startRetentionTimer } from "./retention.js";
 import { handleAppError, requestLogger } from "./middleware/request-logger.js";
 
 export const app = new Hono();
@@ -180,4 +181,5 @@ if (!process.env.VITEST) {
   console.error("[startup] stderr capture check (not an error)");
   serve({ fetch: app.fetch, port });
   startJobCleanupTimer(jobManager, config.jobs.cleanupDays, 60 * 60 * 1000);
+  startRetentionTimer(24 * 60 * 60 * 1000);
 }

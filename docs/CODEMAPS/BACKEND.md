@@ -88,7 +88,7 @@ routers are mounted at `/`; the full paths live in the route files themselves.
 | `/api/v1/bug-reports` | POST | `requireUserAuth` | Submit report incl. `lastFailureSnapshot` |
 | `/api/v1/bug-reports/me` | GET | `requireUserAuth` | Caller's own reports |
 | `/api/v1/admin/bug-reports` | GET | admin | All reports, else `403 admin_required` |
-| `/api/v1/admin/bug-reports/:id` | GET/PATCH | admin | Detail / change status |
+| `/api/v1/admin/bug-reports/:id` | GET/PATCH/DELETE | admin | Detail / change status / delete |
 | `/api/v1/admin/byok-validation-policy` | GET/PUT | admin | Shared rate-limit policy |
 | `/api/v1/health` | GET | **open by design** | Server + DB status incl. `recipeCount` |
 
@@ -206,7 +206,9 @@ overwrite the server key. Models come from `config.groq`.
 | `byok-policy.ts` | — | `enforceByokValidation` — DB-backed rate limit, logs a fallback if the table is missing |
 | `ingredient-dictionary.ts` | — | `extractIngredientName`, `isSimilar`, `parseIngredientFull` |
 | `ingredient-category-domain.ts` | 173 | Ingredient categories — **byte-identical duplicate** of `mobile/utils/ingredient-category-domain.ts` |
-| `bug-reports.ts` | 209 | Enums, rate-limit constants (5 reports / 60 min), type guards |
+| `bug-reports.ts` | 209 | Enums, rate-limit constants (5 reports / 60 min), type guards, metadata whitelist |
+| `retention.ts` | — | `startRetentionTimer`/`runRetentionSteps` — daily deletion of expired bug reports (12 months) and invites (30 days) |
+| `deletion-log.ts` | — | `computeDeletionLogHash` — HMAC(user_id, `DELETION_LOG_PEPPER`) for the two-track deletion log |
 | `push.ts` | — | `configureVapid`, `sendPushToUser` — best-effort fan-out, 410/404 auto-prune |
 | `mail.ts` | 141 | `sendRecipeInviteEmail` — the **only** provider boundary (Brevo) |
 | `gmail-monitor.ts` | — | Delivery monitor for the operator mailbox; fail-closed on 0 or >1 hits. **No HTTP endpoint** |

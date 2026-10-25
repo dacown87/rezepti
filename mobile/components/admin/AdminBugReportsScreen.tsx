@@ -10,6 +10,7 @@ import {
 import { Bug } from "@/components/icons";
 import { fetchAuthMe } from "@/utils/admin";
 import {
+  deleteAdminBugReport,
   fetchAdminBugReportDetail,
   fetchAdminBugReports,
   getBugReportStatusLabel,
@@ -33,6 +34,7 @@ function formatTimestamp(value: string) {
 export default function AdminBugReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reports, setReports] = useState<BugReportListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -119,6 +121,28 @@ export default function AdminBugReportsScreen() {
     }
   }
 
+  async function deleteReport() {
+    if (!detail) return;
+    setDeleting(true);
+    try {
+      await deleteAdminBugReport(detail.id);
+      setReports((current) => current.filter((report) => report.id !== detail.id));
+      const remaining = reports.filter((report) => report.id !== detail.id);
+      const nextId = remaining[0]?.id ?? null;
+      setSelectedId(nextId);
+      if (nextId) {
+        await loadDetail(nextId);
+      } else {
+        setDetail(null);
+      }
+      setError(null);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Bug-Report konnte nicht gelöscht werden.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <ScrollView className="flex-1" contentContainerClassName="px-4 py-6 pb-10">
       <View className="mb-6">
@@ -179,6 +203,13 @@ export default function AdminBugReportsScreen() {
               <Text className="text-sm font-semibold text-warm-800 dark:text-warm-100 mb-2">Detail</Text>
               <Text className="text-xs text-warm-500 dark:text-warm-400 mb-1">Report-ID</Text>
               <Text className="text-sm text-warm-800 dark:text-warm-100 mb-3">{detail.id}</Text>
+              {detail.anonymisedAt ? (
+                <View className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
+                  <Text className="text-xs text-amber-800">
+                    anonymisiert am {formatTimestamp(detail.anonymisedAt)}
+                  </Text>
+                </View>
+              ) : null}
               <Text className="text-xs text-warm-500 dark:text-warm-400 mb-1">Beschreibung</Text>
               <Text className="text-sm text-warm-800 dark:text-warm-100 mb-3">{detail.description}</Text>
               <Text className="text-xs text-warm-500 dark:text-warm-400 mb-1">Route / Quelle</Text>
@@ -224,6 +255,14 @@ export default function AdminBugReportsScreen() {
                 className={`rounded-xl py-3 items-center ${saving ? "bg-primary-200" : "bg-primary-500"}`}
               >
                 {saving ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-semibold">Status speichern</Text>}
+              </Pressable>
+
+              <Pressable
+                onPress={() => void deleteReport()}
+                disabled={deleting}
+                className="rounded-xl py-3 items-center mt-3 border border-red-200 bg-white"
+              >
+                {deleting ? <ActivityIndicator color="#C84B31" /> : <Text className="text-red-600 font-semibold">Report löschen</Text>}
               </Pressable>
             </View>
           ) : null}

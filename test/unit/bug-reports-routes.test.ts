@@ -7,6 +7,7 @@ const dbMocks = vi.hoisted(() => ({
   listBugReportsForAdmin: vi.fn(),
   getBugReportByIdForAdmin: vi.fn(),
   updateBugReportAdminFields: vi.fn(),
+  deleteBugReport: vi.fn(),
   recordBugReportSubmissionAttempt: vi.fn(),
   loadUserAuthorization: vi.fn(),
 }));
@@ -156,6 +157,31 @@ describe("bug report routes", () => {
     });
   });
 
+  it("POST /api/v1/bug-reports discards activeHouseholdId from metadata", async () => {
+    dbMocks.createBugReport.mockResolvedValue({ id: "report-1", status: "new" });
+
+    await bugReportsRouter.request(
+      "/api/v1/bug-reports",
+      withAuth("/api/v1/bug-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reportType: "general",
+          sourceArea: "global_button",
+          description: "A",
+          metadata: {
+            appVersion: "1.2.3",
+            activeHouseholdId: "10000000-0000-0000-0000-000000000001",
+          },
+        }),
+      }),
+    );
+
+    expect(dbMocks.createBugReport).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: { appVersion: "1.2.3" },
+    }));
+  });
+
   it("GET /api/v1/bug-reports/me returns only the caller's reports", async () => {
     dbMocks.listMyBugReports.mockResolvedValue([
       {
@@ -243,6 +269,67 @@ describe("bug report routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       status: "resolved",
       resolvedAt: "2026-06-20T10:00:00.000Z",
+    });
+  });
+
+  it("DELETE /api/v1/admin/bug-reports/:id rejects non-admin users", async () => {
+    const response = await bugReportsRouter.request(
+      "/api/v1/admin/bug-reports/report-1",
+      withAuth("/api/v1/admin/bug-reports/report-1", { method: "DELETE" }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "admin_required" },
+    });
+  });
+
+  it("DELETE /api/v1/admin/bug-reports/:id deletes a report for admins", async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: "00000000-0000-0000-0000-000000000099",
+        email: "admin@example.com",
+      }),
+      loadAuthorization: async () => ({
+        appRole: "admin",
+        memberships: [],
+        activeHouseholdId: null,
+      }),
+    });
+    dbMocks.deleteBugReport.mockResolvedValue(true);
+
+    const response = await bugReportsRouter.request(
+      "/api/v1/admin/bug-reports/report-1",
+      withAuth("/api/v1/admin/bug-reports/report-1", { method: "DELETE" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(dbMocks.deleteBugReport).toHaveBeenCalledWith("report-1");
+    await expect(response.json()).resolves.toMatchObject({ success: true });
+  });
+
+  it("DELETE /api/v1/admin/bug-reports/:id returns 404 for an unknown id", async () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: "00000000-0000-0000-0000-000000000099",
+        email: "admin@example.com",
+      }),
+      loadAuthorization: async () => ({
+        appRole: "admin",
+        memberships: [],
+        activeHouseholdId: null,
+      }),
+    });
+    dbMocks.deleteBugReport.mockResolvedValue(false);
+
+    const response = await bugReportsRouter.request(
+      "/api/v1/admin/bug-reports/unknown",
+      withAuth("/api/v1/admin/bug-reports/unknown", { method: "DELETE" }),
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "not_found" },
     });
   });
 });

@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { authErrorPayload, getUserAuth, requireUserAuth } from "../auth.js";
 import {
   createBugReport,
+  deleteBugReport,
   getBugReportByIdForAdmin,
   listBugReportsForAdmin,
   listMyBugReports,
@@ -236,6 +237,23 @@ app.patch("/api/v1/admin/bug-reports/:id", requireUserAuth(), async (c) => {
   }
 
   return c.json(updated);
+});
+
+app.delete("/api/v1/admin/bug-reports/:id", requireUserAuth(), async (c) => {
+  const { response } = requireAdmin(c);
+  if (response) return response;
+
+  const deleted = await deleteBugReport(c.req.param("id"));
+  if (!deleted) {
+    return c.json({
+      error: {
+        code: "not_found",
+        message: "Bug report not found",
+      },
+    }, 404);
+  }
+
+  return c.json({ success: true });
 });
 
 export default app;

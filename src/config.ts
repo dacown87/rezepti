@@ -28,6 +28,10 @@ export const config = {
   web: {
     mlFallback: process.env.ENABLE_ML_FALLBACK === "true",
   },
+  retention: {
+    bugReportMonths: parseInt(process.env.BUG_REPORT_RETENTION_MONTHS || "12", 10),
+    inviteDays: parseInt(process.env.INVITE_RETENTION_DAYS || "30", 10),
+  },
   port: parseInt(process.env.PORT || "3000", 10),
   jobs: {
     cleanupDays: parseInt(process.env.JOB_CLEANUP_DAYS || "7", 10),

@@ -155,7 +155,7 @@ The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA 
 | `/api/v1/bug-reports` | POST | Submit a report incl. `lastFailureSnapshot`, `requireUserAuth` (5 per 60 min) |
 | `/api/v1/bug-reports/me` | GET | The caller's own reports, `requireUserAuth` |
 | `/api/v1/admin/bug-reports` | GET | All reports, admin only — otherwise `403 admin_required` |
-| `/api/v1/admin/bug-reports/:id` | GET/PATCH | Report detail / change status, admin only |
+| `/api/v1/admin/bug-reports/:id` | GET/PATCH/DELETE | Report detail / change status / delete, admin only |
 | `/api/v1/admin/byok-validation-policy` | GET/PUT | Shared BYOK rate-limit policy, admin only |
 
 BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field where the route has a JSON body. The key is validated and passed explicitly into URL, text, photo, Whisper, Vision, nutrition, and TikTok OCR paths. No server-side key storage (the api_keys store was removed). If no user BYOK key is supplied, Groq calls continue to fall back to the server-side `GROQ_API_KEY`.
@@ -186,7 +186,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `api_keys` table | DB | deleted | — | — | — | — | dropped in migration 20260609143000 |
 | `push_subscriptions` | Server + RLS | user-scoped | `requireUserAuth` | owner | owner | low | — |
 | `bug_reports` submit/list-own | Server + RLS | user-scoped | `requireUserAuth` | own reports | own reports | low | rate-limited, 5 per 60 min |
-| `admin/bug-reports` | Server | admin-only | `requireUserAuth` + admin gate | all reports | status/notes | medium | non-admin gets `403 admin_required` |
+| `admin/bug-reports` | Server | admin-only | `requireUserAuth` + admin gate | all reports | status/notes/delete | medium | non-admin gets `403 admin_required`; reports are whitelist-anonymised on account deletion (`private.anonymise_bug_report_metadata`) and auto-deleted after `BUG_REPORT_RETENTION_MONTHS` (default 12) |
 | `admin/byok-validation-policy` | Server | global, admin-only | `requireUserAuth` + admin gate | admin | admin | medium | policy applies to every user's `/keys/validate` |
 
 **Frontend:** Expo React Native (`mobile/`) — **the only frontend source**, for web *and* native. Expo Router (file-based), NativeWind 4 on Tailwind 3.4, TanStack Query with per-user persistence. The web build is `npm run build:mobile` → `public/`.

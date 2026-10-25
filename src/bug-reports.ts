@@ -41,7 +41,6 @@ const TOP_LEVEL_ALLOWED_KEYS = new Set([
   "userAgent",
   "lastClientError",
   "lastApiError",
-  "activeHouseholdId",
   "importMode",
   "sourceType",
   "sourceUrl",

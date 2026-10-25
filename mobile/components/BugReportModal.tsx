@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { X } from "@/components/icons";
-import { fetchAuthMe } from "@/utils/admin";
 import {
   createBugReport,
   type BugReportSourceArea,
@@ -48,14 +47,6 @@ export default function BugReportModal({ visible, intent, onClose }: BugReportMo
     setError(null);
     try {
       const viewport = Dimensions.get("window");
-      let activeHouseholdId: string | null = null;
-
-      try {
-        const me = await fetchAuthMe();
-        activeHouseholdId = me.activeHouseholdId ?? null;
-      } catch {
-        activeHouseholdId = null;
-      }
 
       const metadata: Record<string, unknown> = {
         appVersion: Constants.expoConfig?.version ?? Constants.manifest2?.extra?.expoClient?.version ?? "unknown",
@@ -68,7 +59,6 @@ export default function BugReportModal({ visible, intent, onClose }: BugReportMo
         },
         timestamp: new Date().toISOString(),
         ...(typeof navigator !== "undefined" && navigator.userAgent ? { userAgent: navigator.userAgent } : {}),
-        ...(activeHouseholdId ? { activeHouseholdId } : {}),
         ...(intent.metadata ?? {}),
       };
 

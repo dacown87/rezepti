@@ -63,7 +63,7 @@ R und DM liegen bereits als Detailplan vor; A und B sind im Vor-Start-Plan schon
   - [ ] **`mobile/utils/legal-operator.ts` fuellen** — Name, ladungsfaehige Anschrift (Privatanschrift oder c/o **nur mit schriftlicher Zustellvollmacht**; ein reiner Postweiterleitungsdienst reicht nach BGH V ZR 210/22 nicht), zustaendige Aufsichtsbehoerde nach Wohnsitz.
   - [ ] **Kontaktadresse auf eigene Domain** (`kontakt@recipedeckapp.de`) statt Gmail entscheiden. *(Zweiter Kontaktweg/Formular entfaellt seit 2026-10-09, solange nicht monetarisiert wird.)*
   - [ ] **Groq Zero Data Retention** in der Groq-Console einschalten, Screenshot ablegen.
-  - [ ] **Loeschfrist fuer Fehlerberichte festlegen** (Claude setzt sie um, Plan D8).
+  - [x] **Loeschfrist fuer Fehlerberichte festlegen** (Claude setzt sie um, Plan D8) — umgesetzt mit Paket DM-1: 12 Monate ab Eingang (`BUG_REPORT_RETENTION_MONTHS`, Default 12), taeglicher Retention-Timer `src/retention.ts`, Whitelist-Anonymisierung bei Kontoloeschung, Admin-DELETE. Abgelaufene/angenommene Einladungen (DM-1b) nach 30 Tagen ebenfalls im Timer.
   - [ ] **Pruefen, ob Cobalt in Production aktiv ist** (Instagram-Fallback; beeinflusst die Dienstleisterliste der Datenschutzerklaerung).
   - [ ] **Verzeichnis von Verarbeitungstaetigkeiten (Art. 30)** pruefen und freigeben — Claude erstellt den Entwurf.
   - [ ] **Cloudflare R2 vorbereiten** (fuer Backups, Plan A): Bucket mit EU-Jurisdiktion, API-Token nur fuer diesen Bucket; `age`-Schluesselpaar erzeugen, Private Key offline sichern.

@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, desc, and, inArray, isNull, or, sql, lt, count } from "drizzle-orm";
+import { eq, desc, and, inArray, isNull, isNotNull, or, sql, lt, count } from "drizzle-orm";
 import {
   recipes,
   recipeCollections,
@@ -1741,6 +1741,7 @@ export interface BugReportDetail extends BugReportListItem {
   metadata: Record<string, unknown>;
   adminNotes: string | null;
   resolvedAt: string | null;
+  anonymisedAt: string | null;
 }
 
 function normalizeAppRole(role: string | null | undefined): AppRole {
@@ -1876,6 +1877,7 @@ function serializeBugReportDetail(row: BugReportRow): BugReportDetail {
     metadata: (row.metadataJson ?? {}) as Record<string, unknown>,
     adminNotes: row.adminNotes ?? null,
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    anonymisedAt: row.anonymisedAt?.toISOString() ?? null,
     createdAt: row.createdAt?.toISOString() ?? new Date(0).toISOString(),
     updatedAt: row.updatedAt?.toISOString() ?? new Date(0).toISOString(),
   };
@@ -2335,6 +2337,44 @@ export async function updateBugReportAdminFields(
     .returning();
 
   return row ? serializeBugReportDetail(row) : null;
+}
+
+export async function deleteBugReport(id: string): Promise<boolean> {
+  const db = getDb();
+  const deleted = await db
+    .delete(bugReports)
+    .where(eq(bugReports.id, id))
+    .returning({ id: bugReports.id });
+  return deleted.length > 0;
+}
+
+/** Deletes bug reports older than the retention window (returns the removed count). */
+export async function purgeExpiredBugReports(months: number): Promise<number> {
+  const db = getDb();
+  const deleted = await db
+    .delete(bugReports)
+    .where(lt(bugReports.createdAt, sql`now() - make_interval(months => ${months})`))
+    .returning({ id: bugReports.id });
+  return deleted.length;
+}
+
+/**
+ * Deletes recipe invites that expired more than `days` ago, and accepted
+ * invites accepted more than `days` ago (returns the removed count).
+ */
+export async function purgeExpiredInvites(days: number): Promise<number> {
+  const db = getDb();
+  const cutoff = sql`now() - make_interval(days => ${days})`;
+  const deleted = await db
+    .delete(recipeShareInvites)
+    .where(
+      or(
+        lt(recipeShareInvites.expiresAt, cutoff),
+        and(isNotNull(recipeShareInvites.acceptedAt), lt(recipeShareInvites.acceptedAt, cutoff)),
+      ),
+    )
+    .returning({ id: recipeShareInvites.id });
+  return deleted.length;
 }
 
 export async function ensureUserProfile(userId: string, email?: string | null): Promise<{ created: boolean }> {

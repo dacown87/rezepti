@@ -27,6 +27,7 @@ export interface BugReportDetail extends BugReportListItem {
   metadata: Record<string, unknown>;
   adminNotes: string | null;
   resolvedAt: string | null;
+  anonymisedAt: string | null;
 }
 
 export interface OpenBugReportIntent {
@@ -126,6 +127,13 @@ export async function updateAdminBugReport(input: {
   }
 
   return response.json();
+}
+
+export async function deleteAdminBugReport(id: string): Promise<void> {
+  const response = await apiFetch(`/api/v1/admin/bug-reports/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw await readApiError(response, `Bug-Report konnte nicht gelöscht werden (${response.status})`);
+  }
 }
 
 export function getBugReportStatusLabel(status: BugReportStatus) {
