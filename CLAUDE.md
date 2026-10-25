@@ -101,6 +101,7 @@ The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA 
 - `src/push.ts` — VAPID Web Push fan-out with 410/404 auto-prune
 - `src/gmail-monitor.ts` — internal delivery monitor for the operator mailbox. **No HTTP endpoint** — never expose it as one
 - `src/credential-crypto.ts` — AES-256-GCM encryption for credentials stored at rest (Cookidoo password + session cookies), format `v1:<iv>:<authTag>:<ciphertext>`. Sole reader of `CREDENTIAL_ENCRYPTION_KEY` (deliberately not added to `src/config.ts`); key validation is lazy (checked at point of use, not at boot). Legacy plaintext rows (no `v1:` prefix) are tolerated on read, checked before the key is touched
+- `src/utils/image-processing.ts` — `sharp` normalisation for photo uploads: `inspectImage`, `normalizeForVision` (EXIF/GPS/XMP/IPTC entfernt, Orientation angewendet, max 2048 px, ≤ 3 MB), `toStoredRecipeImage` (≤ 250 KB JPEG). `sharp.cache(false)` + `sharp.concurrency(1)`
 
 **Database:** PostgreSQL via Supabase. Connection via `DATABASE_URL` env var (postgres-js + Drizzle ORM). Legacy SQLite (`rezepti-react.db`, `better-sqlite3`) and `db.ts`/`db-manager.ts` have been removed.
 

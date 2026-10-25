@@ -87,6 +87,14 @@ vi.mock('../../src/utils/image-search.js', () => ({
   searchRecipeImages: vi.fn().mockResolvedValue([]),
 }))
 
+const imageProcessingMocks = vi.hoisted(() => ({
+  normalizeForVision: vi.fn(async () => ({ bytes: Buffer.from('fake-jpeg'), mime: 'image/jpeg' })),
+  toStoredRecipeImage: vi.fn(async () => ({ bytes: Buffer.from('fake'), mime: 'image/jpeg', width: 10, height: 10 })),
+  UnsupportedImageError: class extends Error {},
+}))
+
+vi.mock('../../src/utils/image-processing.js', () => imageProcessingMocks)
+
 const { searchRecipeImages } = await import('../../src/utils/image-search.js')
 
 vi.mock('../../src/byok-validator.js', () => ({
@@ -213,13 +221,13 @@ describe('photo extraction route', () => {
       expect(mockCreateJob).toHaveBeenCalledOnce()
     })
 
-    it('passes filename to jobManager.createJob', async () => {
+    it('uses a fixed photo://upload job URL without the filename', async () => {
       mockCreateJob.mockReturnValue({ id: 'photo-job-2' })
       const file = makeFile('mein-rezept.jpg', 'image/jpeg', 512)
 
       await makePhotoRequest(file)
       expect(mockCreateJob).toHaveBeenCalledWith(
-        expect.stringContaining('mein-rezept.jpg'),
+        'photo://upload',
         undefined,
         undefined,
         userId,

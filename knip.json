@@ -42,7 +42,6 @@
     "data/**"
   ],
   "ignoreDependencies": [
-    "sharp",
     "@expo/vector-icons",
     "babel-preset-expo",
     "expo-updates",

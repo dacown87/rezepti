@@ -9,6 +9,7 @@ import { classifyURL } from "../classifier.js";
 import { consumeImportQuota, saveRecipeToReactDb } from "../db-react.js";
 import type { PipelineEvent } from "../types.js";
 import { searchRecipeImages } from "../utils/image-search.js";
+import { normalizeForVision, toStoredRecipeImage, UnsupportedImageError } from "../utils/image-processing.js";
 import { SsrfBlockedError, validateImportUrl } from "../utils/safe-fetch.js";
 import { AuthFlowError, authErrorResponse, getUserAuth, requireUserAuth, resolveUserAuthContext } from "../auth.js";
 import type { ExtractionJob } from "../job-manager.js";
@@ -331,14 +332,22 @@ app.post("/api/v1/extract/photo", requireUserAuth(), async (c) => {
       if (quota) return quota;
     }
 
-    const buffer = await file.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${file.type};base64,${base64}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    let normalized: { bytes: Buffer; mime: string };
+    try {
+      normalized = await normalizeForVision(buffer);
+    } catch (error) {
+      if (error instanceof UnsupportedImageError) {
+        return c.json({ error: "Bild konnte nicht gelesen werden" }, 400);
+      }
+      throw error;
+    }
+
+    const dataUrl = `data:${normalized.mime};base64,${normalized.bytes.toString("base64")}`;
 
     const userAgent = c.req.header("User-Agent");
-    const job = apiKeyHash
-      ? jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, apiKeyHash, auth.userId, auth.activeHouseholdId)
-      : jobManager.createJob(`photo://${file.name || "upload"}`, userAgent, undefined, auth.userId, auth.activeHouseholdId);
+    const job = jobManager.createJob("photo://upload", userAgent, apiKeyHash, auth.userId, auth.activeHouseholdId);
     photoDataStore.set(job.id, dataUrl);
 
     setTimeout(() => {
@@ -383,10 +392,12 @@ async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
     jobManager.updateJob(jobId, { progress: 75, currentStage: "exporting", message: "Bilder werden gesucht", status: "running" });
     const imageSuggestions = await searchRecipeImages(recipeData.name).catch(() => []);
 
-    // If no Chefkoch images found, fall back to the uploaded photo itself as cover image.
-    // Only store if it's a compact data URL (base64 ≤ ~350 KB to avoid bloating the DB).
-    if (imageSuggestions.length === 0 && !recipeData.imageUrl && dataUrl.length < 500_000) {
-      recipeData.imageUrl = dataUrl;
+    // If no Chefkoch images found, fall back to the uploaded photo itself as cover
+    // image — re-encoded, metadata-free and ≤ 250 KB.
+    if (imageSuggestions.length === 0 && !recipeData.imageUrl) {
+      const normalizedBuffer = Buffer.from(dataUrl.split(",")[1] ?? "", "base64");
+      const stored = await toStoredRecipeImage(normalizedBuffer);
+      recipeData.imageUrl = `data:${stored.mime};base64,${stored.bytes.toString("base64")}`;
     }
 
     if (jobManager.isCancelled(jobId)) throw new JobCancelledError();
@@ -397,7 +408,12 @@ async function processPhotoJobInBackground(jobId: string, apiKey?: string) {
       owner: { type: "user", userId },
       createdBy: userId,
     });
-    jobManager.completeJob(jobId, { success: true, recipeId, recipe: recipeData, imageSuggestions });
+    jobManager.completeJob(jobId, {
+      success: true,
+      recipeId,
+      recipe: { ...recipeData, imageUrl: undefined },
+      imageSuggestions,
+    });
 
   } catch (error) {
     if (error instanceof JobCancelledError) {
