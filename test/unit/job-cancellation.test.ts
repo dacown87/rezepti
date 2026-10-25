@@ -31,6 +31,7 @@ vi.mock('../../src/processors/llm.js', () => ({
 vi.mock('../../src/db-react.js', () => ({
   saveRecipeToReactDb: vi.fn().mockReturnValue(42),
   loadUserAuthorization: vi.fn(),
+  consumeImportQuota: vi.fn(async () => ({ allowed: true })),
   loadRuntimeByokValidationPolicy: vi.fn(async () => ({
     policy: {
       windowMinutes: 60,

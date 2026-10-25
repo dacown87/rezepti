@@ -6,7 +6,7 @@ import { processURL, toUserFriendlyError, buildQualityWarnings } from "../pipeli
 import { extractRecipeFromImage, extractRecipeFromText } from "../processors/llm.js";
 import { checkFacebookRateLimit } from "../middleware/facebook-rate-limit.js";
 import { classifyURL } from "../classifier.js";
-import { saveRecipeToReactDb } from "../db-react.js";
+import { consumeImportQuota, saveRecipeToReactDb } from "../db-react.js";
 import type { PipelineEvent } from "../types.js";
 import { searchRecipeImages } from "../utils/image-search.js";
 import { SsrfBlockedError, validateImportUrl } from "../utils/safe-fetch.js";
@@ -87,6 +87,28 @@ async function authorizeJobAccess(c: { req: { header: (name: string) => string |
   }
 }
 
+// Daily server-key import quota. BYOK imports skip this path entirely.
+async function importQuotaResponse(c: Context, userId: string) {
+  const result = await consumeImportQuota(userId, {
+    perUser: config.jobs.dailyLimitPerUser,
+    global: config.jobs.dailyLimitServer,
+  });
+  if (result.allowed) return null;
+
+  const message =
+    result.scope === "daily_server"
+      ? "Das Tageslimit für Importe ist erreicht. Bitte versuche es morgen erneut oder hinterlege einen eigenen Groq-Schlüssel in den Einstellungen."
+      : "Dein Tageslimit für Importe ist erreicht. Bitte versuche es morgen erneut oder hinterlege einen eigenen Groq-Schlüssel in den Einstellungen.";
+
+  return c.json({
+    error: message,
+    status: "busy",
+    scope: result.scope,
+    limit: result.limit,
+    resetAt: result.resetAt,
+  }, 429);
+}
+
 // Start a new recipe extraction job
 app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
   try {
@@ -142,6 +164,11 @@ app.post("/api/v1/extract/react", requireUserAuth(), async (c) => {
       const failure = byokValidationFailureResponse(c, error);
       if (failure) return failure;
       throw error;
+    }
+
+    if (!apiKey) {
+      const quota = await importQuotaResponse(c, auth.userId);
+      if (quota) return quota;
     }
 
     const userAgent = c.req.header("User-Agent");
@@ -299,6 +326,11 @@ app.post("/api/v1/extract/photo", requireUserAuth(), async (c) => {
       throw error;
     }
 
+    if (!apiKey) {
+      const quota = await importQuotaResponse(c, auth.userId);
+      if (quota) return quota;
+    }
+
     const buffer = await file.arrayBuffer();
     const base64 = Buffer.from(buffer).toString("base64");
     const dataUrl = `data:${file.type};base64,${base64}`;
@@ -407,6 +439,11 @@ app.post("/api/v1/extract/text", requireUserAuth(), async (c) => {
       const failure = byokValidationFailureResponse(c, error);
       if (failure) return failure;
       throw error;
+    }
+
+    if (!apiKey) {
+      const quota = await importQuotaResponse(c, auth.userId);
+      if (quota) return quota;
     }
 
     const userAgent = c.req.header("User-Agent");

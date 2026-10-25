@@ -39,5 +39,8 @@ export const config = {
     maxConcurrentPerUser: parseInt(process.env.MAX_CONCURRENT_JOBS_PER_USER || "3", 10),
     pollInterval: parseInt(process.env.POLL_INTERVAL_MS || "2000", 10),
     stalledAfterMs: parseInt(process.env.JOB_STALLED_AFTER_MINUTES || "30", 10) * 60 * 1000,
+    // Daily server-key import quota (0 = disabled).
+    dailyLimitPerUser: parseInt(process.env.IMPORT_DAILY_LIMIT_PER_USER || "15", 10),
+    dailyLimitServer: parseInt(process.env.IMPORT_DAILY_LIMIT_SERVER || "300", 10),
   },
 } as const;

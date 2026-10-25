@@ -20,6 +20,8 @@ import {
   pushSubscriptions,
   byokValidationRateLimits,
   byokValidationPolicies,
+  importQuotaUsage,
+  importQuotaGlobal,
 } from "./schema.js";
 import type { BugReportRow } from "./schema.js";
 import type { RecipeData } from "./types.js";
@@ -2375,6 +2377,70 @@ export async function purgeExpiredInvites(days: number): Promise<number> {
     )
     .returning({ id: recipeShareInvites.id });
   return deleted.length;
+}
+
+// ── Import quota (server-key cost protection) ─────────────────────────────────
+
+/** UTC `YYYY-MM-DD` day string for quota bucketing. */
+export function utcDay(now = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+/** ISO timestamp of the next UTC midnight (when the daily quota resets). */
+export function nextUtcMidnight(now = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString();
+}
+
+export type ImportQuotaResult =
+  | { allowed: true }
+  | { allowed: false; scope: "daily_user" | "daily_server"; limit: number; resetAt: string };
+
+/**
+ * Atomically consumes one server-key import against the daily per-user and
+ * global counters. The `ON CONFLICT DO UPDATE ... WHERE count < limit` guard
+ * makes parallel requests unable to overshoot the limit: once the row reaches
+ * the limit the update matches no row and nothing is returned. `0` limits are
+ * disabled.
+ */
+export async function consumeImportQuota(
+  userId: string,
+  limits: { perUser: number; global: number },
+  now = new Date(),
+): Promise<ImportQuotaResult> {
+  const db = getDb();
+  const day = utcDay(now);
+
+  if (limits.perUser > 0) {
+    const rows = await db
+      .insert(importQuotaUsage)
+      .values({ userId, day, count: 1 })
+      .onConflictDoUpdate({
+        target: [importQuotaUsage.userId, importQuotaUsage.day],
+        set: { count: sql`${importQuotaUsage.count} + 1` },
+        where: sql`${importQuotaUsage.count} < ${limits.perUser}`,
+      })
+      .returning({ count: importQuotaUsage.count });
+    if (rows.length === 0) {
+      return { allowed: false, scope: "daily_user", limit: limits.perUser, resetAt: nextUtcMidnight(now) };
+    }
+  }
+
+  if (limits.global > 0) {
+    const rows = await db
+      .insert(importQuotaGlobal)
+      .values({ day, count: 1 })
+      .onConflictDoUpdate({
+        target: importQuotaGlobal.day,
+        set: { count: sql`${importQuotaGlobal.count} + 1` },
+        where: sql`${importQuotaGlobal.count} < ${limits.global}`,
+      })
+      .returning({ count: importQuotaGlobal.count });
+    if (rows.length === 0) {
+      return { allowed: false, scope: "daily_server", limit: limits.global, resetAt: nextUtcMidnight(now) };
+    }
+  }
+
+  return { allowed: true };
 }
 
 export async function ensureUserProfile(userId: string, email?: string | null): Promise<{ created: boolean }> {
