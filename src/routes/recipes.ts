@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import {
   getRecipeListFromReactDb,
   getRecipeByIdFromReactDb,
@@ -15,6 +16,13 @@ import {
 import type { RecipeOwner } from "../db-react.js";
 
 const app = new Hono();
+
+// Recipe images are either a direct https:// source (hotlink) or an inline
+// data:image/... URI (photo upload). Anything else is rejected on PATCH.
+const recipeImageUrlSchema = z.string().refine(
+  (value) => value.startsWith("https://") || value.startsWith("data:image/"),
+  { message: "imageUrl must be an https:// URL or a data:image/ URI" },
+);
 
 function parseRequestedOwner(body: Record<string, unknown>, auth: ReturnType<typeof getUserAuth>): RecipeOwner | null {
   const owner = body.owner;
@@ -177,6 +185,14 @@ app.patch("/api/v1/recipes/:id", requireUserAuth(), async (c) => {
     if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
     const body = await c.req.json();
+
+    if (body && typeof body === "object" && "imageUrl" in body) {
+      const parsed = recipeImageUrlSchema.safeParse(body.imageUrl);
+      if (!parsed.success) {
+        return c.json({ error: "imageUrl must be an https:// URL or a data:image/ URI" }, 400);
+      }
+    }
+
     const updated = await updateRecipeInReactDb(id, auth, body);
 
     if (!updated) return c.json({ error: "Not found" }, 404);

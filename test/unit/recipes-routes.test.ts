@@ -340,6 +340,77 @@ describe('recipes route mutation auth boundary', () => {
     expect(dbMocks.updateRecipeInReactDb).toHaveBeenCalledWith(7, expectedAuth, { name: 'Updated' })
   })
 
+  it('accepts an https:// imageUrl on update', async () => {
+    const res = await recipesRouter.request('/api/v1/recipes/7', {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer valid-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ imageUrl: 'https://img.example.test/recipe.jpg' }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(dbMocks.updateRecipeInReactDb).toHaveBeenCalledWith(7, expectedAuth, { imageUrl: 'https://img.example.test/recipe.jpg' })
+  })
+
+  it('accepts a data:image/... imageUrl on update', async () => {
+    const res = await recipesRouter.request('/api/v1/recipes/7', {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer valid-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ imageUrl: 'data:image/jpeg;base64,SGVsbG8=' }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(dbMocks.updateRecipeInReactDb).toHaveBeenCalledWith(7, expectedAuth, { imageUrl: 'data:image/jpeg;base64,SGVsbG8=' })
+  })
+
+  it('rejects a non-url imageUrl on update', async () => {
+    const res = await recipesRouter.request('/api/v1/recipes/7', {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer valid-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ imageUrl: 'javascript:alert(1)' }),
+    })
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toMatchObject({ error: expect.stringMatching(/imageUrl/i) })
+    expect(dbMocks.updateRecipeInReactDb).not.toHaveBeenCalled()
+  })
+
+  it('rejects an http:// imageUrl on update', async () => {
+    const res = await recipesRouter.request('/api/v1/recipes/7', {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer valid-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ imageUrl: 'http://img.example.test/recipe.jpg' }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(dbMocks.updateRecipeInReactDb).not.toHaveBeenCalled()
+  })
+
+  it('rejects a null imageUrl on update', async () => {
+    const res = await recipesRouter.request('/api/v1/recipes/7', {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer valid-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ imageUrl: null }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(dbMocks.updateRecipeInReactDb).not.toHaveBeenCalled()
+  })
+
   it('returns 404 when owner-scoped update does not find a recipe', async () => {
     dbMocks.updateRecipeInReactDb.mockResolvedValue(false)
 
