@@ -601,6 +601,17 @@ export default function AccountScreen() {
                   <Mail size={15} color="#8B7355" />
                   <Text className="ml-2 font-medium text-warm-700 dark:text-warm-200">Bestätigungs-E-Mail erneut senden</Text>
                 </Pressable>
+                <Text className="mt-4 text-xs leading-5 text-warm-500 dark:text-warm-400">
+                  Mit der Registrierung gelten die{' '}
+                  <Text onPress={() => router.push('/nutzungsbedingungen')} className="underline">
+                    Nutzungsbedingungen
+                  </Text>
+                  . Du musst mindestens 16 Jahre alt sein. Hinweise zur Datenverarbeitung:{' '}
+                  <Text onPress={() => router.push('/datenschutz')} className="underline">
+                    Datenschutzerklärung
+                  </Text>
+                  .
+                </Text>
               </>
             ) : null}
 

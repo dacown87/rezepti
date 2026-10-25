@@ -77,15 +77,27 @@ describe('legal pages', () => {
     expect(state.router.back).not.toHaveBeenCalled();
   });
 
-  it('links to both legal pages from the footer', async () => {
+  it('links to all legal pages from the footer', async () => {
     const { LegalLinks } = await import('@/components/LegalPage');
     render(React.createElement(LegalLinks));
 
     fireEvent.press(screen.getByText('Impressum'));
     fireEvent.press(screen.getByText('Datenschutz'));
+    fireEvent.press(screen.getByText('Nutzungsbedingungen'));
 
     expect(state.router.push).toHaveBeenCalledWith('/impressum');
     expect(state.router.push).toHaveBeenCalledWith('/datenschutz');
+    expect(state.router.push).toHaveBeenCalledWith('/nutzungsbedingungen');
+  });
+
+  it('renders the terms of service with the key sections', async () => {
+    const { default: NutzungsbedingungenScreen } = await import('@/app/nutzungsbedingungen');
+    render(React.createElement(NutzungsbedingungenScreen));
+
+    for (const heading of ['1. Dienst und Verfügbarkeit', '2. Mindestalter', '3. Haftung', '7. Lizenz']) {
+      expect(screen.getByText(heading)).toBeTruthy();
+    }
+    expect(screen.getByText(/AGPL-3.0-or-later/)).toBeTruthy();
   });
 
   it('states the non-commercial open-source nature and links the source code', async () => {

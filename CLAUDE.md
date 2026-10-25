@@ -217,13 +217,14 @@ Routes (`mobile/app/`, Expo Router):
 | `account.tsx` | Login / signup / workspace — reachable anonymously |
 | `impressum.tsx` | Imprint (legal) — reachable anonymously |
 | `datenschutz.tsx` | Privacy policy (legal) — reachable anonymously |
+| `nutzungsbedingungen.tsx` | Terms of service (legal) — reachable anonymously |
 | `collections.tsx`, `collection/[id].tsx` | Collection list and contents |
 | `share-invite/[token].tsx` | View and accept an invite |
 | `admin/index.tsx`, `admin/bug-reports.tsx`, `admin/byok-validation-policy.tsx` | Admin surfaces |
 | `+html.tsx` | Route-aware static app shell (LCP candidate before hydration) |
 | `_layout.tsx` | Root: fonts, theme, query persistence, auth observer, login-first guard, offline-queue flush, bug-report modal, PWA update |
 
-**Login-first gate:** a guard redirects anonymous access to `/account` with a matching `returnTo`; `/account`, `/impressum`, `/datenschutz`, `/+not-found` and `/share-invite/*` stay directly reachable. Toggle: `EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE`.
+**Login-first gate:** a guard redirects anonymous access to `/account` with a matching `returnTo`; `/account`, `/impressum`, `/datenschutz`, `/nutzungsbedingungen`, `/+not-found` and `/share-invite/*` stay directly reachable. Toggle: `EXPO_PUBLIC_LOGIN_FIRST_ACCOUNT_GATE`.
 
 Key modules: `mobile/utils/scaling.ts` (`parseServingsNumber`, `scaleIngredient`), `mobile/utils/api.ts` (`apiFetch` with one forced token refresh + retry on 401), `mobile/utils/query-client.ts` (per-user query persistence, SW messages), `mobile/offline/` (IndexedDB mutation queue), `mobile/sw/` (service worker source).
 

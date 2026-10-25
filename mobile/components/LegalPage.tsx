@@ -8,7 +8,7 @@ import { LEGAL_LAST_UPDATED, LEGAL_PLACEHOLDERS_OPEN } from '@/utils/legal-opera
 
 // Shared shell for the public legal pages (/impressum, /datenschutz). Both are
 // reachable without login, see isPublicLoginFirstPath.
-export function LegalPage({ title, children }: { title: string; children: ReactNode }) {
+export function LegalPage({ title, lastUpdated, children }: { title: string; lastUpdated?: string; children: ReactNode }) {
   const goBack = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/account');
@@ -34,7 +34,7 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
           </View>
         ) : null}
         {children}
-        <Text className="mt-8 text-xs text-warm-500 dark:text-warm-400">Stand: {LEGAL_LAST_UPDATED}</Text>
+        <Text className="mt-8 text-xs text-warm-500 dark:text-warm-400">Stand: {lastUpdated ?? LEGAL_LAST_UPDATED}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -68,12 +68,15 @@ export function LegalList({ items }: { items: string[] }) {
 // Footer links to the legal pages, shown on the login screen and in Settings.
 export function LegalLinks() {
   return (
-    <View className="mt-6 mb-2 flex-row justify-center gap-6">
+    <View className="mt-6 mb-2 flex-row flex-wrap justify-center gap-x-6 gap-y-2">
       <Pressable onPress={() => router.push('/impressum')} accessibilityRole="link">
         <Text className="text-xs text-warm-500 underline dark:text-warm-400">Impressum</Text>
       </Pressable>
       <Pressable onPress={() => router.push('/datenschutz')} accessibilityRole="link">
         <Text className="text-xs text-warm-500 underline dark:text-warm-400">Datenschutz</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/nutzungsbedingungen')} accessibilityRole="link">
+        <Text className="text-xs text-warm-500 underline dark:text-warm-400">Nutzungsbedingungen</Text>
       </Pressable>
     </View>
   );

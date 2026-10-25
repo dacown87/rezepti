@@ -232,6 +232,20 @@ describe('account entry and auth flows', () => {
     expect(state.signUpWithPassword).not.toHaveBeenCalled();
   });
 
+  it('shows the terms and privacy hint in signup mode', async () => {
+    state.params = { mode: 'signup' };
+
+    const { default: AccountScreen } = await import('@/app/account');
+    render(React.createElement(AccountScreen));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Mit der Registrierung gelten die/)).toBeTruthy();
+    });
+    expect(screen.getByText(/mindestens 16 Jahre alt/)).toBeTruthy();
+    expect(screen.getByText('Datenschutzerklärung')).toBeTruthy();
+    expect(screen.getAllByText('Nutzungsbedingungen').length).toBeGreaterThan(0);
+  });
+
   it('requests a password reset from the account screen', async () => {
     state.params = { returnTo: '/(tabs)/index' };
 

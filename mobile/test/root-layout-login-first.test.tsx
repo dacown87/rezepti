@@ -99,6 +99,7 @@ vi.mock('@/utils/login-first-routing', () => ({
     pathname === '/account'
     || pathname === '/impressum'
     || pathname === '/datenschutz'
+    || pathname === '/nutzungsbedingungen'
     || pathname === '/+not-found'
     || pathname?.startsWith('/share-invite/') === true,
   buildLoginFirstAccountHref: (returnTo: string | null | undefined) => ({

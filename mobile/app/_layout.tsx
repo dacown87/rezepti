@@ -301,6 +301,7 @@ function RootLayoutNav() {
           <Stack.Screen name="collection/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="impressum" options={{ headerShown: false }} />
           <Stack.Screen name="datenschutz" options={{ headerShown: false }} />
+          <Stack.Screen name="nutzungsbedingungen" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         )}

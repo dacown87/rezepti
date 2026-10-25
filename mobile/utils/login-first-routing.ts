@@ -28,6 +28,7 @@ export function isPublicLoginFirstPath(pathname: string | null | undefined): boo
   return pathname === '/account'
     || pathname === '/impressum'
     || pathname === '/datenschutz'
+    || pathname === '/nutzungsbedingungen'
     || pathname === '/+not-found'
     || pathname?.startsWith('/share-invite/') === true;
 }
