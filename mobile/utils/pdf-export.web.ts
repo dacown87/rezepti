@@ -2,6 +2,7 @@
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import type { Recipe } from '@/db/schema'
+import { apiFetch } from '@/utils/api'
 import { getServerUrl } from '@/utils/server-url'
 import {
   buildRecipeQrUrl,
@@ -12,11 +13,11 @@ import {
   stripPdfUnsupportedCharacters,
 } from '@/utils/pdf-export-helpers'
 
-async function fetchImageAsBase64(url: string, serverUrl: string): Promise<string | null> {
+async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
-    // Bild über Backend-Proxy laden, um CORS zu umgehen
-    const proxyUrl = `${serverUrl}/api/v1/proxy/image?url=${encodeURIComponent(url)}`
-    const res = await fetch(proxyUrl)
+    // Bild über Backend-Proxy laden, um CORS zu umgehen. Der Proxy ist
+    // user-scoped und verlangt ein Bearer-Token → apiFetch statt rohem fetch.
+    const res = await apiFetch(`/api/v1/proxy/image?url=${encodeURIComponent(url)}`)
     if (!res.ok) return null
     const blob = await res.blob()
     return await new Promise<string>((resolve, reject) => {
@@ -46,7 +47,7 @@ export async function shareRecipePDF(recipe: Recipe): Promise<void> {
 
   // Bild via Proxy (CORS-frei)
   if (recipe.image_url) {
-    const dataUrl = await fetchImageAsBase64(recipe.image_url, serverUrl)
+    const dataUrl = await fetchImageAsBase64(recipe.image_url)
     if (dataUrl) {
       const imgHeight = 65
       doc.addImage(dataUrl, 'JPEG', margin, y, contentWidth, imgHeight)
@@ -212,8 +213,7 @@ export async function shareRecipeCardsPDF(recipes: Recipe[]): Promise<void> {
     const imgAreaH = cardH * 0.5
     if (recipe.image_url) {
       try {
-        const serverUrl = await getServerUrl()
-        const dataUrl = await fetchImageAsBase64(recipe.image_url, serverUrl)
+        const dataUrl = await fetchImageAsBase64(recipe.image_url)
         if (dataUrl) doc.addImage(dataUrl, 'JPEG', x, y, cardW, imgAreaH)
       } catch { /* kein Bild */ }
     } else {

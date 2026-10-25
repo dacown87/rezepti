@@ -144,7 +144,7 @@ The server (`src/index.ts`) serves the Expo web export from `public/` (with SPA 
 | `/api/v1/pinterest/*` | GET/POST/DELETE | Pinterest connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/facebook/*` | GET/POST/DELETE | Facebook connector (not implemented — returns 501), `requireUserAuth` |
 | `/api/v1/push/subscribe` | POST/DELETE | Register/remove a Web Push subscription, `requireUserAuth` |
-| `/api/v1/proxy/image` | GET | Image proxy for PDF export (unauthenticated by design, SSRF-guarded) |
+| `/api/v1/proxy/image` | GET | Image proxy for PDF export (user-scoped, SSRF-guarded via `safe-fetch`), `requireUserAuth` |
 | `/api/v1/shopping` | GET/POST/PATCH/DELETE | Shopping list CRUD, `requireAuth` (household-scoped) |
 | `/api/v1/dictionary` | GET | Ingredient dictionary read (open, global read-only) |
 | `/api/v1/dictionary` | POST | Add dictionary entry, `requireAuth` |
@@ -176,7 +176,7 @@ BYOK extraction requests accept `x-groq-key` or an `apiKey` JSON body field wher
 | `cookidoo/credentials` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | resolved scope (`user > household`) | private row by caller; household share by active-household owner only | low | implemented 2026-06-15; legacy disk singleton removed. `password`/`session_cookies` are AES-256-GCM encrypted at rest via `src/credential-crypto.ts` (`email`/`session_user_agent` stay plaintext) |
 | `cookidoo/status` | Server + Postgres | user-default with optional household-share | `requireUserAuth` | caller sees resolved scope + share flag | — | low | returns `scope`, `connected`, `sharedByCurrentHousehold`, `canManageHouseholdShare` |
 | Pinterest / Facebook routes | Server | disabled | `requireUserAuth` + 501 | — | — | low | — |
-| `/api/v1/proxy/image` | Server | open-by-design | none | public | — | low | SSRF-guarded, needed for PDF export |
+| `/api/v1/proxy/image` | Server | user-scoped | `requireUserAuth` | caller | — | low | SSRF-guarded via `src/utils/safe-fetch.ts` (connect-time DNS lookup + IP guard), streaming 5 MB cap, magic-byte check, `Cache-Control: private`; needed for web PDF export |
 | `/api/v1/health` | Server | open-by-design | none | public | — | low | — |
 | `/api/v1/health/live` | Server | open-by-design | none | public | — | low | returns a static payload, never touches the DB |
 | `ingredient_dictionary` GET | Server | global read-only | none | public | — | low | intentional public read |

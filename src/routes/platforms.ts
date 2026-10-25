@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getUserAuth, requireUserAuth } from "../auth.js";
 import { removeLegacyCookidooFiles } from "../fetchers/cookidoo.js";
+import { ResponseTooLargeError, SsrfBlockedError, safeFetch } from "../utils/safe-fetch.js";
 import {
   deleteHouseholdCookidooShare,
   deleteUserCookidooCredentials,
@@ -144,61 +145,96 @@ app.delete("/api/v1/facebook/cookies", requireUserAuth(), (c) => {
   return c.json({ error: { code: "not_implemented" } }, 501);
 });
 
-// Image proxy for PDF export (bypasses browser CORS restrictions)
-// INTENTIONALLY unauthenticated — used for PDF export before login
-app.get("/api/v1/proxy/image", async (c) => {
+// Allowlist: safe raster formats only. SVG is excluded because it can contain
+// <script> tags — serving it from our origin would enable XSS.
+const SAFE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
+
+// Verifies the actual bytes against known image signatures instead of trusting
+// the upstream Content-Type header alone.
+function detectImageType(bytes: Uint8Array): string | null {
+  // JPEG: FF D8 FF
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  // GIF: "GIF8" (GIF87a / GIF89a)
+  if (bytes.length >= 4 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
+    return "image/gif";
+  }
+  // WebP: "RIFF" + 4 bytes + "WEBP"
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  // AVIF: ISO-BMFF "ftyp" box with an "avif"/"avis" major brand
+  if (
+    bytes.length >= 12 &&
+    bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70
+  ) {
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+    if (brand === "avif" || brand === "avis") return "image/avif";
+  }
+  return null;
+}
+
+// Image proxy for PDF export (bypasses browser CORS restrictions). User-scoped:
+// the only consumer (web PDF export) sends the Bearer header. SSRF-guarded via
+// safeFetch; `Cache-Control: private` so authenticated images are never shared.
+app.get("/api/v1/proxy/image", requireUserAuth(), async (c) => {
   const url = c.req.query("url");
-  if (!url || !url.startsWith("https://")) {
+  if (!url) {
     return c.json({ error: "Invalid URL" }, 400);
   }
 
-  // SSRF guard: block private/metadata IP ranges
+  let response: Response;
   try {
-    const { hostname } = new URL(url);
-    const blocked = [
-      /^localhost$/i,
-      /^127\./,
-      /^10\./,
-      /^172\.(1[6-9]|2\d|3[01])\./,
-      /^192\.168\./,
-      /^169\.254\./,
-      /^::1$/,
-      /^fc00:/i,
-      /^fe80:/i,
-    ];
-    if (blocked.some((r) => r.test(hostname))) {
+    response = await safeFetch(url, {}, { maxBytes: 5 * 1024 * 1024 });
+  } catch (error) {
+    if (error instanceof SsrfBlockedError) {
+      console.warn(`[proxy] blocked ${error.host} (${error.reason})`);
       return c.json({ error: "Invalid URL" }, 400);
     }
-  } catch {
-    return c.json({ error: "Invalid URL" }, 400);
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (!response.ok) {
-      return c.json({ error: "Upstream error" }, 502);
-    }
-    const contentType = response.headers.get("content-type") ?? "";
-    // Allowlist: safe raster formats only. SVG is excluded because it can contain
-    // <script> tags — serving it from our origin would enable XSS.
-    const SAFE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
-    const mimeType = contentType.split(";")[0].trim();
-    if (!SAFE_IMAGE_TYPES.includes(mimeType)) {
-      return c.json({ error: "Unsupported image type" }, 415);
-    }
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > 5 * 1024 * 1024) {
-      return c.json({ error: "Image too large" }, 413);
-    }
-    return new Response(buffer, {
-      headers: { "Content-Type": mimeType, "Cache-Control": "public, max-age=3600" },
-    });
-  } catch {
     return c.json({ error: "Failed to fetch image" }, 502);
   }
+
+  if (!response.ok) {
+    return c.json({ error: "Upstream error" }, 502);
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const headerMime = contentType.split(";")[0].trim().toLowerCase();
+  if (!SAFE_IMAGE_TYPES.includes(headerMime)) {
+    return c.json({ error: "Unsupported image type" }, 415);
+  }
+
+  let buffer: ArrayBuffer;
+  try {
+    buffer = await response.arrayBuffer();
+  } catch (error) {
+    if (error instanceof ResponseTooLargeError) {
+      return c.json({ error: "Image too large" }, 413);
+    }
+    return c.json({ error: "Failed to fetch image" }, 502);
+  }
+
+  const detectedType = detectImageType(new Uint8Array(buffer));
+  if (!detectedType || !SAFE_IMAGE_TYPES.includes(detectedType)) {
+    return c.json({ error: "Unsupported image type" }, 415);
+  }
+
+  return new Response(buffer, {
+    headers: { "Content-Type": detectedType, "Cache-Control": "private, max-age=3600" },
+  });
 });
 
 export default app;

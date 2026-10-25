@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthFlowError, configureAuthForTests, resetAuthAdaptersForTests } from '../../src/auth.js'
+import { SsrfBlockedError } from '../../src/utils/safe-fetch.js'
 
 // ---------------------------------------------------------------------------
 // Module-level mocks — must be hoisted before any dynamic imports
@@ -74,6 +75,12 @@ vi.mock('../../src/db-react.js', () => ({
   createExtractionJob: vi.fn(),
   updateExtractionJob: vi.fn(),
 }))
+
+const safeFetchMocks = vi.hoisted(() => ({ safeFetch: vi.fn() }))
+vi.mock('../../src/utils/safe-fetch.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/utils/safe-fetch.js')>()
+  return { ...actual, safeFetch: safeFetchMocks.safeFetch }
+})
 
 // Import routers after mocks are in place
 const { default: platformsRouter } = await import('../../src/routes/platforms.js')
@@ -550,30 +557,74 @@ describe('Cookidoo routes — authenticated happy-path (G5)', () => {
 // T6 — Proxy image route stays open (no auth required — regression guard)
 // ---------------------------------------------------------------------------
 
-describe('/api/v1/proxy/image — intentionally unauthenticated (regression guard)', () => {
-  it('returns 400 for missing URL without a Bearer token (not 401)', async () => {
+describe('/api/v1/proxy/image — user-scoped + SSRF-guarded', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    safeFetchMocks.safeFetch.mockReset()
+  })
+
+  afterEach(() => {
+    resetAuthAdaptersForTests()
+  })
+
+  const configureValidAuth = () => {
+    configureAuthForTests({
+      verifyAccessToken: async () => ({
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'user@example.com',
+      }),
+      loadAuthorization: async () => ({
+        appRole: 'user' as const,
+        memberships: [{ householdId: '10000000-0000-0000-0000-000000000001', role: 'owner' as const }],
+        activeHouseholdId: '10000000-0000-0000-0000-000000000001',
+      }),
+    })
+  }
+
+  it('returns 401 without a Bearer token (missing url)', async () => {
     const res = await platformsRouter.request('/api/v1/proxy/image')
-
-    // Must NOT be 401 — this route is intentionally open
-    expect(res.status).not.toBe(401)
-    // Missing `url` param → 400 Invalid URL
-    expect(res.status).toBe(400)
-    await expect(res.json()).resolves.toMatchObject({ error: 'Invalid URL' })
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'auth_missing' } })
   })
 
-  it('returns 400 for non-https URL without a Bearer token (not 401)', async () => {
-    const res = await platformsRouter.request('/api/v1/proxy/image?url=http%3A%2F%2Fexample.com%2Fimg.jpg')
-
-    expect(res.status).not.toBe(401)
-    expect(res.status).toBe(400)
-    await expect(res.json()).resolves.toMatchObject({ error: 'Invalid URL' })
+  it('returns 401 without a Bearer token (valid-looking url)', async () => {
+    const res = await platformsRouter.request('/api/v1/proxy/image?url=https%3A%2F%2Fexample.com%2Fimg.jpg')
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'auth_missing' } })
   })
 
-  it('returns 400 for private/localhost URL without a Bearer token (SSRF guard)', async () => {
+  it('returns 401 without a Bearer token (private url)', async () => {
     const res = await platformsRouter.request('/api/v1/proxy/image?url=https%3A%2F%2Flocalhost%2Fimg.jpg')
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({ error: { code: 'auth_missing' } })
+  })
 
-    expect(res.status).not.toBe(401)
+  it('returns 400 for an internal URL with a valid token', async () => {
+    configureValidAuth()
+    safeFetchMocks.safeFetch.mockRejectedValueOnce(new SsrfBlockedError('127.0.0.1', 'non-public-ip-literal'))
+
+    const res = await platformsRouter.request('/api/v1/proxy/image?url=http%3A%2F%2F127.0.0.1%2Fimg.jpg', {
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
     expect(res.status).toBe(400)
     await expect(res.json()).resolves.toMatchObject({ error: 'Invalid URL' })
+  })
+
+  it('returns 200 with a private cache for a valid image', async () => {
+    configureValidAuth()
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    safeFetchMocks.safeFetch.mockResolvedValueOnce(
+      new Response(png, { status: 200, headers: { 'content-type': 'image/png' } }),
+    )
+
+    const res = await platformsRouter.request('/api/v1/proxy/image?url=https%3A%2F%2Fexample.com%2Fimg.png', {
+      headers: { Authorization: 'Bearer valid-token' },
+    })
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+    expect(res.headers.get('cache-control')).toBe('private, max-age=3600')
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(png)
   })
 })

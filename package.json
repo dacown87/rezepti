@@ -89,6 +89,7 @@
     "hono": "^4.12.24",
     "openai": "^6.42.0",
     "postgres": "^3.4.9",
+    "undici": "^7.25.0",
     "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
@@ -107,7 +108,6 @@
     "supabase": "^2.105.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "undici": "^7.25.0",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
     "workbox-expiration": "^7.4.1",
