@@ -3,13 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const dbMocks = vi.hoisted(() => ({
   purgeExpiredBugReports: vi.fn(),
   purgeExpiredInvites: vi.fn(),
+  purgeExpiredDeletionLog: vi.fn(),
+  purgeExpiredImportQuota: vi.fn(),
 }));
 
 vi.mock("../../src/db-react.js", () => dbMocks);
 
 vi.mock("../../src/config.js", () => ({
   config: {
-    retention: { bugReportMonths: 12, inviteDays: 30 },
+    retention: { bugReportMonths: 12, inviteDays: 30, deletionLogDays: 35, importQuotaDays: 2 },
   },
 }));
 
@@ -28,14 +30,20 @@ describe("retention", () => {
   it("runs every step with the configured retention windows and logs removals", async () => {
     dbMocks.purgeExpiredBugReports.mockResolvedValue(3);
     dbMocks.purgeExpiredInvites.mockResolvedValue(5);
+    dbMocks.purgeExpiredDeletionLog.mockResolvedValue(1);
+    dbMocks.purgeExpiredImportQuota.mockResolvedValue(2);
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     await runRetentionSteps();
 
     expect(dbMocks.purgeExpiredBugReports).toHaveBeenCalledWith(12);
     expect(dbMocks.purgeExpiredInvites).toHaveBeenCalledWith(30);
+    expect(dbMocks.purgeExpiredDeletionLog).toHaveBeenCalledWith(35);
+    expect(dbMocks.purgeExpiredImportQuota).toHaveBeenCalledWith(2);
     expect(logSpy).toHaveBeenCalledWith("[retention] bug_reports removed 3");
     expect(logSpy).toHaveBeenCalledWith("[retention] invites removed 5");
+    expect(logSpy).toHaveBeenCalledWith("[retention] deleted_accounts_log removed 1");
+    expect(logSpy).toHaveBeenCalledWith("[retention] import_quota removed 2");
   });
 
   it("logs a step failure instead of throwing and still runs later steps", async () => {

@@ -31,6 +31,8 @@ export const config = {
   retention: {
     bugReportMonths: parseInt(process.env.BUG_REPORT_RETENTION_MONTHS || "12", 10),
     inviteDays: parseInt(process.env.INVITE_RETENTION_DAYS || "30", 10),
+    deletionLogDays: parseInt(process.env.DELETION_LOG_RETENTION_DAYS || "35", 10),
+    importQuotaDays: parseInt(process.env.IMPORT_QUOTA_RETENTION_DAYS || "2", 10),
   },
   port: parseInt(process.env.PORT || "3000", 10),
   jobs: {

@@ -70,6 +70,8 @@ Die drei Services binden alle Port 3000 — es kann immer nur einer laufen.
 
 **Betrieb (Domain, DNS, Mail, Push, Health-Checks, Logs):** `docs/domain-mail-infra-runbook.md` — wo welche Zugangsdaten liegen (lokal `~/.config/*.env`, Repo-`.env`, GitHub-Secrets, Northflank-Env), wie INWX/Cloudflare/Brevo/Northflank/Supabase per API angesprochen werden und welche Stolpersteine es gibt (Northflank-Env-Update ersetzt die komplette Environment, Brevo-IP-Allowlist, `SMTP_HOST` zuletzt setzen)
 
+**Backups:** `.github/workflows/db-backup.yml` legt taeglich ~03:30 UTC ein `age`-verschluesseltes `pg_dump` (Schemas `public`, `private`, `auth`) nach Cloudflare R2 (Rotation 14 taeglich / 4 woechentlich, Hoechstfrist 35 Tage); `private.deleted_accounts_log` wird separat nach R2 exportiert (Northflank-Logs halten nur ~30 Tage). Restore und Loesch-Nachlauf: `docs/db-backup-restore-runbook.md`.
+
 ## Architecture
 
 **Request flow:** HTTP request → Pipeline → Classifier → Fetcher → Processor → Supabase PostgreSQL save

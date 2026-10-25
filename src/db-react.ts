@@ -2443,6 +2443,31 @@ export async function consumeImportQuota(
   return { allowed: true };
 }
 
+/** Deletes deletion-log rows older than `days` (returns the removed count). */
+export async function purgeExpiredDeletionLog(days: number): Promise<number> {
+  const db = getDb();
+  const res = await db.execute(
+    sql`delete from private.deleted_accounts_log where deleted_at < now() - make_interval(days => ${days}) returning user_hash`,
+  );
+  const rows = (Array.isArray(res) ? res : (res as { rows?: unknown[] }).rows ?? []) as unknown[];
+  return rows.length;
+}
+
+/** Deletes import-quota rows older than `days` (returns the removed count). */
+export async function purgeExpiredImportQuota(days: number): Promise<number> {
+  const db = getDb();
+  const cutoff = sql`current_date - make_interval(days => ${days})`;
+  const usage = await db
+    .delete(importQuotaUsage)
+    .where(lt(importQuotaUsage.day, cutoff))
+    .returning({ userId: importQuotaUsage.userId });
+  const global = await db
+    .delete(importQuotaGlobal)
+    .where(lt(importQuotaGlobal.day, cutoff))
+    .returning({ day: importQuotaGlobal.day });
+  return usage.length + global.length;
+}
+
 export async function ensureUserProfile(userId: string, email?: string | null): Promise<{ created: boolean }> {
   const db = getDb();
   const rows = await db

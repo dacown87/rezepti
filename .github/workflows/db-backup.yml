@@ -1,0 +1,84 @@
+name: Database Backup
+
+# Taeglich ein age-verschluesseltes, logisches Backup der Production-DB
+# (Schemas public, private, auth) nach Cloudflare R2. Ausfuehrungsort bewusst
+# GitHub Actions (USA) — der Dump ist verschluesselt, bevor er den Runner
+# verlaesst; der Private Key liegt nur offline beim Betreiber.
+#
+# Zusaetzlich wird private.deleted_accounts_log separat nach R2 exportiert, weil
+# Northflank-Runtime-Logs nur ~30 Tage aufbewahrt werden — kuerzer als die
+# 35-Tage-Frist des Loeschprotokolls (siehe docs/db-backup-restore-runbook.md).
+
+on:
+  schedule:
+    - cron: "30 3 * * *"  # daily 03:30 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install postgres client and age
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client age
+
+      - name: Dump and encrypt
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          : "${BACKUP_DATABASE_URL:?BACKUP_DATABASE_URL secret is missing}"
+          : "${AGE_RECIPIENT:?AGE_RECIPIENT secret is missing}"
+          DATE="$(date +%F)"
+          pg_dump --format=custom --no-owner --no-privileges \
+            -n public -n private -n auth "$BACKUP_DATABASE_URL" \
+            | age -r "$AGE_RECIPIENT" > "rezepti-${DATE}.dump.age"
+          SIZE="$(stat -c %s "rezepti-${DATE}.dump.age")"
+          echo "encrypted dump size: ${SIZE} bytes"
+          # Plausibilitaetscheck: ein gesunder Dump ist deutlich groesser.
+          if [ "$SIZE" -lt 100000 ]; then
+            echo "::error::dump implausibly small (${SIZE} bytes)"
+            exit 1
+          fi
+
+      - name: Export deletion log
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          DATE="$(date +%F)"
+          psql "$BACKUP_DATABASE_URL" -Atc \
+            "copy (select user_hash, deleted_at from private.deleted_accounts_log order by deleted_at) to stdout with (format csv)" \
+            | age -r "$AGE_RECIPIENT" > "deletion-log-${DATE}.csv.age"
+
+      - name: Upload to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID secret is missing}"
+          : "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY secret is missing}"
+          : "${R2_ENDPOINT:?R2_ENDPOINT secret is missing}"
+          : "${R2_BUCKET:?R2_BUCKET secret is missing}"
+          DATE="$(date +%F)"
+          DOW="$(date +%u)"  # 1=Mon … 7=Sun
+          aws s3 cp "rezepti-${DATE}.dump.age" \
+            "s3://${R2_BUCKET}/daily/rezepti-${DATE}.dump.age" \
+            --endpoint-url "$R2_ENDPOINT"
+          if [ "$DOW" = "7" ]; then
+            aws s3 cp "rezepti-${DATE}.dump.age" \
+              "s3://${R2_BUCKET}/weekly/rezepti-${DATE}.dump.age" \
+              --endpoint-url "$R2_ENDPOINT"
+          fi
+          aws s3 cp "deletion-log-${DATE}.csv.age" \
+            "s3://${R2_BUCKET}/deletion-log/deletion-log-${DATE}.csv.age" \
+            --endpoint-url "$R2_ENDPOINT"

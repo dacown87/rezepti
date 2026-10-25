@@ -5,13 +5,15 @@
 // not stop the others, and multiple instances are harmless (idempotent DELETEs).
 // Started once in src/index.ts next to the job cleanup timer.
 
-import { purgeExpiredBugReports, purgeExpiredInvites } from "./db-react.js";
+import { purgeExpiredBugReports, purgeExpiredInvites, purgeExpiredDeletionLog, purgeExpiredImportQuota } from "./db-react.js";
 import { config } from "./config.js";
 
 export async function runRetentionSteps(): Promise<void> {
   const steps: Array<[string, () => Promise<number>]> = [
     ["bug_reports", () => purgeExpiredBugReports(config.retention.bugReportMonths)],
     ["invites", () => purgeExpiredInvites(config.retention.inviteDays)],
+    ["deleted_accounts_log", () => purgeExpiredDeletionLog(config.retention.deletionLogDays)],
+    ["import_quota", () => purgeExpiredImportQuota(config.retention.importQuotaDays)],
   ];
 
   for (const [name, step] of steps) {
