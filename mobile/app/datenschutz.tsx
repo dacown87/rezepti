@@ -197,9 +197,11 @@ export default function DatenschutzScreen() {
         Wenn du uns unter {LEGAL_OPERATOR.email} kontaktierst, verarbeiten wir deine E-Mail-Adresse und die Inhalte
         deiner Nachricht zur Beantwortung deiner Anfrage. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (bei
         Vertragsbezug) bzw. unser berechtigtes Interesse an der Bearbeitung sonstiger Anfragen (Art. 6 Abs. 1 lit. f
-        DSGVO). Wir speichern die Korrespondenz bis zur abschließenden Bearbeitung, maximal 6 Monate. Unser Postfach
-        wird von Google Ireland Ltd. bzw. Google LLC (USA) bereitgestellt; die Übermittlung in die USA erfolgt auf
-        Grundlage des EU-US Data Privacy Framework.
+        DSGVO). Wir speichern die Korrespondenz bis zur abschließenden Bearbeitung, maximal 6 Monate. Eingehende
+        Nachrichten an diese Adresse leitet Cloudflare, Inc. (USA) per E-Mail-Weiterleitung (Email Routing) an unser
+        Postfach weiter. Das Postfach wird von Google Ireland Ltd. bzw. Google LLC (USA) bereitgestellt. Die
+        Übermittlung in die USA erfolgt jeweils auf Grundlage des EU-US Data Privacy Framework bzw. der
+        Standardvertragsklauseln.
       </LegalText>
       <LegalExternalLink label="Datenschutzerklärung von Google" url="https://policies.google.com/privacy" />
 
@@ -210,8 +212,9 @@ export default function DatenschutzScreen() {
         Grundlage der Standardvertragsklauseln; Brevo Germany GmbH (Deutschland, Speicherorte Frankreich und Belgien;
         Unterauftragsverarbeiter u. a. Brevo Inc., USA, auf Grundlage des EU-US Data Privacy Framework bzw. der
         Standardvertragsklauseln); Google Ireland Ltd. bzw. Google LLC (USA)
-        für das E-Mail-Postfach auf Grundlage des EU-US Data Privacy Framework; Cloudflare für die Datensicherung in
-        einem Speicher mit Standort in der EU. Beim direkten Laden von Rezeptbildern erhält außerdem die jeweilige
+        für das E-Mail-Postfach auf Grundlage des EU-US Data Privacy Framework; Cloudflare, Inc. (USA) für die
+        Weiterleitung eingehender Kontakt-E-Mails (Data Privacy Framework bzw. Standardvertragsklauseln) und für die
+        Datensicherung in einem Speicher mit Standort in der EU. Beim direkten Laden von Rezeptbildern erhält außerdem die jeweilige
         Quell-Website bzw. deren CDN deine IP-Adresse.
       </LegalText>
 
