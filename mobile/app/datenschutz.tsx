@@ -79,9 +79,8 @@ export default function DatenschutzScreen() {
         Wenn du ein Rezept importierst, ruft unser Server die angegebene Seite oder das Video ab. Der Inhalt (Text,
         Untertitel, Audio oder Bild, bei Foto-Import dein hochgeladenes Foto) wird zur Erkennung des Rezepts an Groq
         übermittelt (Vertragspartner: Groq UK Limited, London; Verarbeitung auch auf Servern in den USA).
-        Rechtsgrundlage ist die Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO). Groq speichert Anfragen standardmäßig
-        nicht dauerhaft; nur zur Fehleranalyse oder bei Verdacht auf Missbrauch können Anfragen bis zu 30 Tage
-        protokolliert werden. Grundlage der Übermittlung sind EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c
+        Rechtsgrundlage ist die Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO). Für Importe mit unserem Server-Schlüssel
+        haben wir bei Groq die Zero Data Retention aktiviert: Groq speichert dabei weder Eingaben noch Ausgaben. Grundlage der Übermittlung sind EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c
         DSGVO); Groq ist nicht unter dem EU-US Data Privacy Framework zertifiziert. Standortdaten (EXIF) entfernen wir
         vor der Übermittlung. Lade deshalb keine Fotos hoch, auf denen Personen oder persönliche Informationen zu
         sehen sind.
@@ -89,7 +88,8 @@ export default function DatenschutzScreen() {
       <LegalText>
         Verwendest du einen eigenen Groq-API-Schlüssel, wird er nur auf deinem Gerät gespeichert und mit der jeweiligen
         Anfrage an unseren Server gesendet, dort aber nicht gespeichert. Für die Nutzung deines eigenen Schlüssels
-        gelten die Bedingungen und die Acceptable Use Policy von Groq.
+        gilt die Datenspeicherung deines Groq-Kontos (Groq kann Anfragen dort bis zu 30 Tage speichern, sofern du
+        Zero Data Retention nicht aktivierst), außerdem gelten die Bedingungen und die Acceptable Use Policy von Groq.
       </LegalText>
       <LegalExternalLink label="Datenschutzerklärung von Groq" url="https://groq.com/privacy-policy" />
       <LegalText>
