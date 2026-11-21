@@ -22,9 +22,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Install postgres client and age
+        # pg_dump refuses to dump a server newer than itself. Production runs
+        # PostgreSQL 17, but ubuntu-latest ships client 16, so take the 17 client
+        # from the PGDG repository (script is preinstalled on GitHub runners).
         run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends postgresql-client age
+          sudo apt-get install -y --no-install-recommends postgresql-client-17 age
+          pg_dump --version
 
       - name: Dump and encrypt
         env:
