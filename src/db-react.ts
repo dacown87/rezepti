@@ -2453,6 +2453,20 @@ export async function purgeExpiredDeletionLog(days: number): Promise<number> {
   return rows.length;
 }
 
+/**
+ * Deletes Supabase Auth audit-log rows (they carry e-mail and IP address) older than
+ * `days`. `auth.users` deletion does not cascade to this table, so a time-based purge
+ * is what bounds how long a deleted account's e-mail/IP can linger.
+ */
+export async function purgeExpiredAuthAuditLog(days: number): Promise<number> {
+  const db = getDb();
+  const res = await db.execute(
+    sql`delete from auth.audit_log_entries where created_at < now() - make_interval(days => ${days}) returning id`,
+  );
+  const rows = (Array.isArray(res) ? res : (res as { rows?: unknown[] }).rows ?? []) as unknown[];
+  return rows.length;
+}
+
 /** Deletes import-quota rows older than `days` (returns the removed count). */
 export async function purgeExpiredImportQuota(days: number): Promise<number> {
   const db = getDb();
