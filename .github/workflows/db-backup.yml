@@ -35,7 +35,10 @@ jobs:
           : "${BACKUP_DATABASE_URL:?BACKUP_DATABASE_URL secret is missing}"
           : "${AGE_RECIPIENT:?AGE_RECIPIENT secret is missing}"
           DATE="$(date +%F)"
-          pg_dump --format=custom --no-owner --no-privileges \
+          # No --no-privileges: the dump must carry GRANT/REVOKE (ACLs), otherwise a
+          # restore silently loses the hardening done by migrations (restore test
+          # 2026-11-21: anon/authenticated could execute private.delete_user_account).
+          pg_dump --format=custom --no-owner \
             -n public -n private -n auth "$BACKUP_DATABASE_URL" \
             | age -r "$AGE_RECIPIENT" > "rezepti-${DATE}.dump.age"
           SIZE="$(stat -c %s "rezepti-${DATE}.dump.age")"
