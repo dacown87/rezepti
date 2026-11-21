@@ -35,6 +35,13 @@ Quelle: [Anwalts-Liste](/home/patrick/Projekte/rezepti/docs/legal/2026-11-21-off
 **C. Beobachten/dokumentieren (kein Handlungsdruck)**
 - [ ] (15) Zweiter Kontaktweg/UWG-Risiko · (16) DPF-Lage (C-703/25 P) · (17) Omnibus IV (Art. 30 Abs. 5) · (18) DSB/DSFA-Bestaetigung · (19) BFSG · (20) Mindestalter 16 ohne technische Pruefung · (21) Asset-Lizenzen und Marke „RecipeDeck“ (Claude: Lizenz-Restpruefung) · (22) TDDDG. Bei Aenderung am Geschaeftsmodell alle neu bewerten (siehe Nicht-kommerziell-Entscheidung 2026-10-09).
 
+**D. Technische Reste (kein Rechtsthema, Stand 2026-11-21)**
+- [ ] **CI auf `main` ist rot: `mobile-release-gate` (Expo Doctor).** Seit mindestens 2026-11-16, unabhaengig von den Aenderungen vom 21.11. Ursache: neun Expo-SDK-57-Pakete in `mobile/` haben veraltete Patch-Versionen (`expo` 57.0.27 statt ~57.0.33, `expo-router` 57.0.25 statt ~57.0.31, dazu `expo-constants`, `expo-image-manipulator`, `expo-image-picker`, `expo-linking`, `expo-sharing`, `expo-splash-screen`, `expo-sqlite`). Fix: in `mobile/` `npx expo install --fix` (bzw. die Versionen aus dem Doctor-Report setzen), danach **in CI** pruefen (`mobile:release-gate` laeuft nicht lokal, siehe Arbeitsregel). Vor dem Start gruen haben.
+- [ ] **Staging-Altlast:** `private.prevent_user_id_change()` existiert nur auf Staging, nicht in Production. Entweder gezielt loeschen oder klaeren, ob eine Migration fehlt (Production gegen die Migrationsdateien abgleichen).
+- [ ] **Reply-To in einer echten Einladungsmail pruefen** (`RECIPE_INVITE_EMAIL_REPLY_TO` steht auf `kontakt@recipedeckapp.de`): bei der naechsten Einladung die Mail ansehen und darauf antworten, die Antwort muss im Postfach `recipedeckapp@gmail.com` landen.
+- [ ] **Aufraeumen:** Branch `fix/db-backup-pg17-client` (lokal und `origin`, ueberfluessig, der Runner bringt bereits ein neueres `pg_dump` mit) loeschen: `git push origin --delete fix/db-backup-pg17-client && git branch -D fix/db-backup-pg17-client`. Lokale Geheimnis-Dateien `~/.config/recipedeck-backup.env` und `~/.config/recipedeck-pepper.env` loeschen, sobald die Werte im Passwortmanager liegen. Der `age`-Private-Key (`~/recipedeck-age-key.txt`) liegt nur offline.
+- [ ] **Northflank-Token lokal ungueltig (`401`):** neuen Token anlegen und in `.env` eintragen, wenn Aenderungen per API statt Dashboard laufen sollen (Runbook beachten: ein Update ersetzt die komplette Environment).
+
 ### Reihenfolge der offenen Arbeit (festgelegt 2026-09-27)
 
 Alle offenen Punkte dieser Datei sind hier in Pakete gebuendelt. Jedes Paket ist ein PR bzw. ein zusammenhaengender Betriebsschritt; die Details stehen weiter unten an den verlinkten Stellen.
