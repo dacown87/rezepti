@@ -139,7 +139,7 @@ async function seedFullUser(sql: Sql, user: { id: string; email: string }, other
         errorMessage: 'HTTP 403',
         timestamp: '2026-10-10T00:00:00Z',
       },
-    })}::jsonb) returning id`;
+    })}::text::jsonb) returning id`;
 
   await sql`insert into public.import_quota_usage (user_id, day, count) values (${user.id}, current_date, 1)`;
 
@@ -260,6 +260,8 @@ async function main() {
 
     // 2. Deletion of A leaves nothing behind.
     const aHash = "0000000000000000000000000000000000000000000000000000000000000000";
+    // A previous (failed or interrupted) run may have left its row behind; the hash is fixed.
+    await sql`delete from private.deleted_accounts_log where user_hash = ${aHash}`;
     const [{ result }] = await sql`select private.delete_user_account(${a.id}::uuid, ${aHash}) as result`;
     const leftovers = [
       ...(await countReferences(sql, columns, a.id)),
@@ -306,9 +308,12 @@ async function main() {
     assert(bInvites.n === 1, `Expected exactly B's own sent invite to remain, found ${bInvites.n}.`);
 
     // 3b. Deletion without a hash (NULL parameter) still works and writes no log row.
+    // Compare before/after instead of assuming an empty table: staging and production
+    // hold real deletion-log rows.
+    const [logBefore] = await sql`select count(*)::int as n from private.deleted_accounts_log`;
     await sql`select private.delete_user_account(${b.id}::uuid)`;
-    const [logCount] = await sql`select count(*)::int as n from private.deleted_accounts_log`;
-    assert(logCount.n === 1, "Deleting without a hash wrote an unexpected deletion-log row.");
+    const [logAfter] = await sql`select count(*)::int as n from private.deleted_accounts_log`;
+    assert(logAfter.n === logBefore.n, "Deleting without a hash wrote an unexpected deletion-log row.");
 
     // 4. Idempotence of the contract: a second call reports user_not_found.
     let notFound = false;
@@ -327,6 +332,7 @@ async function main() {
   } finally {
     await sql`delete from public.byok_validation_policies where singleton_key like 'smoke-%'`.catch(() => {});
     await sql`delete from public.bug_reports where description in ('a bug', 'b bug')`.catch(() => {});
+    await sql`delete from private.deleted_accounts_log where user_hash = '0000000000000000000000000000000000000000000000000000000000000000'`.catch(() => {});
     // Clean up whatever is left of the seeded users (B, C, D and their households).
     for (const userId of createdUserIds) {
       await sql`select private.delete_user_account(${userId}::uuid)`.catch(() => {});
