@@ -113,13 +113,14 @@ export default function DatenschutzScreen() {
 
       <LegalHeading>8. E-Mails</LegalHeading>
       <LegalText>
-        Bestätigungs- und Passwort-Mails sowie Rezept-Einladungen versenden wir über Brevo Inc. (823 Congress Ave.
-        Ste 300, Austin, TX 78701, USA; Speicherorte Frankreich und Belgien). Bei einer Einladung übermittelst du uns
+        Bestätigungs- und Passwort-Mails sowie Rezept-Einladungen versenden wir über Brevo Germany GmbH
+        (Köpenicker Str. 126, 10179 Berlin; Speicherorte Frankreich und Belgien). Bei einer Einladung übermittelst du uns
         die E-Mail-Adresse der eingeladenen Person; wir nutzen sie nur für diese Einladung und weisen die eingeladene
         Person dabei auf diese Datenschutzerklärung hin. Rechtsgrundlage ist die Vertragserfüllung bzw. unser
         berechtigtes Interesse an der Zustellung (Art. 6 Abs. 1 lit. b bzw. lit. f DSGVO). Mit Brevo besteht ein
-        Vertrag zur Auftragsverarbeitung; die Übermittlung in die USA erfolgt auf Grundlage des EU-US Data Privacy
-        Framework bzw. der Standardvertragsklauseln.
+        Vertrag zur Auftragsverarbeitung. Brevo setzt Konzerngesellschaften als Unterauftragsverarbeiter ein, darunter
+        Brevo Inc. (USA); die Übermittlung in die USA erfolgt auf Grundlage des EU-US Data Privacy Framework bzw. der
+        Standardvertragsklauseln.
       </LegalText>
       <LegalExternalLink label="Datenschutzerklärung von Brevo" url="https://www.brevo.com/legal/privacypolicy/" />
 
@@ -206,8 +207,9 @@ export default function DatenschutzScreen() {
       <LegalText>
         Wir übermitteln personenbezogene Daten an folgende Empfänger: Supabase Pte. Ltd. (Singapur, EU-Region Irland)
         auf Grundlage der Standardvertragsklauseln; Groq UK Limited (Großbritannien, Verarbeitung auch in den USA) auf
-        Grundlage der Standardvertragsklauseln; Brevo Inc. (USA, Speicherorte Frankreich und Belgien) auf Grundlage
-        des EU-US Data Privacy Framework bzw. der Standardvertragsklauseln; Google Ireland Ltd. bzw. Google LLC (USA)
+        Grundlage der Standardvertragsklauseln; Brevo Germany GmbH (Deutschland, Speicherorte Frankreich und Belgien;
+        Unterauftragsverarbeiter u. a. Brevo Inc., USA, auf Grundlage des EU-US Data Privacy Framework bzw. der
+        Standardvertragsklauseln); Google Ireland Ltd. bzw. Google LLC (USA)
         für das E-Mail-Postfach auf Grundlage des EU-US Data Privacy Framework; Cloudflare für die Datensicherung in
         einem Speicher mit Standort in der EU. Beim direkten Laden von Rezeptbildern erhält außerdem die jeweilige
         Quell-Website bzw. deren CDN deine IP-Adresse.
