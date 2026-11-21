@@ -1,4 +1,4 @@
-import { LegalHeading, LegalList, LegalPage, LegalText } from '@/components/LegalPage';
+import { LegalExternalLink, LegalHeading, LegalList, LegalPage, LegalText } from '@/components/LegalPage';
 import { LEGAL_OPERATOR } from '@/utils/legal-operator';
 
 // Datenschutzerklärung (Art. 13 DSGVO). Describes what the app actually
@@ -43,6 +43,7 @@ export default function DatenschutzScreen() {
         Datenübermittlung erfolgt auf Grundlage der Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO); der
         Auftragsverarbeitungsvertrag ist Teil der allgemeinen Geschäftsbedingungen von Supabase.
       </LegalText>
+      <LegalExternalLink label="Datenschutzerklärung von Supabase" url="https://supabase.com/privacy" />
 
       <LegalHeading>4. Deine Inhalte</LegalHeading>
       <LegalText>
@@ -71,6 +72,7 @@ export default function DatenschutzScreen() {
         Server deine IP-Adresse kurzzeitig im Arbeitsspeicher (z. B. zur Ratenbegrenzung). Rechtsgrundlage ist unser
         berechtigtes Interesse an einem sicheren und stabilen Betrieb (Art. 6 Abs. 1 lit. f DSGVO).
       </LegalText>
+      <LegalExternalLink label="Datenschutzerklärung von Northflank" url="https://northflank.com/legal/privacy" />
 
       <LegalHeading>6. Rezept-Import mit KI</LegalHeading>
       <LegalText>
@@ -89,6 +91,7 @@ export default function DatenschutzScreen() {
         Anfrage an unseren Server gesendet, dort aber nicht gespeichert. Für die Nutzung deines eigenen Schlüssels
         gelten die Bedingungen und die Acceptable Use Policy von Groq.
       </LegalText>
+      <LegalExternalLink label="Datenschutzerklärung von Groq" url="https://groq.com/privacy-policy" />
       <LegalText>
         Importe über unseren Server-Schlüssel begrenzen wir auf ein Tageskontingent; dafür speichern wir kurzzeitig
         einen Tageszähler pro Nutzer und einen globalen Zähler. Verwendest du einen eigenen Groq-Schlüssel (BYOK),
@@ -118,8 +121,10 @@ export default function DatenschutzScreen() {
         Vertrag zur Auftragsverarbeitung; die Übermittlung in die USA erfolgt auf Grundlage des EU-US Data Privacy
         Framework bzw. der Standardvertragsklauseln.
       </LegalText>
+      <LegalExternalLink label="Datenschutzerklärung von Brevo" url="https://www.brevo.com/legal/privacypolicy/" />
 
-      <LegalHeading>9. Push-Benachrichtigungen (optional)</LegalHeading>
+      <LegalHeading>9.
+ Push-Benachrichtigungen (optional)</LegalHeading>
       <LegalText>
         Schaltest du Benachrichtigungen ein, speichern wir die von deinem Browser erzeugte Push-Adresse. Der Inhalt
         der Benachrichtigung ist verschlüsselt; der Push-Dienst sieht nur technische Zustelldaten. Die Zustellung
@@ -146,6 +151,7 @@ export default function DatenschutzScreen() {
         berechtigtes Interesse an einem sicheren, wiederherstellbaren Betrieb (Art. 6 Abs. 1 lit. f DSGVO, Art. 32
         DSGVO).
       </LegalText>
+      <LegalExternalLink label="Datenschutzerklärung von Cloudflare" url="https://www.cloudflare.com/privacypolicy/" />
 
       <LegalHeading>12. Speicherdauer</LegalHeading>
       <LegalText>
@@ -194,6 +200,7 @@ export default function DatenschutzScreen() {
         wird von Google Ireland Ltd. bzw. Google LLC (USA) bereitgestellt; die Übermittlung in die USA erfolgt auf
         Grundlage des EU-US Data Privacy Framework.
       </LegalText>
+      <LegalExternalLink label="Datenschutzerklärung von Google" url="https://policies.google.com/privacy" />
 
       <LegalHeading>16. Empfänger und Drittlandübermittlung</LegalHeading>
       <LegalText>

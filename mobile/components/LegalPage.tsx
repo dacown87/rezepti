@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { Linking, View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft } from '@/components/icons';
@@ -50,6 +50,21 @@ export function LegalHeading({ children }: { children: ReactNode }) {
 
 export function LegalText({ children }: { children: ReactNode }) {
   return <Text className="mb-3 text-sm leading-6 text-warm-800 dark:text-warm-100">{children}</Text>;
+}
+
+// External link to a provider's own privacy policy ("Weitere Informationen").
+export function LegalExternalLink({ label, url }: { label: string; url: string }) {
+  return (
+    <Pressable
+      onPress={() => {
+        void Linking.openURL(url);
+      }}
+      accessibilityRole="link"
+      accessibilityLabel={`${label} öffnen`}
+    >
+      <Text className="mb-3 text-sm leading-6 text-primary-500 underline dark:text-primary-400">{label}</Text>
+    </Pressable>
+  );
 }
 
 export function LegalList({ items }: { items: string[] }) {
