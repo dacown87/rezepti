@@ -207,7 +207,7 @@ overwrite the server key. Models come from `config.groq`.
 | `ingredient-dictionary.ts` | — | `extractIngredientName`, `isSimilar`, `parseIngredientFull` |
 | `ingredient-category-domain.ts` | 173 | Ingredient categories — **byte-identical duplicate** of `mobile/utils/ingredient-category-domain.ts` |
 | `bug-reports.ts` | 209 | Enums, rate-limit constants (5 reports / 60 min), type guards, metadata whitelist |
-| `retention.ts` | — | `startRetentionTimer`/`runRetentionSteps` — daily deletion of expired bug reports (12 months) and invites (30 days) |
+| `retention.ts` | — | `startRetentionTimer`/`runRetentionSteps` — daily deletion of expired bug reports (12 months), invites (30 days), deletion-log rows (35 days), import-quota counters (2 days) and Supabase auth audit-log rows (35 days) |
 | `deletion-log.ts` | — | `computeDeletionLogHash` — HMAC(user_id, `DELETION_LOG_PEPPER`) for the two-track deletion log |
 | `push.ts` | — | `configureVapid`, `sendPushToUser` — best-effort fan-out, 410/404 auto-prune |
 | `mail.ts` | 141 | `sendRecipeInviteEmail` — the **only** provider boundary (Brevo) |
