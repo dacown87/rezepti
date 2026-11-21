@@ -46,11 +46,59 @@ Public Key als `AGE_RECIPIENT` ablegen; `key.txt` offline sichern (neben
    ```bash
    age -d -i key.txt -o rezepti-<datum>.dump rezepti-<datum>.dump.age
    ```
-3. Staging-DB leeren und zurueckspielen:
+3. Zurueckspielen in **drei Schritten** (ein einzelner `pg_restore` scheitert, siehe
+   unten). Alle Schritte mit `--single-transaction --exit-on-error`: bei einem Fehler
+   wird zurueckgerollt und Staging bleibt unveraendert.
+
+   a) **`auth` nur Daten**, in Abhaengigkeitsreihenfolge (Tabellen im Schema `auth`
+      gehoeren `supabase_auth_admin`, `--clean` scheitert dort mit `must be owner`).
+      `schema_migrations` nicht zurueckspielen:
    ```bash
-   pg_restore --clean --if-exists --no-owner --no-privileges -d "$STAGING_DATABASE_URL" rezepti-<datum>.dump
+   : > auth.list
+   for t in users identities sessions refresh_tokens mfa_amr_claims; do
+     pg_restore -l rezepti-<datum>.dump | grep -E "TABLE DATA auth $t " >> auth.list
+   done
+   pg_restore -L auth.list --data-only --single-transaction --exit-on-error \
+     -d "$STAGING_DATABASE_URL" rezepti-<datum>.dump
    ```
-4. Smoke: `/api/v1/health`, Login mit Testkonto, Rezeptanzahl pruefen.
+   b) **`public` und `private`** mit Rechten, aber ohne `DEFAULT ACL`-Eintraege (die
+      gehoeren `supabase_admin`, `postgres` darf sie nicht setzen; sie sind
+      Supabase-Standard):
+   ```bash
+   pg_restore -l rezepti-<datum>.dump | grep -v "DEFAULT ACL" > full.list
+   pg_restore -L full.list --clean --if-exists --no-owner --single-transaction \
+     --exit-on-error -n public -n private -d "$STAGING_DATABASE_URL" rezepti-<datum>.dump
+   ```
+   c) **Rechte exakt wie in Production herstellen.** Der Dump enthaelt nur vergebene
+      Rechte, nicht entzogene; neu angelegte Tabellen bekommen die Supabase-Standardrechte
+      (`ALL` fuer `anon`/`authenticated`) zurueck, die die Migrationen in Production
+      entzogen haben. Deshalb erst alles entziehen, dann die Rechte aus dem Dump einspielen:
+   ```bash
+   psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+   begin;
+   revoke all on all tables    in schema public, private from anon, authenticated;
+   revoke all on all sequences in schema public, private from anon, authenticated;
+   revoke all on all functions in schema public, private from anon, authenticated;
+   commit;
+   SQL
+   pg_restore -l rezepti-<datum>.dump | grep -E " ACL (public|private) " \
+     | grep -v "DEFAULT ACL" > acl.list
+   pg_restore -L acl.list --single-transaction --exit-on-error \
+     -d "$STAGING_DATABASE_URL" rezepti-<datum>.dump
+   ```
+   Achtung: Zwischen dem `revoke` und dem Ende von `acl.list` hat `anon`/`authenticated`
+   keine Rechte (bei Staging egal, bei einem echten Notfall-Restore die App erst danach
+   freigeben).
+4. Pruefen: Zeilenzahlen (`auth.users`, `recipes`, `households`) gegen Production
+   vergleichen, `has_function_privilege('anon','private.delete_user_account(uuid,text)','EXECUTE')`
+   muss `false` sein, Tabellen-Grants fuer `anon`/`authenticated`/`service_role` per
+   `information_schema.role_table_grants` gegen Production diffen. Danach
+   `/api/v1/health`, Login mit Testkonto.
+5. **Danach die zurueckgespielten Nutzer in Staging loeschen** (der Dump enthaelt echte
+   Production-Daten).
+
+Ohne `aws`-CLI geht der Download auch mit `curl` (signiert selbst):
+`curl -f --aws-sigv4 "aws:amz:auto:s3" --user "$KEY_ID:$SECRET" -o rezepti.dump.age "$R2_ENDPOINT/<bucket>/daily/rezepti-<datum>.dump.age"`.
 
 ## Loesch-Nachlauf nach Restore (Pflicht)
 
@@ -71,7 +119,21 @@ nicht ueber eine Klartext-ID.
 
 ## Restore-Test-Protokoll
 
-- [ ] Realer Restore gegen `rezepti-staging` durchgefuehrt am: `______`
-- [ ] Smoke gruen (`/api/v1/health`, Login, Rezeptanzahl)
-- [ ] `auth.users`-Restore funktioniert (Supabase-Rollen/Grants beachten; falls
-      das scheitert, `auth.users` getrennt per `COPY` sichern)
+- [x] Realer Restore gegen `rezepti-staging` durchgefuehrt am: **2026-11-21** (Dump
+      `daily/rezepti-2026-11-21.dump.age`, mit dem Schluessel aus der Offline-Sicherung
+      entschluesselt, Schluessel passte zu `AGE_RECIPIENT`)
+- [x] Zeilenzahlen gleich wie Production: Nutzer 4, Rezepte 6, Haushalte 4,
+      Mitgliedschaften 4, Sammlungen 1, Bug-Reports 2; Policies 16, RLS-Tabellen 66;
+      Tabellen-Grants fuer `anon`/`authenticated`/`service_role` identisch (179/179 Zeilen);
+      `delete_user_account` fuer `anon`/`authenticated` gesperrt
+- [x] `auth`-Restore: funktioniert nur als getrennter Daten-Restore (Schritt 3a), nicht
+      per `--clean`
+- [ ] `/api/v1/health` und Login mit Testkonto gegen Staging (Staging wurde nicht als App
+      gestartet; nachholen oder beim Browser-Loeschtest mit abdecken)
+
+**Befunde aus dem Restore-Test 2026-11-21:**
+1. `--no-privileges` im Backup verlor alle `REVOKE` der Migrationen (nach Restore konnte
+   `anon` `private.delete_user_account` ausfuehren, 462 statt 392 Tabellen-Grants). Der
+   Backup-Workflow dumpt jetzt mit Rechten; der Restore braucht trotzdem Schritt 3c.
+2. Ein einzelner `pg_restore` ueber alle drei Schemas scheitert an `auth`
+   (`must be owner of table`) und an `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin`.
